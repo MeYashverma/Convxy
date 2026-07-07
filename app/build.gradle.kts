@@ -1,6 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
-import java.net.URL
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -18,7 +17,7 @@ plugins {
 
 android {
     namespace = "com.music.vivi"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
@@ -284,6 +283,7 @@ dependencies {
     implementation(project(":vivimusiccanvas"))
     implementation(project(":paxsenixlyrics"))
     implementation(project(":jiosaavn"))
+    implementation(project(":spotify"))
 
 
     implementation(libs.ktor.client.core)
@@ -299,10 +299,11 @@ dependencies {
     implementation(libs.timber)
     implementation(libs.smoothCorner)
     implementation(libs.lottie.compose)
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation(libs.androidx.material.icons.extended.v178)
     implementation(libs.work.runtime.ktx)
     implementation(libs.androidx.core.splashscreen)
 
     testImplementation(libs.junit)
 }
+
 

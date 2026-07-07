@@ -533,7 +533,7 @@ class MainActivity : ComponentActivity() {
                 val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
 
                 val (listenTogetherInTopBar) = rememberPreference(ListenTogetherInTopBarKey, defaultValue = true)
-                val navigationItems = remember(listenTogetherInTopBar) { 
+                val navigationItems = remember(listenTogetherInTopBar) {
                     if (listenTogetherInTopBar) {
                         Screens.MainScreens.filter { it != Screens.ListenTogether }
                     } else {
@@ -542,6 +542,11 @@ class MainActivity : ComponentActivity() {
                 }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
                 val (useFloatingNavBar) = rememberPreference(UseFloatingNavBarKey, defaultValue = false)
+                // The Settings tab is exclusive to the floating (iOS-style) tab bar —
+                // the classic nav bar keeps settings behind the top bar icon.
+                val floatingNavigationItems = remember(navigationItems) {
+                    navigationItems + Screens.Settings
+                }
                 val floatingNavBarScrollConnection = rememberFloatingTabBarScrollConnection()
                 val (liquidGlassGlobalEnabled) = rememberPreference(LiquidGlassGlobalEnabledKey, defaultValue = false)
                 val (liquidGlassVibrancy) = rememberPreference(LiquidGlassVibrancyKey, defaultValue = 1f)
@@ -1034,7 +1039,7 @@ class MainActivity : ComponentActivity() {
 
                                     if (useFloatingNavBar) {
                                         AppFloatingNavBar(
-                                            navigationItems = navigationItems,
+                                            navigationItems = floatingNavigationItems,
                                             currentRoute = currentRoute,
                                             onItemClick = onNavItemClick,
                                             scrollConnection = floatingNavBarScrollConnection,

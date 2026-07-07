@@ -43,6 +43,9 @@ import com.music.vivi.ui.screens.settings.AppearanceSettings
 import com.music.vivi.ui.screens.settings.CanvasSelection
 import com.music.vivi.ui.screens.settings.GlassEffectSettings
 import com.music.vivi.ui.screens.settings.BackupAndRestore
+import com.music.vivi.ui.screens.settings.SpotifyScreen
+import com.music.vivi.viewmodels.SpotifyImportViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.music.vivi.ui.screens.settings.ContentSettings
 import com.music.vivi.ui.screens.settings.DarkMode
 import com.music.vivi.ui.screens.settings.DiscordLoginScreen
@@ -383,6 +386,9 @@ fun NavGraphBuilder.navigationBuilder(
         BackupAndRestore(navController, scrollBehavior)
     }
 
+    composable("settings/spotify") {
+        SpotifyScreen(navController, scrollBehavior)
+    }
 
 
 

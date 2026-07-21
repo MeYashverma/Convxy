@@ -6,6 +6,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
@@ -15,7 +16,32 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 
 /**
- * A custom clickable modifier that removes the material ripple 
+ * Springy "wobble" on press for an existing [interactionSource]: the target scales down
+ * while held and overshoots back on release (low damping = bouncy). Use on components that
+ * already own an interaction source — nav bar items, glass buttons/pills — where
+ * [bounceClick] can't wrap the click. Icon/label only; doesn't affect layout.
+ */
+fun Modifier.pressWobble(
+    interactionSource: InteractionSource,
+    pressedScale: Float = 0.86f,
+) = composed {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) pressedScale else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.38f,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "pressWobble",
+    )
+    graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
+/**
+ * A custom clickable modifier that removes the material ripple
  * and provides a slight scale down animation on press.
  */
 fun Modifier.bounceClick(

@@ -45,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.music.vivi.ui.screens.Screens
+import com.music.vivi.ui.utils.pressWobble
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -128,7 +129,8 @@ fun AppNavigationRail(
                 icon = {
                     Icon(
                         painter = painterResource(id = iconRes),
-                        contentDescription = stringResource(screen.titleId)
+                        contentDescription = stringResource(screen.titleId),
+                        modifier = Modifier.pressWobble(interactionSource)
                     )
                 }
             )
@@ -234,7 +236,8 @@ fun AppNavigationBar(
                 icon = {
                     Icon(
                         painter = painterResource(id = iconRes),
-                        contentDescription = stringResource(screen.titleId)
+                        contentDescription = stringResource(screen.titleId),
+                        modifier = Modifier.pressWobble(interactionSource)
                     )
                 },
                 label = if (!slimNav) {

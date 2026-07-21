@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+import com.music.vivi.ui.utils.pressWobble
 
 // Kyant0/Capsule's continuous (superellipse) circle instead of CircleShape's
 // circular-arc corners — same reasoning as the floating nav bar/search pill:
@@ -58,9 +59,12 @@ fun GlassCircleButton(
     }
     val contentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
 
+    val interactionSource = remember { MutableInteractionSource() }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
+            .pressWobble(interactionSource)
             .size(size)
             .clip(GlassCircleShape)
             .then(backgroundModifier)
@@ -69,7 +73,7 @@ fun GlassCircleButton(
                 onLongClick = onLongClick,
                 role = Role.Button,
                 indication = ripple(bounded = false, radius = size / 2),
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
             )
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {

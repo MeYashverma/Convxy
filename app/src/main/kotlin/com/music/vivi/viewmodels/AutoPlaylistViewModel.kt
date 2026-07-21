@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -96,6 +97,24 @@ constructor(
                 "uploaded" -> syncUtils.syncUploadedSongsSuspend()
             }
             _isRefreshing.value = false
+        }
+    }
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning = _isScanning.asStateFlow()
+
+    /** Scans device audio into the library (isLocal songs). Used by the "local" auto playlist. */
+    fun scanLocal(context: Context) {
+        if (_isScanning.value) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _isScanning.value = true
+            try {
+                com.music.vivi.utils.LocalAudioScanner.scanAndInsert(context, database)
+            } catch (e: Exception) {
+                Timber.tag("AutoPlaylistViewModel").e(e, "local scan failed")
+            } finally {
+                _isScanning.value = false
+            }
         }
     }
 }

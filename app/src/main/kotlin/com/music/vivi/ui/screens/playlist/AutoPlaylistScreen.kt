@@ -34,8 +34,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -155,6 +160,34 @@ fun AutoPlaylistScreen(
         }
     }
 
+    // Local music: storage permission + device scan, so the Apple-styled local view
+    // can populate/refresh the library itself (no separate plain screen needed).
+    val isLocal = viewModel.playlist == "local"
+    val isScanning by viewModel.isScanning.collectAsState()
+    val audioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+    var hasAudioPermission by remember { mutableStateOf(false) }
+    val scanPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasAudioPermission = granted
+        if (granted) viewModel.scanLocal(context)
+    }
+    LaunchedEffect(isLocal) {
+        if (isLocal) {
+            hasAudioPermission = context.checkSelfPermission(audioPermission) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+    LaunchedEffect(isLocal, hasAudioPermission) {
+        if (isLocal && hasAudioPermission && songs.isEmpty() && !isScanning) {
+            viewModel.scanLocal(context)
+        }
+    }
+
     val (titleRes, iconRes) = when (viewModel.playlist) {
         "liked" -> R.string.liked to R.drawable.favorite
         "downloaded" -> R.string.downloaded to R.drawable.download
@@ -254,6 +287,34 @@ fun AutoPlaylistScreen(
                                 text = stringResource(R.string.playlist_is_empty),
                                 modifier = Modifier.padding(top = 100.dp),
                             )
+                        }
+                        if (isLocal) {
+                            item(key = "local_scan_action") {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    if (isScanning) {
+                                        CircularProgressIndicator()
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                if (hasAudioPermission) viewModel.scanLocal(context)
+                                                else scanPermissionLauncher.launch(audioPermission)
+                                            },
+                                        ) {
+                                            Text(
+                                                stringResource(
+                                                    if (hasAudioPermission) R.string.scan_device
+                                                    else R.string.grant_permission
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -513,6 +574,27 @@ fun AutoPlaylistScreen(
                         }
 
                         Spacer(Modifier.weight(1f))
+
+                        if (isLocal) {
+                            GlassCircleButton(
+                                onClick = { if (!isScanning) viewModel.scanLocal(context) },
+                            ) {
+                                if (isScanning) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = onTint,
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(R.drawable.refresh),
+                                        contentDescription = null,
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.width(8.dp))
+                        }
 
                         GlassCircleButton(onClick = { isSearching = true }) {
                             Icon(

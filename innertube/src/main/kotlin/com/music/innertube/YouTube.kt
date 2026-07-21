@@ -578,18 +578,22 @@ object YouTube {
         PlaylistPage(
             playlist = PlaylistItem(
                 id = playlistId,
-                title = header?.title?.runs?.firstOrNull()?.text!!,
-                author = header.straplineTextOne?.runs?.firstOrNull()?.let {
+                // Auto playlists like Liked Music (LM) ship a minimal header: no cover
+                // thumbnail, no shuffle button. Force-unwrapping those threw an NPE that
+                // runCatching swallowed, so the whole playlist (and its songs) silently
+                // failed to load. Parse defensively instead.
+                title = header?.title?.runs?.firstOrNull()?.text ?: "",
+                author = header?.straplineTextOne?.runs?.firstOrNull()?.let {
                     Artist(
                         name = it.text,
                         id = it.navigationEndpoint?.browseEndpoint?.browseId
                     )
                 },
-                songCountText = header.secondSubtitle?.runs?.firstOrNull()?.text,
-                thumbnail = header.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url!!,
+                songCountText = header?.secondSubtitle?.runs?.firstOrNull()?.text,
+                thumbnail = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url,
                 playEndpoint = null,
-                shuffleEndpoint = header.buttons.lastOrNull()?.menuRenderer?.items?.firstOrNull()?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint!!,
-                radioEndpoint = header.buttons.getOrNull(2)?.menuRenderer?.items?.find {
+                shuffleEndpoint = header?.buttons?.lastOrNull()?.menuRenderer?.items?.firstOrNull()?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
+                radioEndpoint = header?.buttons?.getOrNull(2)?.menuRenderer?.items?.find {
                     it.menuNavigationItemRenderer?.icon?.iconType == "MIX"
                 }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
                 isEditable = editable

@@ -1200,6 +1200,7 @@ fun LocalPlaylistHeader(
             }
 
             Box(
+                contentAlignment = Alignment.BottomEnd,
                 modifier = if (editable) {
                     Modifier.clickable { showEditNoteDialog = true }
                 } else {
@@ -1207,6 +1208,24 @@ fun LocalPlaylistHeader(
                 },
             ) {
                 AlbumStyleHeroImage(artworkUrl = heroUrl)
+                if (editable) {
+                    Box(
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .clickable { showEditNoteDialog = true },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.edit),
+                            contentDescription = stringResource(R.string.edit_playlist_cover),
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(16.dp))

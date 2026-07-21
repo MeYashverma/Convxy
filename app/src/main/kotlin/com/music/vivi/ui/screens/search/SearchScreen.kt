@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -29,7 +32,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,6 +58,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +68,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -88,6 +94,8 @@ import com.music.vivi.constants.SearchSourceKey
 import com.music.vivi.db.entities.SearchHistory
 import com.music.vivi.playback.queues.YouTubeQueue
 import com.music.vivi.ui.component.NavigationTitle
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
 import com.music.vivi.viewmodels.MoodAndGenresViewModel
@@ -102,12 +110,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.music.vivi.ui.component.LocalMenuState
@@ -116,6 +123,25 @@ import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.constants.GridThumbnailHeight
 import com.music.vivi.constants.GridItemsSizeKey
 import com.music.vivi.constants.GridItemSize
+import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.rememberHeroSource
+import com.music.vivi.ui.component.rememberHeroTint
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.component.LocalAppBackdrop
+import com.music.vivi.ui.component.LocalGlassEffectConfig
+import com.music.vivi.ui.component.isGlassAllowed
+import com.music.vivi.ui.component.liquidGlass
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.music.vivi.ui.component.backdrop.backdrops.layerBackdrop
+import com.music.vivi.ui.component.backdrop.catalog.utils.InteractiveHighlight
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.text.font.FontWeight
+import com.music.vivi.ui.component.GlassCircleButton
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.offset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,55 +169,35 @@ fun SearchScreen(
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var showSearchContent by remember { mutableStateOf(false) }
 
-    LaunchedEffect(searchActive) {
-        if (searchActive) {
-            // Small delay to let the initial expansion animation run smoothly
-            // before composing the potentially heavy search results/history
-            kotlinx.coroutines.delay(100)
-            showSearchContent = true
-        } else {
-            showSearchContent = false
-        }
+    // Search pill entrance animation
+    val pillEntranceProgress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        pillEntranceProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        )
     }
-
-    val searchBarHorizontalPadding by animateDpAsState(
-        targetValue = if (searchActive) 0.dp else 16.dp,
-        animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing),
-        label = "SearchBarHorizontalPadding"
-    )
-    val searchBarTopPadding by animateDpAsState(
-        targetValue = if (searchActive) 0.dp else 8.dp,
-        animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing),
-        label = "SearchBarTopPadding"
-    )
 
     val onSearch: (String) -> Unit = remember {
         { searchQuery ->
             if (searchQuery.isNotEmpty()) {
                 focusManager.clearFocus()
-                println("[LINK_PARSE_DEBUG] onSearch initiated for: $searchQuery")
-                
                 when (val parsedUrl = YouTubeUrlParser.parse(searchQuery)) {
                     is YouTubeUrlParser.ParsedUrl.Video -> {
-                        println("[LINK_PARSE_DEBUG] Performing direct playback for Video ID: ${parsedUrl.id}")
                         playerConnection?.playQueue(
-                            YouTubeQueue(
-                                WatchEndpoint(videoId = parsedUrl.id),
-                            ),
+                            YouTubeQueue(WatchEndpoint(videoId = parsedUrl.id)),
                         )
                     }
-
                     is YouTubeUrlParser.ParsedUrl.Artist -> {
-                        println("[LINK_PARSE_DEBUG] Navigating to Artist: ${parsedUrl.id}")
                         navController.navigate("artist/${parsedUrl.id}")
                     }
-
                     null -> {
-                        println("[LINK_PARSE_DEBUG] No URL detected in search action")
                         navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
                     }
                 }
-
                 if (!pauseSearchHistory) {
                     coroutineScope.launch(Dispatchers.IO) {
                         database.query {
@@ -207,29 +213,19 @@ fun SearchScreen(
         { searchQuery ->
             if (searchQuery.isNotEmpty()) {
                 focusManager.clearFocus()
-                println("[LINK_PARSE_DEBUG] onSearchFromSuggestion initiated for: $searchQuery")
-                
                 when (val parsedUrl = YouTubeUrlParser.parse(searchQuery)) {
                     is YouTubeUrlParser.ParsedUrl.Video -> {
-                        println("[LINK_PARSE_DEBUG] Performing direct playback from suggestion for Video ID: ${parsedUrl.id}")
                         playerConnection?.playQueue(
-                            YouTubeQueue(
-                                WatchEndpoint(videoId = parsedUrl.id),
-                            ),
+                            YouTubeQueue(WatchEndpoint(videoId = parsedUrl.id)),
                         )
                     }
-
                     is YouTubeUrlParser.ParsedUrl.Artist -> {
-                        println("[LINK_PARSE_DEBUG] Navigating to Artist from suggestion: ${parsedUrl.id}")
                         navController.navigate("artist/${parsedUrl.id}")
                     }
-
                     null -> {
-                        println("[LINK_PARSE_DEBUG] No URL detected in suggestion action")
                         navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
                     }
                 }
-
                 if (!pauseSearchHistory) {
                     coroutineScope.launch(Dispatchers.IO) {
                         database.query {
@@ -241,178 +237,256 @@ fun SearchScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
-            ) {
-                SearchBar(
-                    query = query.text,
-                    onQueryChange = { query = TextFieldValue(it) },
-                    onSearch = { 
-                        onSearch(it)
-                        searchActive = false
-                    },
-                    active = searchActive,
-                    onActiveChange = { searchActive = it },
-                    placeholder = {
-                        DynamicSearchPlaceholder(
-                            searchSource = searchSource,
-                            style = TextStyle(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                fontSize = 16.sp
-                            )
-                        )
-                    },
-                    leadingIcon = {
-                        IconButton(onClick = {
-                            if (searchActive) {
-                                searchActive = false
-                                query = TextFieldValue("") // Clear text when dismissing search
-                            } else {
-                                searchActive = true // Focus search instead of navigating back
-                            }
-                        }) {
-                            Icon(
-                                painter = painterResource(if (searchActive) R.drawable.arrow_back else R.drawable.search),
-                                contentDescription = if (searchActive) stringResource(R.string.dismiss) else null,
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    },
-                    trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (query.text.isNotEmpty()) {
-                                IconButton(onClick = { query = TextFieldValue("") }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.close),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = {
-                                    searchSource = if (searchSource == SearchSource.ONLINE) 
-                                        SearchSource.LOCAL else SearchSource.ONLINE
+    val tint = AppleTokens.BgElevated
+    val onTint = AppleTokens.onColor(tint)
+    val heroSource = rememberHeroSource(staticArt = null)
+    val heroBackdrop = rememberLayerBackdrop()
+
+    HeroBackground(
+        tint = tint,
+        heroSource = heroSource,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+      CompositionLocalProvider(
+          LocalAppBackdrop provides heroBackdrop,
+          LocalContentColor provides onTint
+      ) {
+        val chromeShape = ContinuousRoundedRectangle(percent = 50)
+        val glassConfig = LocalGlassEffectConfig.current
+        val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+        val pillShape = ContinuousRoundedRectangle(percent = 50)
+        val accent = com.music.vivi.ui.theme.LocalAccentColor.current
+
+        Scaffold(
+            topBar = {
+                Column(
+                    modifier = Modifier.background(Color.Transparent)
+                ) {
+                    Spacer(Modifier.height(40.dp))
+                    Text(
+                        text = stringResource(R.string.search).lowercase(),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = onTint,
+                        fontSize = 42.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
+                    )
+
+                    AnimatedVisibility(
+                        visible = query.text.isEmpty(),
+                        enter = expandVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeIn(),
+                        exit = shrinkVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeOut()
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SecondaryTabRow(
+                                selectedTabIndex = selectedTabIndex,
+                                containerColor = Color.Transparent,
+                                indicator = {
+                                    Box(
+                                        modifier = Modifier
+                                            .tabIndicatorOffset(selectedTabIndex)
+                                            .fillMaxWidth(),
+                                        contentAlignment = Alignment.BottomCenter
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(32.dp)
+                                                .height(3.dp)
+                                                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                                .background(accent)
+                                        )
+                                    }
                                 }
                             ) {
-                                Icon(
-                                    painter = painterResource(
-                                        when (searchSource) {
-                                            SearchSource.LOCAL -> R.drawable.library_music
-                                            SearchSource.ONLINE -> R.drawable.globe_search
-                                        }
-                                    ),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurface
+                                Tab(
+                                    selected = selectedTabIndex == 0,
+                                    onClick = { selectedTabIndex = 0 },
+                                    selectedContentColor = accent,
+                                    unselectedContentColor = onTint.copy(alpha = 0.6f),
+                                    text = { Text(stringResource(R.string.tab_explore)) }
+                                )
+                                Tab(
+                                    selected = selectedTabIndex == 1,
+                                    onClick = { selectedTabIndex = 1 },
+                                    selectedContentColor = accent,
+                                    unselectedContentColor = onTint.copy(alpha = 0.6f),
+                                    text = { Text(stringResource(R.string.tab_Suggestions)) }
+                                )
+                                Tab(
+                                    selected = selectedTabIndex == 2,
+                                    onClick = { selectedTabIndex = 2 },
+                                    selectedContentColor = accent,
+                                    unselectedContentColor = onTint.copy(alpha = 0.6f),
+                                    text = { Text(stringResource(R.string.tab_album)) }
                                 )
                             }
                         }
-                    },
-                    colors = SearchBarDefaults.colors(
-                        containerColor = if (pureBlack) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
-                    ),
+                    }
+                }
+            },
+            bottomBar = {
+                // Finger-tracking glow, same as the nav bar puck's
+                // InteractiveHighlight: a soft radial light follows the touch
+                // point across the glass pill. Non-consuming, so the text field
+                // and pill buttons still receive taps.
+                val pillGlow = remember(coroutineScope) {
+                    InteractiveHighlight(animationScope = coroutineScope)
+                }
+                // Search input pill docked above the keyboard. Morphs up from the
+                // nav bar search icon position (rise + horizontal grow).
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = searchBarHorizontalPadding)
-                        .padding(top = searchBarTopPadding)
-                ) {
-                    if (showSearchContent) {
-                        when (searchSource) {
-                            SearchSource.LOCAL -> LocalSearchScreen(
-                                query = query.text,
-                                navController = navController,
-                                onDismiss = { searchActive = false },
-                                pureBlack = pureBlack
-                            )
-                            SearchSource.ONLINE -> OnlineSearchScreen(
-                                query = query.text,
-                                onQueryChange = { query = it },
-                                navController = navController,
-                                onSearch = {
-                                    onSearchFromSuggestion(it)
-                                    searchActive = false
-                                },
-                                onDismiss = { searchActive = false },
-                                pureBlack = pureBlack
-                            )
+                        .imePadding()
+                        .navigationBarsPadding()
+                        .graphicsLayer {
+                            val p = pillEntranceProgress.value
+                            alpha = p
+                            translationY = (1f - p) * 48.dp.toPx()
+                            scaleX = 0.2f + 0.8f * p
+                            scaleY = 0.7f + 0.3f * p
                         }
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = !searchActive,
-                    enter = expandVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeIn(),
-                    exit = shrinkVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeOut()
-                ) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        SecondaryTabRow(
-                            selectedTabIndex = selectedTabIndex,
-                            containerColor = Color.Transparent,
-                            indicator = {
-                                Box(
-                                    modifier = Modifier
-                                        .tabIndicatorOffset(selectedTabIndex)
-                                        .fillMaxWidth(),
-                                    contentAlignment = Alignment.BottomCenter
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(32.dp)
-                                            .height(3.dp)
-                                            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                                            .background(MaterialTheme.colorScheme.primary)
-                                    )
-                                }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .height(52.dp)
+                        .clip(pillShape)
+                        .then(
+                            if (useGlass) {
+                                Modifier.liquidGlass(
+                                    config = glassConfig,
+                                    shape = pillShape,
+                                    highlightAlpha = 0.3f,
+                                )
+                            } else {
+                                Modifier.background(onTint.copy(alpha = 0.15f))
                             }
+                        )
+                        // Touch glow over the glass, under the pill's content.
+                        .then(pillGlow.gestureModifier)
+                        .then(pillGlow.modifier)
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .bounceClick { navController.navigateUp() }
+                            .padding(12.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_back),
+                            contentDescription = stringResource(R.string.dismiss),
+                            tint = onTint,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (query.text.isEmpty()) {
+                            DynamicSearchPlaceholder(
+                                searchSource = searchSource,
+                                style = TextStyle(
+                                    color = onTint.copy(alpha = 0.6f),
+                                    fontSize = 16.sp
+                                )
+                            )
+                        }
+                        BasicTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = onTint, fontSize = 16.sp),
+                            cursorBrush = SolidColor(onTint),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { onSearch(query.text) }),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester)
+                        )
+                    }
+                    if (query.text.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .bounceClick { query = TextFieldValue("") }
+                                .padding(12.dp)
                         ) {
-                            Tab(
-                                selected = selectedTabIndex == 0,
-                                onClick = { selectedTabIndex = 0 },
-                                selectedContentColor = MaterialTheme.colorScheme.primary,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                text = { Text(stringResource(R.string.tab_explore)) }
-                            )
-                            Tab(
-                                selected = selectedTabIndex == 1,
-                                onClick = { selectedTabIndex = 1 },
-                                selectedContentColor = MaterialTheme.colorScheme.primary,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                text = { Text(stringResource(R.string.tab_Suggestions)) }
-                            )
-                            Tab(
-                                selected = selectedTabIndex == 2,
-                                onClick = { selectedTabIndex = 2 },
-                                selectedContentColor = MaterialTheme.colorScheme.primary,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                text = { Text(stringResource(R.string.tab_album)) }
+                            Icon(
+                                painter = painterResource(R.drawable.close),
+                                contentDescription = null,
+                                tint = onTint,
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .bounceClick {
+                                searchSource = if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
+                            }
+                            .padding(12.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                when (searchSource) {
+                                    SearchSource.LOCAL -> R.drawable.library_music
+                                    SearchSource.ONLINE -> R.drawable.globe_search
+                                }
+                            ),
+                            contentDescription = null,
+                            tint = onTint,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
-            }
-        },
-        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        val bottomPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
-        
-        Box(
-            modifier = Modifier
-                .padding(top = paddingValues.calculateTopPadding())
-                .fillMaxSize()
-        ) {
-            if (!searchActive) {
-                val tabPadding = PaddingValues(bottom = bottomPadding)
-                when (selectedTabIndex) {
-                    0 -> ExploreTabContent(navController = navController, contentPadding = tabPadding)
-                    1 -> SuggestionsTabContent(navController = navController, contentPadding = tabPadding)
-                    2 -> AlbumsTabContent(navController = navController, contentPadding = tabPadding)
+            },
+            containerColor = Color.Transparent
+        ) { paddingValues ->
+            val bottomPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
+            
+            Box(
+                modifier = Modifier
+                    // Capture the results content into heroBackdrop (the same
+                    // backdrop the pill samples via LocalAppBackdrop). Without
+                    // this the pill's liquid glass had an EMPTY backdrop and
+                    // rendered as flat tint — this is what makes it consume
+                    // what's scrolling behind it, exactly like the nav bar's
+                    // appBackdrop in MainActivity.
+                    .layerBackdrop(heroBackdrop)
+                    .padding(
+                        top = paddingValues.calculateTopPadding(),
+                        bottom = paddingValues.calculateBottomPadding(),
+                    )
+                    .fillMaxSize()
+            ) {
+                if (query.text.isEmpty()) {
+                    val tabPadding = PaddingValues(bottom = bottomPadding + 50.dp)
+                    when (selectedTabIndex) {
+                        0 -> ExploreTabContent(navController = navController, contentPadding = tabPadding)
+                        1 -> SuggestionsTabContent(navController = navController, contentPadding = tabPadding)
+                        2 -> AlbumsTabContent(navController = navController, contentPadding = tabPadding)
+                    }
+                } else {
+                    when (searchSource) {
+                        SearchSource.LOCAL -> LocalSearchScreen(
+                            query = query.text,
+                            navController = navController,
+                            onDismiss = { },
+                            pureBlack = pureBlack
+                        )
+                        SearchSource.ONLINE -> OnlineSearchScreen(
+                            query = query.text,
+                            onQueryChange = { query = it },
+                            navController = navController,
+                            onSearch = { onSearchFromSuggestion(it) },
+                            onDismiss = { },
+                            pureBlack = pureBlack
+                        )
+                    }
                 }
             }
         }
+      }
     }
 
     // Handle lifecycle events to manage keyboard visibility
@@ -420,22 +494,17 @@ fun SearchScreen(
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
-                    // Always hide keyboard when resuming if player is expanded
                     if (isPlayerExpanded) {
                         keyboardController?.hide()
                         focusManager.clearFocus()
                     } else if (isFirstLaunch) {
-                        // Only request focus on first launch when player is not expanded
                         try {
                             focusRequester.requestFocus()
-                        } catch (e: Exception) {
-                            // Ignore focus request failures
-                        }
+                        } catch (e: Exception) {}
                         isFirstLaunch = false
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
-                    // Clear focus when pausing to prevent keyboard from showing on resume
                     focusManager.clearFocus()
                     keyboardController?.hide()
                 }
@@ -443,13 +512,10 @@ fun SearchScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        
-        // Initial check - hide keyboard if player is expanded
         if (isPlayerExpanded) {
             keyboardController?.hide()
             focusManager.clearFocus()
         }
-        
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
@@ -472,7 +538,6 @@ fun ExploreTabContent(
             item {
                 NavigationTitle(title = section.title)
             }
-            // chunk items into rows of 2
             val rows = section.items.chunked(2)
             items(rows) { row ->
                 Row(
@@ -488,8 +553,8 @@ fun ExploreTabContent(
                                 .padding(6.dp)
                                 .height(64.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainer)
-                                .clickable {
+                                .background(LocalContentColor.current.copy(alpha = 0.1f))
+                                .bounceClick {
                                     navController.navigate(
                                         "youtube_browse/${item.endpoint.browseId}?params=${item.endpoint.params}"
                                     )
@@ -504,7 +569,6 @@ fun ExploreTabContent(
                             )
                         }
                     }
-                    // fill empty slot if row has only 1 item
                     repeat(2 - row.size) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
@@ -576,7 +640,7 @@ fun AlbumsTabContent(
                     coroutineScope = coroutineScope,
                     fillMaxWidth = true,
                     modifier = Modifier
-                        .combinedClickable(
+                        .combinedBounceClick(
                             onClick = {
                                 navController.navigate("album/${album.id}")
                             },
@@ -595,4 +659,19 @@ fun AlbumsTabContent(
             }
         }
     }
+}
+
+@Composable
+fun DynamicSearchPlaceholder(searchSource: SearchSource, style: TextStyle) {
+    Text(
+        text = stringResource(
+            when (searchSource) {
+                SearchSource.ONLINE -> R.string.search_yt_music
+                SearchSource.LOCAL -> R.string.search_library
+            }
+        ),
+        style = style,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
 }

@@ -951,7 +951,7 @@ fun HomeScreen(
 
             LazyColumn(
                 state = lazylistState,
-                modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
+                modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value, allowTopPull = false),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
             ) {
                 item {

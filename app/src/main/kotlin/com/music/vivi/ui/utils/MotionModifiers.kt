@@ -31,8 +31,11 @@ import kotlin.math.sign
  * translating the content with progressive resistance, and springs it back on release.
  * It never consumes normal in-bounds scroll, so scrolling itself can't break — worst case
  * the bounce feel just needs tuning. Gated by [enabled] (a settings toggle).
+ *
+ * @param allowTopPull set false on screens whose list is inside a PullToRefreshBox, so the
+ *   top-edge pull is left for pull-to-refresh instead of being eaten by the bounce.
  */
-fun Modifier.iosOverscroll(enabled: Boolean): Modifier = composed {
+fun Modifier.iosOverscroll(enabled: Boolean, allowTopPull: Boolean = true): Modifier = composed {
     if (!enabled) return@composed this
 
     val maxPull = with(LocalDensity.current) { 160.dp.toPx() }
@@ -62,6 +65,8 @@ fun Modifier.iosOverscroll(enabled: Boolean): Modifier = composed {
                 source: NestedScrollSource,
             ): Offset {
                 if (available.y == 0f) return Offset.Zero
+                // Leave the top-edge pull to pull-to-refresh when asked.
+                if (available.y > 0f && !allowTopPull && offset.value <= 0f) return Offset.Zero
                 // Progressive resistance: harder to pull the further it is stretched.
                 val resistance = (1f - abs(offset.value) / maxPull).coerceIn(0f, 1f) * 0.5f
                 val target = (offset.value + available.y * resistance).coerceIn(-maxPull, maxPull)

@@ -387,7 +387,7 @@ fun LibraryMixScreen(
                 LibraryViewType.LIST ->
                     LazyColumn(
                         state = lazyListState,
-                        modifier = Modifier.iosOverscroll(iosOverscroll),
+                        modifier = Modifier.iosOverscroll(iosOverscroll, allowTopPull = false),
                         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                     ) {
                         item(key = "header_title") {

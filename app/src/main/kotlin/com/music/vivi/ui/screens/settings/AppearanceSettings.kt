@@ -25,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -55,14 +54,6 @@ import com.music.vivi.constants.CanvasThumbnailAnimationKey
 import com.music.vivi.constants.ChipSortTypeKey
 import com.music.vivi.constants.CropAlbumArtKey
 import com.music.vivi.constants.DefaultOpenTabKey
-import com.music.vivi.constants.LiquidGlassBlurRadiusKey
-import com.music.vivi.constants.LiquidGlassGlobalEnabledKey
-import com.music.vivi.constants.LiquidGlassLensAmountKey
-import com.music.vivi.constants.LiquidGlassMiniPlayerEnabledKey
-import com.music.vivi.constants.LiquidGlassNavBarEnabledKey
-import com.music.vivi.constants.LiquidGlassSurfaceOpacityKey
-import com.music.vivi.constants.LiquidGlassVibrancyKey
-import com.music.vivi.constants.UseFloatingNavBarKey
 import com.music.vivi.constants.DensityScale
 import com.music.vivi.constants.DensityScaleKey
 import com.music.vivi.constants.DynamicThemeKey
@@ -128,29 +119,6 @@ fun AppearanceSettings(
     activity: Activity,
     snackbarHostState: SnackbarHostState,
 ) {
-    // Liquid Glass settings - promoted to top
-    val (liquidGlassVibrancy, onLiquidGlassVibrancyChange) = rememberPreference(
-        LiquidGlassVibrancyKey,
-        defaultValue = 1.2f
-    )
-    val (liquidGlassBlurRadius, onLiquidGlassBlurRadiusChange) = rememberPreference(
-        LiquidGlassBlurRadiusKey,
-        defaultValue = 2f
-    )
-    val (liquidGlassLensAmount, onLiquidGlassLensAmountChange) = rememberPreference(
-        LiquidGlassLensAmountKey,
-        defaultValue = 0.6f
-    )
-    val (liquidGlassSurfaceOpacity, onLiquidGlassSurfaceOpacityChange) = rememberPreference(
-        LiquidGlassSurfaceOpacityKey,
-        defaultValue = 0.65f
-    )
-
-    // Hidden defaults enforced as Always-ON
-    val (_, _) = rememberPreference(LiquidGlassGlobalEnabledKey, defaultValue = true)
-    val (_, _) = rememberPreference(LiquidGlassNavBarEnabledKey, defaultValue = true)
-    val (_, _) = rememberPreference(LiquidGlassMiniPlayerEnabledKey, defaultValue = true)
-    val (_, _) = rememberPreference(UseFloatingNavBarKey, defaultValue = true)
     val (_, _) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
     val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
     val (_, _) = rememberPreference(EnableDynamicIconKey, defaultValue = true)
@@ -451,72 +419,13 @@ fun AppearanceSettings(
     ) {
         Material3SettingsGroup(
             title = stringResource(R.string.liquid_glass),
-            items = buildList {
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.liquid_glass_vibrancy)) },
-                        description = { Text(String.format("%.1f", liquidGlassVibrancy)) },
-                        trailingContent = {
-                            Slider(
-                                value = liquidGlassVibrancy,
-                                onValueChange = onLiquidGlassVibrancyChange,
-                                valueRange = 0f..2f,
-                                modifier = Modifier.fillMaxWidth(0.6f)
-                            )
-                        },
-                        onClick = {}
-                    )
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.liquid_glass)) },
+                    onClick = { navController.navigate("settings/appearance/liquidglass") }
                 )
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.sliders),
-                        title = { Text(stringResource(R.string.liquid_glass_blur_radius)) },
-                        description = { Text("${liquidGlassBlurRadius.roundToInt()}dp") },
-                        trailingContent = {
-                            Slider(
-                                value = liquidGlassBlurRadius,
-                                onValueChange = onLiquidGlassBlurRadiusChange,
-                                valueRange = 0f..100f,
-                                modifier = Modifier.fillMaxWidth(0.6f)
-                            )
-                        },
-                        onClick = {}
-                    )
-                )
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.liquid_glass_lens_amount)) },
-                        description = { Text("${(liquidGlassLensAmount * 100).roundToInt()}%") },
-                        trailingContent = {
-                            Slider(
-                                value = liquidGlassLensAmount,
-                                onValueChange = onLiquidGlassLensAmountChange,
-                                valueRange = 0f..1f,
-                                modifier = Modifier.fillMaxWidth(0.6f)
-                            )
-                        },
-                        onClick = {}
-                    )
-                )
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.liquid_glass_surface_opacity)) },
-                        description = { Text("${(liquidGlassSurfaceOpacity * 100).roundToInt()}%") },
-                        trailingContent = {
-                            Slider(
-                                value = liquidGlassSurfaceOpacity,
-                                onValueChange = onLiquidGlassSurfaceOpacityChange,
-                                valueRange = 0f..1f,
-                                modifier = Modifier.fillMaxWidth(0.6f)
-                            )
-                        },
-                        onClick = {}
-                    )
-                )
-            }
+            )
         )
 
         Spacer(modifier = Modifier.height(27.dp))

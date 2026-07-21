@@ -124,6 +124,7 @@ import com.music.vivi.constants.GridThumbnailHeight
 import com.music.vivi.constants.GridItemsSizeKey
 import com.music.vivi.constants.GridItemSize
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.HomeImageBackground
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
@@ -252,6 +253,7 @@ fun SearchScreen(
         showDefaultIcon = false,
         modifier = Modifier.fillMaxSize(),
     ) {
+      HomeImageBackground()
       CompositionLocalProvider(
           LocalAppBackdrop provides heroBackdrop,
           LocalContentColor provides onTint

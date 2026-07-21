@@ -122,7 +122,7 @@ fun AppearanceSettings(
     val (_, _) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
     val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
     val (_, _) = rememberPreference(EnableDynamicIconKey, defaultValue = true)
-    val (_, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = true)
+    val (_, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = false)
 
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
         EnableHighRefreshRateKey,
@@ -144,7 +144,7 @@ fun AppearanceSettings(
     val (playerBackground, onPlayerBackgroundChange) =
         rememberEnumPreference(
             PlayerBackgroundStyleKey,
-            defaultValue = PlayerBackgroundStyle.GRADIENT,
+            defaultValue = PlayerBackgroundStyle.APPLE_MUSIC,
         )
 
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(
@@ -168,9 +168,9 @@ fun AppearanceSettings(
         LyricsAnimationStyleKey,
         defaultValue = LyricsAnimationStyle.VIVIMUSIC_1
     )
-    val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 24f)
+    val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 30f)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
-    val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = false)
+    val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = true)
     val (appleMusicLyricsBlur, onAppleMusicLyricsBlurChange) = rememberPreference(AppleMusicLyricsBlurKey, defaultValue = true)
     val (lyricsStandardBlur, onLyricsStandardBlurChange) = rememberPreference(LyricsStandardBlurKey, defaultValue = false)
     val (swipeLyrics, onSwipeLyricsChange) = rememberPreference(SwipeLyricsKey, defaultValue = false)

@@ -274,7 +274,7 @@ fun BottomSheetPlayer(
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
-        defaultValue = PlayerBackgroundStyle.GRADIENT
+        defaultValue = PlayerBackgroundStyle.APPLE_MUSIC
     )
     val playerButtonsStyle by rememberEnumPreference(
         key = PlayerButtonsStyleKey,
@@ -356,7 +356,7 @@ fun BottomSheetPlayer(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
     )
-    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SLIM)
     val squigglySlider by rememberPreference(SquigglySliderKey, defaultValue = false)
     
     // Listen Together state (reactive)

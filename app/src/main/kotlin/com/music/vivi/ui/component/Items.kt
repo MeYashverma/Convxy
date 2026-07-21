@@ -15,6 +15,7 @@ import androidx.compose.animation.expandIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -783,6 +784,17 @@ fun AlbumGridItem(
     modifier = modifier
 )
 
+/** Branded full-bleed card art for the library auto-playlist cards (null = none). */
+@Composable
+private fun autoPlaylistArtRes(name: String): Int? = when {
+    name == stringResource(R.string.liked) -> R.drawable.liked_song
+    name == stringResource(R.string.offline) -> R.drawable.downloaded_song
+    name == stringResource(R.string.cached_playlist) -> R.drawable.cache_songs
+    name == stringResource(R.string.filter_local) -> R.drawable.local_songs
+    name.startsWith(stringResource(R.string.my_top)) -> R.drawable.top50
+    else -> null
+}
+
 @Composable
 fun PlaylistListItem(
     playlist: Playlist,
@@ -844,20 +856,30 @@ fun PlaylistListItem(
             thumbnails = playlist.thumbnails,
             size = ListThumbnailSize,
             placeHolder = {
-                val painter = when (playlist.playlist.name) {
-                    stringResource(R.string.liked) -> R.drawable.favorite_border
-                    stringResource(R.string.offline) -> R.drawable.offline
-                    stringResource(R.string.cached_playlist) -> R.drawable.cached
-                    // R.drawable.backup as placeholder
-                    stringResource(R.string.uploaded_playlist) -> R.drawable.backup
-                    else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
+                val autoArtRes = autoPlaylistArtRes(playlist.playlist.name)
+                if (autoArtRes != null) {
+                    Image(
+                        painter = painterResource(autoArtRes),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    val painter = when (playlist.playlist.name) {
+                        stringResource(R.string.liked) -> R.drawable.favorite_border
+                        stringResource(R.string.offline) -> R.drawable.offline
+                        stringResource(R.string.cached_playlist) -> R.drawable.cached
+                        // R.drawable.backup as placeholder
+                        stringResource(R.string.uploaded_playlist) -> R.drawable.backup
+                        else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
+                    }
+                    Icon(
+                        painter = painterResource(painter),
+                        contentDescription = null,
+                        tint = LocalContentColor.current.copy(alpha = 0.8f),
+                        modifier = Modifier.size(ListThumbnailSize / 2)
+                    )
                 }
-                Icon(
-                    painter = painterResource(painter),
-                    contentDescription = null,
-                    tint = LocalContentColor.current.copy(alpha = 0.8f),
-                    modifier = Modifier.size(ListThumbnailSize / 2)
-                )
             },
             shape = RoundedCornerShape(ThumbnailCornerRadius)
         )
@@ -946,24 +968,34 @@ fun PlaylistGridItem(
             thumbnails = playlist.thumbnails,
             size = width,
             placeHolder = {
-                val painter = when (playlist.playlist.name) {
-                    stringResource(R.string.liked) -> R.drawable.favorite_border
-                    stringResource(R.string.offline) -> R.drawable.offline
-                    stringResource(R.string.cached_playlist) -> R.drawable.cached
-                    // R.drawable.backup as placeholder
-                    stringResource(R.string.uploaded_playlist) -> R.drawable.backup
-                    else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
-                }
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Icon(
-                        painter = painterResource(painter),
+                val autoArtRes = autoPlaylistArtRes(playlist.playlist.name)
+                if (autoArtRes != null) {
+                    Image(
+                        painter = painterResource(autoArtRes),
                         contentDescription = null,
-                        tint = LocalContentColor.current.copy(alpha = 0.8f),
-                        modifier = Modifier.size(width / 2)
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
                     )
+                } else {
+                    val painter = when (playlist.playlist.name) {
+                        stringResource(R.string.liked) -> R.drawable.favorite_border
+                        stringResource(R.string.offline) -> R.drawable.offline
+                        stringResource(R.string.cached_playlist) -> R.drawable.cached
+                        // R.drawable.backup as placeholder
+                        stringResource(R.string.uploaded_playlist) -> R.drawable.backup
+                        else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
+                    }
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            painter = painterResource(painter),
+                            contentDescription = null,
+                            tint = LocalContentColor.current.copy(alpha = 0.8f),
+                            modifier = Modifier.size(width / 2)
+                        )
+                    }
                 }
             },
             shape = RoundedCornerShape(ThumbnailCornerRadius)

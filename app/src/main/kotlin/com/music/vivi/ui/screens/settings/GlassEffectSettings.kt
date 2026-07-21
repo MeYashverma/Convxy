@@ -67,13 +67,13 @@ fun GlassEffectSettings(
         LiquidGlassVibrancyKey, defaultValue = 1f
     )
     val (blurRadius, onBlurRadiusChange) = rememberPreference(
-        LiquidGlassBlurRadiusKey, defaultValue = 8f
+        LiquidGlassBlurRadiusKey, defaultValue = 2f
     )
     val (lensHeight, onLensHeightChange) = rememberPreference(
-        LiquidGlassLensHeightKey, defaultValue = 0.5f
+        LiquidGlassLensHeightKey, defaultValue = 0.4f
     )
     val (lensAmount, onLensAmountChange) = rememberPreference(
-        LiquidGlassLensAmountKey, defaultValue = 0.5f
+        LiquidGlassLensAmountKey, defaultValue = 0.65f
     )
     val (chromaticAberration, onChromaticAberrationChange) = rememberPreference(
         LiquidGlassChromaticAberrationKey, defaultValue = false
@@ -84,7 +84,7 @@ fun GlassEffectSettings(
     // 0 marks the theme-adaptive default tint (see MainActivity); the picker then
     // shows the color the current theme resolves to.
     val (surfaceTintColorInt, onSurfaceTintColorChange) = rememberPreference(
-        LiquidGlassSurfaceTintColorKey, defaultValue = 0
+        LiquidGlassSurfaceTintColorKey, defaultValue = Color(0xFF1A1A1A).toArgb()
     )
     val adaptiveTintColor = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
         Color(0xFFFAFAFA)
@@ -97,7 +97,7 @@ fun GlassEffectSettings(
         Color(surfaceTintColorInt)
     }
     val (surfaceOpacity, onSurfaceOpacityChange) = rememberPreference(
-        LiquidGlassSurfaceOpacityKey, defaultValue = 0.3f
+        LiquidGlassSurfaceOpacityKey, defaultValue = 0.5f
     )
     val (textColorInt, onTextColorChange) = rememberPreference(
         LiquidGlassTextColorKey, defaultValue = Color.White.toArgb()

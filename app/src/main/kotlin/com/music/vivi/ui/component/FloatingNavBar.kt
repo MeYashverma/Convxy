@@ -71,9 +71,8 @@ fun AppFloatingNavBar(
         pureBlack -> Color.Black
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    // Selected nav item = the user's chosen accent (only place accent is used);
-    // every other item = white.
-    val selectedContentColor = com.music.vivi.ui.theme.LocalAccentColor.current
+    // Selected nav item = the liquid-glass text color; every other item = white.
+    val selectedContentColor = glassConfig.textColor
     val unselectedContentColor = Color.White
 
     val tabBarContentModifier = if (useGlass) {

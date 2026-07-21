@@ -48,15 +48,15 @@ data class GlassEffectConfig(
     val vibrancy: Float = 1.2f,
     /** Blur in dp applied to glass pills. User requested 2dp for landscape fix. */
     val blurRadius: Float = 2f,
-    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction height. 0.5 = Apple's 24dp. */
-    val lensHeight: Float = 0.5f,
-    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction amount. User requested 60 (0.6f). */
-    val lensAmount: Float = 0.6f,
+    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction height. 0.4 = 40%. */
+    val lensHeight: Float = 0.4f,
+    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction amount. 0.65 = 65%. */
+    val lensAmount: Float = 0.65f,
     val chromaticAberration: Boolean = true,
     val depthEffect: Boolean = true,
     /** [Color.Unspecified] means adaptive: dark grey on dark. */
-    val surfaceTintColor: Color = Color(0xFF2C2C2E),
-    val surfaceOpacity: Float = 0.3f,
+    val surfaceTintColor: Color = Color(0xFF1A1A1A),
+    val surfaceOpacity: Float = 0.5f,
     val textColor: Color = Color.White,
     val playerEnabled: Boolean = true,
     val miniPlayerEnabled: Boolean = true,

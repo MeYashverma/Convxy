@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.HeroSource
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.runtime.CompositionLocalProvider
@@ -78,18 +80,11 @@ fun MoodAndGenresScreen(
 
     val heroBackdrop = rememberLayerBackdrop()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        tint,
-                        tint.copy(alpha = 0.85f),
-                        Color.Black
-                    )
-                )
-            )
+    HeroBackground(
+        tint = tint,
+        heroSource = HeroSource.Default,
+        bottomGradient = true,
+        modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
           LocalAppBackdrop provides heroBackdrop,

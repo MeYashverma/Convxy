@@ -216,6 +216,7 @@ fun AutoPlaylistScreen(
         tint = tint,
         heroSource = heroSource,
         blurArtwork = true,
+        bottomGradient = true,
         modifier = Modifier.fillMaxSize(),
     ) {
         CompositionLocalProvider(

@@ -226,8 +226,11 @@ fun HeroBackground(
     // The [HeroSource.Default] placeholder music-note. Off for screens that want
     // a clean flat tint behind glass (e.g. search).
     showDefaultIcon: Boolean = true,
+    // Decorative primary-color wash fading in at the bottom of the screen.
+    bottomGradient: Boolean = false,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primary
     Box(modifier = modifier.background(tint)) {
         when (heroSource) {
             is HeroSource.Artwork -> {
@@ -319,19 +322,20 @@ fun HeroBackground(
                 }
             }
             is HeroSource.Default -> {
-                // Default music image centered, tinted to blend
-                if (showDefaultIcon) {
-                    Image(
-                        painter = painterResource(R.drawable.music_note),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxSize(0.35f)
-                            .align(Alignment.Center)
-                            .graphicsLayer { alpha = 0.25f },
-                    )
-                }
+                // No placeholder icon: a clean flat tint plane behind the content.
             }
+        }
+        if (bottomGradient) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.55f to Color.Transparent,
+                            1f to primaryColor.copy(alpha = 0.55f),
+                        ),
+                    ),
+            )
         }
         content()
     }

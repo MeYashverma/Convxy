@@ -8,7 +8,7 @@ package com.music.vivi.ui.screens.search
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -51,8 +51,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -75,7 +78,12 @@ import com.music.innertube.models.PlaylistItem
 import com.music.innertube.models.SongItem
 import com.music.innertube.models.WatchEndpoint
 import com.music.innertube.models.YTItem
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import com.music.vivi.LocalDatabase
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.LocalPlayerConnection
 import com.music.vivi.R
 import com.music.vivi.constants.MiniPlayerBottomSpacing
@@ -90,6 +98,13 @@ import com.music.vivi.ui.component.EmptyPlaceholder
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.NavigationTitle
 import com.music.vivi.ui.component.YouTubeListItem
+import com.music.vivi.ui.component.rememberHeroTint
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.component.LocalAppBackdrop
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.text.font.FontWeight
 import com.music.vivi.ui.component.shimmer.ListItemPlaceHolder
 import com.music.vivi.ui.component.shimmer.ShimmerHost
 import com.music.vivi.ui.menu.YouTubeAlbumMenu
@@ -239,6 +254,7 @@ fun OnlineSearchResult(
                 else -> false
             },
             isPlaying = isPlaying,
+            flat = true,
             shape = listItemShape(index, size),
             trailingContent = {
                 IconButton(
@@ -252,7 +268,7 @@ fun OnlineSearchResult(
             },
             modifier =
             Modifier
-                .combinedClickable(
+                .combinedBounceClick(
                     onClick = {
                         when (item) {
                             is SongItem -> {
@@ -279,196 +295,248 @@ fun OnlineSearchResult(
         )
     }
 
-    Column(
+    val heroUrl = remember(searchSummary, itemsPage) {
+        if (searchFilter == null) {
+            searchSummary?.summaries?.firstOrNull()?.items?.firstOrNull()?.thumbnail
+        } else {
+            itemsPage?.items?.firstOrNull()?.thumbnail
+        }
+    }
+    val tint = rememberHeroTint(heroUrl)
+    val onTint = AppleTokens.onColor(tint)
+
+    val heroBackdrop = rememberLayerBackdrop()
+
+    val context = LocalContext.current
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+            .background(tint)
     ) {
-        // Google-style SearchBar with Material 3 design
-        OutlinedTextField(
-            value = query,
-            onValueChange = { newQuery ->
-                query = newQuery
-            },
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.search_yt_music),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            leadingIcon = {
-                IconButton(
-                    onClick = { navController.navigateUp() }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_back),
-                        contentDescription = stringResource(R.string.dismiss),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            trailingIcon = {
-                if (query.text.isNotEmpty()) {
-                    IconButton(
-                        onClick = {
-                            query = TextFieldValue("")
-                        }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.close),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Search
-            ),
-            keyboardActions = KeyboardActions(
-                onSearch = { 
-                    onSearch(query.text)
-                }
-            ),
-            singleLine = true,
-            shape = RoundedCornerShape(28.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = if (pureBlack) 
-                    MaterialTheme.colorScheme.surface 
-                else 
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = if (pureBlack) 
-                    MaterialTheme.colorScheme.surface 
-                else 
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                focusedBorderColor = Color.Transparent,
-                unfocusedBorderColor = Color.Transparent
-            ),
+        // Blurred hero artwork background
+        if (heroUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(heroUrl)
+                    .size(100, 100)
+                    .allowHardware(false)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(150.dp)
+            )
+        }
+        // Dark overlay for readability
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .focusRequester(focusRequester)
-                .onFocusChanged { focusState ->
-                    if (focusState.isFocused) {
-                        isSearchFocused = true
-                    }
-                }
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.4f))
         )
 
-        // Main content area below search bar
-        Box(modifier = Modifier.weight(1f)) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-            ChipsRow(
-                chips = listOf(
-                    null to stringResource(R.string.filter_all),
-                    FILTER_SONG to stringResource(R.string.filter_songs),
-                    FILTER_VIDEO to stringResource(R.string.filter_videos),
-                    FILTER_ALBUM to stringResource(R.string.filter_albums),
-                    FILTER_ARTIST to stringResource(R.string.filter_artists),
-                    FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
-                    FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
-                ),
-                currentValue = searchFilter,
-                onValueUpdate = {
-                    if (viewModel.filter.value != it) {
-                        viewModel.filter.value = it
-                    }
-                    coroutineScope.launch {
-                        lazyListState.animateScrollToItem(0)
+      CompositionLocalProvider(
+          LocalAppBackdrop provides heroBackdrop,
+          LocalContentColor provides onTint
+      ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+        ) {
+            // Google-style SearchBar with Material 3 design
+            OutlinedTextField(
+                value = query,
+                onValueChange = { newQuery ->
+                    query = newQuery
+                },
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.search_yt_music),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = onTint.copy(alpha = 0.6f)
+                    )
+                },
+                leadingIcon = {
+                    IconButton(
+                        onClick = { navController.navigateUp() }
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_back),
+                            contentDescription = stringResource(R.string.dismiss),
+                            tint = onTint
+                        )
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            LazyColumn(
-                state = lazyListState,
-                contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (searchFilter == null) {
-                    searchSummary?.summaries?.forEach { summary ->
-                        item {
-                            NavigationTitle(summary.title)
-                        }
-
-                        itemsIndexed(
-                            items = summary.items,
-                            key = { index, item -> "${summary.title}/${item.id}/$index" },
-                        ) { index, item ->
-                            ytItemContent(item, index, summary.items.size)
-                        }
-                    }
-
-                    if (searchSummary?.summaries?.isEmpty() == true) {
-                        item {
-                            EmptyPlaceholder(
-                                icon = R.drawable.search,
-                                text = stringResource(R.string.no_results_found),
+                trailingIcon = {
+                    if (query.text.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                query = TextFieldValue("")
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.close),
+                                contentDescription = null,
+                                tint = onTint
                             )
                         }
                     }
-                } else {
-                    itemsIndexed(
-                        items = itemsPage?.items.orEmpty().distinctBy { it.id },
-                        key = { _, it -> "filtered_${it.id}" },
-                    ) { index, item ->
-                        ytItemContent(item, index, itemsPage?.items.orEmpty().distinctBy { it.id }.size)
+                },
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = { 
+                        onSearch(query.text)
+                    }
+                ),
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = onTint.copy(alpha = 0.15f),
+                    unfocusedContainerColor = onTint.copy(alpha = 0.15f),
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = onTint,
+                    unfocusedTextColor = onTint,
+                    cursorColor = onTint
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            isSearchFocused = true
+                        }
+                    }
+            )
+
+            // Main content area below search bar
+            Box(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(tint.copy(alpha = 0.8f))
+                    ) {
+                        ChipsRow(
+                            chips = listOf(
+                                null to stringResource(R.string.filter_all),
+                                FILTER_SONG to stringResource(R.string.filter_songs),
+                                FILTER_VIDEO to stringResource(R.string.filter_videos),
+                                FILTER_ALBUM to stringResource(R.string.filter_albums),
+                                FILTER_ARTIST to stringResource(R.string.filter_artists),
+                                FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
+                                FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
+                            ),
+                            currentValue = searchFilter,
+                            onValueUpdate = {
+                                if (viewModel.filter.value != it) {
+                                    viewModel.filter.value = it
+                                }
+                                coroutineScope.launch {
+                                    lazyListState.animateScrollToItem(0)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
-                    if (itemsPage?.continuation != null) {
-                        item(key = "loading") {
-                            ShimmerHost {
-                                repeat(3) {
-                                    ListItemPlaceHolder()
+                    LazyColumn(
+                        state = lazyListState,
+                        contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (searchFilter == null) {
+                            searchSummary?.summaries?.forEach { summary ->
+                                item {
+                                    NavigationTitle(
+                                        title = summary.title
+                                    )
+                                }
+
+                                itemsIndexed(
+                                    items = summary.items,
+                                    key = { index, item -> "${summary.title}/${item.id}/$index" },
+                                ) { index, item ->
+                                    ytItemContent(item, index, summary.items.size)
+                                }
+                            }
+
+                            if (searchSummary?.summaries?.isEmpty() == true) {
+                                item {
+                                    EmptyPlaceholder(
+                                        icon = R.drawable.search,
+                                        text = stringResource(R.string.no_results_found),
+                                        modifier = Modifier.padding(top = 100.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            itemsIndexed(
+                                items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                                key = { _, it -> "filtered_${it.id}" },
+                            ) { index, item ->
+                                ytItemContent(item, index, itemsPage?.items.orEmpty().distinctBy { it.id }.size)
+                            }
+
+                            if (itemsPage?.continuation != null) {
+                                item(key = "loading") {
+                                    ShimmerHost {
+                                        repeat(3) {
+                                            ListItemPlaceHolder()
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (itemsPage?.items?.isEmpty() == true) {
+                                item {
+                                    EmptyPlaceholder(
+                                        icon = R.drawable.search,
+                                        text = stringResource(R.string.no_results_found),
+                                        modifier = Modifier.padding(top = 100.dp)
+                                    )
                                 }
                             }
                         }
-                    }
 
-                    if (itemsPage?.items?.isEmpty() == true) {
-                        item {
-                            EmptyPlaceholder(
-                                icon = R.drawable.search,
-                                text = stringResource(R.string.no_results_found),
-                            )
-                        }
-                    }
-                }
-
-                if (searchFilter == null && searchSummary == null || searchFilter != null && itemsPage == null) {
-                    item {
-                        ShimmerHost {
-                            repeat(8) {
-                                ListItemPlaceHolder()
+                        if (searchFilter == null && searchSummary == null || searchFilter != null && itemsPage == null) {
+                            item {
+                                ShimmerHost {
+                                    repeat(8) {
+                                        ListItemPlaceHolder()
+                                    }
+                                }
                             }
                         }
+
+                        item(key = "bottom_spacer") {
+                            Spacer(modifier = Modifier.height(MiniPlayerHeight + MiniPlayerBottomSpacing + NavigationBarHeight + 50.dp))
+                        }
                     }
                 }
-
-                item(key = "bottom_spacer") {
-                    Spacer(modifier = Modifier.height(MiniPlayerHeight + MiniPlayerBottomSpacing + NavigationBarHeight))
+                if (isSearchFocused) {
+                    OnlineSearchScreen(
+                        query = query.text,
+                        onQueryChange = { query = it },
+                        navController = navController,
+                        onSearch = onSearch,
+                        onDismiss = {
+                            isSearchFocused = false
+                            focusManager.clearFocus()
+                        },
+                        pureBlack = pureBlack
+                    )
                 }
-
             }
         }
-            if (isSearchFocused) {
-                OnlineSearchScreen(
-                    query = query.text,
-                    onQueryChange = { query = it },
-                    navController = navController,
-                    onSearch = onSearch,
-                    onDismiss = {
-                        isSearchFocused = false
-                        focusManager.clearFocus()
-                    },
-                    pureBlack = pureBlack
-                )
-            }
-        }
+      }
     }
 }
 

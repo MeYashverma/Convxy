@@ -14,6 +14,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
@@ -32,8 +33,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
@@ -80,6 +83,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -159,6 +163,7 @@ import com.music.vivi.constants.LiquidGlassSurfaceTintColorKey
 import com.music.vivi.constants.LiquidGlassSurfaceOpacityKey
 import com.music.vivi.constants.LiquidGlassTextColorKey
 import com.music.vivi.constants.UseFloatingNavBarKey
+import com.music.vivi.constants.AppleMusicUiKey
 import com.music.vivi.constants.PauseSearchHistoryKey
 import com.music.vivi.constants.PureBlackKey
 import com.music.vivi.constants.SYSTEM_DEFAULT
@@ -181,6 +186,8 @@ import com.music.vivi.ui.component.AppNavigationBar
 import com.music.vivi.ui.component.GlassEffectConfig
 import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.ui.component.LocalAppBackdrop
+import com.music.vivi.ui.component.LocalAppleMusicUi
+import com.music.vivi.ui.component.isGlassAllowed
 import com.music.vivi.ui.component.AppNavigationRail
 import com.music.vivi.ui.component.BottomSheetMenu
 import com.music.vivi.ui.component.BottomSheetPage
@@ -239,6 +246,11 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val ACTION_SEARCH = "com.music.vivi.action.SEARCH"
         private const val ACTION_LIBRARY = "com.music.vivi.action.LIBRARY"
+
+        // Ignore a repeat bottom-nav navigate() to the same route within this
+        // window, so the floating tab bar's predictive (press/drag) fire can't
+        // double-navigate against its own release-fire.
+        private const val NavDebounceMs = 250L
     }
 
     @Inject
@@ -381,7 +393,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
     @Composable
     private fun vivimusicApp(
         playerConnection: PlayerConnection?,
@@ -541,7 +553,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
-                val (useFloatingNavBar) = rememberPreference(UseFloatingNavBarKey, defaultValue = false)
+                val (useFloatingNavBar) = rememberPreference(UseFloatingNavBarKey, defaultValue = true)
+                val (appleMusicUi) = rememberPreference(AppleMusicUiKey, defaultValue = true)
                 // The Settings tab is exclusive to the floating (iOS-style) tab bar —
                 // the classic nav bar keeps settings behind the top bar icon.
                 val floatingNavigationItems = remember(navigationItems) {
@@ -570,6 +583,9 @@ class MainActivity : ComponentActivity() {
                     liquidGlassSurfaceOpacity, liquidGlassTextColorInt, liquidGlassPlayerEnabled,
                     liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled,
                 ) {
+                    // The sliders in Glass settings are always the source of truth: the
+                    // Apple Music UI toggle just writes a starting preset into them once
+                    // when switched on, so the user can keep tuning from there afterward.
                     GlassEffectConfig(
                         // The glass look is part of the floating nav bar experience, so it
                         // only activates when that bar is enabled too.
@@ -639,21 +655,35 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val inSearchScreen by remember {
-                    derivedStateOf { currentRoute?.startsWith("search/") == true }
+                    derivedStateOf {
+                        currentRoute?.startsWith("search/") == true ||
+                            currentRoute == Screens.Search.route
+                    }
                 }
-                val navigationItemRoutes = remember(navigationItems) {
-                    navigationItems.map { it.route }.toSet()
+                val inSearchInputScreen by remember {
+                    derivedStateOf { currentRoute == Screens.Search.route }
+                }
+                // The floating nav bar keeps Settings as one of its own tabs (see
+                // floatingNavigationItems above), so it should stay visible there too —
+                // only the classic nav bar treats Settings as a top-bar-only destination.
+                val navigationItemRoutes = remember(navigationItems, floatingNavigationItems, useFloatingNavBar) {
+                    (if (useFloatingNavBar) floatingNavigationItems else navigationItems)
+                        .map { it.route }.toSet()
                 }
 
-                val shouldShowNavigationBar = remember(currentRoute, navigationItemRoutes) {
-                    currentRoute == null ||
-                        navigationItemRoutes.contains(currentRoute) ||
-                        currentRoute!!.startsWith("search/")
+                val isKeyboardOpen = WindowInsets.isImeVisible
+                val shouldShowNavigationBar = remember(currentRoute, inSearchInputScreen) {
+                    when {
+                        inSearchInputScreen -> false
+                        currentRoute?.startsWith("settings/") == true -> false
+                        currentRoute in setOf("login", "equalizer", "wrapped", "update", "listen_together/chat") -> false
+                        else -> true
+                    }
                 }
 
                 val isLandscape = configuration.containerDpSize.width > configuration.containerDpSize.height
 
-                val showRail = isLandscape && !inSearchScreen
+                val showRail = isLandscape && !inSearchInputScreen
 
                 val navPadding = if (shouldShowNavigationBar && !showRail) {
                     if (slimNav) SlimNavBarHeight else NavigationBarHeight
@@ -723,9 +753,12 @@ class MainActivity : ComponentActivity() {
 
                 // Navigation tracking
                 LaunchedEffect(navBackStackEntry) {
-                    if (inSearchScreen) {
+                    // Only the results route (search/{query}) carries a query arg;
+                    // the search_input landing does not — guard against a null arg
+                    // so tapping search never NPEs.
+                    val rawQuery = navBackStackEntry?.arguments?.getString("query")
+                    if (inSearchScreen && rawQuery != null) {
                         val searchQuery = withContext(Dispatchers.IO) {
-                            val rawQuery = navBackStackEntry?.arguments?.getString("query")!!
                             try {
                                 URLDecoder.decode(rawQuery, "UTF-8")
                             } catch (e: IllegalArgumentException) {
@@ -864,6 +897,7 @@ class MainActivity : ComponentActivity() {
                     LocalListenTogetherManager provides listenTogetherManager,
                     LocalGlassEffectConfig provides glassEffectConfig,
                     LocalAppBackdrop provides appBackdrop,
+                    LocalAppleMusicUi provides appleMusicUi,
                 ) {
 
                     Scaffold(
@@ -979,6 +1013,8 @@ class MainActivity : ComponentActivity() {
                         },
                         bottomBar = {
                             val onNavItemClick: (Screens, Boolean) -> Unit = remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
+                                var lastNavRoute: String? = null
+                                var lastNavTimeMs = 0L
                                 { screen: Screens, isSelected: Boolean ->
                                     if (playerBottomSheetState.isExpanded) {
                                         playerBottomSheetState.collapseSoft()
@@ -990,12 +1026,29 @@ class MainActivity : ComponentActivity() {
                                             topAppBarScrollBehavior.state.resetHeightOffset()
                                         }
                                     } else {
-                                        navController.navigate(screen.route) {
-                                            popUpTo(navController.graph.startDestinationId) {
-                                                saveState = true
+                                        val now = SystemClock.elapsedRealtime()
+                                        // Guards against a double-fire from the floating tab bar's
+                                        // predictive (press/drag-threshold) nav landing on top of the
+                                        // puck's own release-fire for the same target.
+                                        if (screen.route != lastNavRoute || now - lastNavTimeMs >= NavDebounceMs) {
+                                            lastNavRoute = screen.route
+                                            lastNavTimeMs = now
+                                            // No saveState/restoreState: every tab switch lands on that
+                                            // tab's own root instead of resuming a prior drill-down, so
+                                            // the live back stack stays at most [Home, current tab, ...]
+                                            // and one Back press from a freshly-switched tab always
+                                            // settles on Home.
+                                            navController.navigate(screen.route) {
+                                                // Preserve each tab's own back stack across tab
+                                                // switches (multi-back-stack): drilling into a
+                                                // detail on one tab, switching away and back
+                                                // restores where you were instead of the tab root.
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
                                             }
-                                            launchSingleTop = true
-                                            restoreState = true
                                         }
                                     }
                                 }
@@ -1012,8 +1065,30 @@ class MainActivity : ComponentActivity() {
                             // Pre-calculate values for graphicsLayer to avoid reading state during composition
                             val navBarTotalHeight = bottomInset + NavigationBarHeight
 
-                            if (!showRail && currentRoute != "wrapped" && currentRoute != "update" && currentRoute != "listen_together/chat") {
+                            if (!showRail && currentRoute?.startsWith("settings/") != true && currentRoute !in setOf("wrapped", "update", "listen_together/chat", "login", "equalizer")) {
                                 Box {
+                                    // Apple Music-style progressive scrim: content fades out under
+                                    // the floating glass bar instead of hard-clipping, so the bar
+                                    // stays legible over bright artwork.  The horizontal gradient
+                                    // on the left/right edges mimics Apple Music's edge blur.
+                                    if (appleMusicUi && useFloatingNavBar && isGlassAllowed()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .height(navBarTotalHeight + 56.dp)
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        0f to Color.Transparent,
+                                                        0.2f to baseBg.copy(alpha = 0.3f),
+                                                        0.5f to baseBg.copy(alpha = 0.7f),
+                                                        0.9f to baseBg,
+                                                        1f to baseBg,
+                                                    )
+                                                )
+                                        )
+                                    }
+
                                     BottomSheetPlayer(
                                         state = playerBottomSheetState,
                                         navController = navController,
@@ -1046,6 +1121,9 @@ class MainActivity : ComponentActivity() {
                                             pureBlack = pureBlack,
                                             showPlayerAccessory = hasDockedPlayerAccessory,
                                             onAccessoryClick = { playerBottomSheetState.expandSoft() },
+                                            // Hide the standalone search circle while on the search
+                                            // screen so the morphing pill visually replaces it.
+                                            searchExpanded = inSearchInputScreen,
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .padding(horizontal = 16.dp)
@@ -1083,6 +1161,7 @@ class MainActivity : ComponentActivity() {
                                                 .then(navBarGraphicsLayer)
                                         )
                                     }
+
 
                                     // The floating nav bar is edge-to-edge, so skip the opaque
                                     // strip that backs the classic nav bar's system inset area.
@@ -1130,6 +1209,8 @@ class MainActivity : ComponentActivity() {
                     ) {
                         Row(Modifier.fillMaxSize()) {
                             val onRailItemClick: (Screens, Boolean) -> Unit = remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
+                                var lastNavRoute: String? = null
+                                var lastNavTimeMs = 0L
                                 { screen: Screens, isSelected: Boolean ->
                                     if (playerBottomSheetState.isExpanded) {
                                         playerBottomSheetState.collapseSoft()
@@ -1141,12 +1222,21 @@ class MainActivity : ComponentActivity() {
                                             topAppBarScrollBehavior.state.resetHeightOffset()
                                         }
                                     } else {
-                                        navController.navigate(screen.route) {
-                                            popUpTo(navController.graph.startDestinationId) {
-                                                saveState = true
+                                        val now = SystemClock.elapsedRealtime()
+                                        if (screen.route != lastNavRoute || now - lastNavTimeMs >= NavDebounceMs) {
+                                            lastNavRoute = screen.route
+                                            lastNavTimeMs = now
+                                            navController.navigate(screen.route) {
+                                                // Preserve each tab's own back stack across tab
+                                                // switches (multi-back-stack): drilling into a
+                                                // detail on one tab, switching away and back
+                                                // restores where you were instead of the tab root.
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
                                             }
-                                            launchSingleTop = true
-                                            restoreState = true
                                         }
                                     }
                                 }

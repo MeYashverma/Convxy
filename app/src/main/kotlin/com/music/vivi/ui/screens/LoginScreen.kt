@@ -12,6 +12,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,105 +65,109 @@ fun LoginScreen(
     var accountChannelHandle by rememberPreference(AccountChannelHandleKey, "")
     var hasCompletedLogin by remember { mutableStateOf(false) }
 
-    var webView: WebView? = null
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
 
-    AndroidView(
-        modifier = Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
-            .fillMaxSize(),
-        factory = { webViewContext ->
-            WebView(webViewContext).apply {
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        loadUrl("javascript:Android.onRetrieveVisitorData(window.yt.config_.VISITOR_DATA)")
-                        loadUrl("javascript:Android.onRetrieveDataSyncId(window.yt.config_.DATASYNC_ID)")
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        AndroidView(
+            modifier = Modifier
+                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+                .fillMaxSize(),
+            factory = { webViewContext ->
+                WebView(webViewContext).apply {
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView, url: String?) {
+                            loadUrl("javascript:Android.onRetrieveVisitorData(window.yt.config_.VISITOR_DATA)")
+                            loadUrl("javascript:Android.onRetrieveDataSyncId(window.yt.config_.DATASYNC_ID)")
 
-                        if (url?.startsWith("https://music.youtube.com") == true && !hasCompletedLogin) {
-                            innerTubeCookie = CookieManager.getInstance().getCookie(url)
-                            hasCompletedLogin = true
+                            if (url?.startsWith("https://music.youtube.com") == true && !hasCompletedLogin) {
+                                innerTubeCookie = CookieManager.getInstance().getCookie(url)
+                                hasCompletedLogin = true
 
-                            coroutineScope.launch {
-                                // Small delay to ensure preferences are saved
-                                delay(500)
+                                coroutineScope.launch {
+                                    // Small delay to ensure preferences are saved
+                                    delay(500)
 
-                                // Initialize YouTube object with new authentication data
-                                YouTube.cookie = innerTubeCookie
-                                YouTube.dataSyncId = dataSyncId
-                                YouTube.visitorData = visitorData
+                                    // Initialize YouTube object with new authentication data
+                                    YouTube.cookie = innerTubeCookie
+                                    YouTube.dataSyncId = dataSyncId
+                                    YouTube.visitorData = visitorData
 
-                                Timber.d("Login: YouTube object initialized, validating...")
+                                    Timber.d("Login: YouTube object initialized, validating...")
 
-                                YouTube.accountInfo().onSuccess {
-                                    accountName = it.name
-                                    accountEmail = it.email.orEmpty()
-                                    accountChannelHandle = it.channelHandle.orEmpty()
+                                    YouTube.accountInfo().onSuccess {
+                                        accountName = it.name
+                                        accountEmail = it.email.orEmpty()
+                                        accountChannelHandle = it.channelHandle.orEmpty()
 
-                                    Timber.d("Login: Successfully logged in as ${it.name}, restarting app...")
+                                        Timber.d("Login: Successfully logged in as ${it.name}, restarting app...")
 
-                                    // Clean up WebView
-                                    webView?.apply {
-                                        stopLoading()
-                                        clearHistory()
-                                        clearCache(true)
-                                        clearFormData()
+                                        // Clean up WebView
+                                        webViewRef.value?.apply {
+                                            stopLoading()
+                                            clearHistory()
+                                            clearCache(true)
+                                            clearFormData()
+                                        }
+
+                                        // Restart app to apply login state throughout
+                                        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                                        intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                                        context.startActivity(intent)
+                                        Runtime.getRuntime().exit(0)
+                                    }.onFailure {
+                                        Timber.e(it, "Login: Authentication validation failed")
+                                        hasCompletedLogin = false // Allow retry
+                                        reportException(it)
                                     }
-
-                                    // Restart app to apply login state throughout
-                                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                                    intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                                    context.startActivity(intent)
-                                    Runtime.getRuntime().exit(0)
-                                }.onFailure {
-                                    Timber.e(it, "Login: Authentication validation failed")
-                                    hasCompletedLogin = false // Allow retry
-                                    reportException(it)
                                 }
                             }
                         }
                     }
-                }
-                settings.apply {
-                    javaScriptEnabled = true
-                    setSupportZoom(true)
-                    builtInZoomControls = true
-                    displayZoomControls = false
-                }
-                addJavascriptInterface(object {
-                    @JavascriptInterface
-                    fun onRetrieveVisitorData(newVisitorData: String?) {
-                        if (newVisitorData != null) {
-                            visitorData = newVisitorData
-                        }
+                    settings.apply {
+                        javaScriptEnabled = true
+                        setSupportZoom(true)
+                        builtInZoomControls = true
+                        displayZoomControls = false
                     }
-                    @JavascriptInterface
-                    fun onRetrieveDataSyncId(newDataSyncId: String?) {
-                        if (newDataSyncId != null) {
-                            dataSyncId = newDataSyncId.substringBefore("||")
+                    addJavascriptInterface(object {
+                        @JavascriptInterface
+                        fun onRetrieveVisitorData(newVisitorData: String?) {
+                            if (newVisitorData != null) {
+                                visitorData = newVisitorData
+                            }
                         }
-                    }
-                }, "Android")
-                webView = this
-                loadUrl("https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com")
+                        @JavascriptInterface
+                        fun onRetrieveDataSyncId(newDataSyncId: String?) {
+                            if (newDataSyncId != null) {
+                                dataSyncId = newDataSyncId.substringBefore("||")
+                            }
+                        }
+                    }, "Android")
+                    webViewRef.value = this
+                    loadUrl("https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com")
+                }
             }
-        }
-    )
+        )
 
-    TopAppBar(
-        title = { Text(stringResource(R.string.login)) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null
-                )
+        TopAppBar(
+            title = { Text(stringResource(R.string.login)) },
+            navigationIcon = {
+                IconButton(
+                    onClick = navController::navigateUp,
+                    onLongClick = navController::backToMain
+                ) {
+                    Icon(
+                        painterResource(R.drawable.arrow_back),
+                        contentDescription = null
+                    )
+                }
             }
-        }
-    )
+        )
+    }
 
-    BackHandler(enabled = webView?.canGoBack() == true) {
-        webView?.goBack()
+    BackHandler(enabled = webViewRef.value?.canGoBack() == true) {
+        webViewRef.value?.goBack()
     }
 }

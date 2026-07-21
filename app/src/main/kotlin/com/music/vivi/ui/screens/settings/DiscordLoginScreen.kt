@@ -14,6 +14,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,9 +22,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -51,86 +52,90 @@ private const val SAMSUNG_USER_AGENT =
 @Composable
 fun DiscordLoginScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    var discordToken by rememberPreference(DiscordTokenKey, "")
-    var webView: WebView? = null
+    val discordTokenPref = rememberPreference(DiscordTokenKey, "")
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
 
-    AndroidView(
-        modifier = Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
-            .fillMaxSize(),
-        factory = { context ->
-            WebView(context).apply {
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        AndroidView(
+            modifier = Modifier
+                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+                .fillMaxSize(),
+            factory = { context ->
+                WebView(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
 
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
 
-                // Fix for Motorola devices - UA parsing issue breaks Discord login
-                // See: https://github.com/dead8309/Kizzy/issues/345#issuecomment-2699729072
-                if (Build.MANUFACTURER.equals(MOTOROLA, ignoreCase = true)) {
-                    settings.userAgentString = SAMSUNG_USER_AGENT
-                }
-
-                webViewClient = object : WebViewClient() {
-                    @Deprecated("Deprecated in Java")
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView,
-                        url: String,
-                    ): Boolean {
-                        if (url.endsWith("/app")) {
-                            view.stopLoading()
-                            view.loadUrl(JS_SNIPPET)
-                            view.visibility = View.GONE
-                        }
-                        return false
+                    // Fix for Motorola devices - UA parsing issue breaks Discord login
+                    // See: https://github.com/dead8309/Kizzy/issues/345#issuecomment-2699729072
+                    if (Build.MANUFACTURER.equals(MOTOROLA, ignoreCase = true)) {
+                        settings.userAgentString = SAMSUNG_USER_AGENT
                     }
-                }
 
-                webChromeClient = object : WebChromeClient() {
-                    override fun onJsAlert(
-                        view: WebView,
-                        url: String,
-                        message: String,
-                        result: JsResult
-                    ): Boolean {
-                        Timber.d("Discord Token received")
-                        if (message.isNotBlank() && message != "null" && message != "undefined") {
-                            discordToken = message
-                            scope.launch(Dispatchers.Main) {
-                                navController.navigateUp()
+                    webViewClient = object : WebViewClient() {
+                        @Deprecated("Deprecated in Java")
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            url: String,
+                        ): Boolean {
+                            if (url.endsWith("/app")) {
+                                view.stopLoading()
+                                view.loadUrl(JS_SNIPPET)
+                                view.visibility = View.GONE
                             }
+                            return false
                         }
-                        view.visibility = View.GONE
-                        result.confirm()
-                        return true
                     }
+
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onJsAlert(
+                            view: WebView,
+                            url: String,
+                            message: String,
+                            result: JsResult
+                        ): Boolean {
+                            Timber.d("Discord Token received")
+                            if (message.isNotBlank() && message != "null" && message != "undefined") {
+                                discordTokenPref.value = message
+                                scope.launch(Dispatchers.Main) {
+                                    navController.navigateUp()
+                                }
+                            }
+                            view.visibility = View.GONE
+                            result.confirm()
+                            return true
+                        }
+                    }
+
+                    webViewRef.value = this
+                    loadUrl("https://discord.com/login")
                 }
-
-                webView = this
-                loadUrl("https://discord.com/login")
             }
-        }
-    )
+        )
 
-    TopAppBar(
-        title = { Text(stringResource(R.string.action_login)) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null
-                )
+        TopAppBar(
+            title = { Text(stringResource(R.string.action_login)) },
+            navigationIcon = {
+                IconButton(
+                    onClick = navController::navigateUp,
+                    onLongClick = navController::backToMain
+                ) {
+                    Icon(
+                        painterResource(R.drawable.arrow_back),
+                        contentDescription = null
+                    )
+                }
             }
-        }
-    )
+        )
+    }
 
-    BackHandler(enabled = webView?.canGoBack() == true) {
-        webView?.goBack()
+    BackHandler(enabled = webViewRef.value?.canGoBack() == true) {
+        webViewRef.value?.goBack()
     }
 }

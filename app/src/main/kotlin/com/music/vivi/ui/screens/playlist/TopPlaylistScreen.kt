@@ -112,6 +112,7 @@ import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.makeTimeString
 import com.music.vivi.viewmodels.TopPlaylistViewModel
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.rememberHeroTopBlur
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
@@ -283,6 +284,7 @@ fun TopPlaylistScreen(
         heroSource = heroSource,
         blurArtwork = true,
         bottomGradient = true,
+        topBlurProgress = rememberHeroTopBlur(state),
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(

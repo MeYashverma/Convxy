@@ -119,6 +119,7 @@ import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
 import com.music.vivi.viewmodels.CachePlaylistViewModel
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.rememberHeroTopBlur
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
@@ -233,6 +234,7 @@ fun CachePlaylistScreen(
         heroSource = heroSource,
         blurArtwork = true,
         bottomGradient = true,
+        topBlurProgress = rememberHeroTopBlur(lazyListState),
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(

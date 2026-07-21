@@ -59,6 +59,27 @@ sealed class HeroSource {
 /** Blur radius for [HeroBackground]'s Apple-Music-style blurred artwork. */
 private val HeroBlurRadius = 48.dp
 
+/** Max extra blur ramped onto the crisp upper hero artwork as the list scrolls. */
+private val MaxScrollBlur = 32.dp
+
+/**
+ * 0..1 scroll progress for [HeroBackground]'s `topBlurProgress`: ramps as the first
+ * screenful scrolls up, then pins at 1. Pass a hero screen's list state.
+ */
+@Composable
+fun rememberHeroTopBlur(
+    state: androidx.compose.foundation.lazy.LazyListState,
+    threshold: Float = 700f,
+): Float {
+    val progress by remember(state) {
+        androidx.compose.runtime.derivedStateOf {
+            if (state.firstVisibleItemIndex > 0) 1f
+            else (state.firstVisibleItemScrollOffset / threshold).coerceIn(0f, 1f)
+        }
+    }
+    return progress
+}
+
 /**
  * Resolves the hero image per the priority chain.
  *
@@ -228,9 +249,14 @@ fun HeroBackground(
     showDefaultIcon: Boolean = true,
     // Decorative primary-color wash fading in at the bottom of the screen.
     bottomGradient: Boolean = false,
+    // 0..1 — extra blur ramped onto the crisp upper artwork as the list scrolls up.
+    topBlurProgress: Float = 0f,
+    // Pull-to-zoom scale for the hero artwork (1 = rest; >1 while overscrolling the top).
+    heroScale: Float = 1f,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val scrollBlur = (topBlurProgress.coerceIn(0f, 1f) * MaxScrollBlur.value).dp
     Box(modifier = modifier.background(tint)) {
         when (heroSource) {
             is HeroSource.Artwork -> {
@@ -256,6 +282,8 @@ fun HeroBackground(
                             .blur(HeroBlurRadius)
                             .graphicsLayer {
                                 this.alpha = alpha
+                                scaleX = heroScale
+                                scaleY = heroScale
                                 compositingStrategy = CompositingStrategy.Offscreen
                             }
                             .drawWithContent {
@@ -279,8 +307,11 @@ fun HeroBackground(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
+                            .blur(scrollBlur)
                             .graphicsLayer {
                                 this.alpha = alpha
+                                scaleX = heroScale
+                                scaleY = heroScale
                                 compositingStrategy = CompositingStrategy.Offscreen
                             }
                             .drawWithContent {

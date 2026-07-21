@@ -90,6 +90,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.clip
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.rememberHeroTopBlur
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
@@ -220,6 +221,7 @@ fun HistoryScreen(
         heroSource = heroSource,
         blurArtwork = true,
         bottomGradient = true,
+        topBlurProgress = rememberHeroTopBlur(lazyListState),
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(

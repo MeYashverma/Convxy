@@ -56,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -258,11 +259,19 @@ fun AutoPlaylistScreen(
 
     val heroBackdrop = rememberLayerBackdrop()
 
+    val heroTopBlur by remember {
+        derivedStateOf {
+            if (lazyListState.firstVisibleItemIndex > 0) 1f
+            else (lazyListState.firstVisibleItemScrollOffset / 700f).coerceIn(0f, 1f)
+        }
+    }
+
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
         blurArtwork = true,
         bottomGradient = true,
+        topBlurProgress = heroTopBlur,
         modifier = Modifier.fillMaxSize(),
     ) {
         CompositionLocalProvider(

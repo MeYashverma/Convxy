@@ -87,6 +87,7 @@ import com.music.vivi.R
 import com.music.vivi.constants.SongSortDescendingKey
 import com.music.vivi.constants.SongSortType
 import com.music.vivi.constants.SongSortTypeKey
+import com.music.vivi.constants.YtmSyncKey
 import com.music.vivi.db.entities.Song
 import com.music.vivi.extensions.toMediaItem
 import com.music.vivi.playback.queues.ListQueue
@@ -141,6 +142,18 @@ fun AutoPlaylistScreen(
         SongSortType.CREATE_DATE,
     )
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
+
+    // Pull liked/uploaded songs from YouTube Music on open (regression: the sync-on-open
+    // effect was dropped in the card-screen refactor, leaving the Liked screen empty).
+    val (ytmSync) = rememberPreference(YtmSyncKey, true)
+    LaunchedEffect(Unit) {
+        if (ytmSync) {
+            when (viewModel.playlist) {
+                "liked" -> viewModel.syncLikedSongs()
+                "uploaded" -> viewModel.syncUploadedSongs()
+            }
+        }
+    }
 
     val (titleRes, iconRes) = when (viewModel.playlist) {
         "liked" -> R.string.liked to R.drawable.favorite

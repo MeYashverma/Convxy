@@ -122,7 +122,9 @@ import com.music.vivi.db.entities.PlaylistEntity
 import com.music.vivi.db.entities.PlaylistSongMap
 import com.music.vivi.db.entities.Song
 import com.music.vivi.extensions.toMediaItem
+import com.music.vivi.constants.IosOverscrollKey
 import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.LocalDatabase
 import com.music.vivi.LocalPlayerAwareWindowInsets
@@ -949,6 +951,7 @@ fun HomeScreen(
 
             LazyColumn(
                 state = lazylistState,
+                modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
             ) {
                 item {

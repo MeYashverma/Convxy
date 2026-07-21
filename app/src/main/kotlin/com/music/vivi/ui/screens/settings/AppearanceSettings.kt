@@ -61,6 +61,7 @@ import com.music.vivi.constants.EnableDynamicIconKey
 import com.music.vivi.constants.EnableSettingsPopupKey
 import com.music.vivi.constants.EnableHighRefreshRateKey
 import com.music.vivi.constants.EnableLyricsThumbnailPlayPauseKey
+import com.music.vivi.constants.IosOverscrollKey
 import com.music.vivi.constants.GridItemSize
 import com.music.vivi.constants.GridItemsSizeKey
 import com.music.vivi.constants.HidePlayerThumbnailKey
@@ -127,6 +128,10 @@ fun AppearanceSettings(
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
         EnableHighRefreshRateKey,
         defaultValue = true
+    )
+    val (iosOverscroll, onIosOverscrollChange) = rememberPreference(
+        IosOverscrollKey,
+        defaultValue = false
     )
     val (enableSettingsPopup, onEnableSettingsPopupChange) = rememberPreference(
         EnableSettingsPopupKey,
@@ -483,6 +488,29 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onEnableHighRefreshRateChange(!enableHighRefreshRate) }
+                    )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.tune),
+                        title = { Text(stringResource(R.string.ios_overscroll)) },
+                        description = { Text(stringResource(R.string.ios_overscroll_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = iosOverscroll,
+                                onCheckedChange = onIosOverscrollChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (iosOverscroll) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onIosOverscrollChange(!iosOverscroll) }
                     )
                 )
                 add(

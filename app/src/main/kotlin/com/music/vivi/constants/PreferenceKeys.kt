@@ -481,6 +481,7 @@ val HomeBackgroundPathKey = stringPreferencesKey("homeBackgroundPath")
 val HomeBackgroundBlurKey = floatPreferencesKey("homeBackgroundBlur")
 val HomeBackgroundDimKey = floatPreferencesKey("homeBackgroundDim")
 val HomeBackgroundAnimateKey = booleanPreferencesKey("homeBackgroundAnimate")
+val IosOverscrollKey = booleanPreferencesKey("iosOverscroll")
 
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")

@@ -989,6 +989,8 @@
     <string name="liquid_glass">Liquid Glass</string>
     <string name="share_smart_link">Share smart link</string>
     <string name="playlist_description">Description</string>
+    <string name="ios_overscroll">Bouncy scroll</string>
+    <string name="ios_overscroll_desc">iOS-style rubber-band overscroll on lists</string>
     <string name="scan_device">Scan device</string>
     <string name="grant_permission">Grant permission</string>
     <string name="home_background">Home background</string>

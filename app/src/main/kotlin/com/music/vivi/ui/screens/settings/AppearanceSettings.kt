@@ -447,6 +447,12 @@ fun AppearanceSettings(
                     icon = painterResource(R.drawable.tune),
                     title = { Text(stringResource(R.string.liquid_glass)) },
                     onClick = { navController.navigate("settings/appearance/liquidglass") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.image),
+                    title = { Text(stringResource(R.string.home_background)) },
+                    description = { Text(stringResource(R.string.home_background_desc)) },
+                    onClick = { navController.navigate("settings/appearance/homebackground") }
                 )
             )
         )

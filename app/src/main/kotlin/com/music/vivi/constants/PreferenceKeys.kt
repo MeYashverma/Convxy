@@ -476,6 +476,11 @@ val LiquidGlassNavBarEnabledKey = booleanPreferencesKey("liquidGlassNavBarEnable
 val UseFloatingNavBarKey = booleanPreferencesKey("useFloatingNavBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 
+val HomeBackgroundEnabledKey = booleanPreferencesKey("homeBackgroundEnabled")
+val HomeBackgroundPathKey = stringPreferencesKey("homeBackgroundPath")
+val HomeBackgroundBlurKey = floatPreferencesKey("homeBackgroundBlur")
+val HomeBackgroundDimKey = floatPreferencesKey("homeBackgroundDim")
+
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")
 enum class LyricsAnimationStyle {

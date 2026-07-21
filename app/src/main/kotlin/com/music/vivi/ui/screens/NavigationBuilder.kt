@@ -43,6 +43,7 @@ import com.music.vivi.ui.screens.settings.AboutScreen
 import com.music.vivi.ui.screens.settings.AppearanceSettings
 import com.music.vivi.ui.screens.settings.CanvasSelection
 import com.music.vivi.ui.screens.settings.GlassEffectSettings
+import com.music.vivi.ui.screens.settings.HomeBackgroundSettings
 import com.music.vivi.ui.screens.settings.BackupAndRestore
 import com.music.vivi.ui.screens.settings.SpotifyScreen
 import com.music.vivi.viewmodels.SpotifyImportViewModel
@@ -355,6 +356,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/appearance/liquidglass") {
         GlassEffectSettings(navController, scrollBehavior)
+    }
+
+    composable("settings/appearance/homebackground") {
+        HomeBackgroundSettings(navController, scrollBehavior)
     }
 
     composable("settings/content") {

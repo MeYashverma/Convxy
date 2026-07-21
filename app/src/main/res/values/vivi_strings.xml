@@ -987,6 +987,15 @@
     <string name="spotify_import_in_progress">Importing from Spotify</string>
     <string name="spotify_login_desc">Connecting to Spotify is completely local. Your session credentials are only saved on your device.</string>
     <string name="liquid_glass">Liquid Glass</string>
+    <string name="home_background">Home background</string>
+    <string name="home_background_desc">Custom blurred image behind the home screen</string>
+    <string name="home_background_enable">Enable custom background</string>
+    <string name="home_background_image">Choose image</string>
+    <string name="home_background_image_none">No image selected</string>
+    <string name="home_background_image_set">Image selected</string>
+    <string name="home_background_blur">Blur</string>
+    <string name="home_background_dim">Dim</string>
+    <string name="home_background_remove">Remove image</string>
     <string name="player_background_liquid_glass">Liquid Glass</string>
     <string name="liquid_glass_settings">Liquid Glass</string>
     <string name="liquid_glass_global_enabled">Enable Liquid Glass</string>

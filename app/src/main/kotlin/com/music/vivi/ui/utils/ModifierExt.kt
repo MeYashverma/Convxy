@@ -1,7 +1,8 @@
 package com.music.vivi.ui.utils
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -26,8 +27,11 @@ fun Modifier.bounceClick(
     val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val isPressed by actualInteractionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(durationMillis = 150),
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
         label = "bounceClick"
     )
 
@@ -59,8 +63,11 @@ fun Modifier.combinedBounceClick(
     val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val isPressed by actualInteractionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(durationMillis = 150),
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
         label = "combinedBounceClick"
     )
 

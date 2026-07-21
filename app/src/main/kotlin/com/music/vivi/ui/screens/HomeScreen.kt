@@ -93,15 +93,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import androidx.compose.ui.draw.blur
 import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.request.ImageRequest
-import com.music.vivi.constants.HomeBackgroundBlurKey
-import com.music.vivi.constants.HomeBackgroundDimKey
-import com.music.vivi.constants.HomeBackgroundEnabledKey
-import com.music.vivi.constants.HomeBackgroundPathKey
-import java.io.File
 import com.music.innertube.models.AlbumItem
 import com.music.innertube.models.ArtistItem
 import com.music.innertube.models.PlaylistItem
@@ -143,6 +137,7 @@ import com.music.vivi.ui.component.AlbumGridItem
 import com.music.vivi.ui.component.ArtistGridItem
 import com.music.vivi.ui.component.ChipsRow
 import com.music.vivi.ui.component.HideOnScrollFAB
+import com.music.vivi.ui.component.HomeImageBackground
 import com.music.vivi.ui.component.LocalBottomSheetPageState
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.NavigationTitle
@@ -931,25 +926,7 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart
         ) {
-            val (homeBgEnabled) = rememberPreference(HomeBackgroundEnabledKey, false)
-            val (homeBgPath) = rememberPreference(HomeBackgroundPathKey, "")
-            val (homeBgBlur) = rememberPreference(HomeBackgroundBlurKey, 20f)
-            val (homeBgDim) = rememberPreference(HomeBackgroundDimKey, 0.4f)
-            if (homeBgEnabled && homeBgPath.isNotEmpty()) {
-                AsyncImage(
-                    model = File(homeBgPath),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(homeBgBlur.dp),
-                )
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.Black.copy(alpha = homeBgDim)),
-                )
-            }
+            HomeImageBackground()
 
             val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
             val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor

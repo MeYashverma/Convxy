@@ -95,6 +95,7 @@ import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.PlaylistGridItem
 import com.music.vivi.ui.component.CreatePlaylistDialog
 import com.music.vivi.ui.component.HideOnScrollFAB
+import com.music.vivi.ui.component.HomeImageBackground
 import com.music.vivi.ui.component.PlaylistListItem
 import com.music.vivi.ui.component.SortHeader
 import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
@@ -377,6 +378,8 @@ fun LibraryMixScreen(
                 )
             }
         ) {
+            HomeImageBackground(withGradient = true)
+
             when (viewType) {
                 LibraryViewType.LIST ->
                     LazyColumn(

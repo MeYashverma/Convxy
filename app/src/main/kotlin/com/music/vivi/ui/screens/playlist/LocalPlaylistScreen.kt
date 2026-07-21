@@ -56,6 +56,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -164,7 +165,6 @@ import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.OverlayEditButton
 import com.music.vivi.ui.component.SongListItem
 import com.music.vivi.ui.component.SortHeader
-import com.music.vivi.ui.component.TextFieldDialog
 import com.music.vivi.ui.component.isGlassAllowed
 import com.music.vivi.ui.component.liquidGlass
 import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
@@ -324,33 +324,69 @@ fun LocalPlaylistScreen(
 
     if (showEditDialog) {
         playlist?.playlist?.let { playlistEntity ->
-            TextFieldDialog(
-                icon = {
-                    Icon(
-                        painter = painterResource(R.drawable.edit),
-                        contentDescription = null
-                    )
-                },
-                title = { Text(text = stringResource(R.string.edit_playlist)) },
+            var editName by remember {
+                mutableStateOf(
+                    TextFieldValue(playlistEntity.name, TextRange(playlistEntity.name.length))
+                )
+            }
+            var editDescription by remember {
+                mutableStateOf(TextFieldValue(playlistEntity.description ?: ""))
+            }
+            DefaultDialog(
                 onDismiss = { showEditDialog = false },
-                initialTextFieldValue = TextFieldValue(
-                    playlistEntity.name,
-                    TextRange(playlistEntity.name.length)
-                ),
-                onDone = { name ->
-                    database.query {
-                        update(
-                            playlistEntity.copy(
-                                name = name,
-                                lastUpdateTime = LocalDateTime.now()
-                            )
-                        )
+                buttons = {
+                    TextButton(onClick = { showEditDialog = false }) {
+                        Text(stringResource(android.R.string.cancel))
                     }
-                    viewModel.viewModelScope.launch(Dispatchers.IO) {
-                        playlistEntity.browseId?.let { YouTube.renamePlaylist(it, name) }
+                    TextButton(
+                        onClick = {
+                            val name = editName.text.trim().ifEmpty { playlistEntity.name }
+                            val description = editDescription.text.trim().ifEmpty { null }
+                            database.query {
+                                update(
+                                    playlistEntity.copy(
+                                        name = name,
+                                        description = description,
+                                        lastUpdateTime = LocalDateTime.now()
+                                    )
+                                )
+                            }
+                            viewModel.viewModelScope.launch(Dispatchers.IO) {
+                                playlistEntity.browseId?.let { YouTube.renamePlaylist(it, name) }
+                            }
+                            showEditDialog = false
+                        },
+                    ) {
+                        Text(stringResource(android.R.string.ok))
                     }
                 },
-            )
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                    Text(
+                        text = stringResource(R.string.edit_playlist),
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(vertical = 16.dp),
+                    )
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        label = { Text(stringResource(R.string.playlist_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = editDescription,
+                        onValueChange = { editDescription = it },
+                        label = { Text(stringResource(R.string.playlist_description)) },
+                        minLines = 2,
+                        maxLines = 4,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                    )
+                }
+            }
         }
     }
 
@@ -1177,6 +1213,19 @@ fun LocalPlaylistHeader(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 32.dp)
             )
+
+            playlist.playlist.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = onTint.copy(alpha = 0.7f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 

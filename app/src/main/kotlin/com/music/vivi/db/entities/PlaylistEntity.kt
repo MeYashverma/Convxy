@@ -30,6 +30,7 @@ data class PlaylistEntity(
     val remoteSongCount: Int? = null,
     val playEndpointParams: String? = null,
     val thumbnailUrl: String? = null,
+    val description: String? = null,
     val shuffleEndpointParams: String? = null,
     val radioEndpointParams: String? = null,
     @ColumnInfo(name = "isLocal", defaultValue = false.toString())

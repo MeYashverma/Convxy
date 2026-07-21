@@ -5,7 +5,7 @@
 
 package com.music.vivi.ui.component
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,9 +40,14 @@ import java.io.File
  * behind the screen content inside a [BoxScope] (uses [matchParentSize]).
  *
  * @param withGradient adds the bottom primary-color wash on top of the image.
+ * @param contentLoaded when animate is on, the blur eases in once this flips true
+ *   (i.e. when the screen's content items appear), not when the image itself loads.
  */
 @Composable
-fun BoxScope.HomeImageBackground(withGradient: Boolean = false) {
+fun BoxScope.HomeImageBackground(
+    withGradient: Boolean = false,
+    contentLoaded: Boolean = true,
+) {
     val (enabled) = rememberPreference(HomeBackgroundEnabledKey, false)
     val (path) = rememberPreference(HomeBackgroundPathKey, "")
     val (blur) = rememberPreference(HomeBackgroundBlurKey, 20f)
@@ -49,12 +55,19 @@ fun BoxScope.HomeImageBackground(withGradient: Boolean = false) {
     val (animate) = rememberPreference(HomeBackgroundAnimateKey, false)
     if (!enabled || path.isEmpty()) return
 
-    // When animate is on, the background stays sharp while the image loads, then eases
-    // into its blur over ~1.4s (slow, not abrupt). Off = static blur, no intro.
-    var loaded by remember(path) { mutableStateOf(false) }
+    // When animate is on, the background stays sharp until the content items load, then
+    // fluidly eases into its blur. Off = static blur, no intro. `appeared` guarantees the
+    // target starts at 0 so animateFloatAsState actually ramps (it inits to its first
+    // target), and keeps the ease-in working even when a screen has no content items.
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
     val animatedBlur by animateFloatAsState(
-        targetValue = if (loaded) blur else 0f,
-        animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
+        targetValue = if (appeared && contentLoaded) blur else 0f,
+        // Long, gentle ease-out (easeOutExpo-like) for a fluid, unhurried settle.
+        animationSpec = tween(
+            durationMillis = 2200,
+            easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f),
+        ),
         label = "homeBgBlur",
     )
     val effectiveBlur = if (animate) animatedBlur else blur
@@ -63,7 +76,6 @@ fun BoxScope.HomeImageBackground(withGradient: Boolean = false) {
         model = File(path),
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        onSuccess = { loaded = true },
         modifier = Modifier
             .matchParentSize()
             .blur(effectiveBlur.dp),

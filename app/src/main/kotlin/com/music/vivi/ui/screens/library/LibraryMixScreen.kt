@@ -6,16 +6,15 @@
 package com.music.vivi.ui.screens.library
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -30,11 +29,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,7 +52,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -69,6 +74,7 @@ import com.music.vivi.constants.MixSortTypeKey
 import com.music.vivi.constants.ShowCachedPlaylistKey
 import com.music.vivi.constants.ShowDownloadedPlaylistKey
 import com.music.vivi.constants.ShowLikedPlaylistKey
+import com.music.vivi.constants.ShowLocalPlaylistKey
 import com.music.vivi.constants.ShowTopPlaylistKey
 import com.music.vivi.constants.ShowUploadedPlaylistKey
 import com.music.vivi.constants.YtmSyncKey
@@ -81,13 +87,21 @@ import com.music.vivi.ui.component.AlbumGridItem
 import com.music.vivi.ui.component.AlbumListItem
 import com.music.vivi.ui.component.ArtistGridItem
 import com.music.vivi.ui.component.ArtistListItem
+import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.PlaylistGridItem
 import com.music.vivi.ui.component.PlaylistListItem
 import com.music.vivi.ui.component.SortHeader
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.music.vivi.ui.component.rememberHeroSource
+import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.menu.AlbumMenu
 import com.music.vivi.ui.menu.ArtistMenu
 import com.music.vivi.ui.menu.PlaylistMenu
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
 import com.music.vivi.viewmodels.LibraryMixViewModel
@@ -97,6 +111,7 @@ import java.text.Collator
 import java.time.LocalDateTime
 import java.util.Locale
 import java.util.UUID
+import androidx.compose.ui.platform.LocalLocale
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -122,6 +137,24 @@ fun LibraryMixScreen(
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
     val topSize by viewModel.topValue.collectAsState(initial = 50)
+    
+    val albums by viewModel.albums.collectAsState()
+    val artists by viewModel.artists.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
+
+    val heroUrl = (albums + artists + playlists).firstOrNull()?.let {
+        when (it) {
+            is Album -> it.album.thumbnailUrl
+            is Artist -> it.artist.thumbnailUrl
+            is Playlist -> it.thumbnails.firstOrNull()
+            else -> null
+        }
+    }
+    val heroSource = rememberHeroSource(staticArt = heroUrl)
+    val tint = rememberHeroTint(heroUrl)
+    val onTint = AppleTokens.onColor(tint)
+    val heroBackdrop = rememberLayerBackdrop()
+
     val likedPlaylist =
         Playlist(
             playlist = PlaylistEntity(
@@ -172,18 +205,25 @@ fun LibraryMixScreen(
             songThumbnails = emptyList(),
         )
 
+    val localPlaylist =
+        Playlist(
+            playlist = PlaylistEntity(
+                id = UUID.randomUUID().toString(),
+                name = stringResource(R.string.filter_local)
+            ),
+            songCount = 0,
+            songThumbnails = emptyList(),
+        )
+
     val (showLiked) = rememberPreference(ShowLikedPlaylistKey, true)
     val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
     val (showTop) = rememberPreference(ShowTopPlaylistKey, true)
     val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
     val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, true)
+    val (showLocal) = rememberPreference(ShowLocalPlaylistKey, true)
 
-    val albums = viewModel.albums.collectAsState()
-    val artist = viewModel.artists.collectAsState()
-    val playlist = viewModel.playlists.collectAsState()
-
-    var allItems = albums.value + artist.value + playlist.value
-    val collator = Collator.getInstance(Locale.getDefault())
+    var allItems = albums + artists + playlists
+    val collator = Collator.getInstance(LocalLocale.current.platformLocale)
     collator.strength = Collator.PRIMARY
     allItems =
         when (sortType) {
@@ -301,110 +341,137 @@ fun LibraryMixScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
 
-    PullToRefreshBox(
-        state = pullRefreshState,
-        isRefreshing = isRefreshing,
-        onRefresh = viewModel::refresh,
-        indicator = {
-            PullToRefreshDefaults.LoadingIndicator(
-                state = pullRefreshState,
-                isRefreshing = isRefreshing,
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
-        }
+    HeroBackground(
+        tint = tint,
+        heroSource = heroSource,
+        modifier = Modifier.fillMaxSize(),
     ) {
-        when (viewType) {
-            LibraryViewType.LIST ->
-                LazyColumn(
-                    state = lazyListState,
-                    contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-                ) {
-                    item(
-                        key = "filter",
-                        contentType = CONTENT_TYPE_HEADER,
+      CompositionLocalProvider(
+          LocalAppBackdrop provides heroBackdrop,
+          LocalContentColor provides onTint
+      ) {
+        PullToRefreshBox(
+            state = pullRefreshState,
+            isRefreshing = isRefreshing,
+            onRefresh = viewModel::refresh,
+            indicator = {
+                PullToRefreshDefaults.LoadingIndicator(
+                    state = pullRefreshState,
+                    isRefreshing = isRefreshing,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
+        ) {
+            when (viewType) {
+                LibraryViewType.LIST ->
+                    LazyColumn(
+                        state = lazyListState,
+                        contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                     ) {
-                        filterContent()
-                    }
-
-                    item(
-                        key = "header",
-                        contentType = CONTENT_TYPE_HEADER,
-                    ) {
-                        headerContent()
-                    }
-
-                    if (showLiked) {
-                        item(
-                            key = "likedPlaylist",
-                            contentType = { CONTENT_TYPE_PLAYLIST },
-                        ) {
-                            PlaylistListItem(
-                                playlist = likedPlaylist,
-                                autoPlaylist = true,
-                                modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("auto_playlist/liked")
-                                    }
-                                    .animateItem(),
-                            )
+                        item(key = "header_title") {
+                            Column {
+                                Spacer(Modifier.height(40.dp))
+                                Text(
+                                    text = stringResource(R.string.filter_library).lowercase(),
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = onTint,
+                                    fontSize = 42.sp,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
+                                )
+                            }
                         }
-                    }
 
-                    if (showDownloaded) {
                         item(
-                            key = "downloadedPlaylist",
-                            contentType = { CONTENT_TYPE_PLAYLIST },
+                            key = "filter",
+                            contentType = CONTENT_TYPE_HEADER,
                         ) {
-                            PlaylistListItem(
-                                playlist = downloadPlaylist,
-                                autoPlaylist = true,
-                                modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("auto_playlist/downloaded")
-                                    }
-                                    .animateItem(),
-                            )
+                            filterContent()
                         }
-                    }
 
-                    if (showTop) {
                         item(
-                            key = "TopPlaylist",
-                            contentType = { CONTENT_TYPE_PLAYLIST },
+                            key = "header",
+                            contentType = CONTENT_TYPE_HEADER,
                         ) {
-                            PlaylistListItem(
-                                playlist = topPlaylist,
-                                autoPlaylist = true,
-                                modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("top_playlist/$topSize")
-                                    }
-                                    .animateItem(),
-                            )
+                            headerContent()
                         }
-                    }
 
-                    if (showCached) {
-                        item(
-                            key = "cachePlaylist",
-                            contentType = { CONTENT_TYPE_PLAYLIST },
-                        ) {
-                            PlaylistListItem(
-                                playlist = cachePlaylist,
-                                autoPlaylist = true,
-                                modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("cache_playlist/cached")
-                                    }
-                                    .animateItem(),
+                        if (showLiked) {
+                            item(
+                                key = "likedPlaylist",
+                                contentType = { CONTENT_TYPE_PLAYLIST },
+                            ) {
+                                PlaylistListItem(
+                                    playlist = likedPlaylist,
+                                    autoPlaylist = true,
+                                    flat = true,
+                                    modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .bounceClick {
+                                            navController.navigate("auto_playlist/liked")
+                                        }
+                                        .animateItem(),
+                                )
+                            }
+                        }
+
+                        if (showDownloaded) {
+                            item(
+                                key = "downloadedPlaylist",
+                                contentType = { CONTENT_TYPE_PLAYLIST },
+                            ) {
+                                PlaylistListItem(
+                                    playlist = downloadPlaylist,
+                                    autoPlaylist = true,
+                                    flat = true,
+                                    modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .bounceClick {
+                                            navController.navigate("auto_playlist/downloaded")
+                                        }
+                                        .animateItem(),
+                                )
+                            }
+                        }
+
+                        if (showTop) {
+                            item(
+                                key = "TopPlaylist",
+                                contentType = { CONTENT_TYPE_PLAYLIST },
+                            ) {
+                                PlaylistListItem(
+                                    playlist = topPlaylist,
+                                    autoPlaylist = true,
+                                    flat = true,
+                                    modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .bounceClick {
+                                            navController.navigate("top_playlist/$topSize")
+                                        }
+                                        .animateItem(),
+                                )
+                            }
+                        }
+
+                        if (showCached) {
+                            item(
+                                key = "cachePlaylist",
+                                contentType = { CONTENT_TYPE_PLAYLIST },
+                            ) {
+                                PlaylistListItem(
+                                    playlist = cachePlaylist,
+                                    autoPlaylist = true,
+                                    flat = true,
+                                    modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .bounceClick {
+                                            navController.navigate("cache_playlist/cached")
+                                        }
+                                        .animateItem(),
                             )
                         }
                     }
@@ -417,11 +484,32 @@ fun LibraryMixScreen(
                             PlaylistListItem(
                                 playlist = uploadedPlaylist,
                                 autoPlaylist = true,
+                                flat = true,
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .clickable {
+                                        .bounceClick {
                                             navController.navigate("auto_playlist/uploaded")
+                                        }
+                                        .animateItem(),
+                            )
+                        }
+                    }
+
+                    if (showLocal) {
+                        item(
+                            key = "localPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            PlaylistListItem(
+                                playlist = localPlaylist,
+                                autoPlaylist = true,
+                                flat = true,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .bounceClick {
+                                            navController.navigate("auto_playlist/local")
                                         }
                                         .animateItem(),
                             )
@@ -437,6 +525,7 @@ fun LibraryMixScreen(
                             is Playlist -> {
                                 PlaylistListItem(
                                     playlist = item,
+                                    flat = true,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -458,7 +547,7 @@ fun LibraryMixScreen(
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 navController.navigate("local_playlist/${item.id}")
                                             },
@@ -480,6 +569,7 @@ fun LibraryMixScreen(
                             is Artist -> {
                                 ArtistListItem(
                                     artist = item,
+                                    flat = true,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -501,7 +591,7 @@ fun LibraryMixScreen(
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 navController.navigate("artist/${item.id}")
                                             },
@@ -525,6 +615,7 @@ fun LibraryMixScreen(
                                     album = item,
                                     isActive = item.id == mediaMetadata?.album?.id,
                                     isPlaying = isPlaying,
+                                    flat = true,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -546,7 +637,7 @@ fun LibraryMixScreen(
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 navController.navigate("album/${item.id}")
                                             },
@@ -579,6 +670,20 @@ fun LibraryMixScreen(
                     ),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
+                    item(key = "header_title", span = { GridItemSpan(maxLineSpan) }) {
+                        Column {
+                            Spacer(Modifier.height(40.dp))
+                            Text(
+                                text = stringResource(R.string.filter_library).lowercase(),
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = onTint,
+                                fontSize = 42.sp,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
+                            )
+                        }
+                    }
+
                     item(
                         key = "filter",
                         span = { GridItemSpan(maxLineSpan) },
@@ -594,7 +699,6 @@ fun LibraryMixScreen(
                     ) {
                         headerContent()
                     }
-
                     if (showLiked) {
                         item(
                             key = "likedPlaylist",
@@ -607,11 +711,9 @@ fun LibraryMixScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("auto_playlist/liked")
-                                        },
-                                    )
+                                    .bounceClick {
+                                        navController.navigate("auto_playlist/liked")
+                                    }
                                     .animateItem(),
                             )
                         }
@@ -629,11 +731,9 @@ fun LibraryMixScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("auto_playlist/downloaded")
-                                        },
-                                    )
+                                    .bounceClick {
+                                        navController.navigate("auto_playlist/downloaded")
+                                    }
                                     .animateItem(),
                             )
                         }
@@ -651,11 +751,9 @@ fun LibraryMixScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("top_playlist/$topSize")
-                                        },
-                                    )
+                                    .bounceClick {
+                                        navController.navigate("top_playlist/$topSize")
+                                    }
                                     .animateItem(),
                             )
                         }
@@ -673,11 +771,9 @@ fun LibraryMixScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("cache_playlist/cached")
-                                        },
-                                    )
+                                    .bounceClick {
+                                        navController.navigate("cache_playlist/cached")
+                                    }
                                     .animateItem(),
                             )
                         }
@@ -693,12 +789,32 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            navController.navigate("auto_playlist/uploaded")
-                                        }
-                                        .animateItem(),
+                                Modifier
+                                    .fillMaxWidth()
+                                    .bounceClick {
+                                        navController.navigate("auto_playlist/uploaded")
+                                    }
+                                    .animateItem(),
+                            )
+                        }
+                    }
+
+                    if (showLocal) {
+                        item(
+                            key = "localPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            PlaylistGridItem(
+                                playlist = localPlaylist,
+                                fillMaxWidth = true,
+                                autoPlaylist = true,
+                                modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .bounceClick {
+                                        navController.navigate("auto_playlist/local")
+                                    }
+                                    .animateItem(),
                             )
                         }
                     }
@@ -716,7 +832,7 @@ fun LibraryMixScreen(
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 navController.navigate("local_playlist/${item.id}")
                                             },
@@ -742,7 +858,7 @@ fun LibraryMixScreen(
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 navController.navigate("artist/${item.id}")
                                             },
@@ -771,7 +887,7 @@ fun LibraryMixScreen(
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 navController.navigate("album/${item.id}")
                                             },
@@ -794,6 +910,8 @@ fun LibraryMixScreen(
                         }
                     }
                 }
+            }
         }
+      }
     }
 }

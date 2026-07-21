@@ -9,29 +9,24 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import androidx.compose.foundation.border
 import androidx.core.content.edit
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.music.vivi.ui.utils.bounceClick
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -48,11 +43,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.music.vivi.LocalPlayerAwareWindowInsets
@@ -63,6 +55,14 @@ import com.music.vivi.constants.CanvasThumbnailAnimationKey
 import com.music.vivi.constants.ChipSortTypeKey
 import com.music.vivi.constants.CropAlbumArtKey
 import com.music.vivi.constants.DefaultOpenTabKey
+import com.music.vivi.constants.LiquidGlassBlurRadiusKey
+import com.music.vivi.constants.LiquidGlassGlobalEnabledKey
+import com.music.vivi.constants.LiquidGlassLensAmountKey
+import com.music.vivi.constants.LiquidGlassMiniPlayerEnabledKey
+import com.music.vivi.constants.LiquidGlassNavBarEnabledKey
+import com.music.vivi.constants.LiquidGlassSurfaceOpacityKey
+import com.music.vivi.constants.LiquidGlassVibrancyKey
+import com.music.vivi.constants.UseFloatingNavBarKey
 import com.music.vivi.constants.DensityScale
 import com.music.vivi.constants.DensityScaleKey
 import com.music.vivi.constants.DynamicThemeKey
@@ -84,9 +84,7 @@ import com.music.vivi.constants.PlayerBackgroundStyle
 import com.music.vivi.constants.PlayerBackgroundStyleKey
 import com.music.vivi.constants.PlayerButtonsStyle
 import com.music.vivi.constants.PlayerButtonsStyleKey
-import com.music.vivi.constants.PureBlackMiniPlayerKey
 import com.music.vivi.constants.RotatingThumbnailKey
-import com.music.vivi.constants.SelectedThemeColorKey
 import com.music.vivi.constants.ShowCachedPlaylistKey
 import com.music.vivi.constants.ShowDownloadedPlaylistKey
 import com.music.vivi.constants.ShowLikedPlaylistKey
@@ -110,23 +108,15 @@ import com.music.vivi.ui.component.EnumDialog
 import com.music.vivi.ui.component.IconButton
 import com.music.vivi.ui.component.Material3SettingsGroup
 import com.music.vivi.ui.component.Material3SettingsItem
-import com.music.vivi.ui.component.PlayerSliderTrack
-import com.music.vivi.ui.component.SquigglySlider
-import com.music.vivi.ui.component.WavySlider
-import com.music.vivi.ui.theme.DefaultThemeColor
-import com.music.vivi.ui.theme.PlayerSliderColors
 import com.music.vivi.ui.utils.backToMain
-import com.music.vivi.utils.IconUtils
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.music.vivi.constants.LyricsClickKey
 import com.music.vivi.constants.AppleMusicLyricsBlurKey
 import com.music.vivi.constants.LyricsGlowEffectKey
 import com.music.vivi.constants.LyricsLineSpacingKey
 import com.music.vivi.constants.LyricsScrollKey
-import com.music.vivi.constants.MiniPlayerBackgroundStyleKey
 import com.music.vivi.constants.ShowAudioQualityBadgeKey
 import com.music.vivi.constants.ShowCommentButtonKey
 
@@ -138,62 +128,43 @@ fun AppearanceSettings(
     activity: Activity,
     snackbarHostState: SnackbarHostState,
 ) {
-    val (dynamicTheme, onDynamicThemeChange) = rememberPreference(
-        DynamicThemeKey,
-        defaultValue = true
+    // Liquid Glass settings - promoted to top
+    val (liquidGlassVibrancy, onLiquidGlassVibrancyChange) = rememberPreference(
+        LiquidGlassVibrancyKey,
+        defaultValue = 1.2f
     )
-    val (enableDynamicIcon, onEnableDynamicIconChange) = rememberPreference(
-        EnableDynamicIconKey,
-        defaultValue = true
+    val (liquidGlassBlurRadius, onLiquidGlassBlurRadiusChange) = rememberPreference(
+        LiquidGlassBlurRadiusKey,
+        defaultValue = 2f
     )
+    val (liquidGlassLensAmount, onLiquidGlassLensAmountChange) = rememberPreference(
+        LiquidGlassLensAmountKey,
+        defaultValue = 0.6f
+    )
+    val (liquidGlassSurfaceOpacity, onLiquidGlassSurfaceOpacityChange) = rememberPreference(
+        LiquidGlassSurfaceOpacityKey,
+        defaultValue = 0.65f
+    )
+
+    // Hidden defaults enforced as Always-ON
+    val (_, _) = rememberPreference(LiquidGlassGlobalEnabledKey, defaultValue = true)
+    val (_, _) = rememberPreference(LiquidGlassNavBarEnabledKey, defaultValue = true)
+    val (_, _) = rememberPreference(LiquidGlassMiniPlayerEnabledKey, defaultValue = true)
+    val (_, _) = rememberPreference(UseFloatingNavBarKey, defaultValue = true)
+    val (_, _) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
+    val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
+    val (_, _) = rememberPreference(EnableDynamicIconKey, defaultValue = true)
+    val (_, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = true)
+
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
         EnableHighRefreshRateKey,
         defaultValue = true
-    )
-    val (showAudioQualityBadge, onShowAudioQualityBadgeChange) = rememberPreference(
-        ShowAudioQualityBadgeKey,
-        defaultValue = false
     )
     val (enableSettingsPopup, onEnableSettingsPopupChange) = rememberPreference(
         EnableSettingsPopupKey,
         defaultValue = false
     )
-    val (selectedThemeColorInt) = rememberPreference(
-        SelectedThemeColorKey,
-        defaultValue = DefaultThemeColor.toArgb()
-    )
-    // Check if user has selected a custom color (not the default/dynamic color)
-    val isUsingCustomColor = selectedThemeColorInt != DefaultThemeColor.toArgb()
-    val coroutineScope = rememberCoroutineScope()
 
-    fun handleIconChange(enabled: Boolean) {
-        onEnableDynamicIconChange(enabled)
-        IconUtils.setIcon(activity, enabled)
-        coroutineScope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = "Icon updated, restart to apply",
-                actionLabel = "Restart"
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                val packageManager = activity.packageManager
-                val intent = packageManager.getLaunchIntentForPackage(activity.packageName)
-                val componentName = intent?.component
-                val mainIntent = Intent.makeRestartActivityTask(componentName)
-                activity.startActivity(mainIntent)
-                Runtime.getRuntime().exit(0)
-            }
-        }
-    }
-
-
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
-        UseNewPlayerDesignKey,
-        defaultValue = false
-    )
-    val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
-        UseNewMiniPlayerDesignKey,
-        defaultValue = true
-    )
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(
         HidePlayerThumbnailKey,
         defaultValue = false
@@ -206,11 +177,6 @@ fun AppearanceSettings(
         rememberEnumPreference(
             PlayerBackgroundStyleKey,
             defaultValue = PlayerBackgroundStyle.GRADIENT,
-        )
-    val (miniPlayerBackground, onMiniPlayerBackgroundChange) =
-        rememberEnumPreference(
-            MiniPlayerBackgroundStyleKey,
-            defaultValue = PlayerBackgroundStyle.DEFAULT,
         )
 
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(
@@ -275,11 +241,6 @@ fun AppearanceSettings(
         defaultValue = GridItemSize.SMALL
     )
 
-    val (slimNav, onSlimNavChange) = rememberPreference(
-        SlimNavBarKey,
-        defaultValue = false
-    )
-
     // Density scale preferences
     val context = activity as Context
     val sharedPreferences = remember { context.getSharedPreferences("vivimusic_settings", Context.MODE_PRIVATE) }
@@ -292,7 +253,6 @@ fun AppearanceSettings(
 
     val onDensityScaleChange: (Float) -> Unit = { newScale ->
         setDensityScale(newScale)
-        // Write to SharedPreferences for DensityScaler to read on next startup
         sharedPreferences.edit {
             putFloat("density_scale_factor", newScale)
         }
@@ -343,28 +303,12 @@ fun AppearanceSettings(
         it != PlayerBackgroundStyle.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     }
 
-    val availableMiniPlayerBackgroundStyles = availableBackgroundStyles.filter { 
-        it != PlayerBackgroundStyle.APPLE_MUSIC 
-    }
-
-
-
     val (defaultChip, onDefaultChipChange) = rememberEnumPreference(
         key = ChipSortTypeKey,
         defaultValue = LibraryFilter.LIBRARY
     )
 
-    var showSliderOptionDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-
-
     var showPlayerBackgroundDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showMiniPlayerBackgroundDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -397,7 +341,7 @@ fun AppearanceSettings(
             },
             title = stringResource(R.string.lyrics_text_position),
             current = lyricsPosition,
-            values = LyricsPosition.values().toList(),
+            values = LyricsPosition.entries,
             valueText = {
                 when (it) {
                     LyricsPosition.LEFT -> stringResource(R.string.left)
@@ -417,7 +361,7 @@ fun AppearanceSettings(
             },
             title = stringResource(R.string.lyrics_animation_style),
             current = lyricsAnimationStyle,
-            values = LyricsAnimationStyle.values().toList(),
+            values = LyricsAnimationStyle.entries,
             valueText = {
                 when (it) {
                     LyricsAnimationStyle.NONE -> stringResource(R.string.none)
@@ -435,207 +379,7 @@ fun AppearanceSettings(
         )
     }
 
-    if (showLyricsTextSizeDialog) {
-        var tempTextSize by remember { mutableFloatStateOf(lyricsTextSize) }
-        
-        DefaultDialog(
-            onDismiss = { 
-                tempTextSize = lyricsTextSize
-                showLyricsTextSizeDialog = false 
-            },
-            buttons = {
-                TextButton(
-                    onClick = { 
-                        tempTextSize = 24f
-                    }
-                ) {
-                    Text(stringResource(R.string.reset))
-                }
-                
-                Spacer(modifier = Modifier.weight(1f))
-                
-                TextButton(
-                    onClick = { 
-                        tempTextSize = lyricsTextSize
-                        showLyricsTextSizeDialog = false 
-                    }
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-                TextButton(
-                    onClick = { 
-                        onLyricsTextSizeChange(tempTextSize)
-                        showLyricsTextSizeDialog = false 
-                    }
-                ) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            }
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.lyrics_text_size),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                Text(
-                    text = "${tempTextSize.roundToInt()} sp",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                Slider(
-                    value = tempTextSize,
-                    onValueChange = { tempTextSize = it },
-                    valueRange = 16f..36f,
-                    steps = 19,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-    }
-
-    if (showLyricsLineSpacingDialog) {
-        var tempLineSpacing by remember { mutableFloatStateOf(lyricsLineSpacing) }
-        
-        DefaultDialog(
-            onDismiss = { 
-                tempLineSpacing = lyricsLineSpacing
-                showLyricsLineSpacingDialog = false 
-            },
-            buttons = {
-                TextButton(
-                    onClick = { 
-                        tempLineSpacing = 1.3f
-                    }
-                ) {
-                    Text(stringResource(R.string.reset))
-                }
-                
-                Spacer(modifier = Modifier.weight(1f))
-                
-                TextButton(
-                    onClick = { 
-                        tempLineSpacing = lyricsLineSpacing
-                        showLyricsLineSpacingDialog = false 
-                    }
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-                TextButton(
-                    onClick = { 
-                        onLyricsLineSpacingChange(tempLineSpacing)
-                        showLyricsLineSpacingDialog = false 
-                    }
-                ) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            }
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.lyrics_line_spacing),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                Text(
-                    text = "${String.format("%.1f", tempLineSpacing)}x",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                Slider(
-                    value = tempLineSpacing,
-                    onValueChange = { tempLineSpacing = it },
-                    valueRange = 1.0f..4.0f,
-                    steps = 59,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-    }
-
-    if (showPlayerButtonsStyleDialog) {
-        EnumDialog(
-            onDismiss = { showPlayerButtonsStyleDialog = false },
-            onSelect = {
-                onPlayerButtonsStyleChange(it)
-                showPlayerButtonsStyleDialog = false
-            },
-            title = stringResource(R.string.player_buttons_style),
-            current = playerButtonsStyle,
-            values = PlayerButtonsStyle.values().toList(),
-            valueText = {
-                when (it) {
-                    PlayerButtonsStyle.DEFAULT -> stringResource(R.string.default_style)
-                    PlayerButtonsStyle.PRIMARY -> stringResource(R.string.primary_color_style)
-                    PlayerButtonsStyle.TERTIARY -> stringResource(R.string.tertiary_color_style)
-                }
-            }
-        )
-    }
-
-    if (showPlayerBackgroundDialog) {
-        EnumDialog(
-            onDismiss = { showPlayerBackgroundDialog = false },
-            onSelect = {
-                onPlayerBackgroundChange(it)
-                showPlayerBackgroundDialog = false
-            },
-            title = stringResource(R.string.player_background_style),
-            current = playerBackground,
-            values = availableBackgroundStyles,
-            valueText = {
-                when (it) {
-                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                    PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
-                    PlayerBackgroundStyle.APPLE_MUSIC -> stringResource(R.string.apple_music)
-                    PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
-                    PlayerBackgroundStyle.LIQUID_GLASS -> stringResource(R.string.player_background_liquid_glass)
-                }
-            }
-        )
-    }
-
-    if (showMiniPlayerBackgroundDialog) {
-        EnumDialog(
-            onDismiss = { showMiniPlayerBackgroundDialog = false },
-            onSelect = {
-                onMiniPlayerBackgroundChange(it)
-                showMiniPlayerBackgroundDialog = false
-            },
-            title = stringResource(R.string.miniplayer_background_style),
-            current = miniPlayerBackground,
-            values = availableMiniPlayerBackgroundStyles,
-            valueText = {
-                when (it) {
-                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                    PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
-                    PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
-                    PlayerBackgroundStyle.LIQUID_GLASS -> stringResource(R.string.player_background_liquid_glass)
-                    else -> ""
-                }
-            }
-        )
-    }
-
-
-    var showDefaultOpenTabDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
+    var showDefaultOpenTabDialog by rememberSaveable { mutableStateOf(false) }
     if (showDefaultOpenTabDialog) {
         EnumDialog(
             onDismiss = { showDefaultOpenTabDialog = false },
@@ -645,7 +389,7 @@ fun AppearanceSettings(
             },
             title = stringResource(R.string.default_open_tab),
             current = defaultOpenTab,
-            values = NavigationTab.values().toList(),
+            values = NavigationTab.entries,
             valueText = {
                 when (it) {
                     NavigationTab.HOME -> stringResource(R.string.home)
@@ -656,10 +400,7 @@ fun AppearanceSettings(
         )
     }
 
-    var showDefaultChipDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
+    var showDefaultChipDialog by rememberSaveable { mutableStateOf(false) }
     if (showDefaultChipDialog) {
         EnumDialog(
             onDismiss = { showDefaultChipDialog = false },
@@ -669,7 +410,7 @@ fun AppearanceSettings(
             },
             title = stringResource(R.string.default_lib_chips),
             current = defaultChip,
-            values = LibraryFilter.values().toList(),
+            values = LibraryFilter.entries,
             valueText = {
                 when (it) {
                     LibraryFilter.SONGS -> stringResource(R.string.songs)
@@ -682,10 +423,7 @@ fun AppearanceSettings(
         )
     }
 
-    var showGridSizeDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
+    var showGridSizeDialog by rememberSaveable { mutableStateOf(false) }
     if (showGridSizeDialog) {
         EnumDialog(
             onDismiss = { showGridSizeDialog = false },
@@ -695,7 +433,7 @@ fun AppearanceSettings(
             },
             title = stringResource(R.string.grid_cell_size),
             current = gridItemSize,
-            values = GridItemSize.values().toList(),
+            values = GridItemSize.entries,
             valueText = {
                 when (it) {
                     GridItemSize.BIG -> stringResource(R.string.big)
@@ -705,266 +443,6 @@ fun AppearanceSettings(
         )
     }
 
-    if (showRestartDialog) {
-        DefaultDialog(
-            onDismiss = { showRestartDialog = false },
-            buttons = {
-                TextButton(
-                    onClick = { showRestartDialog = false }
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-                TextButton(
-                    onClick = {
-                        showRestartDialog = false
-                        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        }
-                        context.startActivity(intent)
-                        Runtime.getRuntime().exit(0)
-                    }
-                ) {
-                    Text(text = stringResource(R.string.restart))
-                }
-            }
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.restart_required),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    text = stringResource(R.string.density_restart_message),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-    }
-
-    if (showDensityScaleDialog) {
-        DefaultDialog(
-            onDismiss = { showDensityScaleDialog = false },
-            buttons = {
-                TextButton(
-                    onClick = { showDensityScaleDialog = false }
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-            }
-        ) {
-            Column {
-                DensityScale.entries.forEach { scale ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onDensityScaleChange(scale.value)
-                                showDensityScaleDialog = false
-                            }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = scale.label,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (densityScale == scale.value) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showSliderOptionDialog) {
-        DefaultDialog(
-            buttons = {
-                TextButton(
-                    onClick = { showSliderOptionDialog = false }
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-            },
-            onDismiss = {
-                showSliderOptionDialog = false
-            }
-        ) {
-            val sliderPreviewColors = PlayerSliderColors.getSliderColors(
-                MaterialTheme.colorScheme.primary,
-                PlayerBackgroundStyle.DEFAULT,
-                isSystemInDarkTheme()
-            )
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .border(
-                                1.dp,
-                                if (sliderStyle == SliderStyle.DEFAULT && !squigglySlider) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                RoundedCornerShape(16.dp)
-                            )
-                            .clickable {
-                                onSliderStyleChange(SliderStyle.DEFAULT)
-                                onSquigglySliderChange(false)
-                                showSliderOptionDialog = false
-                            }
-                            .padding(12.dp)
-                    ) {
-                        val sliderValue = 0.35f
-                        Slider(
-                            value = sliderValue,
-                            valueRange = 0f..1f,
-                            onValueChange = { /* preview only */ },
-                            colors = sliderPreviewColors,
-                            enabled = false,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = stringResource(R.string.default_),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .border(
-                                1.dp,
-                                if (sliderStyle == SliderStyle.WAVY && !squigglySlider) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                RoundedCornerShape(16.dp)
-                            )
-                            .clickable {
-                                onSliderStyleChange(SliderStyle.WAVY)
-                                onSquigglySliderChange(false)
-                                showSliderOptionDialog = false
-                            }
-                            .padding(12.dp)
-                    ) {
-                        val sliderValue = 0.5f
-                        WavySlider(
-                            value = sliderValue,
-                            valueRange = 0f..1f,
-                            onValueChange = { /* preview only */ },
-                            colors = sliderPreviewColors,
-                            modifier = Modifier.weight(1f),
-                            isPlaying = true,
-                            enabled = false
-                        )
-                        Text(
-                            text = stringResource(R.string.wavy),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .border(
-                                1.dp,
-                                if (sliderStyle == SliderStyle.SLIM) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                RoundedCornerShape(16.dp)
-                            )
-                            .clickable {
-                                onSliderStyleChange(SliderStyle.SLIM)
-                                onSquigglySliderChange(false)
-                                showSliderOptionDialog = false
-                            }
-                            .padding(12.dp)
-                    ) {
-                        val sliderValue = 0.65f
-                        Slider(
-                            value = sliderValue,
-                            valueRange = 0f..1f,
-                            onValueChange = { /* preview only */ },
-                            thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                            track = { sliderState ->
-                                PlayerSliderTrack(
-                                    sliderState = sliderState,
-                                    colors = sliderPreviewColors
-                                )
-                            },
-                            colors = sliderPreviewColors,
-                            enabled = false,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        Text(
-                            text = stringResource(R.string.slim),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .border(
-                                1.dp,
-                                if (sliderStyle == SliderStyle.WAVY && squigglySlider) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                RoundedCornerShape(16.dp)
-                            )
-                            .clickable {
-                                onSliderStyleChange(SliderStyle.WAVY)
-                                onSquigglySliderChange(true)
-                                showSliderOptionDialog = false
-                            }
-                            .padding(12.dp)
-                    ) {
-                        val sliderValue = 0.5f
-                        SquigglySlider(
-                            value = sliderValue,
-                            valueRange = 0f..1f,
-                            onValueChange = { /* preview only */ },
-                            modifier = Modifier.weight(1f),
-                            enabled = false,
-                            colors = sliderPreviewColors,
-                            isPlaying = true,
-                        )
-                        Text(
-                            text = stringResource(R.string.squiggly),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
@@ -972,38 +450,80 @@ fun AppearanceSettings(
             .padding(horizontal = 16.dp),
     ) {
         Material3SettingsGroup(
-            title = stringResource(R.string.theme),
+            title = stringResource(R.string.liquid_glass),
             items = buildList {
-//                add(
-//                    Material3SettingsItem(
-//                        icon = painterResource(R.drawable.ic_dynamic_icon),
-//                        title = { Text(stringResource(R.string.enable_dynamic_icon)) },
-//                        trailingContent = {
-//                            Switch(
-//                                checked = enableDynamicIcon,
-//                                onCheckedChange = { handleIconChange(it) },
-//                                thumbContent = {
-//                                    Icon(
-//                                        painter = painterResource(
-//                                            id = if (enableDynamicIcon) R.drawable.check else R.drawable.close
-//                                        ),
-//                                        contentDescription = null,
-//                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-//                                    )
-//                                }
-//                            )
-//                        },
-//                        onClick = { handleIconChange(!enableDynamicIcon) }
-//                    )
-//                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.tune),
+                        title = { Text(stringResource(R.string.liquid_glass_vibrancy)) },
+                        description = { Text(String.format("%.1f", liquidGlassVibrancy)) },
+                        trailingContent = {
+                            Slider(
+                                value = liquidGlassVibrancy,
+                                onValueChange = onLiquidGlassVibrancyChange,
+                                valueRange = 0f..2f,
+                                modifier = Modifier.fillMaxWidth(0.6f)
+                            )
+                        },
+                        onClick = {}
+                    )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.sliders),
+                        title = { Text(stringResource(R.string.liquid_glass_blur_radius)) },
+                        description = { Text("${liquidGlassBlurRadius.roundToInt()}dp") },
+                        trailingContent = {
+                            Slider(
+                                value = liquidGlassBlurRadius,
+                                onValueChange = onLiquidGlassBlurRadiusChange,
+                                valueRange = 0f..100f,
+                                modifier = Modifier.fillMaxWidth(0.6f)
+                            )
+                        },
+                        onClick = {}
+                    )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.tune),
+                        title = { Text(stringResource(R.string.liquid_glass_lens_amount)) },
+                        description = { Text("${(liquidGlassLensAmount * 100).roundToInt()}%") },
+                        trailingContent = {
+                            Slider(
+                                value = liquidGlassLensAmount,
+                                onValueChange = onLiquidGlassLensAmountChange,
+                                valueRange = 0f..1f,
+                                modifier = Modifier.fillMaxWidth(0.6f)
+                            )
+                        },
+                        onClick = {}
+                    )
+                )
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.theme)) },
-                        description = { Text(stringResource(R.string.theme_desc)) },
-                        onClick = { navController.navigate("settings/appearance/theme") }
+                        title = { Text(stringResource(R.string.liquid_glass_surface_opacity)) },
+                        description = { Text("${(liquidGlassSurfaceOpacity * 100).roundToInt()}%") },
+                        trailingContent = {
+                            Slider(
+                                value = liquidGlassSurfaceOpacity,
+                                onValueChange = onLiquidGlassSurfaceOpacityChange,
+                                valueRange = 0f..1f,
+                                modifier = Modifier.fillMaxWidth(0.6f)
+                            )
+                        },
+                        onClick = {}
                     )
                 )
+            }
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.appearance),
+            items = buildList {
                 add(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.speed),
@@ -1050,109 +570,6 @@ fun AppearanceSettings(
                         onClick = { onEnableSettingsPopupChange(!enableSettingsPopup) }
                     )
                 )
-                // Only show dynamic theme option when using the default/dynamic color
-                // When a custom color is selected, dynamic theme is automatically disabled
-                if (!isUsingCustomColor) {
-                    add(
-                        Material3SettingsItem(
-                            icon = painterResource(R.drawable.palette),
-                            title = { Text(stringResource(R.string.enable_dynamic_theme)) },
-                            trailingContent = {
-                                Switch(
-                                    checked = dynamicTheme,
-                                    onCheckedChange = onDynamicThemeChange,
-                                    thumbContent = {
-                                        Icon(
-                                            painter = painterResource(
-                                                id = if (dynamicTheme) R.drawable.check else R.drawable.close
-                                            ),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(SwitchDefaults.IconSize)
-                                        )
-                                    }
-                                )
-                            },
-                            onClick = { onDynamicThemeChange(!dynamicTheme) }
-                        )
-                    )
-                }
-            }
-        )
-
-        Spacer(modifier = Modifier.height(27.dp))
-
-        val (pureBlackMiniPlayer, onPureBlackMiniPlayerChange) = rememberPreference(
-            PureBlackMiniPlayerKey,
-            defaultValue = false
-        )
-
-        Material3SettingsGroup(
-            title = stringResource(id = R.string.mini_player),
-            items = buildList {
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.nav_bar),
-                        title = { Text(stringResource(R.string.new_mini_player_design)) },
-                        trailingContent = {
-                            Switch(
-                                checked = useNewMiniPlayerDesign,
-                                onCheckedChange = onUseNewMiniPlayerDesignChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (useNewMiniPlayerDesign) R.drawable.check else R.drawable.close
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-                                    )
-                                }
-                            )
-                        },
-                        onClick = { onUseNewMiniPlayerDesignChange(!useNewMiniPlayerDesign) }
-                    )
-                )
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.contrast),
-                        title = { Text(stringResource(R.string.pure_black_mini_player)) },
-                        trailingContent = {
-                            Switch(
-                                checked = pureBlackMiniPlayer,
-                                onCheckedChange = onPureBlackMiniPlayerChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (pureBlackMiniPlayer) R.drawable.check else R.drawable.close
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-                                    )
-                                }
-                            )
-                        },
-                        onClick = { onPureBlackMiniPlayerChange(!pureBlackMiniPlayer) }
-                    )
-                )
-                add(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.miniplayer_background_style)) },
-                        description = {
-                            Text(
-                                when (miniPlayerBackground) {
-                                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                                    PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
-                                    PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
-                                    PlayerBackgroundStyle.LIQUID_GLASS -> stringResource(R.string.player_background_liquid_glass)
-                                    else -> stringResource(R.string.follow_theme)
-                                }
-                            )
-                        },
-                        onClick = { showMiniPlayerBackgroundDialog = true }
-                    )
-                )
             }
         )
 
@@ -1163,54 +580,11 @@ fun AppearanceSettings(
             defaultValue = 3f
         )
         
-        var showSensitivityDialog by rememberSaveable { mutableStateOf(false) }
         var showThumbnailCornerRadiusDialog by rememberSaveable { mutableStateOf(false) }
 
         Material3SettingsGroup(
             title = stringResource(R.string.player),
             items = listOfNotNull(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.palette),
-                    title = { Text(stringResource(R.string.new_player_design)) },
-                    trailingContent = {
-                        Switch(
-                            checked = useNewPlayerDesign,
-                            onCheckedChange = onUseNewPlayerDesignChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (useNewPlayerDesign) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onUseNewPlayerDesignChange(!useNewPlayerDesign) }
-                ),
-                if (!useNewPlayerDesign) {
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.show_audio_quality_badge)) },
-                        trailingContent = {
-                            Switch(
-                                checked = showAudioQualityBadge,
-                                onCheckedChange = onShowAudioQualityBadgeChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (showAudioQualityBadge) R.drawable.check else R.drawable.close
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-                                    )
-                                }
-                            )
-                        },
-                        onClick = { onShowAudioQualityBadgeChange(!showAudioQualityBadge) }
-                    )
-                } else null,
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.gradient),
                     title = { Text(stringResource(R.string.player_background_style)) },
@@ -1298,48 +672,6 @@ fun AppearanceSettings(
                     },
                     onClick = { showPlayerButtonsStyleDialog = true }
                 ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.sliders),
-                    title = { Text(stringResource(R.string.player_slider_style)) },
-                    description = {
-                        Text(
-                            when (sliderStyle) {
-                                SliderStyle.DEFAULT -> stringResource(R.string.default_)
-                                SliderStyle.WAVY -> if (squigglySlider) stringResource(R.string.squiggly) else stringResource(
-                                    R.string.wavy
-                                )
-                                SliderStyle.SLIM -> stringResource(R.string.slim)
-                            }
-                        )
-                    },
-                    onClick = { showSliderOptionDialog = true }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.swipe),
-                    title = { Text(stringResource(R.string.enable_swipe_thumbnail)) },
-                    trailingContent = {
-                        Switch(
-                            checked = swipeThumbnail,
-                            onCheckedChange = onSwipeThumbnailChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (swipeThumbnail) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onSwipeThumbnailChange(!swipeThumbnail) }
-                ),
-                Material3SettingsItem(
-                        icon = painterResource(R.drawable.image),
-                        title = { Text(stringResource(R.string.liquid_glass)) },
-                        description = { Text(stringResource(R.string.liquid_glass_settings)) },
-                        onClick = { navController.navigate("settings/appearance/liquidglass") }
-                    ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.canvas_art),
                         title = { Text(stringResource(R.string.vivimusic_canvas)) },
@@ -1400,88 +732,8 @@ fun AppearanceSettings(
                     },
                     onClick = { onShowCommentButtonChange(!showCommentButton) }
                 )
-            ) + if (swipeThumbnail) listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.tune),
-                    title = { Text(stringResource(R.string.swipe_sensitivity)) },
-                    description = {
-                        Text(
-                            stringResource(
-                                R.string.sensitivity_percentage,
-                                (swipeSensitivity * 100).roundToInt()
-                            )
-                        )
-                    },
-                    onClick = { showSensitivityDialog = true }
-                )
-            ) else emptyList()
+            )
         )
-
-        if (showSensitivityDialog) {
-            var tempSensitivity by remember { mutableFloatStateOf(swipeSensitivity) }
-
-            DefaultDialog(
-                onDismiss = {
-                    tempSensitivity = swipeSensitivity
-                    showSensitivityDialog = false
-                },
-                buttons = {
-                    TextButton(
-                        onClick = {
-                            tempSensitivity = 0.73f
-                        }
-                    ) {
-                        Text(stringResource(R.string.reset))
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    TextButton(
-                        onClick = {
-                            tempSensitivity = swipeSensitivity
-                            showSensitivityDialog = false
-                        }
-                    ) {
-                        Text(stringResource(android.R.string.cancel))
-                    }
-                    TextButton(
-                        onClick = {
-                            onSwipeSensitivityChange(tempSensitivity)
-                            showSensitivityDialog = false
-                        }
-                    ) {
-                        Text(stringResource(android.R.string.ok))
-                    }
-                }
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.swipe_sensitivity),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Text(
-                        text = stringResource(
-                            R.string.sensitivity_percentage,
-                            (tempSensitivity * 100).roundToInt()
-                        ),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Slider(
-                        value = tempSensitivity,
-                        onValueChange = { tempSensitivity = it },
-                        valueRange = 0f..1f,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
 
         if (showThumbnailCornerRadiusDialog) {
             ThumbnailCornerRadiusModal(
@@ -1601,38 +853,6 @@ fun AppearanceSettings(
                         onClick = { onLyricsStandardBlurChange(!lyricsStandardBlur) }
                     )
                 } else null,
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.lyrics),
-                    title = { Text(stringResource(R.string.lyrics_text_size)) },
-                    description = { Text("${lyricsTextSize.roundToInt()} sp") },
-                    onClick = { showLyricsTextSizeDialog = true }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.lyrics),
-                    title = { Text(stringResource(R.string.lyrics_line_spacing)) },
-                    description = { Text("${String.format("%.1f", lyricsLineSpacing)}x") },
-                    onClick = { showLyricsLineSpacingDialog = true }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.lyrics),
-                    title = { Text(stringResource(R.string.lyrics_click_change)) },
-                    trailingContent = {
-                        Switch(
-                            checked = lyricsClick,
-                            onCheckedChange = onLyricsClickChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (lyricsClick) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onLyricsClickChange(!lyricsClick) }
-                ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.lyrics),
                     title = { Text(stringResource(R.string.lyrics_auto_scroll)) },
@@ -1774,47 +994,6 @@ fun AppearanceSettings(
                     onClick = { onSwipeToRemoveSongChange(!swipeToRemoveSong) }
                 ),
                 Material3SettingsItem(
-                    icon = painterResource(R.drawable.nav_bar),
-                    title = { Text(stringResource(R.string.slim_navbar)) },
-                    trailingContent = {
-                        Switch(
-                            checked = slimNav,
-                            onCheckedChange = onSlimNavChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (slimNav) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onSlimNavChange(!slimNav) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.group_outlined),
-                    title = { Text(stringResource(R.string.listen_together_in_top_bar)) },
-                    description = { Text(stringResource(R.string.listen_together_in_top_bar_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = listenTogetherInTopBar,
-                            onCheckedChange = onListenTogetherInTopBarChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (listenTogetherInTopBar) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onListenTogetherInTopBarChange(!listenTogetherInTopBar) }
-                ),
-                Material3SettingsItem(
                     icon = painterResource(R.drawable.grid_view),
                     title = { Text(stringResource(R.string.grid_cell_size)) },
                     description = {
@@ -1952,11 +1131,11 @@ fun AppearanceSettings(
         title = { Text(stringResource(R.string.appearance)) },
         navigationIcon = {
             IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
+                onClick = { navController.navigateUp() },
+                onLongClick = { navController.backToMain() },
             ) {
                 Icon(
-                    painterResource(R.drawable.arrow_back),
+                    painter = painterResource(R.drawable.arrow_back),
                     contentDescription = null,
                 )
             }
@@ -1986,5 +1165,3 @@ enum class PlayerTextAlignment {
     SIDED,
     CENTER,
 }
-
-

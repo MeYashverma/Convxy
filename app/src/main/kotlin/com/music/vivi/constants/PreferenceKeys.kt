@@ -480,6 +480,7 @@ val HomeBackgroundEnabledKey = booleanPreferencesKey("homeBackgroundEnabled")
 val HomeBackgroundPathKey = stringPreferencesKey("homeBackgroundPath")
 val HomeBackgroundBlurKey = floatPreferencesKey("homeBackgroundBlur")
 val HomeBackgroundDimKey = floatPreferencesKey("homeBackgroundDim")
+val HomeBackgroundAnimateKey = booleanPreferencesKey("homeBackgroundAnimate")
 
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")

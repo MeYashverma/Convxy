@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.music.vivi.LocalPlayerAwareWindowInsets
 import com.music.vivi.R
+import com.music.vivi.constants.HomeBackgroundAnimateKey
 import com.music.vivi.constants.HomeBackgroundBlurKey
 import com.music.vivi.constants.HomeBackgroundDimKey
 import com.music.vivi.constants.HomeBackgroundEnabledKey
@@ -94,6 +95,7 @@ fun HomeBackgroundSettings(
     val (path, onPathChange) = rememberPreference(HomeBackgroundPathKey, defaultValue = "")
     val (blur, onBlurChange) = rememberPreference(HomeBackgroundBlurKey, defaultValue = 20f)
     val (dim, onDimChange) = rememberPreference(HomeBackgroundDimKey, defaultValue = 0.4f)
+    val (animate, onAnimateChange) = rememberPreference(HomeBackgroundAnimateKey, defaultValue = false)
 
     var showBlurDialog by rememberSaveable { mutableStateOf(false) }
     var showDimDialog by rememberSaveable { mutableStateOf(false) }
@@ -199,6 +201,27 @@ fun HomeBackgroundSettings(
                     icon = painterResource(R.drawable.tune),
                     title = { Text(stringResource(R.string.home_background_dim)) },
                     onClick = { showDimDialog = true }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.home_background_animate)) },
+                    description = { Text(stringResource(R.string.home_background_animate_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = animate,
+                            onCheckedChange = onAnimateChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (animate) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onAnimateChange(!animate) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.delete),

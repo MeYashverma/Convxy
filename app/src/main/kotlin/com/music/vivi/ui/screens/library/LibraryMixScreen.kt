@@ -41,7 +41,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,6 +93,8 @@ import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.PlaylistGridItem
+import com.music.vivi.ui.component.CreatePlaylistDialog
+import com.music.vivi.ui.component.HideOnScrollFAB
 import com.music.vivi.ui.component.PlaylistListItem
 import com.music.vivi.ui.component.SortHeader
 import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
@@ -264,6 +268,17 @@ fun LibraryMixScreen(
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
+    var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showCreatePlaylistDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreatePlaylistDialog = false },
+            onPlaylistCreated = { playlistId ->
+                showCreatePlaylistDialog = false
+                navController.navigate("local_playlist/$playlistId")
+            }
+        )
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
@@ -812,7 +827,7 @@ fun LibraryMixScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .bounceClick {
-                                        navController.navigate("auto_playlist/local")
+                                        navController.navigate("local_music")
                                     }
                                     .animateItem(),
                             )
@@ -910,6 +925,19 @@ fun LibraryMixScreen(
                         }
                     }
                 }
+            }
+
+            when (viewType) {
+                LibraryViewType.LIST -> HideOnScrollFAB(
+                    lazyListState = lazyListState,
+                    icon = R.drawable.add,
+                    onClick = { showCreatePlaylistDialog = true },
+                )
+                LibraryViewType.GRID -> HideOnScrollFAB(
+                    lazyListState = lazyGridState,
+                    icon = R.drawable.add,
+                    onClick = { showCreatePlaylistDialog = true },
+                )
             }
         }
       }

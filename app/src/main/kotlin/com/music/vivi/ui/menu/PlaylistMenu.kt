@@ -72,6 +72,7 @@ import com.music.vivi.playback.queues.YouTubeQueue
 import com.music.vivi.ui.component.DefaultDialog
 import com.music.vivi.ui.component.Material3MenuGroup
 import com.music.vivi.ui.component.Material3MenuItemData
+import com.music.vivi.ui.component.rememberPlaylistCoverPicker
 import com.music.vivi.ui.component.NewAction
 import com.music.vivi.ui.component.NewActionGrid
 import com.music.vivi.ui.component.PlaylistListItem
@@ -128,6 +129,8 @@ fun PlaylistMenu(
     }
 
     val editable: Boolean = playlist.playlist.isEditable == true
+
+    val launchCoverPicker = rememberPlaylistCoverPicker(playlist)
 
     val isPinned by database.speedDialDao.isPinned(playlist.id).collectAsState(initial = false)
 
@@ -477,6 +480,20 @@ fun PlaylistMenu(
                                 onClick = {
                                     showEditDialog = true
                                 }
+                            )
+                        )
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.edit_playlist_cover)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.image),
+                                        contentDescription = null,
+                                    )
+                                },
+                                // Don't dismiss: the pick/crop launchers live in this menu's
+                                // composition and must survive until the crop result returns.
+                                onClick = { launchCoverPicker() }
                             )
                         )
                     }

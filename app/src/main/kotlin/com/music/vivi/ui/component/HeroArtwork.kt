@@ -223,6 +223,9 @@ fun HeroBackground(
     // Apple Music browse/player style: full-bleed heavily-blurred artwork with a
     // darkening scrim, instead of the default sharp top-hero fading to tint.
     blurArtwork: Boolean = false,
+    // The [HeroSource.Default] placeholder music-note. Off for screens that want
+    // a clean flat tint behind glass (e.g. search).
+    showDefaultIcon: Boolean = true,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     Box(modifier = modifier.background(tint)) {
@@ -237,24 +240,71 @@ fun HeroBackground(
                     label = "heroFadeIn",
                 )
 
-                AsyncImage(
-                    model = heroSource.url,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(if (blurArtwork) Modifier.blur(HeroBlurRadius) else Modifier)
-                        .graphicsLayer {
-                            this.alpha = alpha
-                            compositingStrategy = CompositingStrategy.Offscreen
-                        }
-                        .drawWithContent {
-                            drawContent()
-                            if (blurArtwork) {
-                                // Uniform darkening so overlaid content stays
-                                // legible over the bright blurred artwork.
-                                drawRect(Color.Black.copy(alpha = 0.35f))
-                            } else {
+                if (blurArtwork) {
+                    // Blurred lower layer: fills behind the list and dissolves
+                    // into the tint (the primary-color gradient) toward the
+                    // bottom.
+                    AsyncImage(
+                        model = heroSource.url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(HeroBlurRadius)
+                            .graphicsLayer {
+                                this.alpha = alpha
+                                compositingStrategy = CompositingStrategy.Offscreen
+                            }
+                            .drawWithContent {
+                                drawContent()
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(Color.Black, Color.Transparent),
+                                        startY = size.height * 0.5f,
+                                        endY = size.height,
+                                    ),
+                                    blendMode = BlendMode.DstIn,
+                                )
+                            },
+                        onSuccess = { visible = true },
+                    )
+                    // Sharp upper layer: the top half stays crisp, then dissolves
+                    // so the blur takes over from roughly where the list begins.
+                    AsyncImage(
+                        model = heroSource.url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                this.alpha = alpha
+                                compositingStrategy = CompositingStrategy.Offscreen
+                            }
+                            .drawWithContent {
+                                drawContent()
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(Color.Black, Color.Transparent),
+                                        startY = size.height * 0.35f,
+                                        endY = size.height * 0.6f,
+                                    ),
+                                    blendMode = BlendMode.DstIn,
+                                )
+                            },
+                    )
+                } else {
+                    AsyncImage(
+                        model = heroSource.url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                this.alpha = alpha
+                                compositingStrategy = CompositingStrategy.Offscreen
+                            }
+                            .drawWithContent {
+                                drawContent()
                                 drawRect(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(Color.Black, Color.Transparent),
@@ -263,22 +313,24 @@ fun HeroBackground(
                                     ),
                                     blendMode = BlendMode.DstIn
                                 )
-                            }
-                        },
-                    onSuccess = { visible = true },
-                )
+                            },
+                        onSuccess = { visible = true },
+                    )
+                }
             }
             is HeroSource.Default -> {
                 // Default music image centered, tinted to blend
-                Image(
-                    painter = painterResource(R.drawable.music_note),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize(0.35f)
-                        .align(Alignment.Center)
-                        .graphicsLayer { alpha = 0.25f },
-                )
+                if (showDefaultIcon) {
+                    Image(
+                        painter = painterResource(R.drawable.music_note),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize(0.35f)
+                            .align(Alignment.Center)
+                            .graphicsLayer { alpha = 0.25f },
+                    )
+                }
             }
         }
         content()

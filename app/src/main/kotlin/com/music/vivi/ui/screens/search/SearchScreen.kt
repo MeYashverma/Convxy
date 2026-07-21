@@ -245,6 +245,7 @@ fun SearchScreen(
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
+        showDefaultIcon = false,
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
@@ -353,8 +354,11 @@ fun SearchScreen(
                         .clip(pillShape)
                         .then(
                             if (useGlass) {
+                                // Lower surface opacity than the nav bar so the
+                                // pill reads as clear glass sampling the content
+                                // behind it, not a dark chip.
                                 Modifier.liquidGlass(
-                                    config = glassConfig,
+                                    config = glassConfig.copy(surfaceOpacity = 0.12f),
                                     shape = pillShape,
                                     highlightAlpha = 0.3f,
                                 )

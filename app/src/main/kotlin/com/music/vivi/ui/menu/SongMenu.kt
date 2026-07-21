@@ -386,6 +386,28 @@ fun SongMenu(
                             }
                             context.startActivity(Intent.createChooser(intent, null))
                         }
+                    ),
+                    NewAction(
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.share),
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        text = stringResource(R.string.share_smart_link),
+                        onClick = {
+                            onDismiss()
+                            // Odesli/song.link cross-platform link. Deterministic YouTube form
+                            // (song.link/y/<id>) resolves to Spotify/Apple/etc. — no API call.
+                            val intent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "https://song.link/y/${song.id}")
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
+                        }
                     )
                 ),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)

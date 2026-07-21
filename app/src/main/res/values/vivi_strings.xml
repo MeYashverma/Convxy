@@ -987,6 +987,7 @@
     <string name="spotify_import_in_progress">Importing from Spotify</string>
     <string name="spotify_login_desc">Connecting to Spotify is completely local. Your session credentials are only saved on your device.</string>
     <string name="liquid_glass">Liquid Glass</string>
+    <string name="share_smart_link">Share smart link</string>
     <string name="home_background">Home background</string>
     <string name="home_background_desc">Custom blurred image behind the home screen</string>
     <string name="home_background_enable">Enable custom background</string>

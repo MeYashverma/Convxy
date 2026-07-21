@@ -8,7 +8,7 @@ package com.music.vivi.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.ContainedLoadingIndicator
@@ -53,6 +54,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -120,6 +122,8 @@ import com.music.vivi.db.entities.PlaylistEntity
 import com.music.vivi.db.entities.PlaylistSongMap
 import com.music.vivi.db.entities.Song
 import com.music.vivi.extensions.toMediaItem
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.LocalDatabase
 import com.music.vivi.LocalPlayerAwareWindowInsets
 import com.music.vivi.LocalPlayerConnection
@@ -153,6 +157,8 @@ import com.music.vivi.ui.menu.YouTubeArtistMenu
 import com.music.vivi.ui.menu.YouTubePlaylistMenu
 import com.music.vivi.ui.menu.YouTubeSongMenu
 import com.music.vivi.ui.utils.SnapLayoutInfoProvider
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+import com.music.vivi.ui.theme.AppleTokens
 import com.music.vivi.ui.utils.resize
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.rememberEnumPreference
@@ -191,29 +197,26 @@ fun CommunityPlaylistCard(
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current
     val scope = rememberCoroutineScope()
-    val isDark = isSystemInDarkTheme()
 
-    val containerColor = if (isDark) {
-        MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    }
+    val containerColor = Color.Transparent
+    val onSurface = LocalContentColor.current
 
     val dbPlaylist by database.playlistByBrowseId(item.playlist.id).collectAsState(initial = null)
     val isBookmarked = dbPlaylist?.playlist?.bookmarkedAt != null
 
     Card(
         modifier = modifier
-            .width(320.dp)
-            .height(420.dp),
+            .width(360.dp)
+            .height(470.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor
         ),
-        shape = RoundedCornerShape(28.dp),
+        shape = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge),
         onClick = onClick
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
+                .background(onSurface.copy(alpha = 0.05f))
         ) {
             Row(
                 modifier = Modifier
@@ -293,13 +296,17 @@ fun CommunityPlaylistCard(
                     .weight(1f)
                     .padding(horizontal = 16.dp)
             ) {
-                item.songs.take(3).forEach { song ->
+                item.songs.take(3).forEachIndexed { idx, song ->
+                    if (idx > 0) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 68.dp),
+                            color = AppleTokens.Divider,
+                        )
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .combinedClickable(onClick = { onSongClick(song) }),
+                            .combinedBounceClick(onClick = { onSongClick(song) }),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -308,20 +315,21 @@ fun CommunityPlaylistCard(
                             contentDescription = null,
                             modifier = Modifier
                                 .size(56.dp)
-                                .clip(RoundedCornerShape(12.dp)),
+                                .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = song.title,
                                 style = MaterialTheme.typography.bodyMedium,
+                                color = onSurface,
                                 maxLines = 1,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                             Text(
                                 text = song.artists.joinToString(", ") { it.name },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                color = onSurface.copy(alpha = 0.6f),
                                 maxLines = 1,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
@@ -344,12 +352,12 @@ fun CommunityPlaylistCard(
                     },
                     modifier = Modifier
                         .size(48.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                        .background(AppleTokens.CardSecondary, CircleShape)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_widget_play),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -362,12 +370,12 @@ fun CommunityPlaylistCard(
                     },
                     modifier = Modifier
                         .size(48.dp)
-                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape)
+                        .background(AppleTokens.CardSecondary, CircleShape)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.radio),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -414,12 +422,12 @@ fun CommunityPlaylistCard(
                     },
                     modifier = Modifier
                         .size(48.dp)
-                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape)
+                        .background(AppleTokens.CardSecondary, CircleShape)
                 ) {
                     Icon(
                         painter = painterResource(if (isBookmarked) R.drawable.library_add_check else R.drawable.library_add),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -447,8 +455,8 @@ fun DailyDiscoverCard(
     Card(
         modifier = modifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(28.dp))
-            .combinedClickable(
+            .clip(ContinuousRoundedRectangle(AppleTokens.CardCornerLarge))
+            .combinedBounceClick(
                 onClick = onClick,
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -464,9 +472,9 @@ fun DailyDiscoverCard(
                 }
             ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = Color.Transparent,
         ),
-        shape = RoundedCornerShape(28.dp)
+        shape = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge)
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
@@ -484,16 +492,7 @@ fun DailyDiscoverCard(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Black.copy(alpha = 0.3f),
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.6f),
-                                    Color.Black.copy(alpha = 0.9f)
-                                )
-                            )
-                        )
+                        .background(Color.Black.copy(alpha = 0.5f))
                 )
 
                 Column(
@@ -667,7 +666,7 @@ fun HomeScreen(
                 song = it,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .combinedClickable(
+                    .combinedBounceClick(
                         onClick = {
                             if (it.id == mediaMetadata?.id) {
                                 playerConnection.togglePlayPause()
@@ -701,7 +700,7 @@ fun HomeScreen(
                 coroutineScope = scope,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .combinedClickable(
+                    .combinedBounceClick(
                         onClick = {
                             navController.navigate("album/${it.id}")
                         },
@@ -722,7 +721,7 @@ fun HomeScreen(
                 artist = it,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .combinedClickable(
+                    .combinedBounceClick(
                         onClick = {
                             navController.navigate("artist/${it.id}")
                         },
@@ -753,7 +752,7 @@ fun HomeScreen(
             coroutineScope = scope,
             thumbnailRatio = 1f,
             modifier = Modifier
-                .combinedClickable(
+                .combinedBounceClick(
                     onClick = {
                         when (item) {
                             is SongItem -> playerConnection.playQueue(
@@ -989,8 +988,9 @@ fun HomeScreen(
                                     .fillMaxWidth()
                                     .padding(16.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    containerColor = LocalContentColor.current.copy(alpha = 0.1f),
                                 ),
+                                shape = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -1135,7 +1135,7 @@ fun HomeScreen(
                                                                         isPlaying = isPlaying,
                                                                         modifier = Modifier
                                                                             .fillMaxSize()
-                                                                            .combinedClickable(
+                                                                            .combinedBounceClick(
                                                                                 onClick = {
                                                                                     when (item) {
                                                                                         is SongItem -> playerConnection.playQueue(
@@ -1259,6 +1259,7 @@ fun HomeScreen(
                                                 isActive = song!!.id == mediaMetadata?.id,
                                                 isPlaying = isPlaying,
                                                 isSwipeable = false,
+                                                flat = true,
                                                 shape = listItemShape(index = index % 4, count = 4),
                                                 trailingContent = {
                                                     IconButton(
@@ -1280,7 +1281,7 @@ fun HomeScreen(
                                                 },
                                                 modifier = Modifier
                                                     .width(horizontalLazyGridItemWidth)
-                                                    .combinedClickable(
+                                                    .combinedBounceClick(
                                                         onClick = {
                                                             if (song!!.id == mediaMetadata?.id) {
                                                                 playerConnection.togglePlayPause()
@@ -1562,7 +1563,7 @@ fun HomeScreen(
                                                 },
                                                 modifier = Modifier
                                                     .width(horizontalLazyGridItemWidth)
-                                                    .combinedClickable(
+                                                    .combinedBounceClick(
                                                         onClick = {
                                                             if (song!!.id == mediaMetadata?.id) {
                                                                 playerConnection.togglePlayPause()
@@ -1738,7 +1739,7 @@ fun HomeScreen(
                                                     },
                                                     modifier = Modifier
                                                         .width(horizontalLazyGridItemWidth)
-                                                        .combinedClickable(
+                                                        .combinedBounceClick(
                                                             onClick = {
                                                                 if (song.id == mediaMetadata?.id) {
                                                                     playerConnection.togglePlayPause()

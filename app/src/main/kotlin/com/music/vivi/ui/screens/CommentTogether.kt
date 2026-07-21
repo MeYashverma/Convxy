@@ -7,7 +7,7 @@ package com.music.vivi.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.music.vivi.LocalListenTogetherManager
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.LocalPlayerAwareWindowInsets
 import com.music.vivi.R
 import com.music.vivi.listentogether.ChatMessagePayload
@@ -249,7 +251,7 @@ private fun MessageItem(
             tonalElevation = 2.dp,
             modifier = Modifier
                 .widthIn(max = 280.dp)
-                .combinedClickable(
+                .combinedBounceClick(
                     onClick = {},
                     onLongClick = { onReply(message) }
                 )

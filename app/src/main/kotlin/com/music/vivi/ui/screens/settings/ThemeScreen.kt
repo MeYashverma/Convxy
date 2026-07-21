@@ -16,7 +16,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +79,7 @@ import com.music.vivi.constants.DynamicThemeKey
 import com.music.vivi.constants.PureBlackKey
 import com.music.vivi.constants.PureBlackMiniPlayerKey
 import com.music.vivi.constants.SelectedThemeColorKey
+import com.music.vivi.ui.theme.AppleTokens
 import com.music.vivi.ui.theme.DefaultThemeColor
 import com.music.vivi.ui.theme.vivimusicTheme
 import com.music.vivi.utils.rememberEnumPreference
@@ -90,7 +92,8 @@ data class ThemePalette(
 
 val PaletteColors = listOf(
     ThemePalette(R.string.palette_dynamic, Color.Transparent), // Sentinel for System/Dynamic colors
-    ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)), // Slightly shifted from DefaultThemeColor (0xFFED5564) to avoid conflict
+    ThemePalette(R.string.palette_apple_red, AppleTokens.AccentRed),
+    ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)),
     ThemePalette(R.string.palette_rose, Color(0xFFD81B60)),
     ThemePalette(R.string.palette_purple, Color(0xFF8E24AA)),
     ThemePalette(R.string.palette_deep_purple, Color(0xFF5E35B1)),
@@ -498,7 +501,7 @@ fun ModeCircle(
                     Modifier
                 }
             )
-            .clickable(
+            .bounceClick(
                 interactionSource = interactionSource,
                 indication = ripple(),
                 onClick = onClick
@@ -610,7 +613,7 @@ fun PaletteItem(
                     Modifier
                 }
             )
-            .clickable(
+            .bounceClick(
                 interactionSource = interactionSource,
                 indication = ripple(),
                 onClick = onClick

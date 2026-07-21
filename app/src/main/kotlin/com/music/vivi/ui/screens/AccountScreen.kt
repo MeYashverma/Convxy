@@ -6,7 +6,7 @@
 package com.music.vivi.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -44,6 +44,8 @@ import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.ui.menu.YouTubeArtistMenu
 import com.music.vivi.ui.menu.YouTubePlaylistMenu
 import com.music.vivi.ui.utils.backToMain
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.viewmodels.AccountContentType
 import com.music.vivi.viewmodels.AccountViewModel
@@ -92,7 +94,7 @@ fun AccountScreen(
                         item = item,
                         fillMaxWidth = true,
                         modifier = Modifier
-                            .combinedClickable(
+                            .combinedBounceClick(
                                 onClick = {
                                     navController.navigate("online_playlist/${item.id}")
                                 },
@@ -128,7 +130,7 @@ fun AccountScreen(
                         item = item,
                         fillMaxWidth = true,
                         modifier = Modifier
-                            .combinedClickable(
+                            .combinedBounceClick(
                                 onClick = {
                                     navController.navigate("album/${item.id}")
                                 },
@@ -164,7 +166,7 @@ fun AccountScreen(
                         item = item,
                         fillMaxWidth = true,
                         modifier = Modifier
-                            .combinedClickable(
+                            .combinedBounceClick(
                                 onClick = {
                                     navController.navigate("artist/${item.id}")
                                 },

@@ -6,7 +6,7 @@
 package com.music.vivi.ui.screens.artist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,6 +54,8 @@ import com.music.vivi.ui.component.SongListItem
 import com.music.vivi.ui.component.SortHeader
 import com.music.vivi.ui.menu.SongMenu
 import com.music.vivi.ui.utils.backToMain
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
@@ -156,7 +158,7 @@ fun ArtistSongsScreen(
                     modifier =
                     Modifier
                         .fillMaxWidth()
-                        .combinedClickable(
+                        .combinedBounceClick(
                             onClick = {
                                 if (song.id == mediaMetadata?.id) {
                                     playerConnection.togglePlayPause()

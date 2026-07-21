@@ -1,7 +1,8 @@
 package com.music.vivi.ui.screens.search.suggestions
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.clickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -216,7 +217,7 @@ fun RegionListItem(
                     bottomEnd = bottom
                 )
             )
-            .clickable(
+            .bounceClick(
                 onClick = onClick,
                 interactionSource = interactionSource,
                 indication = null

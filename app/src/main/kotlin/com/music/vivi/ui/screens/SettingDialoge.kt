@@ -3,7 +3,8 @@ package com.music.vivi.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -131,7 +132,7 @@ fun SettingDialoge(
                         contentDescription = "Cancel",
                         modifier = Modifier
                             .size(24.dp)
-                            .clickable { onDismissRequest() },
+                            .bounceClick { onDismissRequest() },
                         colorFilter = ColorFilter.tint(onPrimaryColor)
                     )
                 }
@@ -148,7 +149,7 @@ fun SettingDialoge(
                             )
                         )
                         .background(color = secondaryColor)
-                        .clickable(enabled = isLoggedIn) {
+                        .bounceClick(enabled = isLoggedIn) {
                             onNavigate("account")
                         }
                         .padding(20.dp),
@@ -356,7 +357,7 @@ private fun OptionItem(
 ) {
     val modifier = Modifier
         .fillMaxWidth()
-        .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+        .then(if (onClick != null) Modifier.bounceClick { onClick() } else Modifier)
         .padding(12.dp)
 
     Row(
@@ -405,7 +406,7 @@ private fun SwitchOptionItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
-            .clickable { onCheckedChange(!checked) }
+            .bounceClick { onCheckedChange(!checked) }
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)

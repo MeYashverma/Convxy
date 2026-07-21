@@ -509,7 +509,7 @@ fun LibraryMixScreen(
                                     Modifier
                                         .fillMaxWidth()
                                         .bounceClick {
-                                            navController.navigate("auto_playlist/local")
+                                            navController.navigate("local_music")
                                         }
                                         .animateItem(),
                             )

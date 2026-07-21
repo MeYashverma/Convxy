@@ -411,6 +411,29 @@ fun AppearanceSettings(
         )
     }
 
+    if (showPlayerBackgroundDialog) {
+        EnumDialog(
+            onDismiss = { showPlayerBackgroundDialog = false },
+            onSelect = {
+                onPlayerBackgroundChange(it)
+                showPlayerBackgroundDialog = false
+            },
+            title = stringResource(R.string.player_background_style),
+            current = playerBackground,
+            values = availableBackgroundStyles,
+            valueText = {
+                when (it) {
+                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
+                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
+                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
+                    PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
+                    PlayerBackgroundStyle.APPLE_MUSIC -> stringResource(R.string.apple_music)
+                    PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
+                }
+            }
+        )
+    }
+
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
@@ -506,8 +529,7 @@ fun AppearanceSettings(
                                 PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
                                 PlayerBackgroundStyle.APPLE_MUSIC -> stringResource(R.string.apple_music)
                                 PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
-                    PlayerBackgroundStyle.LIQUID_GLASS -> stringResource(R.string.player_background_liquid_glass)
-                }
+                            }
                         )
                     },
                     onClick = { showPlayerBackgroundDialog = true }

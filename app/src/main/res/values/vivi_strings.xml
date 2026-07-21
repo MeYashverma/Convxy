@@ -36,10 +36,20 @@
 
     <string name="liked">Liked</string>
     <string name="offline">Downloaded</string>
+    <string name="local">Local Music</string>
+    <string name="local_songs">Local songs</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="no_songs">No songs</string>
     <string name="my_top">My top</string>
     <string name="cached_playlist">Cached</string>
     <string name="uploaded_playlist">Uploaded</string>
     <string name="filter_uploaded">Uploaded</string>
+    <string name="filter_local">Local</string>
+    <string name="scan_local_files">Scan local files</string>
+    <string name="scanning_local_files">Scanning local files…</string>
+    <string name="no_local_files">No local files found. Tap scan to find audio on your device.</string>
+    <string name="local_files_found">Found %1$d local audio files</string>
+    <string name="local_audio_permission_needed">Storage permission is needed to access local audio files</string>
     <string name="sync_playlist">Sync playlist</string>
     <string name="syncing_progress">Syncing %1$d of %2$d songs</string>
     <string name="playlist_uploaded">Playlist uploaded successfully</string>
@@ -112,11 +122,11 @@
     <string name="vivimusic_canvas_desc">Replaces the static album artwork in the player with a looping animated video when one is available for the current song</string>
     <string name="canvas_source">Canvas source</string>
     <string name="canvas_source_auto">Auto</string>
-    <string name="canvas_source_auto_desc">Tries Apple Music first, then falls back to ViviMusic and Tidal. Picks the best match for the current song automatically</string>
+    <string name="canvas_source_auto_desc">Tries Apple Music first, then falls back to Cosmos and Tidal. Picks the best match for the current song automatically</string>
     <string name="canvas_source_apple_music">Apple Music</string>
     <string name="canvas_source_apple_music_desc">Uses Apple Music&#8217;s animated visuals exclusively. Only shows a canvas if Apple Music has one for the playing song</string>
-    <string name="canvas_source_vivimusic">ViviMusic</string>
-    <string name="canvas_source_vivimusic_desc">Uses the ViviMusic curated canvas library exclusively. Only shows a canvas if one has been added for the playing song</string>
+    <string name="canvas_source_vivimusic">Cosmos</string>
+    <string name="canvas_source_vivimusic_desc">Uses the Cosmos curated canvas library exclusively. Only shows a canvas if one has been added for the playing song</string>
     <string name="canvas_source_tidal">Tidal</string>
     <string name="canvas_source_tidal_desc">Uses Tidal&#8217;s animated visuals exclusively. Only shows a canvas if Tidal has one for the playing song</string>
     <string name="show_album_canvas">Show Album Canvas</string>
@@ -382,7 +392,7 @@
     <string name="enable_scrobbling">Enable scrobbling</string>
     <string name="lastfm_now_playing">Send Now Playing</string>
     <string name="last_fm_send_likes">Send Likes/Unlikes</string>
-    <string name="last_fm_send_likes_description">Love/Unlove songs in Last.fm when they are Liked/Unliked in vivimusic</string>
+    <string name="last_fm_send_likes_description">Love/Unlove songs in Last.fm when they are Liked/Unliked in Cosmos</string>
     <string name="logging_in">Logging in…</string>
 
     <string name="scrobbling_configuration">Scrobbling Configuration</string>
@@ -423,7 +433,7 @@
     <string name="karaoke">Karaoke</string>
     <string name="apple_music_style">Apple Music</string>
     <string name="apple_music_style_letter">Apple Music V2 (Letter by Letter)</string>
-    <string name="vivimusic_1">Vivimusic (Fluid)</string>
+    <string name="vivimusic_1">Cosmos (Fluid)</string>
     <string name="apple_music_lyrics_blur">Apple Music Lyrics Blur</string>
     <string name="apple_music_lyrics_blur_desc">Apply blur to inactive lyrics lines for a premium focus effect</string>
     <string name="lyrics_v2_fluid">Lyrics V2 (Fluid)</string>
@@ -453,19 +463,19 @@
     <string name="wrapped_total_artists_subtitle">unique artists</string>
     <string name="wrapped_total_songs_title">You listened to</string>
     <string name="wrapped_total_songs_subtitle">unique songs</string>
-    <string name="wrapped_intro_title">vivimusic</string>
+    <string name="wrapped_intro_title">Cosmos</string>
     <string name="wrapped_intro_subtitle">it\'s time to see what you\'ve been listening to</string>
     <string name="wrapped_intro_button">let\'s go!</string>
-    <string name="wrapped_end_thanks">Thanks for listening with vivimusic!</string>
+    <string name="wrapped_end_thanks">Thanks for listening with Cosmos!</string>
     <string name="wrapped_end_create_playlist">Create Your Wrapped Playlist</string>
     <string name="wrapped_end_creating_playlist">Creating...</string>
     <string name="wrapped_end_playlist_saved">Playlist Saved</string>
-    <string name="wrapped_logo_content_description">vivimusic Logo</string>
+    <string name="wrapped_logo_content_description">Cosmos Logo</string>
     <string name="wrapped_year">2025</string>
     <string name="wrapped_ready_title">YOUR WRAPPED IS READY!</string>
     <string name="wrapped_ready_subtitle">Time to see what you loved this year.</string>
     <string name="wrapped_thank_you">Thank you for listening</string>
-    <string name="wrapped_special_thanks">Special thanks to Vividh for creating vivimusic</string>
+    <string name="wrapped_special_thanks">Special thanks to Vividh for creating the app Cosmos is built on</string>
     <string name="wrapped_close">Close wrapped</string>
     <string name="wrapped_playlist_title">Your %s Wrapped</string>
     <string name="wrapped_create_playlist">Create playlist</string>
@@ -541,9 +551,9 @@
     <string name="plays">plays</string>
     <string name="casting_to">Casting to %s</string>
     <string name="progress_percent">Progress %s%%</string>
-    <string name="listening_to_vivimusic">Listening to vivimusic</string>
+    <string name="listening_to_vivimusic">Listening to Cosmos</string>
     <string name="listen_on_youtube_music">Listen on YouTube Music</string>
-    <string name="visit_vivimusic">Visit vivimusic</string>
+    <string name="visit_vivimusic">Visit Cosmos</string>
     <string name="open">Open</string>
     <string name="failed_to_create_image">Failed to create image: %s</string>
     <string name="copied_title">Copied Title</string>
@@ -560,13 +570,13 @@
     <!-- Widget strings -->
     <string name="album_art">Album art</string>
     <string name="no_song_playing">No song playing</string>
-    <string name="tap_to_open">Tap to open vivimusic</string>
+    <string name="tap_to_open">Tap to open Cosmos</string>
     <string name="previous">Previous</string>
     <string name="play_pause">Play/Pause</string>
     <string name="next">Next</string>
     <string name="like">Like</string>
     <string name="not_playing">No song playing</string>
-    <string name="tap_to_play">Tap to open vivimusic</string>
+    <string name="tap_to_play">Tap to open Cosmos</string>
     <string name="widget_description">Music player widget with playback controls</string>
     <string name="queue_widget_description">Music player with queue preview</string>
     <string name="turntable_widget_description">Circular music widget with play and like controls</string>
@@ -725,12 +735,13 @@
     <string name="crash_share_logs">Share Logs</string>
     <string name="copy_logs">Copy Logs</string>
     <string name="crash_share_title">Share crash report</string>
-    <string name="crash_report_subject">vivimusic Crash Report</string>
+    <string name="crash_report_subject">Cosmos Crash Report</string>
     <string name="crash_close">Close</string>
     <string name="crash_no_log">No crash log available</string>
 
     <!-- Theme Palette Names -->
     <string name="palette_dynamic">Dynamic</string>
+    <string name="palette_apple_red">Apple Red</string>
     <string name="palette_crimson">Crimson</string>
     <string name="palette_rose">Rose</string>
     <string name="palette_purple">Purple</string>
@@ -777,7 +788,7 @@
     <string name="delete_from_history">Delete from history</string>
     <string name="re_listen">Re-listen</string>
     <string name="hold_to_recognize">Hold search icon to recognize music</string>
-    <string name="play_on_app">Play on vivimusic</string>
+    <string name="play_on_app">Play on Cosmos</string>
     <string name="recognized_track">Recognized Track</string>
 
     <!-- CSV Import Strings -->
@@ -816,9 +827,9 @@
     <string name="discord_rpc_preview">Rich Presence Preview</string>
     <string name="discord_presence">Presence</string>
     <string name="discord_connect_description">Sign in with Discord to share what you\'re listening to</string>
-    <string name="discord_playing_vivimusic">Playing vivimusic</string>
-    <string name="discord_watching_vivimusic">Watching vivimusic</string>
-    <string name="discord_competing_vivimusic">Competing in vivimusic</string>
+    <string name="discord_playing_vivimusic">Playing Cosmos</string>
+    <string name="discord_watching_vivimusic">Watching Cosmos</string>
+    <string name="discord_competing_vivimusic">Competing in Cosmos</string>
     <string name="discord_activity_name">Activity name</string>
     <string name="discord_activity_name_description">Custom name for the activity (leave empty for default)</string>
     <string name="discord_advanced_mode">Advanced mode</string>
@@ -876,7 +887,7 @@
 
     <string name="perm_required">Required</string>
     <string name="perm_permissions">Permissions</string>
-    <string name="perm_intro_text">These permissions are required for ViviMusic to function correctly. Please grant them to proceed.</string>
+    <string name="perm_intro_text">These permissions are required for Cosmos to function correctly. Please grant them to proceed.</string>
 
     <string name="perm_notif_title">Notifications</string>
     <string name="perm_notif_desc">Know immediately when your music is playing and control it from the notification bar.</string>
@@ -886,7 +897,7 @@
 
     <string name="feat_discover">Discover</string>
     <string name="feat_features">Features</string>
-    <string name="feat_intro">Explore everything ViviMusic has to offer for your music journey.</string>
+    <string name="feat_intro">Explore everything Cosmos has to offer for your music journey.</string>
 
     <string name="feat_lyrics_title">Smart Lyrics</string>
     <string name="feat_lyrics_desc">Enjoy synchronized, word-by-word lyrics for millions of songs.</string>
@@ -910,7 +921,7 @@
     <string name="welcome_update_status">Updated</string>
     <string name="welcome_update_intro">Ensuring you have the latest features and security improvements.</string>
     <string name="welcome_checking_updates">Checking for updates…</string>
-    <string name="welcome_up_to_date">ViviMusic is up to date!</string>
+    <string name="welcome_up_to_date">Cosmos is up to date!</string>
     <string name="welcome_update_available">New version is available: %s</string>
     <string name="welcome_everything_ready">Everything is now up to date</string>
     <string name="commits_title">Commits</string>

@@ -56,6 +56,7 @@ import com.music.vivi.R
 import com.music.vivi.constants.SwipeSensitivityKey
 import com.music.vivi.constants.SwipeThumbnailKey
 import com.music.vivi.extensions.togglePlayPause
+import com.music.vivi.ui.component.backdrop.catalog.utils.InteractiveHighlight
 import com.music.vivi.utils.rememberPreference
 import kotlin.math.abs
 import kotlin.math.exp
@@ -114,6 +115,11 @@ fun FloatingMiniPlayer(
         label = "accessoryPressScale",
     )
 
+    // Same finger-tracking glow as the nav bar's drag puck (ported from Kyant0's
+    // catalog). Its gesture tracking never consumes pointer events, so it's safe
+    // stacked alongside the swipe-to-skip drag detector and the click below.
+    val interactiveHighlight = remember(coroutineScope) { InteractiveHighlight(animationScope = coroutineScope) }
+
     // Same structure as MiniPlayer: the drag detector sits on the outermost
     // container so the whole accessory is swipeable, and the entire content row
     // slides with the drag.
@@ -125,7 +131,9 @@ fun FloatingMiniPlayer(
                 scaleY = pressScale
             }
             .then(modifier)
+            .then(interactiveHighlight.modifier)
             .clipToBounds()
+            .then(interactiveHighlight.gestureModifier)
             .then(
                 if (swipeEnabled) {
                     Modifier.pointerInput(Unit) {

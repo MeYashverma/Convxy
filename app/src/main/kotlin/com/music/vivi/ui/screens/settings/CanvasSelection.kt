@@ -6,7 +6,8 @@
 package com.music.vivi.ui.screens.settings
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.clickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

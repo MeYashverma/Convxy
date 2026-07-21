@@ -12,7 +12,8 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.clickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -650,7 +651,7 @@ private fun ManagePresetsDialog(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(MaterialTheme.shapes.small)
-                                            .clickable {
+                                            .bounceClick {
                                                 if (isSelected) selectedIds.remove(profile.id)
                                                 else selectedIds.add(profile.id)
                                             }

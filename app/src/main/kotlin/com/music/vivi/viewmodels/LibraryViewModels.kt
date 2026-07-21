@@ -47,6 +47,7 @@ import com.music.vivi.extensions.filterVideoSongs
 import com.music.vivi.extensions.filterYoutubeShorts
 import com.music.vivi.extensions.toEnum
 import com.music.vivi.playback.DownloadUtil
+import com.music.vivi.utils.LocalAudioScanner
 import com.music.vivi.utils.SyncUtils
 import com.music.vivi.utils.dataStore
 import com.music.vivi.utils.reportException
@@ -70,11 +71,17 @@ import javax.inject.Inject
 class LibrarySongsViewModel
 @Inject
 constructor(
-    @ApplicationContext context: Context,
-    database: MusicDatabase,
+    @ApplicationContext private val context: Context,
+    private val database: MusicDatabase,
     downloadUtil: DownloadUtil,
     private val syncUtils: SyncUtils,
 ) : ViewModel() {
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning = _isScanning.asStateFlow()
+
+    private val _scanResult = MutableStateFlow<LocalAudioScanner.ScanResult?>(null)
+    val scanResult = _scanResult.asStateFlow()
+
     val allSongs =
         context.dataStore.data
             .map {
@@ -95,8 +102,28 @@ constructor(
                     SongFilter.LIKED -> database.likedSongs(sortType, descending).map { it.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs) }
                     SongFilter.DOWNLOADED -> database.downloadedSongs(sortType, descending).map { it.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs) }
                     SongFilter.UPLOADED -> database.uploadedSongs(sortType, descending).map { it.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs) }
+                    SongFilter.LOCAL -> database.localSongs(sortType, descending).map { it.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs) }
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    fun scanLocalFiles() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isScanning.value = true
+            _scanResult.value = null
+            try {
+                val result = LocalAudioScanner.scanAndInsert(context, database)
+                _scanResult.value = result
+            } catch (e: Exception) {
+                _scanResult.value = LocalAudioScanner.ScanResult(0, 0, 0)
+            } finally {
+                _isScanning.value = false
+            }
+        }
+    }
+
+    fun clearScanResult() {
+        _scanResult.value = null
+    }
 
     fun syncLikedSongs() {
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLikedSongs() }
@@ -132,6 +159,7 @@ constructor(
                 when (filter) {
                     ArtistFilter.LIKED -> database.artistsBookmarked(sortType, descending)
                     ArtistFilter.LIBRARY -> database.artists(sortType, descending)
+                    ArtistFilter.LOCAL -> database.artistsLocal(sortType, descending)
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
@@ -187,6 +215,7 @@ constructor(
                     AlbumFilter.LIKED -> database.albumsLiked(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
                     AlbumFilter.LIBRARY -> database.albums(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
                     AlbumFilter.UPLOADED -> database.albumsUploaded(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
+                    AlbumFilter.LOCAL -> database.albumsLocal(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 

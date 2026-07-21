@@ -127,6 +127,7 @@ import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
+
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.ui.component.isGlassAllowed
@@ -240,7 +241,10 @@ fun SearchScreen(
     val tint = AppleTokens.BgElevated
     val onTint = AppleTokens.onColor(tint)
     val heroSource = rememberHeroSource(staticArt = null)
-    val heroBackdrop = rememberLayerBackdrop()
+    val heroBackdrop = rememberLayerBackdrop {
+        drawRect(tint)
+        drawContent()
+    }
 
     HeroBackground(
         tint = tint,
@@ -450,16 +454,9 @@ fun SearchScreen(
             
             Box(
                 modifier = Modifier
-                    // Capture the results content into heroBackdrop (the same
-                    // backdrop the pill samples via LocalAppBackdrop). Without
-                    // this the pill's liquid glass had an EMPTY backdrop and
-                    // rendered as flat tint — this is what makes it consume
-                    // what's scrolling behind it, exactly like the nav bar's
-                    // appBackdrop in MainActivity.
                     .layerBackdrop(heroBackdrop)
                     .padding(
                         top = paddingValues.calculateTopPadding(),
-                        bottom = paddingValues.calculateBottomPadding(),
                     )
                     .fillMaxSize()
             ) {

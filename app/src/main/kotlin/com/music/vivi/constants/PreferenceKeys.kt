@@ -250,6 +250,7 @@ val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist"
 val ShowTopPlaylistKey = booleanPreferencesKey("show_top_playlist")
 val ShowCachedPlaylistKey = booleanPreferencesKey("show_cached_playlist")
 val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
+val ShowLocalPlaylistKey = booleanPreferencesKey("show_local_playlist")
 val ShowAudioQualityBadgeKey = booleanPreferencesKey("show_audio_quality_badge")
 val ShowCommentButtonKey = booleanPreferencesKey("show_comment_button")
 
@@ -269,18 +270,21 @@ enum class SongFilter {
     LIBRARY,
     LIKED,
     DOWNLOADED,
-    UPLOADED
+    UPLOADED,
+    LOCAL
 }
 
 enum class ArtistFilter {
     LIBRARY,
-    LIKED
+    LIKED,
+    LOCAL,
 }
 
 enum class AlbumFilter {
     LIBRARY,
     LIKED,
-    UPLOADED
+    UPLOADED,
+    LOCAL,
 }
 
 enum class SongSortType {
@@ -415,7 +419,6 @@ enum class PlayerBackgroundStyle {
     GLOW_ANIMATED,
     APPLE_MUSIC,
     LIVE_MESH,
-    LIQUID_GLASS,
 }
 
 val TopSize = stringPreferencesKey("topSize")
@@ -471,6 +474,7 @@ val LiquidGlassPlayerEnabledKey = booleanPreferencesKey("liquidGlassPlayerEnable
 val LiquidGlassMiniPlayerEnabledKey = booleanPreferencesKey("liquidGlassMiniPlayerEnabled")
 val LiquidGlassNavBarEnabledKey = booleanPreferencesKey("liquidGlassNavBarEnabled")
 val UseFloatingNavBarKey = booleanPreferencesKey("useFloatingNavBar")
+val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")

@@ -40,17 +40,14 @@ import com.music.vivi.R
 import com.music.vivi.constants.LiquidGlassChromaticAberrationKey
 import com.music.vivi.constants.LiquidGlassDepthEffectKey
 import com.music.vivi.constants.LiquidGlassBlurRadiusKey
-import com.music.vivi.constants.LiquidGlassGlobalEnabledKey
 import com.music.vivi.constants.LiquidGlassLensAmountKey
 import com.music.vivi.constants.LiquidGlassLensHeightKey
 import com.music.vivi.constants.LiquidGlassMiniPlayerEnabledKey
 import com.music.vivi.constants.LiquidGlassNavBarEnabledKey
-import com.music.vivi.constants.LiquidGlassPlayerEnabledKey
 import com.music.vivi.constants.LiquidGlassSurfaceOpacityKey
 import com.music.vivi.constants.LiquidGlassSurfaceTintColorKey
 import com.music.vivi.constants.LiquidGlassTextColorKey
 import com.music.vivi.constants.LiquidGlassVibrancyKey
-import com.music.vivi.constants.UseFloatingNavBarKey
 import com.music.vivi.ui.component.ColorPickerDialog
 import com.music.vivi.ui.component.DefaultDialog
 import com.music.vivi.ui.component.IconButton as AppIconButton
@@ -66,10 +63,6 @@ fun GlassEffectSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    // Liquid glass is on by default; the toggle stays as an option.
-    val (globalEnabled, onGlobalEnabledChange) = rememberPreference(
-        LiquidGlassGlobalEnabledKey, defaultValue = true
-    )
     val (vibrancy, onVibrancyChange) = rememberPreference(
         LiquidGlassVibrancyKey, defaultValue = 1f
     )
@@ -83,10 +76,10 @@ fun GlassEffectSettings(
         LiquidGlassLensAmountKey, defaultValue = 0.5f
     )
     val (chromaticAberration, onChromaticAberrationChange) = rememberPreference(
-        LiquidGlassChromaticAberrationKey, defaultValue = true
+        LiquidGlassChromaticAberrationKey, defaultValue = false
     )
     val (depthEffect, onDepthEffectChange) = rememberPreference(
-        LiquidGlassDepthEffectKey, defaultValue = true
+        LiquidGlassDepthEffectKey, defaultValue = false
     )
     // 0 marks the theme-adaptive default tint (see MainActivity); the picker then
     // shows the color the current theme resolves to.
@@ -110,17 +103,11 @@ fun GlassEffectSettings(
         LiquidGlassTextColorKey, defaultValue = Color.White.toArgb()
     )
     val textColor = remember(textColorInt) { Color(textColorInt) }
-    val (playerEnabled, onPlayerEnabledChange) = rememberPreference(
-        LiquidGlassPlayerEnabledKey, defaultValue = true
-    )
     val (miniPlayerEnabled, onMiniPlayerEnabledChange) = rememberPreference(
         LiquidGlassMiniPlayerEnabledKey, defaultValue = true
     )
     val (navBarEnabled, onNavBarEnabledChange) = rememberPreference(
         LiquidGlassNavBarEnabledKey, defaultValue = true
-    )
-    val (useFloatingNavBar, onUseFloatingNavBarChange) = rememberPreference(
-        UseFloatingNavBarKey, defaultValue = true
     )
 
     var showVibrancyDialog by rememberSaveable { mutableStateOf(false) }
@@ -137,77 +124,6 @@ fun GlassEffectSettings(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
-        Material3SettingsGroup(
-            title = stringResource(R.string.nav_bar_style),
-            items = listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.nav_bar),
-                    title = { Text(stringResource(R.string.floating_nav_bar)) },
-                    description = { Text(stringResource(R.string.floating_nav_bar_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = useFloatingNavBar,
-                            onCheckedChange = onUseFloatingNavBarChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (useFloatingNavBar) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onUseFloatingNavBarChange(!useFloatingNavBar) }
-                ),
-            )
-        )
-
-        Spacer(modifier = Modifier.height(27.dp))
-
-        Material3SettingsGroup(
-            title = stringResource(R.string.liquid_glass),
-            items = listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.check),
-                    title = { Text(stringResource(R.string.liquid_glass_global_enabled)) },
-                    description = {
-                        Text(
-                            stringResource(
-                                // Glass is part of the floating nav bar experience and only
-                                // takes effect while that bar is enabled.
-                                if (useFloatingNavBar) {
-                                    R.string.liquid_glass_performance_warning
-                                } else {
-                                    R.string.liquid_glass_requires_floating_nav_bar
-                                }
-                            )
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = globalEnabled && useFloatingNavBar,
-                            onCheckedChange = onGlobalEnabledChange,
-                            enabled = useFloatingNavBar,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (globalEnabled && useFloatingNavBar) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { if (useFloatingNavBar) onGlobalEnabledChange(!globalEnabled) }
-                )
-            )
-        )
-
-        Spacer(modifier = Modifier.height(27.dp))
-
         Material3SettingsGroup(
             title = stringResource(R.string.liquid_glass_effects),
             items = listOf(
@@ -307,26 +223,6 @@ fun GlassEffectSettings(
         Material3SettingsGroup(
             title = stringResource(R.string.liquid_glass_per_component),
             items = listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.music_note),
-                    title = { Text(stringResource(R.string.liquid_glass_player)) },
-                    trailingContent = {
-                        Switch(
-                            checked = playerEnabled,
-                            onCheckedChange = onPlayerEnabledChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (playerEnabled) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onPlayerEnabledChange(!playerEnabled) }
-                ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.music_note),
                     title = { Text(stringResource(R.string.liquid_glass_mini_player)) },

@@ -125,7 +125,8 @@ fun LibraryAlbumsScreen(
                 listOf(
                     AlbumFilter.LIKED to stringResource(R.string.filter_liked),
                     AlbumFilter.LIBRARY to stringResource(R.string.filter_library),
-                    AlbumFilter.UPLOADED to stringResource(R.string.filter_uploaded)
+                    AlbumFilter.UPLOADED to stringResource(R.string.filter_uploaded),
+                    AlbumFilter.LOCAL to stringResource(R.string.filter_local),
                 ),
                 currentValue = filter,
                 onValueUpdate = {

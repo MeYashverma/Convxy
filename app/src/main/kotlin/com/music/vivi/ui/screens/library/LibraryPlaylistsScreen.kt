@@ -6,8 +6,9 @@
 package com.music.vivi.ui.screens.library
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
@@ -319,7 +320,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .bounceClick {
                                         navController.navigate("auto_playlist/liked")
                                     }
                                     .animateItem(),
@@ -338,7 +339,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .bounceClick {
                                         navController.navigate("auto_playlist/downloaded")
                                     }
                                     .animateItem(),
@@ -357,7 +358,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .bounceClick {
                                         navController.navigate("top_playlist/$topSize")
                                     }
                                     .animateItem(),
@@ -376,7 +377,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .bounceClick {
                                         navController.navigate("cache_playlist/cached")
                                     }
                                     .animateItem(),
@@ -395,7 +396,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .clickable {
+                                        .bounceClick {
                                             navController.navigate("auto_playlist/uploaded")
                                         }
                                         .animateItem(),
@@ -471,7 +472,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = {
                                             navController.navigate("auto_playlist/liked")
                                         },
@@ -493,7 +494,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = {
                                             navController.navigate("auto_playlist/downloaded")
                                         },
@@ -515,7 +516,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = {
                                             navController.navigate("top_playlist/$topSize")
                                         },
@@ -537,7 +538,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = {
                                             navController.navigate("cache_playlist/cached")
                                         },
@@ -559,7 +560,7 @@ fun LibraryPlaylistsScreen(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .clickable {
+                                        .bounceClick {
                                             navController.navigate("auto_playlist/uploaded")
                                         }
                                         .animateItem(),

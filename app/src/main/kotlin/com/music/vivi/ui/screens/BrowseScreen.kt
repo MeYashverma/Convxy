@@ -6,7 +6,7 @@
 package com.music.vivi.ui.screens
  
  import androidx.compose.foundation.ExperimentalFoundationApi
- import androidx.compose.foundation.combinedClickable
+ 
  import androidx.compose.foundation.layout.asPaddingValues
  import androidx.compose.foundation.lazy.grid.GridCells
  import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -43,7 +43,9 @@ package com.music.vivi.ui.screens
  import com.music.vivi.ui.menu.YouTubeArtistMenu
  import com.music.vivi.ui.menu.YouTubePlaylistMenu
  import com.music.vivi.ui.utils.backToMain
- import com.music.vivi.utils.rememberEnumPreference
+ import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
+import com.music.vivi.utils.rememberEnumPreference
  import com.music.vivi.viewmodels.BrowseViewModel
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -80,7 +82,7 @@ package com.music.vivi.ui.screens
                      fillMaxWidth = true,
                      coroutineScope = coroutineScope,
                      modifier = Modifier
-                         .combinedClickable(
+                         .combinedBounceClick(
                              onClick = {
                                  when (item) {
                                      is AlbumItem -> navController.navigate("album/${item.id}")

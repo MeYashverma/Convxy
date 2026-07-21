@@ -48,6 +48,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -566,8 +567,8 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassBlurRadius) = rememberPreference(LiquidGlassBlurRadiusKey, defaultValue = 2f)
                 val (liquidGlassLensHeight) = rememberPreference(LiquidGlassLensHeightKey, defaultValue = 0.5f)
                 val (liquidGlassLensAmount) = rememberPreference(LiquidGlassLensAmountKey, defaultValue = 0.6f)
-                val (liquidGlassChromaticAberration) = rememberPreference(LiquidGlassChromaticAberrationKey, defaultValue = true)
-                val (liquidGlassDepthEffect) = rememberPreference(LiquidGlassDepthEffectKey, defaultValue = true)
+                val (liquidGlassChromaticAberration) = rememberPreference(LiquidGlassChromaticAberrationKey, defaultValue = false)
+                val (liquidGlassDepthEffect) = rememberPreference(LiquidGlassDepthEffectKey, defaultValue = false)
                 // 0 (fully transparent, unreachable from the color picker) marks the
                 // theme-adaptive default tint.
                 // 0 = theme-adaptive tint (a lighter frosted grey) rather than a
@@ -1089,9 +1090,9 @@ class MainActivity : ComponentActivity() {
                                                 .background(
                                                     Brush.verticalGradient(
                                                         0f to Color.Transparent,
-                                                        0.2f to baseBg.copy(alpha = 0.3f),
-                                                        0.5f to baseBg.copy(alpha = 0.7f),
-                                                        0.9f to baseBg,
+                                                        0.35f to baseBg.copy(alpha = 0.15f),
+                                                        0.6f to baseBg.copy(alpha = 0.4f),
+                                                        0.85f to baseBg.copy(alpha = 0.7f),
                                                         1f to baseBg,
                                                     )
                                                 )
@@ -1135,6 +1136,9 @@ class MainActivity : ComponentActivity() {
                                             searchExpanded = inSearchInputScreen,
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
+                                                // Keep the bar compact/portrait-width in landscape
+                                                // instead of stretching across the wide screen.
+                                                .widthIn(max = 500.dp)
                                                 .padding(horizontal = 16.dp)
                                                 .padding(bottom = bottomInset + 8.dp)
                                                 .graphicsLayer {

@@ -7,7 +7,7 @@ package com.music.vivi.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,12 +70,28 @@ import com.music.vivi.playback.queues.YouTubeQueue
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.NavigationTitle
 import com.music.vivi.ui.component.YouTubeGridItem
+import androidx.compose.material3.Text
 import com.music.vivi.ui.component.YouTubeListItem
+import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.component.rememberHeroSource
+import com.music.vivi.ui.component.rememberHeroTint
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.component.LocalAppBackdrop
+import com.music.vivi.ui.component.LocalGlassEffectConfig
+import com.music.vivi.ui.component.isGlassAllowed
+import com.music.vivi.ui.component.liquidGlass
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.text.font.FontWeight
 import com.music.vivi.ui.component.shimmer.GridItemPlaceHolder
 import com.music.vivi.ui.component.shimmer.ShimmerHost
 import com.music.vivi.ui.component.shimmer.TextPlaceholder
 import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.ui.menu.YouTubeSongMenu
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.ui.utils.SnapLayoutInfoProvider
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.viewmodels.ChartsViewModel
@@ -118,16 +134,48 @@ fun ExploreScreen(
         }
     }
 
-    Box(
+    val heroUrl = remember(chartsPage, explorePage) {
+        chartsPage?.sections?.firstOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()?.thumbnail
+            ?: explorePage?.newReleaseAlbums?.firstOrNull()?.thumbnail
+    }
+    val heroSource = rememberHeroSource(
+        staticArt = heroUrl,
+        songs = emptyList()
+    )
+    val tint = rememberHeroTint(heroUrl)
+    val onTint = AppleTokens.onColor(tint)
+
+    val glassConfig = LocalGlassEffectConfig.current
+    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val heroBackdrop = rememberLayerBackdrop()
+
+    HeroBackground(
+        tint = tint,
+        heroSource = heroSource,
         modifier = Modifier.fillMaxSize(),
     ) {
+      CompositionLocalProvider(
+          LocalAppBackdrop provides heroBackdrop,
+          LocalContentColor provides onTint
+      ) {
         Column(
-            modifier = Modifier.verticalScroll(scrollState),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
         ) {
             Spacer(
                 Modifier.height(
                     LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateTopPadding(),
                 ),
+            )
+            
+            Spacer(Modifier.height(40.dp))
+            Text(
+                text = stringResource(R.string.tab_explore),
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = onTint,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
             )
 
             if (isChartsLoading || chartsPage == null || explorePage == null) {
@@ -273,6 +321,7 @@ fun ExploreScreen(
                                     isActive = song.id == mediaMetadata?.id,
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
+                                    flat = true,
                                     shape = listItemShape(index % 4, 4),
                                     trailingContent = {
                                         IconButton(
@@ -294,7 +343,7 @@ fun ExploreScreen(
                                     },
                                     modifier = Modifier
                                         .width(horizontalLazyGridItemWidth)
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 if (song.id == mediaMetadata?.id) {
                                                     playerConnection.togglePlayPause()
@@ -346,7 +395,7 @@ fun ExploreScreen(
                                 isPlaying = isPlaying,
                                 coroutineScope = coroutineScope,
                                 modifier = Modifier
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = {
                                             navController.navigate("album/${album.id}")
                                         },
@@ -386,7 +435,7 @@ fun ExploreScreen(
                                 isPlaying = isPlaying,
                                 coroutineScope = coroutineScope,
                                 modifier = Modifier
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = {
                                             if (video.id == mediaMetadata?.id) {
                                                 playerConnection.togglePlayPause()
@@ -445,9 +494,10 @@ fun ExploreScreen(
 
             Spacer(
                 Modifier.height(
-                    LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
+                    LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding() + 50.dp
                 )
             )
         }
+      }
     }
 }

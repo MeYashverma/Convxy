@@ -127,7 +127,8 @@ import com.music.vivi.playback.PlayerConnection
 import com.music.vivi.ui.screens.settings.DarkMode
 import com.music.vivi.ui.component.GlassComponent
 import com.music.vivi.ui.component.LocalGlassEffectConfig
-import com.music.vivi.ui.component.isGlassSupported
+import com.music.vivi.ui.component.backdrop.catalog.utils.InteractiveHighlight
+import com.music.vivi.ui.component.isGlassAllowed
 import com.music.vivi.ui.component.liquidGlass
 import com.music.vivi.ui.theme.PlayerColorExtractor
 import com.music.vivi.utils.rememberEnumPreference
@@ -280,9 +281,8 @@ private fun NewMiniPlayer(
 
     val glassConfig = LocalGlassEffectConfig.current
     val dynamicContentColor = if (
-        miniPlayerBackground == PlayerBackgroundStyle.LIQUID_GLASS &&
         glassConfig.isEnabledFor(GlassComponent.MINI_PLAYER) &&
-        isGlassSupported()
+        isGlassAllowed()
     ) {
         glassConfig.textColor
     } else {
@@ -292,6 +292,11 @@ private fun NewMiniPlayer(
     val outlineColor = if (isDynamicBackground) dynamicContentColor.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline
     val onSurfaceColor = if (isDynamicBackground) dynamicContentColor else MaterialTheme.colorScheme.onSurface
     val errorColor = MaterialTheme.colorScheme.error
+
+    // Same finger-tracking glow as the nav bar's drag puck (ported from Kyant0's
+    // catalog). Its gesture tracking never consumes pointer events, so it's safe
+    // stacked alongside the swipe-to-skip drag detector.
+    val interactiveHighlight = remember(coroutineScope) { InteractiveHighlight(animationScope = coroutineScope) }
 
     Box(
         modifier = modifier
@@ -367,6 +372,8 @@ private fun NewMiniPlayer(
                 .clip(RoundedCornerShape(32.dp))
                 .background(color = backgroundColor)
                 .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+                .then(interactiveHighlight.modifier)
+                .then(interactiveHighlight.gestureModifier)
         ) {
             // Background Layers
             MiniPlayerBackgroundLayer(
@@ -991,7 +998,7 @@ private fun MiniPlayerColorExtractor(
     val fallbackColor = MaterialTheme.colorScheme.surfaceContainer.toArgb()
 
     LaunchedEffect(mediaMetadata?.id, miniPlayerBackground) {
-        if (miniPlayerBackground == PlayerBackgroundStyle.GRADIENT || miniPlayerBackground == PlayerBackgroundStyle.GLOW_ANIMATED || miniPlayerBackground == PlayerBackgroundStyle.LIQUID_GLASS) {
+        if (miniPlayerBackground == PlayerBackgroundStyle.GRADIENT || miniPlayerBackground == PlayerBackgroundStyle.GLOW_ANIMATED) {
             val currentMetadata = mediaMetadata
             if (currentMetadata?.thumbnailUrl != null) {
                 withContext(Dispatchers.IO) {
@@ -1139,25 +1146,7 @@ private fun MiniPlayerBackgroundLayer(
                 )
             }
         }
-        PlayerBackgroundStyle.LIQUID_GLASS -> {
-            val glassConfig = LocalGlassEffectConfig.current
-            if (glassConfig.isEnabledFor(GlassComponent.MINI_PLAYER) && isGlassSupported()) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .liquidGlass(config = glassConfig)
-                )
-            } else if (gradientColors.isNotEmpty()) {
-                // Glass disabled or unsupported: fall back to the gradient look so the
-                // mini player still gets a dynamic background.
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Brush.verticalGradient(gradientColors))
-                        .background(Color.Black.copy(alpha = 0.2f))
-                )
-            }
-        }
+
         PlayerBackgroundStyle.LIVE_MESH -> {
             val infiniteTransition = rememberInfiniteTransition(label = "liveMesh")
             val rotation = infiniteTransition.animateFloat(

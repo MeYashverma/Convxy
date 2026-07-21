@@ -6,11 +6,13 @@
 package com.music.vivi.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
+
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,14 +44,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -58,6 +60,7 @@ import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -74,6 +77,11 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -91,7 +99,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.graphics.Color
 import com.music.vivi.constants.AppBarHeight
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -115,12 +123,20 @@ import com.music.vivi.playback.ExoDownloadService
 import com.music.vivi.playback.queues.LocalAlbumRadio
 import com.music.vivi.ui.component.AlbumGradient
 import com.music.vivi.ui.component.ExpandableText
+import com.music.vivi.ui.component.GlassCircleButton
 import com.music.vivi.ui.component.IconButton
 import com.music.vivi.ui.component.LinkSegment
+import com.music.vivi.ui.component.LocalAppBackdrop
+import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.ui.component.LocalMenuState
+import com.music.vivi.ui.component.backdrop.backdrops.layerBackdrop
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.music.vivi.ui.component.NavigationTitle
 import com.music.vivi.ui.component.SongListItem
 import com.music.vivi.ui.component.YouTubeGridItem
+import com.music.vivi.ui.component.isGlassAllowed
+import com.music.vivi.ui.component.liquidGlass
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
 import com.music.vivi.ui.menu.AlbumMenu
 import com.music.vivi.ui.menu.SelectionSongMenu
 import com.music.vivi.ui.menu.SongMenu
@@ -128,6 +144,7 @@ import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.ui.utils.fadingEdge
 import com.music.vivi.ui.player.CanvasArtworkPlayer
+import com.music.vivi.ui.theme.rememberArtworkTint
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.rememberPreference
 import com.music.vivi.viewmodels.AlbumViewModel
@@ -238,6 +255,37 @@ fun AlbumScreen(
         }
     }
 
+    val artworkColors = rememberArtworkTint(albumWithSongs?.album?.thumbnailUrl)
+    val tint = artworkColors.getOrNull(0) ?: MaterialTheme.colorScheme.surface
+    val onTint = com.music.vivi.ui.theme.AppleTokens.onColor(tint)
+
+    val glassConfig = LocalGlassEffectConfig.current
+    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val chromeShape = ContinuousRoundedRectangle(percent = 50)
+    val chromeContentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
+
+    // Unattached backdrop (never .layerBackdrop'd): glass chrome sampling it
+    // early-returns, so it draws a translucent frosted surface with no live
+    // refraction — but crucially no RenderNode self-reference. See ArtistScreen.kt
+    // for the full explanation of the cycle this avoids.
+    val heroBackdrop = rememberLayerBackdrop()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(tint)
+    ) {
+    CompositionLocalProvider(
+        LocalAppBackdrop provides heroBackdrop,
+        LocalContentColor provides onTint
+    ) {
+    // Built INSIDE the provider so liquidGlass captures heroBackdrop, not the
+    // root appBackdrop — sampling appBackdrop here is the RenderNode cycle.
+    val chromeBackgroundModifier = if (useGlass) {
+        Modifier.liquidGlass(config = glassConfig, shape = chromeShape, highlightAlpha = 0.3f)
+    } else {
+        Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f), chromeShape)
+    }
     LazyColumn(
         state = lazyListState,
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -251,6 +299,9 @@ fun AlbumScreen(
                     -(systemBarsTopPadding + AppBarHeight).roundToPx()
                 }
 
+                val tintHeader = artworkColors.getOrNull(0) ?: MaterialTheme.colorScheme.surface
+                val onTintHeader = com.music.vivi.ui.theme.AppleTokens.onColor(tintHeader)
+
                 Box(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -261,6 +312,18 @@ fun AlbumScreen(
                             .aspectRatio(1f)
                             .offset {
                                 IntOffset(x = 0, y = headerOffset)
+                            }
+                            .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                            .drawWithContent {
+                                drawContent()
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(Color.Black, Color.Transparent),
+                                        startY = size.height * 0.4f,
+                                        endY = size.height
+                                    ),
+                                    blendMode = androidx.compose.ui.graphics.BlendMode.DstIn
+                                )
                             }
                     ) {
                         Box(
@@ -281,21 +344,6 @@ fun AlbumScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .align(Alignment.BottomCenter)
-                                    .background(
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                MaterialTheme.colorScheme.background
-                                            )
-                                        )
-                                    )
-                            )
                         }
                     }
 
@@ -349,7 +397,7 @@ fun AlbumScreen(
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 30.sp,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = onTint,
                                     textAlign = TextAlign.Center,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
@@ -360,7 +408,7 @@ fun AlbumScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center,
                                     modifier = Modifier
-                                        .combinedClickable(
+                                        .combinedBounceClick(
                                             onClick = {
                                                 navController.navigate("artist/${artist.id}")
                                             }
@@ -379,7 +427,7 @@ fun AlbumScreen(
                                         text = artist.name,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = onTint
                                     )
                                 }
 
@@ -391,26 +439,26 @@ fun AlbumScreen(
                                     Text(
                                         text = albumInfoText,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = onTint.copy(alpha = 0.7f),
                                         textAlign = TextAlign.Center
                                     )
                                     if (hasExplicitContent) {
                                         Text(
                                             text = " • ",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = onTint.copy(alpha = 0.7f)
                                         )
                                         Icon(
                                             painter = painterResource(R.drawable.explicit),
                                             contentDescription = stringResource(R.string.explicit),
                                             modifier = Modifier.size(14.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = onTint.copy(alpha = 0.7f)
                                         )
                                         Spacer(Modifier.width(4.dp))
                                         Text(
                                             text = stringResource(R.string.explicit),
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = onTint.copy(alpha = 0.7f)
                                         )
                                     }
                                 }
@@ -430,14 +478,14 @@ fun AlbumScreen(
                                         painter = painterResource(R.drawable.album),
                                         contentDescription = null,
                                         modifier = Modifier.size(30.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface
+                                        tint = onTint
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Text(
                                         text = albumWithSongs.album.title,
                                         style = MaterialTheme.typography.headlineMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = onTint,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
@@ -452,26 +500,26 @@ fun AlbumScreen(
                                     Text(
                                         text = albumInfoText,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = onTint.copy(alpha = 0.7f),
                                         textAlign = TextAlign.Center
                                     )
                                     if (hasExplicitContent) {
                                         Text(
                                             text = " • ",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = onTint.copy(alpha = 0.7f)
                                         )
                                         Icon(
                                             painter = painterResource(R.drawable.explicit),
                                             contentDescription = stringResource(R.string.explicit),
                                             modifier = Modifier.size(14.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = onTint.copy(alpha = 0.7f)
                                         )
                                         Spacer(Modifier.width(4.dp))
                                         Text(
                                             text = stringResource(R.string.explicit),
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = onTint.copy(alpha = 0.7f)
                                         )
                                     }
                                 }
@@ -481,49 +529,33 @@ fun AlbumScreen(
                     Spacer(Modifier.height(24.dp))
 
                     // Action Buttons Row
+                    // Action Buttons Row — Redesigned for unified circular look
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 32.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Favorite/Save Button (Circular)
-                        Surface(
+                        // Shuffle Button (Left - Circular)
+                        GlassCircleButton(
                             onClick = {
-                                database.query {
-                                    update(albumWithSongs.album.toggleLike())
-                                }
-                            },
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    painter = painterResource(
-                                        if (albumWithSongs.album.bookmarkedAt != null) {
-                                            R.drawable.favorite
-                                        } else {
-                                            R.drawable.favorite_border
-                                        }
-                                    ),
-                                    contentDescription = if (albumWithSongs.album.bookmarkedAt != null) stringResource(R.string.saved) else stringResource(R.string.save),
-                                    modifier = Modifier.size(22.dp),
-                                    tint = if (albumWithSongs.album.bookmarkedAt != null) {
-                                        MaterialTheme.colorScheme.error
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
+                                playerConnection.service.getAutomix(playlistId)
+                                playerConnection.playQueue(
+                                    LocalAlbumRadio(albumWithSongs.copy(songs = albumWithSongs.songs.shuffled())),
                                 )
-                            }
+                            },
+                            size = 48.dp,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.shuffle),
+                                contentDescription = stringResource(R.string.shuffle_label),
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
 
-                        // Play Button (Centered Capsule)
-                        androidx.compose.material3.Button(
+                        // Play Button (Center - Large Circle)
+                        Surface(
                             onClick = {
                                 if (isPlaying && mediaMetadata?.album?.id == albumWithSongs.album.id) {
                                     playerConnection.player.pause()
@@ -537,22 +569,10 @@ fun AlbumScreen(
                                 }
                             },
                             shape = CircleShape,
-                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                vertical = 12.dp,
-                                horizontal = 16.dp
-                            ),
-                            modifier = Modifier
-                                .height(48.dp)
-                                .weight(1.5f)
+                            color = LocalContentColor.current,
+                            modifier = Modifier.size(72.dp)
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     painter = painterResource(
                                         if (isPlaying && mediaMetadata?.album?.id == albumWithSongs.album.id)
@@ -561,44 +581,37 @@ fun AlbumScreen(
                                             R.drawable.play
                                     ),
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = if (isPlaying && mediaMetadata?.album?.id == albumWithSongs.album.id)
-                                        stringResource(R.string.pause) else stringResource(R.string.play),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    tint = tint,
+                                    modifier = Modifier.size(32.dp).offset(x = if (isPlaying && mediaMetadata?.album?.id == albumWithSongs.album.id) 0.dp else 2.dp)
                                 )
                             }
                         }
 
-                        // Shuffle Button (Circular)
-                        Surface(
+                        // Favorite/Save Button (Right - Circular)
+                        GlassCircleButton(
                             onClick = {
-                                playerConnection.service.getAutomix(playlistId)
-                                playerConnection.playQueue(
-                                    LocalAlbumRadio(albumWithSongs.copy(songs = albumWithSongs.songs.shuffled())),
-                                )
+                                database.query {
+                                    update(albumWithSongs.album.toggleLike())
+                                }
                             },
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.size(48.dp)
+                            size = 48.dp,
                         ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.shuffle),
-                                    contentDescription = stringResource(R.string.shuffle_label),
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                            Icon(
+                                painter = painterResource(
+                                    if (albumWithSongs.album.bookmarkedAt != null) {
+                                        R.drawable.favorite
+                                    } else {
+                                        R.drawable.favorite_border
+                                    }
+                                ),
+                                contentDescription = if (albumWithSongs.album.bookmarkedAt != null) stringResource(R.string.saved) else stringResource(R.string.save),
+                                modifier = Modifier.size(22.dp),
+                                tint = if (albumWithSongs.album.bookmarkedAt != null) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    LocalContentColor.current
+                                }
+                            )
                         }
                     }
 
@@ -622,20 +635,24 @@ fun AlbumScreen(
                             text = stringResource(R.string.about_album),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = onTint,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
 
-                        ExpandableText(
-                            text = description ?: staticDescription,
-                            runs = descriptionRuns?.map {
-                                LinkSegment(
-                                    text = it.text,
-                                    url = it.navigationEndpoint?.urlEndpoint?.url
-                                )
-                            },
-                            collapsedMaxLines = 3
-                        )
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            androidx.compose.material3.LocalContentColor provides onTint
+                        ) {
+                            ExpandableText(
+                                text = description ?: staticDescription,
+                                runs = descriptionRuns?.map {
+                                    LinkSegment(
+                                        text = it.text,
+                                        url = it.navigationEndpoint?.urlEndpoint?.url
+                                    )
+                                },
+                                collapsedMaxLines = 3
+                            )
+                        }
                     }
 
                     if (albumWithSongs.artists.size > 1) {
@@ -696,6 +713,7 @@ fun AlbumScreen(
                         isPlaying = isPlaying,
                         showInLibraryIcon = true,
                         shape = listItemShape(index, filteredSongs.size),
+                        flat = true,
                         trailingContent = {
                             if (inSelectMode) {
                                 Checkbox(
@@ -725,7 +743,7 @@ fun AlbumScreen(
                         Modifier
                             .fillMaxWidth()
                             .animateItem()
-                            .combinedClickable(
+                            .combinedBounceClick(
                                 onClick = {
                                     if (inSelectMode) {
                                         onCheckedChange(song.id !in selection)
@@ -772,7 +790,7 @@ fun AlbumScreen(
                                 coroutineScope = scope,
                                 modifier =
                                 Modifier
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = { navController.navigate("album/${item.id}") },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -814,7 +832,7 @@ fun AlbumScreen(
                                 coroutineScope = scope,
                                 modifier =
                                 Modifier
-                                    .combinedClickable(
+                                    .combinedBounceClick(
                                         onClick = { navController.navigate("album/${item.id}") },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -851,90 +869,94 @@ fun AlbumScreen(
         }
     }
 
-    TopAppBar(
-        title = {
+        // Floating glass back/share buttons over the hero art, replacing the
+        // Material TopAppBar — always visible, no title-bar-on-scroll behavior.
+        // Selection mode swaps in a close button + centered count + select-all/menu
+        // pill instead, same as the TopAppBar's title/actions used to.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (inSelectMode) {
-                Text(pluralStringResource(R.plurals.n_selected, selection.size, selection.size))
-            }
-        },
-        navigationIcon = {
-            if (inSelectMode) {
-                IconButton(onClick = onExitSelectionMode) {
+                GlassCircleButton(onClick = onExitSelectionMode) {
                     Icon(
                         painter = painterResource(R.drawable.close),
                         contentDescription = null,
                     )
                 }
+
+                Text(
+                    text = pluralStringResource(R.plurals.n_selected, selection.size, selection.size),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = chromeContentColor,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .clip(chromeShape)
+                        .then(chromeBackgroundModifier)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Checkbox(
+                        checked = selection.size == filteredSongs.size && selection.isNotEmpty(),
+                        onCheckedChange = {
+                            if (selection.size == filteredSongs.size) {
+                                selection.clear()
+                            } else {
+                                selection.clear()
+                                selection.addAll(filteredSongs.map { it.id })
+                            }
+                        }
+                    )
+                    IconButton(
+                        enabled = selection.isNotEmpty(),
+                        onClick = {
+                            menuState.show {
+                                SelectionSongMenu(
+                                    songSelection = selection.mapNotNull { songId ->
+                                        filteredSongs.find { it.id == songId }
+                                    },
+                                    onDismiss = menuState::dismiss,
+                                    clearAction = onExitSelectionMode
+                                )
+                            }
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.more_vert),
+                            contentDescription = null
+                        )
+                    }
+                }
             } else {
-                IconButton(
+                GlassCircleButton(
                     onClick = { navController.navigateUp() },
                     onLongClick = { navController.backToMain() },
-                    colors = IconButtonDefaults.outlinedIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
-                    ),
-                    modifier = Modifier.border(
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                        ),
-                        shape = CircleShape
-                    )
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back_ios),
                         contentDescription = null
                     )
                 }
-            }
-        },
-        actions = {
-            if (inSelectMode) {
-                Checkbox(
-                    checked = selection.size == filteredSongs.size && selection.isNotEmpty(),
-                    onCheckedChange = {
-                        if (selection.size == filteredSongs.size) {
-                            selection.clear()
-                        } else {
-                            selection.clear()
-                            selection.addAll(filteredSongs.map { it.id })
-                        }
-                    }
-                )
-                IconButton(
-                    enabled = selection.isNotEmpty(),
-                    onClick = {
-                        menuState.show {
-                            SelectionSongMenu(
-                                songSelection = selection.mapNotNull { songId ->
-                                    filteredSongs.find { it.id == songId }
-                                },
-                                onDismiss = menuState::dismiss,
-                                clearAction = onExitSelectionMode
-                            )
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_vert),
-                        contentDescription = null
-                    )
-                }
-            } else {
+
+                Spacer(Modifier.weight(1f))
+
                 albumWithSongs?.let { albumWithSongs ->
                     Row(
                         modifier = Modifier
                             .height(48.dp)
-                            .border(
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                                ),
-                                shape = CircleShape
-                            )
-                            .background(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-                                shape = CircleShape
-                            )
+                            .clip(chromeShape)
+                            .then(chromeBackgroundModifier)
                             .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -988,7 +1010,7 @@ fun AlbumScreen(
                     }
                 }
             }
-        },
-        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-    )
+        }
+    }
+    }
 }

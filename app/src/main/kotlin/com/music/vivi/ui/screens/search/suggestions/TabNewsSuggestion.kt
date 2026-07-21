@@ -9,7 +9,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -274,7 +275,7 @@ fun TrendingAppleMusicSection(
                     }
                     if (isMoreCard) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh).clickable { onMoreClick() }.padding(16.dp),
+                            modifier = Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh).bounceClick { onMoreClick() }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -284,7 +285,7 @@ fun TrendingAppleMusicSection(
                         }
                     } else if (i < displayTracks.size) {
                         val track = displayTracks[i]
-                        Row(modifier = Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surfaceContainer).clickable { onTrackClick(track) }) {
+                        Row(modifier = Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surfaceContainer).bounceClick { onTrackClick(track) }) {
                             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                                 Text(track.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
                                 Text(track.artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -351,7 +352,7 @@ fun TopArtistsSection(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
         ) {
             items(artists) { artist ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(100.dp).clickable { onArtistClick(artist) }) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(100.dp).bounceClick { onArtistClick(artist) }) {
                     Box(contentAlignment = Alignment.BottomEnd) {
                         SubcomposeAsyncImage(
                             model = artist.thumbnailUrl,
@@ -403,7 +404,7 @@ fun TrendingAlbumsSection(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp)
         ) {
             items(albums) { album ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(120.dp).clickable { onAlbumClick(album) }) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(120.dp).bounceClick { onAlbumClick(album) }) {
                     Box(contentAlignment = Alignment.BottomEnd) {
                         SubcomposeAsyncImage(
                             model = album.thumbnailUrl,
@@ -434,7 +435,7 @@ fun TrendingAlbumsSection(
                     modifier = Modifier
                         .width(100.dp)
                         .padding(bottom = 20.dp)
-                        .clickable { onMoreClick() }
+                        .bounceClick { onMoreClick() }
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -494,7 +495,7 @@ fun TrendingVideosSection(
                 text = "More",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { onMoreClick() }
+                modifier = Modifier.bounceClick { onMoreClick() }
             )
         }
 
@@ -522,7 +523,7 @@ fun TrendingVideosSection(
                         val screenCenter = screenWidth / 2f
                         isCardFocused = abs(cardCenter - screenCenter) < 150
                     }
-                    .clickable { onVideoClick(video) }
+                    .bounceClick { onVideoClick(video) }
             ) {
                 // Background Image (Thumbnail)
                 AsyncImage(

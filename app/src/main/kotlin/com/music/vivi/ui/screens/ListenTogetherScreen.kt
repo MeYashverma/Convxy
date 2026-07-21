@@ -16,7 +16,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -801,7 +802,7 @@ private fun UserAvatar(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(72.dp)
-            .clickable(enabled = isClickable, onClick = onClick)
+            .bounceClick(enabled = isClickable, onClick = onClick)
     ) {
         Box(
             contentAlignment = Alignment.Center
@@ -1260,7 +1261,7 @@ private fun SettingsLinkCard(onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .bounceClick(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -1342,7 +1343,7 @@ private fun UserActionDialog(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onKick),
+                    .bounceClick(onClick = onKick),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.errorContainer
             ) {
@@ -1377,7 +1378,7 @@ private fun UserActionDialog(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onPermanentKick),
+                    .bounceClick(onClick = onPermanentKick),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant
             ) {
@@ -1411,7 +1412,7 @@ private fun UserActionDialog(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onTransferOwnership),
+                    .bounceClick(onClick = onTransferOwnership),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {

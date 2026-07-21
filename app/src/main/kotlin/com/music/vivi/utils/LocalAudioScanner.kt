@@ -11,7 +11,9 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import com.music.vivi.db.MusicDatabase
+import com.music.vivi.db.entities.AlbumEntity
 import com.music.vivi.db.entities.ArtistEntity
+import com.music.vivi.db.entities.SongAlbumMap
 import com.music.vivi.db.entities.SongArtistMap
 import com.music.vivi.db.entities.SongEntity
 import kotlinx.coroutines.Dispatchers
@@ -144,6 +146,7 @@ object LocalAudioScanner {
                     // we can catch it, so one bad row skips instead of killing
                     // the scan.
                     val artistId = "local_artist_${artistName.hashCode()}"
+                    val albumIdStr = "local_album_${albumName.hashCode()}"
                     try {
                         database.withTransaction {
                             upsert(songEntity)
@@ -161,6 +164,28 @@ object LocalAudioScanner {
                                     position = 0,
                                 )
                             )
+                            // Create album entity + mapping so local albums appear in library
+                            if (albumName.isNotBlank()) {
+                                insert(
+                                    AlbumEntity(
+                                        id = albumIdStr,
+                                        title = albumName,
+                                        thumbnailUrl = albumArtUri,
+                                        songCount = 1,
+                                        duration = (durationMs / 1000).toInt(),
+                                        year = if (year > 0) year else null,
+                                        isLocal = true,
+                                        inLibrary = java.time.LocalDateTime.now(),
+                                    )
+                                )
+                                insert(
+                                    SongAlbumMap(
+                                        songId = songId,
+                                        albumId = albumIdStr,
+                                        index = 0,
+                                    )
+                                )
+                            }
                         }
                         newSongs++
                     } catch (e: Exception) {

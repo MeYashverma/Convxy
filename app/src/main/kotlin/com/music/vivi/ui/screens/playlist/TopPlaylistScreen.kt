@@ -95,6 +95,7 @@ import com.music.vivi.db.entities.Song
 import com.music.vivi.extensions.toMediaItem
 import com.music.vivi.playback.ExoDownloadService
 import com.music.vivi.playback.queues.ListQueue
+import com.music.vivi.ui.component.AnimatedPlayPauseIcon
 import com.music.vivi.ui.component.DefaultDialog
 import com.music.vivi.ui.component.DraggableScrollbar
 import com.music.vivi.ui.component.EmptyPlaceholder
@@ -609,6 +610,8 @@ private fun TopPlaylistHeader(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
+    val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
     val heroUrl = songs.firstOrNull()?.thumbnailUrl
     val heroSource = rememberHeroSource(
@@ -666,12 +669,16 @@ private fun TopPlaylistHeader(
             ) {
                 Button(
                     onClick = {
-                        playerConnection.playQueue(
-                            ListQueue(
-                                title = name,
-                                items = songs.map { it.toMediaItem() },
+                        if (isPlaying) {
+                            playerConnection.player.pause()
+                        } else {
+                            playerConnection.playQueue(
+                                ListQueue(
+                                    title = name,
+                                    items = songs.map { it.toMediaItem() },
+                                )
                             )
-                        )
+                        }
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -687,11 +694,11 @@ private fun TopPlaylistHeader(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.play),
-                            contentDescription = null,
+                        AnimatedPlayPauseIcon(
+                            isPlaying = isPlaying,
                             modifier = Modifier.size(20.dp),
                             tint = tint,
+                            size = 20.dp,
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(

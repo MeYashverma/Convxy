@@ -31,6 +31,7 @@ import com.music.vivi.ui.screens.artist.ArtistScreen
 import com.music.vivi.ui.screens.artist.ArtistSongsScreen
 import com.music.vivi.ui.screens.equalizer.EqScreen
 import com.music.vivi.ui.screens.library.LibraryScreen
+import com.music.vivi.ui.screens.library.LocalMusicScreen
 import com.music.vivi.ui.screens.playlist.AutoPlaylistScreen
 import com.music.vivi.ui.screens.playlist.CachePlaylistScreen
 import com.music.vivi.ui.screens.playlist.LocalPlaylistScreen
@@ -271,6 +272,12 @@ fun NavGraphBuilder.navigationBuilder(
         ),
     ) {
         LocalPlaylistScreen(navController, scrollBehavior)
+    }
+
+    composable(
+        route = "local_music",
+    ) {
+        LocalMusicScreen(navController, scrollBehavior)
     }
 
     composable(

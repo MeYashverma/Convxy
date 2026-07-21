@@ -192,19 +192,42 @@ class BottomSheetState(
     }
 
     private fun collapse() {
-        collapse(SpringSpec())
+        // Apple Music feel: bouncy spring for collapse
+        collapse(
+            spring(
+                dampingRatio = 0.75f,
+                stiffness = Spring.StiffnessLow,
+            )
+        )
     }
 
     private fun expand() {
-        expand(SpringSpec())
+        // Apple Music feel: bouncy spring for expand
+        expand(
+            spring(
+                dampingRatio = 0.75f,
+                stiffness = Spring.StiffnessLow,
+            )
+        )
     }
 
     fun collapseSoft() {
-        collapse(spring(stiffness = Spring.StiffnessMediumLow))
+        // Apple Music feel: high damping + low stiffness = smooth, weighty settle.
+        collapse(
+            spring(
+                dampingRatio = 0.85f,
+                stiffness = Spring.StiffnessLow,
+            ),
+        )
     }
 
     fun expandSoft() {
-        expand(spring(stiffness = Spring.StiffnessMediumLow))
+        expand(
+            spring(
+                dampingRatio = 0.85f,
+                stiffness = Spring.StiffnessLow,
+            ),
+        )
     }
 
     fun dismiss() {

@@ -7,7 +7,7 @@ package com.music.vivi.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -72,13 +72,32 @@ import com.music.vivi.ui.component.IconButton
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.NavigationTitle
 import com.music.vivi.ui.component.YouTubeGridItem
+import androidx.compose.material3.Text
 import com.music.vivi.ui.component.YouTubeListItem
+import com.music.vivi.ui.component.HeroBackground
+import androidx.compose.foundation.layout.windowInsetsPadding
+import com.music.vivi.ui.component.rememberHeroSource
+import com.music.vivi.ui.component.rememberHeroTint
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.component.LocalAppBackdrop
+import com.music.vivi.ui.component.LocalGlassEffectConfig
+import com.music.vivi.ui.component.isGlassAllowed
+import com.music.vivi.ui.component.liquidGlass
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.text.font.FontWeight
+import com.music.vivi.ui.component.GlassCircleButton
+import androidx.compose.ui.text.style.TextAlign
 import com.music.vivi.ui.component.shimmer.GridItemPlaceHolder
 import com.music.vivi.ui.component.shimmer.ShimmerHost
 import com.music.vivi.ui.component.shimmer.TextPlaceholder
 import com.music.vivi.ui.menu.YouTubeSongMenu
 import com.music.vivi.ui.utils.SnapLayoutInfoProvider
 import com.music.vivi.ui.utils.backToMain
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.viewmodels.ChartsViewModel
 
@@ -106,29 +125,32 @@ fun ChartsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.charts)) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { navController.navigateUp() },
-                        onLongClick = { navController.backToMain() }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = null,
-                        )
-                    }
-                },
-            )
-        }
-    ) { paddingValues ->
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-        ) {
+    val heroUrl = remember(chartsPage) {
+        chartsPage?.sections?.firstOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()?.thumbnail
+    }
+    val heroSource = rememberHeroSource(
+        staticArt = heroUrl,
+        songs = emptyList()
+    )
+    val tint = rememberHeroTint(heroUrl)
+    val onTint = AppleTokens.onColor(tint)
+
+    val glassConfig = LocalGlassEffectConfig.current
+    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val heroBackdrop = rememberLayerBackdrop()
+
+    HeroBackground(
+        tint = tint,
+        heroSource = heroSource,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+      CompositionLocalProvider(
+          LocalAppBackdrop provides heroBackdrop,
+          LocalContentColor provides onTint
+      ) {
+        val chromeShape = ContinuousRoundedRectangle(percent = 50)
+        
+        Box(modifier = Modifier.fillMaxSize()) {
             if (isLoading || chartsPage == null) {
                 ShimmerHost(
                     modifier = Modifier.fillMaxSize(),
@@ -136,6 +158,7 @@ fun ChartsScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
+                        Spacer(Modifier.height(80.dp))
                         TextPlaceholder(
                             height = 36.dp,
                             modifier = Modifier
@@ -209,6 +232,17 @@ fun ChartsScreen(
                         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                         .asPaddingValues(),
                 ) {
+                    item(key = "charts_header") {
+                        Spacer(Modifier.height(40.dp))
+                        Text(
+                            text = stringResource(R.string.charts),
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = onTint,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
+                        )
+                    }
+
                     chartsPage?.sections?.filter { it.title != "Top music videos" }?.forEach { section ->
                         item(key = "section_title_${section.title}") {
                             NavigationTitle(
@@ -255,6 +289,7 @@ fun ChartsScreen(
                                             isActive = song.id == mediaMetadata?.id,
                                             isPlaying = isPlaying,
                                             isSwipeable = false,
+                                            flat = true,
                                             shape = listItemShape(index % 4, 4),
                                             trailingContent = {
                                                 IconButton(
@@ -276,7 +311,7 @@ fun ChartsScreen(
                                             },
                                             modifier = Modifier
                                                 .width(horizontalLazyGridItemWidth)
-                                                .combinedClickable(
+                                                .combinedBounceClick(
                                                     onClick = {
                                                         if (song.id == mediaMetadata?.id) {
                                                             playerConnection.togglePlayPause()
@@ -331,7 +366,7 @@ fun ChartsScreen(
                                         isPlaying = isPlaying,
                                         coroutineScope = coroutineScope,
                                         modifier = Modifier
-                                            .combinedClickable(
+                                            .combinedBounceClick(
                                                 onClick = {
                                                     if (video.id == mediaMetadata?.id) {
                                                         playerConnection.togglePlayPause()
@@ -361,8 +396,35 @@ fun ChartsScreen(
                             }
                         }
                     }
+                    item {
+                        Spacer(Modifier.height(100.dp))
+                    }
                 }
             }
+
+            // Top bar logic
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GlassCircleButton(
+                    onClick = { navController.navigateUp() },
+                    onLongClick = { navController.backToMain() },
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_back),
+                        contentDescription = null,
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+            }
         }
+      }
     }
 }

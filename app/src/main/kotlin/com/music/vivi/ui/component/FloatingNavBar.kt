@@ -11,7 +11,6 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +26,12 @@ import com.music.vivi.ui.screens.Screens
 import com.music.vivi.ui.component.floatingtabbar.FloatingTabBar
 import com.music.vivi.ui.component.floatingtabbar.FloatingTabBarDefaults
 import com.music.vivi.ui.component.floatingtabbar.FloatingTabBarScrollConnection
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+
+// Kyant0/Capsule's continuous (superellipse) capsule instead of a circular-arc
+// RoundedCornerShape — smoother corners, and lerp-able for the puck's
+// drag-to-search morph (see FloatingTabBar's ExpandedTabs).
+private val NavBarShape = ContinuousRoundedRectangle(percent = 50)
 
 /**
  * The iOS 26 style floating navigation bar, an alternative to [AppNavigationBar].
@@ -50,30 +55,32 @@ fun AppFloatingNavBar(
     pureBlack: Boolean = false,
     showPlayerAccessory: Boolean = false,
     onAccessoryClick: () -> Unit = {},
+    // When set, tapping the search circle calls this instead of onItemClick (the
+    // caller expands an in-place search pill rather than navigating away) and
+    // the circle itself is hidden while searchExpanded so it doesn't double up
+    // with that pill.
+    onSearchTap: (() -> Unit)? = null,
+    searchExpanded: Boolean = false,
 ) {
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassSupported()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
+    val appleMusicUi = LocalAppleMusicUi.current
 
     val backgroundColor = when {
         useGlass -> Color.Transparent
         pureBlack -> Color.Black
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    val selectedContentColor = when {
-        useGlass -> glassConfig.textColor
-        pureBlack -> Color.White
-        else -> MaterialTheme.colorScheme.primary
-    }
-    val unselectedContentColor = when {
-        useGlass -> glassConfig.textColor.copy(alpha = 0.65f)
-        pureBlack -> Color.White.copy(alpha = 0.65f)
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    // Selected nav item = the user's chosen accent (only place accent is used);
+    // every other item = white.
+    val selectedContentColor = com.music.vivi.ui.theme.LocalAccentColor.current
+    val unselectedContentColor = Color.White
 
     val tabBarContentModifier = if (useGlass) {
         Modifier.liquidGlass(
             config = glassConfig,
-            shape = RoundedCornerShape(percent = 50),
+            shape = NavBarShape,
+            highlightAlpha = 0.3f,
         )
     } else {
         Modifier
@@ -129,9 +136,13 @@ fun AppFloatingNavBar(
             backgroundColor = backgroundColor,
             accessoryBackgroundColor = backgroundColor,
         ),
+        // The selection puck's lens/accent-tint effects only make sense when the
+        // bar itself is sampling the app backdrop through liquid glass.
+        backdrop = if (useGlass) LocalAppBackdrop.current else null,
+        accentColor = selectedContentColor,
         // The tab content lambdas are captured once per contentKey, so anything they
         // close over (selection, colors) must be part of the key to avoid stale UI.
-        contentKey = listOf(selectedTabKey, navigationItems, selectedContentColor, unselectedContentColor),
+        contentKey = listOf(selectedTabKey, navigationItems, selectedContentColor, unselectedContentColor, searchExpanded),
     ) {
         tabScreens.forEach { screen ->
             val isSelected = screen.route == selectedTabKey
@@ -148,7 +159,7 @@ fun AppFloatingNavBar(
                 icon = {
                     Icon(
                         painter = painterResource(
-                            if (isSelected) screen.iconIdActive else screen.iconIdInactive
+                            if (isSelected) screen.iconActive(appleMusicUi) else screen.iconInactive(appleMusicUi)
                         ),
                         contentDescription = stringResource(screen.titleId),
                         tint = if (isSelected) selectedContentColor else unselectedContentColor,
@@ -158,20 +169,29 @@ fun AppFloatingNavBar(
             )
         }
 
-        searchScreen?.let { screen ->
+        if (searchScreen != null && !searchExpanded) {
+            val screen = searchScreen
             val isSelected = screen.route == selectedTabKey
             standaloneTab(
                 key = screen.route,
+                title = {
+                    Text(
+                        text = stringResource(screen.titleId),
+                        color = if (isSelected) selectedContentColor else unselectedContentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 icon = {
                     Icon(
                         painter = painterResource(
-                            if (isSelected) screen.iconIdActive else screen.iconIdInactive
+                            if (isSelected) screen.iconActive(appleMusicUi) else screen.iconInactive(appleMusicUi)
                         ),
                         contentDescription = stringResource(screen.titleId),
                         tint = if (isSelected) selectedContentColor else unselectedContentColor,
                     )
                 },
-                onClick = { onItemClick(screen, isSelected) },
+                onClick = { onSearchTap?.invoke() ?: onItemClick(screen, isSelected) },
             )
         }
     }

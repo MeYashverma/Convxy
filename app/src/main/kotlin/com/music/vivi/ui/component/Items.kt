@@ -21,6 +21,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -41,16 +44,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -62,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -112,6 +119,9 @@ import com.music.vivi.db.entities.Song
 import com.music.vivi.extensions.toMediaItem
 import com.music.vivi.models.MediaMetadata
 import com.music.vivi.playback.queues.LocalAlbumRadio
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.rememberArtworkTint
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
 import com.music.vivi.ui.utils.resize
 import com.music.vivi.utils.joinByBullet
 import com.music.vivi.utils.makeTimeString
@@ -141,76 +151,96 @@ inline fun ListItem(
     title: String,
     noinline subtitle: (@Composable RowScope.() -> Unit)? = null,
     thumbnailContent: @Composable () -> Unit,
-    trailingContent: @Composable RowScope.() -> Unit = {},
+    crossinline trailingContent: @Composable RowScope.() -> Unit = {},
     isSelected: Boolean? = false,
     isActive: Boolean = false,
     isAvailable: Boolean = true,
     shape: Shape = RectangleShape,
     drawHighlight: Boolean = true,
+    flat: Boolean = false,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .padding(vertical = 2.dp)
-            .height(ListItemHeight)
-            .padding(horizontal = 16.dp)
-            .clip(shape)
-            .background(
-                color = when {
-                    isActive -> MaterialTheme.colorScheme.secondaryContainer
-                    isSelected == true && drawHighlight -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                    else -> MaterialTheme.colorScheme.surfaceContainer
-                }
-            )
-    ) {
-        Box(
-            modifier = Modifier.padding(start = 12.dp, top = 6.dp, end = 6.dp, bottom = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            thumbnailContent()
-            if (!isAvailable) {
-                Box(
-                    modifier = Modifier
-                        .size(ListThumbnailSize)
-                        .align(Alignment.Center)
-                        .background(
-                            Color.Black.copy(alpha = 0.25f),
-                            RoundedCornerShape(ThumbnailCornerRadius)
-                        )
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.offline),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier
-                            .size(ListThumbnailSize / 2)
-                            .align(Alignment.Center)
-                            .graphicsLayer { alpha = 1f }
-                    )
-                }
-            }
-        }
-        Column(
+    val onSurface = LocalContentColor.current
+    
+    Column(modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 6.dp)
+                .padding(vertical = 2.dp)
+                .height(ListItemHeight)
+                .padding(horizontal = 16.dp)
+                .clip(if (flat) RectangleShape else shape)
+                .background(
+                    color = when {
+                        isActive -> onSurface.copy(alpha = 0.15f)
+                        isSelected == true && drawHighlight -> onSurface.copy(alpha = 0.1f)
+                        else -> Color.Transparent
+                    }
+                )
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            if (subtitle != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    subtitle()
+            Box(
+                modifier = Modifier.padding(start = 12.dp, top = 6.dp, end = 6.dp, bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                thumbnailContent()
+                if (!isAvailable) {
+                    Box(
+                        modifier = Modifier
+                            .size(ListThumbnailSize)
+                            .align(Alignment.Center)
+                            .background(
+                                Color.Black.copy(alpha = 0.25f),
+                                RoundedCornerShape(ThumbnailCornerRadius)
+                            )
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.offline),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .size(ListThumbnailSize / 2)
+                                .align(Alignment.Center)
+                                .graphicsLayer { alpha = 1f }
+                        )
+                    }
                 }
             }
-        }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 6.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = onSurface,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-        trailingContent()
+                if (subtitle != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        CompositionLocalProvider(LocalContentColor provides onSurface.copy(alpha = 0.6f)) {
+                            subtitle()
+                        }
+                    }
+                }
+            }
+
+            CompositionLocalProvider(LocalContentColor provides onSurface.copy(alpha = 0.7f)) {
+                trailingContent()
+            }
+        }
+        if (flat) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = AppleTokens.Divider,
+                thickness = 0.5.dp,
+            )
+        }
     }
 }
 
@@ -226,6 +256,7 @@ fun ListItem(
     isActive: Boolean = false,
     shape: Shape = RectangleShape,
     drawHighlight: Boolean = true,
+    flat: Boolean = false,
 ) = ListItem(
     title = title,
     subtitle = {
@@ -246,7 +277,8 @@ fun ListItem(
     isSelected = isSelected,
     isActive = isActive,
     shape = shape,
-    drawHighlight = drawHighlight
+    drawHighlight = drawHighlight,
+    flat = flat
 )
 
 // merge badges and subtitle text and pass to basic list item
@@ -262,6 +294,7 @@ fun ListItem(
     isActive: Boolean = false,
     shape: Shape = RectangleShape,
     drawHighlight: Boolean = true,
+    flat: Boolean = false,
 ) = ListItem(
     title = title,
     subtitle = {
@@ -283,7 +316,8 @@ fun ListItem(
     isSelected = isSelected,
     isActive = isActive,
     shape = shape,
-    drawHighlight = drawHighlight
+    drawHighlight = drawHighlight,
+    flat = flat
 )
 
 @Composable
@@ -295,18 +329,24 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    // When set, the whole card gets a colorful fill of this color (the
+    // artwork's dominant tint) instead of the plain transparent layout.
+    containerColor: Color? = null,
 ) {
     val gridHeight = currentGridThumbnailHeight()
+    val sizeModifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(gridHeight * thumbnailRatio)
+    val cardModifier = if (containerColor != null) {
+        Modifier
+            .padding(8.dp)
+            .background(containerColor.copy(alpha = 0.55f), ContinuousRoundedRectangle(AppleTokens.CardCorner))
+            .padding(8.dp)
+    } else {
+        Modifier.padding(12.dp)
+    }
     Column(
-        modifier = if (fillMaxWidth) {
-            modifier
-                .padding(12.dp)
-                .fillMaxWidth()
-        } else {
-            modifier
-                .padding(12.dp)
-                .width(gridHeight * thumbnailRatio)
-        }
+        modifier = modifier
+            .then(sizeModifier)
+            .then(cardModifier)
     ) {
         BoxWithConstraints(
             contentAlignment = Alignment.Center,
@@ -400,6 +440,7 @@ fun SongListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
     drawHighlight: Boolean = true,
     shape: Shape = RectangleShape,
+    flat: Boolean = false,
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
 
@@ -427,7 +468,8 @@ fun SongListItem(
             isSelected = isSelected,
             isActive = isActive,
             shape = shape,
-            drawHighlight = drawHighlight
+            drawHighlight = drawHighlight,
+            flat = flat
         )
     }
 
@@ -512,6 +554,7 @@ fun SongGridItem(
 fun ArtistListItem(
     artist: Artist,
     modifier: Modifier = Modifier,
+    flat: Boolean = false,
     badges: @Composable RowScope.() -> Unit = {
         if (artist.artist.bookmarkedAt != null) {
             Icon(
@@ -545,6 +588,7 @@ fun ArtistListItem(
     },
     trailingContent = trailingContent,
     modifier = modifier,
+    flat = flat
 )
 
 @Composable
@@ -584,6 +628,7 @@ fun ArtistGridItem(
 fun AlbumListItem(
     album: Album,
     modifier: Modifier = Modifier,
+    flat: Boolean = false,
     showLikedIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
         val downloadUtil = LocalDownloadUtil.current
@@ -640,7 +685,8 @@ fun AlbumListItem(
         )
     },
     trailingContent = trailingContent,
-    modifier = modifier
+    modifier = modifier,
+    flat = flat
 )
 
 @Composable
@@ -733,6 +779,7 @@ fun AlbumGridItem(
         )
     },
     fillMaxWidth = fillMaxWidth,
+    containerColor = rememberArtworkTint(album.album.thumbnailUrl).getOrNull(0)?.asDeepTint(),
     modifier = modifier
 )
 
@@ -741,6 +788,7 @@ fun PlaylistListItem(
     playlist: Playlist,
     modifier: Modifier = Modifier,
     autoPlaylist: Boolean = false,
+    flat: Boolean = false,
     badges: @Composable RowScope.() -> Unit = {
         val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
@@ -816,7 +864,8 @@ fun PlaylistListItem(
     },
     trailingContent = trailingContent,
     modifier = modifier,
-    shape = shape
+    shape = shape,
+    flat = flat
 )
 
 @Composable
@@ -921,6 +970,7 @@ fun PlaylistGridItem(
         )
     },
     fillMaxWidth = fillMaxWidth,
+    containerColor = rememberArtworkTint(playlist.thumbnails.firstOrNull()).getOrNull(0)?.asDeepTint(),
     modifier = modifier
 )
 
@@ -1007,6 +1057,7 @@ fun YouTubeListItem(
     },
     shape: Shape = RectangleShape,
     drawHighlight: Boolean = true,
+    flat: Boolean = false,
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
 
@@ -1036,7 +1087,8 @@ fun YouTubeListItem(
             isSelected = isSelected,
             isActive = isActive,
             shape = shape,
-            drawHighlight = drawHighlight
+            drawHighlight = drawHighlight,
+            flat = flat
         )
     }
 

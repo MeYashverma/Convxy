@@ -51,7 +51,7 @@ fun ExpandableText(
     var hasOverflow by rememberSaveable { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val linkColor = MaterialTheme.colorScheme.primary
-    val bodyColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val bodyColor = androidx.compose.material3.LocalContentColor.current
 
     val annotatedText: AnnotatedString = remember(text, runs, linkColor) {
         if (runs.isNullOrEmpty()) {

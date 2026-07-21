@@ -2715,6 +2715,15 @@ class MusicService :
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
+            // Local files (content://, file://, /storage/) - skip YouTube resolution
+            // DefaultDataSource in the chain handles local URIs natively
+            if (mediaId.startsWith("content://") ||
+                mediaId.startsWith("file://") ||
+                mediaId.startsWith("/storage/")
+            ) {
+                return@Factory dataSpec
+            }
+
             // Check if we need to bypass cache for quality change
             val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
 
@@ -2822,13 +2831,7 @@ class MusicService :
     private fun createMediaSourceFactory() =
         DefaultMediaSourceFactory(
             createDataSourceFactory(),
-            ExtractorsFactory {
-                arrayOf(
-                    MatroskaExtractor(),        // .webm / Opus
-                    FragmentedMp4Extractor(),   // fragmented .mp4 / AAC (YouTube)
-                    Mp4Extractor(),             // regular .mp4 / AAC (JioSaavn)
-                )
-            },
+            androidx.media3.extractor.DefaultExtractorsFactory(),
         )
 
     private fun createRenderersFactory(

@@ -5,10 +5,23 @@
 
 package com.music.vivi.ui.component
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -138,7 +151,7 @@ fun AppNavigationBar(
 ) {
     val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassEnabled && glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassSupported()
+    val useGlass = glassEnabled && glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val navContainerColor = if (useGlass) Color.Transparent else containerColor
     val contentColor = when {
         useGlass -> glassConfig.textColor
@@ -234,6 +247,82 @@ fun AppNavigationBar(
                     }
                 } else null
             )
+        }
+    }
+}
+
+@Composable
+fun AppLandscapeRail(
+    navigationItems: List<Screens>,
+    currentRoute: String?,
+    onItemClick: (Screens, Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    pureBlack: Boolean = false,
+) {
+    val glassConfig = LocalGlassEffectConfig.current
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
+    
+    val backgroundColor = when {
+        useGlass -> Color.Transparent
+        pureBlack -> Color.Black
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    
+    val selectedContentColor = com.music.vivi.ui.theme.LocalAccentColor.current
+    val unselectedContentColor = if (useGlass) glassConfig.textColor else Color.White
+
+    val railModifier = if (useGlass) {
+        modifier.liquidGlass(
+            config = glassConfig,
+            shape = RoundedCornerShape(16.dp),
+            highlightAlpha = 0.3f,
+        )
+    } else {
+        modifier.background(backgroundColor, RoundedCornerShape(16.dp))
+    }
+
+    Column(
+        modifier = railModifier
+            .padding(8.dp)
+            .fillMaxHeight(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        navigationItems.forEach { screen ->
+            val isSelected = remember(currentRoute, screen.route) {
+                isRouteSelected(currentRoute, screen.route, navigationItems)
+            }
+            val iconRes = if (isSelected) screen.iconIdActive else screen.iconIdInactive
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onItemClick(screen, isSelected) }
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
+            ) {
+                Icon(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = stringResource(screen.titleId),
+                    tint = if (isSelected) selectedContentColor else unselectedContentColor,
+                    modifier = Modifier.size(24.dp)
+                )
+                
+                Spacer(Modifier.width(12.dp))
+                
+                Text(
+                    text = stringResource(screen.titleId),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) selectedContentColor else unselectedContentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            
+            Spacer(Modifier.height(8.dp))
         }
     }
 }

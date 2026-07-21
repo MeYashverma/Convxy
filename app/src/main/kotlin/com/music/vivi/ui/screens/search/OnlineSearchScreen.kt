@@ -7,8 +7,9 @@ package com.music.vivi.ui.screens.search
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -235,6 +236,7 @@ fun OnlineSearchScreen(
                     else -> false
                 },
                 isPlaying = isPlaying,
+                flat = true,
                 shape = listItemShape(index, viewState.items.size),
                 trailingContent = {
                     IconButton(
@@ -283,7 +285,7 @@ fun OnlineSearchScreen(
                     }
                 },
                 modifier = Modifier
-                    .combinedClickable(
+                    .combinedBounceClick(
                         onClick = {
                             when (item) {
                                 is SongItem -> {
@@ -375,7 +377,7 @@ fun SuggestionItem(
             .height(SuggestionItemHeight)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .clickable(onClick = onClick)
+            .bounceClick(onClick = onClick)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
     ) {
         Icon(

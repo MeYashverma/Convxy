@@ -5,10 +5,12 @@
 
 package com.music.vivi.ui.screens.search
 
+import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import com.music.vivi.ui.utils.bounceClick
+import com.music.vivi.ui.utils.combinedBounceClick
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -37,6 +39,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -60,7 +63,21 @@ import com.music.vivi.ui.component.AlbumListItem
 import com.music.vivi.ui.component.ArtistListItem
 import com.music.vivi.ui.component.ChipsRow
 import com.music.vivi.ui.component.EmptyPlaceholder
+import com.music.vivi.ui.component.HeroBackground
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.text.font.FontWeight
 import com.music.vivi.ui.component.LocalMenuState
+import com.music.vivi.ui.component.rememberHeroSource
+import com.music.vivi.ui.component.rememberHeroTint
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.component.LocalAppBackdrop
+import com.music.vivi.ui.component.LocalGlassEffectConfig
+import com.music.vivi.ui.component.isGlassAllowed
+import com.music.vivi.ui.component.liquidGlass
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
 import com.music.vivi.ui.component.PlaylistListItem
 import com.music.vivi.ui.component.SongListItem
 import com.music.vivi.ui.menu.SongMenu
@@ -90,92 +107,128 @@ fun LocalSearchScreen(
     val searchFilter by viewModel.filter.collectAsState()
     val result by viewModel.result.collectAsState()
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     val lazyListState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
-        snapshotFlow { lazyListState.firstVisibleItemScrollOffset }
-            .drop(1)
-            .collect {
-                keyboardController?.hide()
-            }
+    val heroUrl = result.map.values.flatten().firstOrNull()?.let {
+        when (it) {
+            is Song -> it.song.thumbnailUrl
+            is Album -> it.album.thumbnailUrl
+            is Artist -> it.artist.thumbnailUrl
+            is Playlist -> it.thumbnails.firstOrNull()
+            else -> null
+        }
     }
+    val heroSource = rememberHeroSource(
+        staticArt = heroUrl,
+        songs = result.map[LocalFilter.SONG]?.filterIsInstance<Song>()?.map { it.song.thumbnailUrl to false } ?: emptyList()
+    )
+    val tint = Color.Black
+    val onTint = AppleTokens.onColor(tint)
 
-    LaunchedEffect(query) {
-        viewModel.query.value = query
-    }
+    val glassConfig = LocalGlassEffectConfig.current
+    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val heroBackdrop = rememberLayerBackdrop()
 
-    val configuration = LocalWindowInfo.current
-    val isLandscape = configuration.containerSize.width > configuration.containerSize.height
-
-    LazyColumn(
-        state = lazyListState,
-        contentPadding = LocalPlayerAwareWindowInsets.current
-            .only(WindowInsetsSides.Bottom)
-            .asPaddingValues(),
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
-            .let { base ->
-                if (isLandscape) {
-                    base.windowInsetsPadding(
-                        WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
-                    )
-                } else base
-            }
+            .background(tint),
     ) {
-        stickyHeader {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
-            ) {
-                ChipsRow(
-                    chips = listOf(
-                        LocalFilter.ALL to stringResource(R.string.filter_all),
-                        LocalFilter.SONG to stringResource(R.string.filter_songs),
-                        LocalFilter.ALBUM to stringResource(R.string.filter_albums),
-                        LocalFilter.ARTIST to stringResource(R.string.filter_artists),
-                        LocalFilter.PLAYLIST to stringResource(R.string.filter_playlists),
-                    ),
-                    currentValue = searchFilter,
-                    onValueUpdate = { viewModel.filter.value = it },
-                )
-            }
+      CompositionLocalProvider(
+          LocalAppBackdrop provides heroBackdrop,
+          LocalContentColor provides onTint
+      ) {
+        val chromeShape = ContinuousRoundedRectangle(percent = 50)
+        val chromeBackgroundModifier = if (useGlass) {
+            Modifier.liquidGlass(config = glassConfig, shape = chromeShape, highlightAlpha = 0.3f)
+        } else {
+            Modifier.background(LocalContentColor.current.copy(alpha = 0.15f), chromeShape)
         }
 
-        result.map.forEach { (filter, items) ->
-            if (result.filter == LocalFilter.ALL) {
-                item(key = filter) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ListItemHeight)
-                            .clickable { viewModel.filter.value = filter }
-                            .padding(start = 12.dp, end = 18.dp),
-                    ) {
-                        Text(
-                            text = stringResource(
-                                when (filter) {
-                                    LocalFilter.SONG -> R.string.filter_songs
-                                    LocalFilter.ALBUM -> R.string.filter_albums
-                                    LocalFilter.ARTIST -> R.string.filter_artists
-                                    LocalFilter.PLAYLIST -> R.string.filter_playlists
-                                    LocalFilter.ALL -> error("")
-                                }
-                            ),
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.weight(1f),
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = LocalPlayerAwareWindowInsets.current
+                .only(WindowInsetsSides.Bottom)
+                .asPaddingValues(),
+            modifier = Modifier
+                .fillMaxSize()
+                .let { base ->
+                    if (isLandscape) {
+                        base.windowInsetsPadding(
+                            WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                         )
+                    } else base
+                }
+        ) {
+            item(key = "search_header") {
+                Spacer(Modifier.height(40.dp))
+                Text(
+                    text = stringResource(R.string.search),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = onTint,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
+                )
+            }
 
-                        Icon(
-                            painter = painterResource(R.drawable.navigate_next),
-                            contentDescription = null,
-                        )
-                    }
+            stickyHeader {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(tint.copy(alpha = 0.8f))
+                ) {
+                    ChipsRow(
+                        chips = listOf(
+                            LocalFilter.ALL to stringResource(R.string.filter_all),
+                            LocalFilter.SONG to stringResource(R.string.filter_songs),
+                            LocalFilter.ALBUM to stringResource(R.string.filter_albums),
+                            LocalFilter.ARTIST to stringResource(R.string.filter_artists),
+                            LocalFilter.PLAYLIST to stringResource(R.string.filter_playlists),
+                        ),
+                        currentValue = searchFilter,
+                        onValueUpdate = { viewModel.filter.value = it },
+                    )
                 }
             }
+
+            result.map.forEach { (filter, items) ->
+                if (result.filter == LocalFilter.ALL) {
+                    item(key = filter) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(ListItemHeight)
+                                .bounceClick { viewModel.filter.value = filter }
+                                .padding(start = 12.dp, end = 18.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    when (filter) {
+                                        LocalFilter.SONG -> R.string.filter_songs
+                                        LocalFilter.ALBUM -> R.string.filter_albums
+                                        LocalFilter.ARTIST -> R.string.filter_artists
+                                        LocalFilter.PLAYLIST -> R.string.filter_playlists
+                                        LocalFilter.ALL -> error("")
+                                    }
+                                ),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = onTint,
+                                modifier = Modifier.weight(1f),
+                            )
+
+                            Icon(
+                                painter = painterResource(R.drawable.navigate_next),
+                                contentDescription = null,
+                                tint = onTint
+                            )
+                        }
+                    }
+                }
 
             items(
                 items = items.distinctBy { it.id },
@@ -188,6 +241,7 @@ fun LocalSearchScreen(
                         showInLibraryIcon = true,
                         isActive = item.id == mediaMetadata?.id,
                         isPlaying = isPlaying,
+                        flat = true,
                         shape = listItemShape(items.indexOfFirst { it.id == item.id }, items.size),
                         trailingContent = {
                             IconButton(
@@ -212,7 +266,7 @@ fun LocalSearchScreen(
                             }
                         },
                         modifier = Modifier
-                            .combinedClickable(
+                            .combinedBounceClick(
                                 onClick = {
                                     if (item.id == mediaMetadata?.id) {
                                         playerConnection.togglePlayPause()
@@ -251,8 +305,9 @@ fun LocalSearchScreen(
                         album = item,
                         isActive = item.id == mediaMetadata?.album?.id,
                         isPlaying = isPlaying,
+                        flat = true,
                         modifier = Modifier
-                            .clickable {
+                            .bounceClick {
                                 onDismiss()
                                 navController.navigate("album/${item.id}")
                             }
@@ -261,8 +316,9 @@ fun LocalSearchScreen(
 
                     is Artist -> ArtistListItem(
                         artist = item,
+                        flat = true,
                         modifier = Modifier
-                            .clickable {
+                            .bounceClick {
                                 onDismiss()
                                 navController.navigate("artist/${item.id}")
                             }
@@ -271,8 +327,9 @@ fun LocalSearchScreen(
 
                     is Playlist -> PlaylistListItem(
                         playlist = item,
+                        flat = true,
                         modifier = Modifier
-                            .clickable {
+                            .bounceClick {
                                 onDismiss()
                                 navController.navigate("local_playlist/${item.id}")
                             }
@@ -280,15 +337,21 @@ fun LocalSearchScreen(
                     )
                 }
             }
-        }
+            }
 
-        if (result.query.isNotEmpty() && result.map.isEmpty()) {
-            item(key = "no_result") {
-                EmptyPlaceholder(
-                    icon = R.drawable.search,
-                    text = stringResource(R.string.no_results_found),
-                )
+            if (result.query.isNotEmpty() && result.map.isEmpty()) {
+                item(key = "no_result") {
+                    EmptyPlaceholder(
+                        icon = R.drawable.search,
+                        text = stringResource(R.string.no_results_found),
+                        modifier = Modifier.padding(top = 100.dp)
+                    )
+                }
+            }
+            item {
+                Spacer(Modifier.height(100.dp))
             }
         }
+      }
     }
 }

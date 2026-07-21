@@ -6,12 +6,9 @@
 package com.music.vivi.ui.theme
 
 import android.graphics.Bitmap
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
@@ -19,55 +16,52 @@ import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 
-val DefaultThemeColor = Color(0xFFED5564)
+val DefaultThemeColor = AppleTokens.AccentRed
+
+/**
+ * The user's chosen accent color, provided app-wide. ONLY the nav bar uses this
+ * as an accent; the rest of the UI is contrast-based (white/black by luminance).
+ * Kept separate from [ColorScheme.primary], which is neutralized to white in the
+ * dark Apple theme so generic M3 controls don't render red.
+ */
+val LocalAccentColor = androidx.compose.runtime.compositionLocalOf { DefaultThemeColor }
 
 @Composable
 fun vivimusicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    pureBlack: Boolean = false,
+    pureBlack: Boolean = true,
     themeColor: Color = DefaultThemeColor,
     content: @Composable () -> Unit,
 ) {
-    val context = LocalContext.current
-    // Determine if system dynamic colors should be used (Android S+ and default theme color)
-    val useSystemDynamicColor = (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+    val baseColorScheme = rememberDynamicColorScheme(
+        seedColor = themeColor,
+        isDark = darkTheme,
+        specVersion = ColorSpec.SpecVersion.SPEC_2025,
+        style = PaletteStyle.TonalSpot,
+    )
 
-    // Select the appropriate color scheme generation method
-    val baseColorScheme = if (useSystemDynamicColor) {
-        // Use standard Material 3 dynamic color functions for system wallpaper colors
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-        // Use materialKolor only when a specific seed color is provided
-        rememberDynamicColorScheme(
-            seedColor = themeColor, // themeColor is guaranteed non-default here
-            isDark = darkTheme,
-            specVersion = ColorSpec.SpecVersion.SPEC_2025,
-            style = PaletteStyle.TonalSpot // Keep existing style
-        )
-    }
-
-    // Apply pureBlack modification if needed, similar to original logic
     val colorScheme = remember(baseColorScheme, pureBlack, darkTheme) {
+        val withApple = if (darkTheme) baseColorScheme.appleSurfaces() else baseColorScheme
         if (darkTheme && pureBlack) {
-            baseColorScheme.pureBlack(true)
+            withApple.pureBlack(true)
         } else {
-            baseColorScheme
+            withApple
         }
     }
 
-    // Use standard MaterialTheme instead of MaterialExpressiveTheme
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography, // Use the defined AppTypography
-        content = content
-    )
+    androidx.compose.runtime.CompositionLocalProvider(LocalAccentColor provides themeColor) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            content = content
+        )
+    }
 }
 
 fun Bitmap.extractThemeColor(): Color {
@@ -95,6 +89,28 @@ fun Bitmap.extractGradientColors(): List<Color> {
     else
         listOf(Color(0xFF595959), Color(0xFF0D0D0D))
 }
+
+/**
+ * Apple-dark surface overrides applied unconditionally in dark mode.
+ * pureBlack is applied AFTER this and wins for surface/background when enabled.
+ */
+fun ColorScheme.appleSurfaces() = copy(
+    background = AppleTokens.Bg,
+    surface = AppleTokens.Bg,
+    surfaceContainerLowest = AppleTokens.Bg,
+    surfaceContainerLow = AppleTokens.BgElevated,
+    surfaceContainer = AppleTokens.Card,
+    surfaceContainerHigh = AppleTokens.Card,
+    surfaceContainerHighest = AppleTokens.CardSecondary,
+    surfaceVariant = AppleTokens.CardSecondary,
+    // Neutralize the seed accent everywhere except the nav bar: generic M3
+    // controls (switches, sliders, selected states) render white-on-dark, not
+    // red. The nav bar reads the real accent via LocalAccentColor instead.
+    primary = Color.White,
+    onPrimary = Color.Black,
+    primaryContainer = AppleTokens.CardSecondary,
+    onPrimaryContainer = Color.White,
+)
 
 fun ColorScheme.pureBlack(apply: Boolean) =
     if (apply) copy(

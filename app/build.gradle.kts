@@ -92,9 +92,9 @@ android {
         }
         create("release") {
             storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("STORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            storePassword = System.getenv("STORE_PASSWORD") ?: "ViviMusic2026!"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "vivi"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "ViviMusic2026!"
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"
@@ -110,6 +110,7 @@ android {
             isShrinkResources = true
             isCrunchPngs = false
             isDebuggable = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -210,6 +211,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 dependencies {
+    implementation(libs.androidx.material3)
     implementation(libs.guava)
     implementation(libs.coroutines.guava)
     implementation(libs.concurrent.futures)

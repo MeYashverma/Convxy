@@ -50,6 +50,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.music.vivi.ui.component.AnimatedPlayPauseIcon
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -549,6 +550,8 @@ private fun CachePlaylistHeader(
     modifier: Modifier = Modifier
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val cacheLength = remember(songs) { songs.fastSumBy { it.song.duration ?: 0 } }
 
     val heroUrl = songs.firstOrNull()?.thumbnailUrl
@@ -619,14 +622,22 @@ private fun CachePlaylistHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Play Button
+            val isThisPlaylistPlaying = isPlaying && mediaMetadata?.let { media ->
+                songs.any { it.id == media.id }
+            } ?: false
+
             androidx.compose.material3.Button(
                 onClick = {
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = context.getString(R.string.cached_playlist),
-                            items = songs.map { it.toMediaItem() },
+                    if (isThisPlaylistPlaying) {
+                        playerConnection.player.pause()
+                    } else {
+                        playerConnection.playQueue(
+                            ListQueue(
+                                title = context.getString(R.string.cached_playlist),
+                                items = songs.map { it.toMediaItem() },
+                            )
                         )
-                    )
+                    }
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -642,11 +653,10 @@ private fun CachePlaylistHeader(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = null,
+                    AnimatedPlayPauseIcon(
+                        isPlaying = isThisPlaylistPlaying,
                         modifier = Modifier.size(20.dp),
-                        tint = tint
+                        tint = tint,
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(

@@ -104,7 +104,7 @@ fun GlassEffectSettings(
         Color(surfaceTintColorInt)
     }
     val (surfaceOpacity, onSurfaceOpacityChange) = rememberPreference(
-        LiquidGlassSurfaceOpacityKey, defaultValue = 0.4f
+        LiquidGlassSurfaceOpacityKey, defaultValue = 0.3f
     )
     val (textColorInt, onTextColorChange) = rememberPreference(
         LiquidGlassTextColorKey, defaultValue = Color.White.toArgb()
@@ -454,7 +454,7 @@ fun GlassEffectSettings(
         DefaultDialog(
             onDismiss = { tempValue = surfaceOpacity; showSurfaceOpacityDialog = false },
             buttons = {
-                TextButton(onClick = { tempValue = 0.4f }) { Text(stringResource(R.string.reset)) }
+                TextButton(onClick = { tempValue = 0.3f }) { Text(stringResource(R.string.reset)) }
                 Spacer(modifier = Modifier.weight(1f))
                 TextButton(onClick = { tempValue = surfaceOpacity; showSurfaceOpacityDialog = false }) { Text(stringResource(android.R.string.cancel)) }
                 TextButton(onClick = { onSurfaceOpacityChange(tempValue); showSurfaceOpacityDialog = false }) { Text(stringResource(android.R.string.ok)) }

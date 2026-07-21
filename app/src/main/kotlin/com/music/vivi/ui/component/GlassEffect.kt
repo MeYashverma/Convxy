@@ -5,17 +5,27 @@
 
 package com.music.vivi.ui.component
 
+import android.app.ActivityManager
 import android.os.Build
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.music.vivi.ui.component.backdrop.Backdrop
@@ -24,6 +34,7 @@ import com.music.vivi.ui.component.backdrop.effects.blur
 import com.music.vivi.ui.component.backdrop.effects.colorControls
 import com.music.vivi.ui.component.backdrop.effects.lens
 import com.music.vivi.ui.component.backdrop.highlight.Highlight
+import com.music.vivi.ui.component.backdrop.highlight.HighlightStyle
 import com.music.vivi.ui.component.backdrop.shadow.Shadow
 
 /**
@@ -33,19 +44,19 @@ import com.music.vivi.ui.component.backdrop.shadow.Shadow
  */
 @Stable
 data class GlassEffectConfig(
-    val globalEnabled: Boolean = false,
-    val vibrancy: Float = 1f,
-    /** Blur in dp applied to glass pills. Defaults follow Kyant's Apple-matched recipe. */
-    val blurRadius: Float = 8f,
+    val globalEnabled: Boolean = true,
+    val vibrancy: Float = 1.2f,
+    /** Blur in dp applied to glass pills. User requested 2dp for landscape fix. */
+    val blurRadius: Float = 2f,
     /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction height. 0.5 = Apple's 24dp. */
     val lensHeight: Float = 0.5f,
-    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction amount. 0.5 = Apple's 24dp. */
-    val lensAmount: Float = 0.5f,
+    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction amount. User requested 60 (0.6f). */
+    val lensAmount: Float = 0.6f,
     val chromaticAberration: Boolean = true,
     val depthEffect: Boolean = true,
-    /** [Color.Unspecified] means adaptive: light glass on light theme, dark on dark. */
-    val surfaceTintColor: Color = Color.Unspecified,
-    val surfaceOpacity: Float = 0.4f,
+    /** [Color.Unspecified] means adaptive: dark grey on dark. */
+    val surfaceTintColor: Color = Color(0xFF2C2C2E),
+    val surfaceOpacity: Float = 0.3f,
     val textColor: Color = Color.White,
     val playerEnabled: Boolean = true,
     val miniPlayerEnabled: Boolean = true,
@@ -109,16 +120,62 @@ fun glassResolutionScale(blurRadiusDp: Float): Float {
 fun isGlassSupported(sdkInt: Int = Build.VERSION.SDK_INT): Boolean = sdkInt >= Build.VERSION_CODES.S
 
 /**
+ * Devices Android flags as low-RAM ([ActivityManager.isLowRamDevice]) can't push the
+ * RenderEffect/RuntimeShader chain (blur + lens + vibrancy, several offscreen layers
+ * per glass surface) without dropped frames, so glass is skipped there in favor of the
+ * flat fallback color every glass call site already has for [isGlassSupported] == false.
+ */
+@Composable
+fun isLowRamDevice(): Boolean {
+    val context = LocalContext.current
+    return remember {
+        context.getSystemService(ActivityManager::class.java)?.isLowRamDevice ?: false
+    }
+}
+
+/** Combines the API-level check with the low-RAM device check; use this to gate glass. */
+@Composable
+fun isGlassAllowed(): Boolean = isGlassSupported() && !isLowRamDevice()
+
+/**
  * Maps the user-facing vibrancy preference (0..2, default 1) to a saturation multiplier.
  * A value of 1 matches the library's built-in vibrancy effect (saturation x1.5), 0 leaves
  * colors untouched and 2 doubles the saturation.
  */
 fun glassSaturation(vibrancy: Float): Float = 1f + 0.5f * vibrancy.coerceIn(0f, 2f)
 
+/**
+ * Apple's floating pills have a thin, subtle specular line along the top edge — a
+ * hint of light, not a bold ring. The library's [Highlight.Default] (0.5dp, white @
+ * 0.5 alpha) reads as near-invisible at typical density, but a wide bright rim
+ * overshoots in the other direction, so this lands narrower and dimmer than that.
+ */
+private val EdgeHighlightWidth = 0.8f.dp
+private const val EdgeHighlightAlpha = 0.55f
+
+/**
+ * Real Liquid Glass isn't a highlight painted on at a fixed angle: Apple describes
+ * the material as dynamically bending and shaping light "in real time, every single
+ * frame," and community shader recreations implement this as one or more soft light
+ * sources drifting across the surface over time (e.g. animated via sin/cos of the
+ * frame clock). A perfectly static 45° rim reads as flat and synthetic by
+ * comparison, so the highlight's light angle slowly drifts instead of sitting still.
+ */
+private const val HighlightAngleMin = 25f
+private const val HighlightAngleMax = 65f
+private const val HighlightDriftMillis = 7000
+
 val LocalGlassEffectConfig = staticCompositionLocalOf { GlassEffectConfig() }
 
 /** The backdrop content (app UI) that glass surfaces sample from. */
 val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { error("No AppBackdrop provided") }
+
+/**
+ * Whether the Apple Music-styled UI (iOS 26/27 liquid glass look, SF-style tab icons,
+ * denser glass) is active. Read by [com.music.vivi.ui.screens.Screens] consumers to pick
+ * between the classic and iOS icon sets.
+ */
+val LocalAppleMusicUi = staticCompositionLocalOf { false }
 
 /**
  * Renders this composable as a liquid glass surface sampling [LocalAppBackdrop].
@@ -147,8 +204,10 @@ fun Modifier.liquidGlass(
     shape: CornerBasedShape = RoundedCornerShape(0.dp),
     applyEdgeEffects: Boolean = true,
     blurRadiusDp: Float = config.blurRadius,
+    // The nav bar and mini player want a dimmer specular rim than the default.
+    highlightAlpha: Float = EdgeHighlightAlpha,
 ): Modifier {
-    if (!isGlassSupported()) return this
+    if (!isGlassAllowed()) return this
     val backdrop = LocalAppBackdrop.current
     val density = LocalDensity.current
     val resolutionScale = glassResolutionScale(blurRadiusDp)
@@ -158,15 +217,31 @@ fun Modifier.liquidGlass(
     val saturation = glassSaturation(config.vibrancy)
     val lensHeightPx = with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale
     val lensAmountPx = with(density) { (config.lensAmount * LENS_MAX_DP).dp.toPx() } * resolutionScale
-    // Apple's glass is a light material on light content and dark on dark; honor an
-    // explicit user color, otherwise follow the theme.
+    // Apple's Liquid Glass is a bright, reflective material: even in dark mode it
+    // reads as a distinctly lighter "frosted" surface, not a near-black rectangle
+    // that blends into an OLED-black background. Honor an explicit user color,
+    // otherwise use a proper adaptive glass gray rather than matching the theme
+    // surface color 1:1 (which made the bar invisible over pure-black content).
     val surfaceTintColor = if (config.surfaceTintColor.isSpecified) {
         config.surfaceTintColor
     } else if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
         Color(0xFFFAFAFA)
     } else {
-        Color(0xFF121212)
+        Color(0xFF4A4A4E)
     }
+
+    // The specular rim's light angle slowly drifts back and forth instead of
+    // sitting frozen — see [HighlightAngleMin] for why.
+    val highlightTransition = rememberInfiniteTransition(label = "glassHighlight")
+    val animatedHighlightAngle by highlightTransition.animateFloat(
+        initialValue = HighlightAngleMin,
+        targetValue = HighlightAngleMax,
+        animationSpec = infiniteRepeatable(
+            animation = tween(HighlightDriftMillis, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "glassHighlightAngle",
+    )
 
     return drawBackdrop(
         backdrop = backdrop,
@@ -190,7 +265,19 @@ fun Modifier.liquidGlass(
                 )
             }
         },
-        highlight = if (applyEdgeEffects) ({ Highlight.Default }) else null,
+        highlight = if (applyEdgeEffects) {
+            {
+                Highlight(
+                    width = EdgeHighlightWidth,
+                    style = HighlightStyle.Default(
+                        color = Color.White.copy(alpha = highlightAlpha),
+                        angle = animatedHighlightAngle,
+                    ),
+                )
+            }
+        } else {
+            null
+        },
         shadow = if (applyEdgeEffects) ({ Shadow.Default }) else null,
         onDrawSurface = {
             if (config.surfaceOpacity > 0f) {

@@ -570,8 +570,12 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassDepthEffect) = rememberPreference(LiquidGlassDepthEffectKey, defaultValue = true)
                 // 0 (fully transparent, unreachable from the color picker) marks the
                 // theme-adaptive default tint.
-                val (liquidGlassSurfaceTintColorInt) = rememberPreference(LiquidGlassSurfaceTintColorKey, defaultValue = 0xFF2C2C2E.toInt())
-                val (liquidGlassSurfaceOpacity) = rememberPreference(LiquidGlassSurfaceOpacityKey, defaultValue = 0.65f)
+                // 0 = theme-adaptive tint (a lighter frosted grey) rather than a
+                // fixed dark chip — the dark default read as a near-black bar.
+                val (liquidGlassSurfaceTintColorInt) = rememberPreference(LiquidGlassSurfaceTintColorKey, defaultValue = 0)
+                // 0.65 dark tint made the glass read as a solid black surface; a
+                // lower opacity lets the sampled backdrop show through (frosted).
+                val (liquidGlassSurfaceOpacity) = rememberPreference(LiquidGlassSurfaceOpacityKey, defaultValue = 0.3f)
                 val (liquidGlassTextColorInt) = rememberPreference(LiquidGlassTextColorKey, defaultValue = Color.White.toArgb())
                 val (liquidGlassPlayerEnabled) = rememberPreference(LiquidGlassPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassMiniPlayerEnabled) = rememberPreference(LiquidGlassMiniPlayerEnabledKey, defaultValue = true)

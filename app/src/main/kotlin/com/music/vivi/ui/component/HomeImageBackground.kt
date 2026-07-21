@@ -34,6 +34,9 @@ import com.music.vivi.constants.HomeBackgroundPathKey
 import com.music.vivi.utils.rememberPreference
 import java.io.File
 
+/** Process-wide: the intro blur ramp plays only the first time this session. */
+private var blurAnimatedThisSession = false
+
 /**
  * The user's custom home background image (blurred + dimmed), shared by the Home and
  * Library screens. Draws nothing when disabled or unset. Must be placed as a layer
@@ -55,12 +58,17 @@ fun BoxScope.HomeImageBackground(
     val (animate) = rememberPreference(HomeBackgroundAnimateKey, false)
     if (!enabled || path.isEmpty()) return
 
-    // When animate is on, the background stays sharp until the content items load, then
-    // fluidly eases into its blur. Off = static blur, no intro. `appeared` guarantees the
-    // target starts at 0 so animateFloatAsState actually ramps (it inits to its first
-    // target), and keeps the ease-in working even when a screen has no content items.
-    var appeared by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { appeared = true }
+    // The intro blur ramp plays once per app session, not on every navigation to a screen
+    // with this background. `appeared` starts already-true when it has run before, so the
+    // animateFloatAsState inits straight at the blur target (static, no re-animation).
+    val shouldAnimate = animate && !blurAnimatedThisSession
+    var appeared by remember { mutableStateOf(!shouldAnimate) }
+    LaunchedEffect(shouldAnimate) {
+        if (shouldAnimate) {
+            appeared = true
+            blurAnimatedThisSession = true
+        }
+    }
     val animatedBlur by animateFloatAsState(
         targetValue = if (appeared && contentLoaded) blur else 0f,
         // Long, gentle ease-out (easeOutExpo-like) for a fluid, unhurried settle.

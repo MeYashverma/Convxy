@@ -18,6 +18,13 @@
  *   being pinned to opposite screen edges.
  * - The inline/expanded AnimatedContent is center-aligned so the collapse
  *   animation morphs around the center instead of the start edge.
+ * - ExpandedTabs grew a draggable selection puck ported from Kyant0's
+ *   AndroidLiquidGlass catalog (LiquidBottomTabs/LiquidBottomTab): equal-width
+ *   tabs, a spring-damped indicator you can press-drag between tabs (release
+ *   snaps to and navigates the nearest tab), a finger-tracking glow, and —
+ *   when an optional [Backdrop] is supplied — chromatic lens refraction and
+ *   an accent-tinted glass sample of the selected tab's icon showing through
+ *   the puck. See [DampedDragAnimation] and [InteractiveHighlight].
  */
 
 package com.music.vivi.ui.component.floatingtabbar
@@ -28,10 +35,13 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -39,6 +49,7 @@ import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,38 +58,68 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.lerp
+import com.music.vivi.ui.component.glassResolutionScale
+import com.music.vivi.ui.component.backdrop.Backdrop
+import com.music.vivi.ui.component.backdrop.backdrops.layerBackdrop
+import com.music.vivi.ui.component.backdrop.backdrops.rememberCombinedBackdrop
+import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.music.vivi.ui.component.backdrop.catalog.utils.DampedDragAnimation
+import com.music.vivi.ui.component.backdrop.catalog.utils.InteractiveHighlight
+import com.music.vivi.ui.component.backdrop.drawBackdrop
+import com.music.vivi.ui.component.backdrop.effects.blur
+import com.music.vivi.ui.component.backdrop.effects.lens
+import com.music.vivi.ui.component.backdrop.effects.vibrancy
+import com.music.vivi.ui.component.backdrop.highlight.Highlight
+import com.music.vivi.ui.component.backdrop.shadow.InnerShadow
+import com.music.vivi.ui.component.backdrop.shadow.Shadow
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.sign
 
 
 /**
@@ -111,6 +152,11 @@ fun FloatingTabBar(
     sizes: FloatingTabBarSizes = FloatingTabBarDefaults.sizes(),
     elevations: FloatingTabBarElevations = FloatingTabBarDefaults.elevations(),
     contentKey: Any? = null,
+    // Vendored addition: when non-null, the expanded selection puck samples this
+    // backdrop for lens refraction and an accent-tinted glass preview of the
+    // selected tab's icon. Null falls back to a flat colored puck.
+    backdrop: Backdrop? = null,
+    accentColor: Color? = null,
     content: FloatingTabBarScope.() -> Unit
 ) {
     val scrollConnection = rememberFloatingTabBarScrollConnection(
@@ -134,9 +180,17 @@ fun FloatingTabBar(
         sizes = sizes,
         elevations = elevations,
         contentKey = contentKey,
+        backdrop = backdrop,
+        accentColor = accentColor,
         content = content
     )
 }
+
+// Tuning for the gooey merge/split pulse across the inline<->expanded
+// crossfade — see GooeyTransition.kt. Not derived from fadeIn()/fadeOut()'s
+// own duration; just a reasonable match for it.
+private val GooeyPeakBlur = 12.dp
+private const val GooeyDurationMs = 300
 
 /**
  * A floating tab bar that transitions between inline and expanded states based on scroll behavior.
@@ -168,18 +222,51 @@ fun FloatingTabBar(
     sizes: FloatingTabBarSizes = FloatingTabBarDefaults.sizes(),
     elevations: FloatingTabBarElevations = FloatingTabBarDefaults.elevations(),
     contentKey: Any? = null,
+    // Vendored addition: when non-null, the expanded selection puck samples this
+    // backdrop for lens refraction and an accent-tinted glass preview of the
+    // selected tab's icon. Null falls back to a flat colored puck.
+    backdrop: Backdrop? = null,
+    accentColor: Color? = null,
     content: FloatingTabBarScope.() -> Unit
 ) {
     val scope = remember(contentKey) { FloatingTabBarScopeImpl().apply { content() } }
 
     val isAccessoryShared = inlineAccessory != null && expandedAccessory != null
 
+    // updateTransition (rather than the sugared top-level AnimatedContent) so
+    // the transition object is available here to drive the gooey blur pulse,
+    // not just inside the content lambda.
+    val transition = updateTransition(targetState = scrollConnection.isInline, label = "floatingTabBarInline")
+    val gooeyBlurPx = with(LocalDensity.current) { GooeyPeakBlur.toPx() }
+    // Liquid "gooey" merge/split (see GooeyTransition.kt): peaks mid-crossfade
+    // and returns to 0 at rest, on every transition regardless of direction —
+    // the keyframes spec defines the peak explicitly rather than deriving it
+    // from a start/end value, since the steady-state target is always 0.
+    val gooeyProgress by transition.animateFloat(
+        transitionSpec = {
+            keyframes {
+                durationMillis = GooeyDurationMs
+                0f at 0
+                1f atFraction 0.5f using FastOutSlowInEasing
+                0f at GooeyDurationMs
+            }
+        },
+        label = "gooeyProgress"
+    ) { _ -> 0f }
+
     SharedTransitionLayout(modifier = modifier) {
-        AnimatedContent(
-            targetState = scrollConnection.isInline,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            contentAlignment = Alignment.BottomCenter
-        ) { isInline ->
+        // Wrapping AnimatedContent itself (not SharedTransitionLayout's own
+        // modifier) so the offscreen gooey capture stays under
+        // SharedTransitionLayout's own overlay mechanism — sharedElement-
+        // tracked content (like the search tab's shared "standaloneTab"
+        // bounds) renders via that overlay, and capturing it into the gooey
+        // layer at the wrong level made it visibly pop in a frame late when
+        // re-expanding. This way the overlay draws normally, on top.
+        Box(Modifier.gooey { gooeyBlurPx * gooeyProgress }) {
+            transition.AnimatedContent(
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                contentAlignment = Alignment.BottomCenter
+            ) { isInline ->
             if (isInline) {
                 InlineBar(
                     scope = scope,
@@ -205,8 +292,11 @@ fun FloatingTabBar(
                     sizes = sizes,
                     elevations = elevations,
                     tabBarContentModifier = tabBarContentModifier,
-                    animatedVisibilityScope = this@AnimatedContent
+                    animatedVisibilityScope = this@AnimatedContent,
+                    backdrop = backdrop,
+                    accentColor = accentColor
                 )
+            }
             }
         }
     }
@@ -352,12 +442,36 @@ interface FloatingTabBarScope {
      * @param icon Composable content for the tab icon
      * @param onClick Callback invoked when the tab is clicked
      * @param indication Optional indication provider for touch feedback, defaults to LocalIndication.current
+     * @param title Composable content for the tab title. Never actually shown —
+     * the standalone tab is always an icon-only floating circle, in both inline
+     * and expanded states (see InlineStandaloneTab / ExpandedStandaloneTab).
      */
     fun standaloneTab(
         key: Any,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)? = { LocalIndication.current }
+        indication: (@Composable () -> Indication)? = { LocalIndication.current },
+        title: @Composable () -> Unit = {}
+    )
+}
+
+/**
+ * Plain release-triggered [clickable]. Firing on finger-DOWN (the old behaviour)
+ * meant any touch that turned into a scroll or a puck drag still navigated first —
+ * "opens a screen even when I didn't drop the puck". Release-fire lets Compose's
+ * touch-slop arbitration cancel the tap when the gesture becomes a drag/scroll, so
+ * only a real tap navigates. Keeps the custom [indication].
+ */
+@Composable
+private fun Modifier.tapClickable(
+    indication: Indication?,
+    onClick: () -> Unit,
+): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    return clickable(
+        onClick = onClick,
+        indication = indication,
+        interactionSource = interactionSource
     )
 }
 
@@ -462,13 +576,12 @@ private fun SharedTransitionScope.InlineTab(
             )
             .clip(shapes.tabBarShape)
             .then(tabBarContentModifier)
-            .clickable(
+            .tapClickable(
+                indication = inlineTab.indication?.invoke(),
                 onClick = {
                     onInlineTabClick()
                     inlineTab.onClick()
-                },
-                indication = inlineTab.indication?.invoke(),
-                interactionSource = remember { MutableInteractionSource() }
+                }
             )
             .padding(sizes.tabInlineContentPadding)
     ) {
@@ -521,10 +634,9 @@ private fun SharedTransitionScope.InlineStandaloneTab(
             )
             .clip(shapes.standaloneTabShape)
             .then(tabBarContentModifier)
-            .clickable(
-                onClick = standaloneTab.onClick,
+            .tapClickable(
                 indication = standaloneTab.indication?.invoke(),
-                interactionSource = remember { MutableInteractionSource() }
+                onClick = standaloneTab.onClick
             )
     )
 }
@@ -582,13 +694,19 @@ private fun SharedTransitionScope.ExpandedBar(
     sizes: FloatingTabBarSizes,
     elevations: FloatingTabBarElevations,
     tabBarContentModifier: Modifier,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    backdrop: Backdrop?,
+    accentColor: Color?
 ) {
-    val standaloneTab = scope.standaloneTab
     val hasTabGroup = scope.tabs.isNotEmpty()
+    val standaloneTab = scope.standaloneTab
 
-    // The accessory spans the full width above the tab row; the tab pill and the
-    // standalone tab are packed together and centered (iOS 26 style).
+    // The accessory spans the full width above the tab row. The standalone tab
+    // (search) is always its own floating circle — same as the inline
+    // (collapsed) state — never merged into the tab group pill, so it reads as
+    // one consistent circular element through both inline and expanded states
+    // (see ExpandedStandaloneTab / InlineStandaloneTab, tied together by the
+    // shared "standaloneTab" element).
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
@@ -621,6 +739,8 @@ private fun SharedTransitionScope.ExpandedBar(
                     elevations = elevations,
                     animatedVisibilityScope = animatedVisibilityScope,
                     tabBarContentModifier = tabBarContentModifier,
+                    backdrop = backdrop,
+                    accentColor = accentColor ?: colors.backgroundColor,
                     modifier = Modifier
                 )
             }
@@ -640,6 +760,44 @@ private fun SharedTransitionScope.ExpandedBar(
             }
         }
     }
+}
+
+@Composable
+private fun SharedTransitionScope.ExpandedStandaloneTab(
+    standaloneTab: FloatingTabBarTab,
+    shapes: FloatingTabBarShapes,
+    colors: FloatingTabBarColors,
+    elevations: FloatingTabBarElevations,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    modifier: Modifier,
+    tabBarContentModifier: Modifier
+) {
+    Tab(
+        icon = standaloneTab.icon,
+        title = standaloneTab.title,
+        isInline = true,
+        isStandalone = true,
+        modifier = modifier
+            .sharedElement(
+                sharedContentState = rememberSharedContentState("standaloneTab"),
+                animatedVisibilityScope = animatedVisibilityScope,
+                zIndexInOverlay = 1f
+            )
+            .shadow(
+                shape = shapes.standaloneTabShape,
+                elevation = elevations.expandedElevation
+            )
+            .background(
+                color = colors.backgroundColor,
+                shape = shapes.standaloneTabShape
+            )
+            .clip(shapes.standaloneTabShape)
+            .then(tabBarContentModifier)
+            .tapClickable(
+                indication = standaloneTab.indication?.invoke(),
+                onClick = standaloneTab.onClick
+            )
+    )
 }
 
 @Composable
@@ -690,114 +848,359 @@ private fun SharedTransitionScope.ExpandedTabs(
     elevations: FloatingTabBarElevations,
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier,
-    tabBarContentModifier: Modifier
+    tabBarContentModifier: Modifier,
+    backdrop: Backdrop?,
+    accentColor: Color
 ) {
-    val inlineTab = scope.getInlineTab(selectedTabKey)
+    // The standalone tab (e.g. search) never appears here — it's always its
+    // own floating circle, rendered as a sibling by ExpandedBar (see
+    // ExpandedStandaloneTab). Only the regular tabs form this pill/puck group.
+    val allTabs = scope.tabs
+    val tabsCount = allTabs.size
+    if (tabsCount == 0) return
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing),
-        modifier = modifier
-            .sharedElement(
-                sharedContentState = rememberSharedContentState("tabGroup"),
-                animatedVisibilityScope = animatedVisibilityScope,
-                zIndexInOverlay = 1f
-            )
-            .shadow(
-                shape = shapes.tabBarShape,
-                elevation = elevations.expandedElevation
-            )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.tabBarShape
-            )
-            .clip(shapes.tabBarShape)
-            .then(tabBarContentModifier)
-            .padding(sizes.tabBarContentPadding)
-            .wrapContentWidth(align = Alignment.Start, unbounded = true)
-            .animateContentSize()
-    ) {
-        scope.tabs.forEach { tab ->
-            Tab(
-                icon = {
-                    Box(
-                        modifier = if (tab.key == inlineTab?.key) {
-                            Modifier.sharedElement(
-                                sharedContentState = rememberSharedContentState("tab#${tab.key}-icon"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                zIndexInOverlay = 1f
-                            )
-                        } else {
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val isLtr = layoutDirection == LayoutDirection.Ltr
+    val animationScope = rememberCoroutineScope()
+    // Read once here (composable context) — the puck's onDrawSurface lambda
+    // runs during draw, where @Composable calls like isSystemInDarkTheme()
+    // aren't legal.
+    val isSystemInDarkTheme = isSystemInDarkTheme()
+
+    val tabWidthPx = with(density) { sizes.tabWidth.toPx() }
+    // The row's own content padding insets the tabs from the pill's edges, so
+    // the puck (a sibling, not a row child) has to account for it explicitly —
+    // otherwise it drifts out of alignment with where the tabs actually sit.
+    val paddingStartPx = with(density) { sizes.tabBarContentPadding.calculateStartPadding(layoutDirection).toPx() }
+    val paddingEndPx = with(density) { sizes.tabBarContentPadding.calculateEndPadding(layoutDirection).toPx() }
+    val totalWidthPx = tabWidthPx * tabsCount + paddingStartPx + paddingEndPx
+
+    // Ported from LiquidBottomTabs: the whole pill nudges a few dp in the drag
+    // direction (eased, clamped) so it feels like it's being tugged, not just
+    // the puck sliding inside a static shell.
+    val offsetAnimation = remember(tabsCount) { Animatable(0f) }
+    val panelOffset by remember(density, totalWidthPx) {
+        derivedStateOf {
+            val fraction = (offsetAnimation.value / totalWidthPx).fastCoerceIn(-1f, 1f)
+            with(density) {
+                4f.dp.toPx() * fraction.sign * EaseOut.transform(abs(fraction))
+            }
+        }
+    }
+
+    var currentIndex by remember(tabsCount) {
+        mutableIntStateOf(
+            allTabs.indexOfFirst { it.key == selectedTabKey }.coerceIn(0, tabsCount - 1)
+        )
+    }
+    // Matches Kyant's LiquidBottomTabs behavior exactly: navigation fires ONLY
+    // in onDragStopped (finger lifted, puck settling onto its target) — never
+    // mid-drag. An earlier "predictive fire" here navigated while the puck was
+    // still being dragged, which opened screens before the drop.
+    val dampedDragAnimation = remember(animationScope, tabsCount) {
+        DampedDragAnimation(
+            animationScope = animationScope,
+            initialValue = currentIndex.toFloat(),
+            valueRange = 0f..(tabsCount - 1).toFloat(),
+            visibilityThreshold = 0.001f,
+            initialScale = 1f,
+            // Matches LiquidBottomTabs' literal ratio (78dp/56dp) rather than a
+            // fraction of our own tab width — a proportional scale factor, not
+            // an absolute size, so it should track the source value directly.
+            pressedScale = 78f / 56f,
+            onDragStarted = {},
+            onDragStopped = {
+                val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
+                currentIndex = targetIndex
+                // updateValue (not animateToValue): the modifier's own
+                // onDragStart/onDragEnd already own the press-grow + release
+                // shrink. animateToValue pressed a SECOND time and, worse, ran
+                // under mutatorMutex — a later sync could cancel it mid-settle
+                // and strand the puck at the old index (puck stuck on Home while
+                // a different screen is showing). updateValue just springs the
+                // position, no press, no mutex.
+                updateValue(targetIndex.toFloat())
+                animationScope.launch {
+                    offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                }
+                allTabs.getOrNull(targetIndex)?.onClick?.invoke()
+            },
+            onDrag = { _, dragAmount ->
+                updateValue(
+                    (targetValue + dragAmount.x / tabWidthPx * if (isLtr) 1f else -1f)
+                        .fastCoerceIn(0f, (tabsCount - 1).toFloat())
+                )
+                animationScope.launch {
+                    offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
+                }
+            }
+        )
+    }
+    // Keeps the puck synced when selection changes from a tap (or external
+    // navigation) rather than a drag on this bar.
+    LaunchedEffect(selectedTabKey, tabsCount) {
+        val index = allTabs.indexOfFirst { it.key == selectedTabKey }
+        if (index != -1 && index != currentIndex) {
+            currentIndex = index
+            // updateValue, not animateToValue: a tap/external nav must snap the
+            // puck to the new tab fast and reliably. animateToValue added a
+            // press-grow (slow, made the selected icon briefly double up with
+            // the puck's glass copy) and ran under mutatorMutex where it could
+            // be cancelled, leaving the puck lagging or stuck on the old tab.
+            dampedDragAnimation.updateValue(index.toFloat())
+        }
+    }
+
+    val interactiveHighlight = remember(animationScope) {
+        InteractiveHighlight(
+            animationScope = animationScope,
+            position = { size, offset ->
+                Offset(
+                    if (isLtr) paddingStartPx + (dampedDragAnimation.value + 0.5f) * tabWidthPx + panelOffset
+                    else size.width - paddingStartPx - (dampedDragAnimation.value + 0.5f) * tabWidthPx + panelOffset,
+                    size.height / 2f
+                )
+            }
+        )
+    }
+
+    // Invisible tinted copy of the tabs, sampled by the puck below so the
+    // selected icon shows through the glass in the accent color.
+    val tabsBackdrop = rememberLayerBackdrop()
+
+    Box(modifier.width(with(density) { totalWidthPx.toDp() })) {
+        Row(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { translationX = panelOffset }
+                .sharedElement(
+                    sharedContentState = rememberSharedContentState("tabGroup"),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    zIndexInOverlay = 1f
+                )
+                .shadow(
+                    shape = shapes.tabBarShape,
+                    elevation = elevations.expandedElevation
+                )
+                .background(
+                    color = colors.backgroundColor,
+                    shape = shapes.tabBarShape
+                )
+                .clip(shapes.tabBarShape)
+                .then(tabBarContentModifier)
+                .then(interactiveHighlight.modifier)
+                .padding(sizes.tabBarContentPadding),
+            horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
+        ) {
+            allTabs.forEachIndexed { index, tab ->
+                Tab(
+                    icon = {
+                        Box(
+                            modifier = if (tab.key == selectedTabKey) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState("tab#${tab.key}-icon"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    zIndexInOverlay = 1f
+                                )
+                            } else {
+                                Modifier.animateEnterExitTab(
+                                    sharedTransitionScope = this@ExpandedTabs,
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
+                        ) {
+                            tab.icon()
+                        }
+                    },
+                    title = {
+                        Box(
                             Modifier.animateEnterExitTab(
                                 sharedTransitionScope = this@ExpandedTabs,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
+                        ) {
+                            tab.title()
                         }
-                    ) {
-                        tab.icon()
-                    }
-                },
-                title = {
-                    Box(
-                        Modifier.animateEnterExitTab(
-                            sharedTransitionScope = this@ExpandedTabs,
-                            animatedVisibilityScope = animatedVisibilityScope
+                    },
+                    isInline = false,
+                    isStandalone = false,
+                    contentScale = if (index == currentIndex) {
+                        lerp(1f, 1.12f, dampedDragAnimation.pressProgress)
+                    } else {
+                        1f
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .skipToLookaheadSize()
+                        .clip(shapes.tabShape)
+                        .tapClickable(
+                            indication = tab.indication?.invoke(),
+                            onClick = tab.onClick
                         )
-                    ) {
-                        tab.title()
-                    }
-                },
-                isInline = false,
-                modifier = Modifier
-                    .skipToLookaheadSize()
-                    .clip(shapes.tabShape)
-                    .clickable(
-                        onClick = tab.onClick,
-                        indication = tab.indication?.invoke(),
-                        interactionSource = remember { MutableInteractionSource() }
-                    )
-                    .padding(sizes.tabExpandedContentPadding)
-            )
+                        .padding(sizes.tabExpandedContentPadding)
+                )
+            }
         }
-    }
-}
 
-@Composable
-private fun SharedTransitionScope.ExpandedStandaloneTab(
-    standaloneTab: FloatingTabBarTab,
-    shapes: FloatingTabBarShapes,
-    colors: FloatingTabBarColors,
-    elevations: FloatingTabBarElevations,
-    animatedVisibilityScope: AnimatedVisibilityScope,
-    modifier: Modifier,
-    tabBarContentModifier: Modifier
-) {
-    Tab(
-        icon = standaloneTab.icon,
-        title = standaloneTab.title,
-        isInline = false,
-        isStandalone = true,
-        modifier = modifier
-            .sharedElement(
-                sharedContentState = rememberSharedContentState("standaloneTab"),
-                animatedVisibilityScope = animatedVisibilityScope,
-                zIndexInOverlay = 1f
-            )
-            .shadow(
-                shape = shapes.standaloneTabShape,
-                elevation = elevations.expandedElevation
-            )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.standaloneTabShape
-            )
-            .clip(shapes.standaloneTabShape)
-            .then(tabBarContentModifier)
-            .clickable(
-                onClick = standaloneTab.onClick,
-                indication = standaloneTab.indication?.invoke(),
-                interactionSource = remember { MutableInteractionSource() }
-            )
-    )
+        if (backdrop != null) {
+            // Fixed 1dp blur here (see the blur() call below), so this is a
+            // stable fraction, not something that needs recomputing per frame.
+            val tabsBackdropScale = glassResolutionScale(1f)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clearAndSetSemantics {}
+                    .alpha(0f)
+                    .layerBackdrop(tabsBackdrop)
+                    .graphicsLayer { translationX = panelOffset }
+                    // Padding here (not after drawBackdrop, like the tail
+                    // .padding below) so it actually shrinks this row's own
+                    // measured bounds — matching LiquidBottomTabs' explicit
+                    // .height(56dp) vs the main row's 64dp: what tabsBackdrop
+                    // captures needs to be genuinely inset, not full-bleed.
+                    .padding(sizes.tabBarContentPadding)
+                    // Ported from LiquidBottomTabs: this hidden row isn't just a
+                    // tinted icon cutout, it's a real blurred/lensed glass sample
+                    // of the screen behind the bar — that's what makes the puck
+                    // below look like it's made of the *bar's* frosted material
+                    // (not a flat color) when it slides underneath.
+                    .drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { shapes.tabBarShape },
+                        effects = {
+                            val progress = dampedDragAnimation.pressProgress
+                            vibrancy()
+                            // Kyant's source uses 8dp here, but that's what the
+                            // puck displays as "the icon" for the selected tab —
+                            // stacked with the puck's own blur it read as too
+                            // soft to stay legible, so this is tuned down.
+//                            blur(1f.dp.toPx() * tabsBackdropScale)
+                            lens(
+                                15f.dp.toPx() * progress * tabsBackdropScale,
+                                18f.dp.toPx() * progress * tabsBackdropScale
+                            )
+                        },
+                        highlight = {
+                            val progress = dampedDragAnimation.pressProgress
+                            Highlight.Default.copy(alpha = progress)
+                        },
+                        onDrawSurface = { drawRect(colors.backgroundColor) },
+                        // Same GPU-saving trick as Modifier.liquidGlass: record this
+                        // hidden row at a fraction of surface resolution and let the
+                        // blur hide the upscale — was left at the 1f (full-res)
+                        // default here even though liquidGlass already uses this.
+                        backdropScale = tabsBackdropScale
+                    )
+                    .then(interactiveHighlight.modifier)
+                    .padding(sizes.tabBarContentPadding)
+                    .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
+                horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
+            ) {
+                allTabs.forEach { tab ->
+                    Tab(
+                        icon = tab.icon,
+                        title = tab.title,
+                        isInline = false,
+                        isStandalone = false,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(sizes.tabExpandedContentPadding)
+                    )
+                }
+            }
+        }
+
+        // The draggable selection puck. Position and press/velocity-driven
+        // scale come from dampedDragAnimation; tapping a tab still works via
+        // each tab's own clickable — the puck only intercepts drags.
+        Box(
+            Modifier
+                .padding(sizes.tabBarContentPadding)
+                .graphicsLayer {
+                    translationX =
+                        if (isLtr) dampedDragAnimation.value * tabWidthPx + panelOffset
+                        else size.width - (dampedDragAnimation.value + 1f) * tabWidthPx + panelOffset
+                }
+                .then(interactiveHighlight.gestureModifier)
+                .then(dampedDragAnimation.modifier)
+                .width(sizes.tabWidth)
+                .fillMaxHeight()
+                .then(
+                    if (backdrop != null) {
+                        Modifier.drawBackdrop(
+                            backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
+                            shape = { shapes.tabShape },
+                            effects = {
+                                val progress = dampedDragAnimation.pressProgress
+//                                blur(2f.dp.toPx())
+                                lens(
+                                    20f.dp.toPx() * progress,
+                                    28f.dp.toPx() * progress,
+                                    chromaticAberration = true
+                                )
+                            },
+                            highlight = {
+                                val progress = dampedDragAnimation.pressProgress
+                                Highlight.Default.copy(alpha = progress)
+                            },
+                            shadow = {
+                                val progress = dampedDragAnimation.pressProgress
+                                Shadow(alpha = progress)
+                            },
+                            innerShadow = {
+                                val progress = dampedDragAnimation.pressProgress
+                                InnerShadow(radius = 8f.dp * progress, alpha = progress)
+                            },
+                            layerBlock = {
+                                scaleX = dampedDragAnimation.scaleX
+                                scaleY = dampedDragAnimation.scaleY
+                                val velocity = dampedDragAnimation.velocity / 10f
+                                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                            },
+                            onDrawSurface = {
+                                // Matches LiquidBottomTabs exactly: a light
+                                // 10%-alpha wash, not an opaque theme color.
+                                // Using colors.backgroundColor at full alpha
+                                // here made the puck fully opaque at rest,
+                                // hiding the glass/backdrop entirely except
+                                // mid-press — the puck should always read as
+                                // translucent glass, not a solid color chip.
+                                val progress = dampedDragAnimation.pressProgress
+                                // Darker selected puck: a deeper wash so the pill
+                                // reads as a darker chip behind the accent icon.
+                                drawRect(
+                                    if (isSystemInDarkTheme) Color.Black.copy(alpha = 0.35f)
+                                    else Color.Black.copy(alpha = 0.15f),
+                                    alpha = 1f - progress
+                                )
+                                drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                            }
+                        )
+                    } else {
+                        Modifier
+                            .graphicsLayer {
+                                scaleX = dampedDragAnimation.scaleX
+                                scaleY = dampedDragAnimation.scaleY
+                            }
+                            .shadow(
+                                shape = shapes.tabShape,
+                                elevation = elevations.expandedElevation * dampedDragAnimation.pressProgress
+                            )
+                            .background(
+                                colors.backgroundColor.copy(
+                                    alpha = 0.5f + 0.5f * dampedDragAnimation.pressProgress
+                                ),
+                                shapes.tabShape
+                            )
+                            .clip(shapes.tabShape)
+                    }
+                )
+        )
+    }
 }
 
 @Composable
@@ -806,12 +1209,25 @@ private fun Tab(
     title: @Composable () -> Unit,
     isInline: Boolean,
     modifier: Modifier = Modifier,
-    isStandalone: Boolean = false
+    isStandalone: Boolean = false,
+    // Vendored addition: press-zoom scale for the icon+label, driven by the
+    // drag puck's press progress (Kyant's LocalLiquidBottomTabScale trick).
+    contentScale: Float = 1f
 ) {
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
+            .then(
+                if (contentScale != 1f) {
+                    Modifier.graphicsLayer {
+                        scaleX = contentScale
+                        scaleY = contentScale
+                    }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         icon()
         if (!isStandalone && !isInline) {
@@ -911,17 +1327,18 @@ private class FloatingTabBarScopeImpl : FloatingTabBarScope {
     private var inlineTab: FloatingTabBarTab? = null
 
     fun getInlineTab(selectedTabKey: Any?): FloatingTabBarTab? {
-        return if (selectedTabKey != standaloneTab?.key) {
-            val selectedTab = tabs.find { it.key == selectedTabKey }
-            if (selectedTab != null) {
-                inlineTab = selectedTab
-                selectedTab
-            } else {
-                inlineTab ?: tabs.firstOrNull()
-            }
-        } else {
-            inlineTab ?: tabs.firstOrNull()
+        // Screen-accurate: only ever report a regular tab as "the inline tab"
+        // when it's actually the current screen. selectedTabKey not matching
+        // any regular tab (e.g. currently on the standalone tab) falls back to
+        // the last regular tab that really was selected — never a hardcoded
+        // default like tabs.firstOrNull(), which would misrepresent Home as
+        // selected when the user has never actually been there.
+        val selectedTab = tabs.find { it.key == selectedTabKey }
+        if (selectedTab != null) {
+            inlineTab = selectedTab
+            return selectedTab
         }
+        return inlineTab
     }
 
     override fun tab(
@@ -946,11 +1363,12 @@ private class FloatingTabBarScopeImpl : FloatingTabBarScope {
         key: Any,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)?
+        indication: (@Composable () -> Indication)?,
+        title: @Composable () -> Unit
     ) {
         standaloneTab = FloatingTabBarTab(
             key = key,
-            title = {},
+            title = title,
             icon = icon,
             onClick = onClick,
             indication = indication
@@ -1005,6 +1423,10 @@ data class FloatingTabBarSizes(
     val tabExpandedContentPadding: PaddingValues,
     val componentSpacing: Dp,
     val tabSpacing: Dp,
+    // Vendored addition: fixed width of one expanded tab slot. The drag-puck
+    // indicator needs a known per-tab width to map drag offset to tab index,
+    // so expanded tabs are equal-width instead of sized to their content.
+    val tabWidth: Dp = 88.dp,
 )
 
 /**
@@ -1036,10 +1458,14 @@ object FloatingTabBarDefaults {
      */
     @Composable
     fun shapes(
-        tabBarShape: Shape = RoundedCornerShape(100),
-        tabShape: Shape = RoundedCornerShape(100),
-        standaloneTabShape: Shape = CircleShape,
-        accessoryShape: Shape = RoundedCornerShape(100),
+        // ContinuousRoundedRectangle(percent = 50) instead of RoundedCornerShape/
+        // CircleShape: same capsule/circle silhouette, but Kyant0/Capsule's
+        // continuous (superellipse) corners instead of Android's circular-arc
+        // ones — smoother, and lerp-able for the puck's drag-to-search morph.
+        tabBarShape: Shape = ContinuousRoundedRectangle(percent = 50),
+        tabShape: Shape = ContinuousRoundedRectangle(percent = 50),
+        standaloneTabShape: Shape = ContinuousRoundedRectangle(percent = 50),
+        accessoryShape: Shape = ContinuousRoundedRectangle(percent = 50),
     ): FloatingTabBarShapes = FloatingTabBarShapes(
         tabBarShape = tabBarShape,
         tabShape = tabShape,
@@ -1060,15 +1486,20 @@ object FloatingTabBarDefaults {
     fun sizes(
         tabBarContentPadding: PaddingValues = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
         tabInlineContentPadding: PaddingValues = PaddingValues(10.dp),
-        tabExpandedContentPadding: PaddingValues = PaddingValues(vertical = 6.dp, horizontal = 20.dp),
+        // horizontal was 20dp (the source lib's default for content-hugging
+        // tabs); with fixed-width tabWidth cells that ate too much of the
+        // budget and clipped labels like "Settings" — tightened to fit text.
+        tabExpandedContentPadding: PaddingValues = PaddingValues(vertical = 6.dp, horizontal = 6.dp),
         componentSpacing: Dp = 8.dp,
         tabSpacing: Dp = 0.dp,
+        tabWidth: Dp = 88.dp,
     ): FloatingTabBarSizes = FloatingTabBarSizes(
         tabBarContentPadding = tabBarContentPadding,
         tabInlineContentPadding = tabInlineContentPadding,
         tabExpandedContentPadding = tabExpandedContentPadding,
         componentSpacing = componentSpacing,
         tabSpacing = tabSpacing,
+        tabWidth = tabWidth,
     )
 
     /**

@@ -59,9 +59,6 @@ sealed class HeroSource {
 /** Blur radius for [HeroBackground]'s Apple-Music-style blurred artwork. */
 private val HeroBlurRadius = 48.dp
 
-/** Max extra blur ramped onto the crisp upper hero artwork as the list scrolls. */
-private val MaxScrollBlur = 32.dp
-
 /**
  * 0..1 scroll progress for [HeroBackground]'s `topBlurProgress`: ramps as the first
  * screenful scrolls up, then pins at 1. Pass a hero screen's list state.
@@ -256,7 +253,7 @@ fun HeroBackground(
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val scrollBlur = (topBlurProgress.coerceIn(0f, 1f) * MaxScrollBlur.value).dp
+    val sharpAlpha = 1f - topBlurProgress.coerceIn(0f, 1f)
     Box(modifier = modifier.background(tint)) {
         when (heroSource) {
             is HeroSource.Artwork -> {
@@ -307,9 +304,10 @@ fun HeroBackground(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
-                            .blur(scrollBlur)
                             .graphicsLayer {
-                                this.alpha = alpha
+                                // Fade the crisp layer out as the list scrolls, revealing
+                                // the statically-blurred lower layer — no per-frame blur.
+                                this.alpha = alpha * sharpAlpha
                                 scaleX = heroScale
                                 scaleY = heroScale
                                 compositingStrategy = CompositingStrategy.Offscreen

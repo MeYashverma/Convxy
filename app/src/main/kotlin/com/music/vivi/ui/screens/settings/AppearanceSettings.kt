@@ -123,7 +123,11 @@ fun AppearanceSettings(
     val (_, _) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
     val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
     val (_, _) = rememberPreference(EnableDynamicIconKey, defaultValue = true)
-    val (_, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = false)
+    val (useNewPlayerDesign, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = false)
+    val (showAudioQualityBadge, onShowAudioQualityBadgeChange) = rememberPreference(
+        ShowAudioQualityBadgeKey,
+        defaultValue = true
+    )
 
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
         EnableHighRefreshRateKey,
@@ -289,6 +293,10 @@ fun AppearanceSettings(
         mutableStateOf(false)
     }
 
+    var showSliderStyleDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var showLyricsPositionDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -434,6 +442,26 @@ fun AppearanceSettings(
                     PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
                     PlayerBackgroundStyle.APPLE_MUSIC -> stringResource(R.string.apple_music)
                     PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
+                }
+            }
+        )
+    }
+
+    if (showSliderStyleDialog) {
+        EnumDialog(
+            onDismiss = { showSliderStyleDialog = false },
+            onSelect = {
+                onSliderStyleChange(it)
+                showSliderStyleDialog = false
+            },
+            title = stringResource(R.string.player_slider_style),
+            current = sliderStyle,
+            values = SliderStyle.entries,
+            valueText = {
+                when (it) {
+                    SliderStyle.DEFAULT -> stringResource(R.string.default_style)
+                    SliderStyle.WAVY -> stringResource(R.string.wavy)
+                    SliderStyle.SLIM -> stringResource(R.string.slim)
                 }
             }
         )
@@ -624,6 +652,26 @@ fun AppearanceSettings(
                     onClick = { onCropAlbumArtChange(!cropAlbumArt) }
                 ),
                 Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.show_audio_quality_badge)) },
+                    trailingContent = {
+                        Switch(
+                            checked = showAudioQualityBadge,
+                            onCheckedChange = onShowAudioQualityBadgeChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showAudioQualityBadge) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onShowAudioQualityBadgeChange(!showAudioQualityBadge) }
+                ),
+                Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),
                     title = { Text(stringResource(R.string.player_buttons_style)) },
                     description = {
@@ -636,6 +684,40 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { showPlayerButtonsStyleDialog = true }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.player_slider_style)) },
+                    description = {
+                        Text(
+                            when (sliderStyle) {
+                                SliderStyle.DEFAULT -> stringResource(R.string.default_style)
+                                SliderStyle.WAVY -> stringResource(R.string.wavy)
+                                SliderStyle.SLIM -> stringResource(R.string.slim)
+                            }
+                        )
+                    },
+                    onClick = { showSliderStyleDialog = true }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.enable_wavy_slider)) },
+                    trailingContent = {
+                        Switch(
+                            checked = squigglySlider,
+                            onCheckedChange = onSquigglySliderChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (squigglySlider) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onSquigglySliderChange(!squigglySlider) }
                 ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.canvas_art),

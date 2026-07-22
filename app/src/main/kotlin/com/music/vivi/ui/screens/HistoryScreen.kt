@@ -56,6 +56,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import com.music.vivi.constants.IosOverscrollKey
+import com.music.vivi.ui.utils.iosOverscroll
+import com.music.vivi.ui.utils.rememberHeroPull
+import com.music.vivi.ui.utils.heroPullZoom
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.activity.compose.LocalActivity
@@ -216,12 +221,18 @@ fun HistoryScreen(
     val useGlass = glassConfig.globalEnabled && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
 
+    val heroPull = rememberHeroPull()
+    val heroMaxPull = with(LocalDensity.current) { 220.dp.toPx() }
+    val heroScale = 1f + (heroPull.value / heroMaxPull) * 0.18f
+    val overscrollEnabled = rememberPreference(IosOverscrollKey, false).value
+
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
         blurArtwork = true,
         bottomGradient = true,
         topBlurProgress = rememberHeroTopBlur(lazyListState),
+        heroScale = heroScale,
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
@@ -233,6 +244,9 @@ fun HistoryScreen(
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 state = lazyListState,
+                modifier = Modifier
+                    .iosOverscroll(overscrollEnabled, allowTopPull = false)
+                    .then(if (overscrollEnabled) Modifier.heroPullZoom(heroPull, heroMaxPull) else Modifier),
                 contentPadding = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                     .asPaddingValues(),
             ) {

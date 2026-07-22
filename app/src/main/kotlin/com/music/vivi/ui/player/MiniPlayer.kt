@@ -33,6 +33,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import com.music.vivi.ui.component.WaveformSeekBar
+import com.music.vivi.constants.MiniPlayerWaveformKey
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -215,6 +217,7 @@ private fun NewMiniPlayer(
     }
     
     val miniPlayerBackground by rememberEnumPreference(MiniPlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
+    val miniPlayerWaveform by rememberPreference(MiniPlayerWaveformKey, defaultValue = false)
     
     // Player states - only collect what's needed at this level
     val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
@@ -781,6 +784,23 @@ private fun LegacyMiniPlayer(
                         modifier = Modifier.padding(horizontal = 6.dp),
                     )
                 }
+            }
+
+            if (miniPlayerWaveform) {
+                WaveformSeekBar(
+                    progress = { progressState.progress },
+                    onSeek = { f ->
+                        val d = playerConnection.player.duration
+                        if (d > 0L) playerConnection.player.seekTo((f * d).toLong())
+                    },
+                    playedColor = primaryColor,
+                    trackColor = trackColor,
+                    seed = mediaMetadata?.id?.hashCode() ?: 0,
+                    modifier = Modifier
+                        .width(72.dp)
+                        .height(24.dp),
+                )
+                Spacer(Modifier.width(8.dp))
             }
 
             LegacyPlayPauseButton(

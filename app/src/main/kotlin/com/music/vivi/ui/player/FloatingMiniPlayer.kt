@@ -275,7 +275,7 @@ fun FloatingMiniPlayer(
 
             if (!isInline && waveformEnabled) {
                 WaveformSeekBar(
-                    progress = if (waveDuration > 0L) wavePosition.toFloat() / waveDuration else 0f,
+                    progress = { if (waveDuration > 0L) wavePosition.toFloat() / waveDuration else 0f },
                     onSeek = { f ->
                         if (waveDuration > 0L) playerConnection.player.seekTo((f * waveDuration).toLong())
                     },

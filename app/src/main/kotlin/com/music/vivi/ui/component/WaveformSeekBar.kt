@@ -43,7 +43,7 @@ fun waveformBars(seed: Int, count: Int): FloatArray {
  */
 @Composable
 fun WaveformSeekBar(
-    progress: Float,
+    progress: () -> Float,
     onSeek: (Float) -> Unit,
     playedColor: Color,
     trackColor: Color,
@@ -53,7 +53,6 @@ fun WaveformSeekBar(
 ) {
     val heights = remember(seed, bars) { waveformBars(seed, bars) }
     var dragFraction by remember { mutableStateOf<Float?>(null) }
-    val shown = (dragFraction ?: progress).coerceIn(0f, 1f)
 
     Canvas(
         modifier = modifier
@@ -72,6 +71,9 @@ fun WaveformSeekBar(
     ) {
         val n = heights.size
         if (n == 0 || size.width <= 0f) return@Canvas
+        // Read progress in the draw phase so a playing song repaints the fill
+        // without recomposing the mini player.
+        val shown = (dragFraction ?: progress()).coerceIn(0f, 1f)
         val gapTotal = size.width * 0.4f
         val gap = gapTotal / (n - 1).coerceAtLeast(1)
         val barW = (size.width - gap * (n - 1)) / n

@@ -64,7 +64,7 @@ fun GlassEffectSettings(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val (vibrancy, onVibrancyChange) = rememberPreference(
-        LiquidGlassVibrancyKey, defaultValue = 1f
+        LiquidGlassVibrancyKey, defaultValue = 1.2f
     )
     val (blurRadius, onBlurRadiusChange) = rememberPreference(
         LiquidGlassBlurRadiusKey, defaultValue = 2f
@@ -73,7 +73,7 @@ fun GlassEffectSettings(
         LiquidGlassLensHeightKey, defaultValue = 0.4f
     )
     val (lensAmount, onLensAmountChange) = rememberPreference(
-        LiquidGlassLensAmountKey, defaultValue = 0.65f
+        LiquidGlassLensAmountKey, defaultValue = 0.6f
     )
     val (chromaticAberration, onChromaticAberrationChange) = rememberPreference(
         LiquidGlassChromaticAberrationKey, defaultValue = false

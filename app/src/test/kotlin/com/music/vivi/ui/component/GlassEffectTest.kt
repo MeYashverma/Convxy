@@ -65,20 +65,19 @@ class GlassEffectConfigTest {
     }
 
     @Test
-    fun `surface tint defaults to unspecified meaning theme-adaptive`() {
+    fun `surface tint defaults to dark grey`() {
         val config = GlassEffectConfig()
-        assertEquals(Color.Unspecified, config.surfaceTintColor)
+        assertEquals(Color(0xFF1A1A1A), config.surfaceTintColor)
     }
 
     @Test
     fun `defaults follow the Apple liquid glass recipe`() {
         val config = GlassEffectConfig()
-        // 8dp blur + 24dp/24dp lens (0.5 * LENS_MAX_DP) + 40% tint, per the
-        // library author's Apple-matched LiquidBottomTabs parameters.
-        assertEquals(8f, config.blurRadius, 0.001f)
-        assertEquals(24f, config.lensHeight * LENS_MAX_DP, 0.001f)
-        assertEquals(24f, config.lensAmount * LENS_MAX_DP, 0.001f)
-        assertEquals(0.4f, config.surfaceOpacity, 0.001f)
+        // 2dp blur, 0.4 lens height, 0.6 lens amount, 50% tint.
+        assertEquals(2f, config.blurRadius, 0.001f)
+        assertEquals(19.2f, config.lensHeight * LENS_MAX_DP, 0.001f)
+        assertEquals(28.8f, config.lensAmount * LENS_MAX_DP, 0.001f)
+        assertEquals(0.5f, config.surfaceOpacity, 0.001f)
     }
 
     @Test

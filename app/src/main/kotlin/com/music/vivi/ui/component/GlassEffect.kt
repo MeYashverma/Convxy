@@ -50,10 +50,10 @@ data class GlassEffectConfig(
     val blurRadius: Float = 2f,
     /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction height. 0.4 = 40%. */
     val lensHeight: Float = 0.4f,
-    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction amount. 0.65 = 65%. */
-    val lensAmount: Float = 0.65f,
-    val chromaticAberration: Boolean = true,
-    val depthEffect: Boolean = true,
+    /** 0..1, mapped to 0..[LENS_MAX_DP] dp of lens refraction amount. 0.6 = 60%. */
+    val lensAmount: Float = 0.6f,
+    val chromaticAberration: Boolean = false,
+    val depthEffect: Boolean = false,
     /** [Color.Unspecified] means adaptive: dark grey on dark. */
     val surfaceTintColor: Color = Color(0xFF1A1A1A),
     val surfaceOpacity: Float = 0.5f,

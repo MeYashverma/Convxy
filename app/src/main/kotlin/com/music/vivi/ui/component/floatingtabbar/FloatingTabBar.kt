@@ -72,6 +72,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -857,6 +858,12 @@ private fun SharedTransitionScope.ExpandedTabs(
     val allTabs = scope.tabs
     val tabsCount = allTabs.size
     if (tabsCount == 0) return
+    // dampedDragAnimation is remember(...)-ed and its onDragStopped closure would
+    // otherwise capture the FIRST composition's allTabs — freezing each tab's
+    // onClick (and the isSelected it closed over). That stranded drag-to-Home:
+    // Home started selected, so its frozen onClick did scroll-to-top forever
+    // instead of navigating. Read the live tabs through this instead.
+    val currentTabs = rememberUpdatedState(allTabs)
 
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -919,7 +926,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                 animationScope.launch {
                     offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
-                allTabs.getOrNull(targetIndex)?.onClick?.invoke()
+                currentTabs.value.getOrNull(targetIndex)?.onClick?.invoke()
             },
             onDrag = { _, dragAmount ->
                 updateValue(

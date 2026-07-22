@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import android.os.Build
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.layout.ContentScale
@@ -253,7 +255,6 @@ fun HeroBackground(
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val sharpAlpha = 1f - topBlurProgress.coerceIn(0f, 1f)
     Box(modifier = modifier.background(tint)) {
         when (heroSource) {
             is HeroSource.Artwork -> {
@@ -310,12 +311,20 @@ fun HeroBackground(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                // Fade the crisp layer out as the list scrolls, revealing
-                                // the statically-blurred lower layer — no per-frame blur.
-                                this.alpha = alpha * sharpAlpha
+                                this.alpha = alpha
                                 scaleX = heroScale
                                 scaleY = heroScale
                                 compositingStrategy = CompositingStrategy.Offscreen
+                                // Smooth progressive blur: the RenderEffect radius ramps
+                                // 0 -> 24dp with scroll progress (updated in the layer
+                                // block, so the whole image blurs more as you scroll —
+                                // a real increasing blur, not a cross-fade).
+                                val r = topBlurProgress.coerceIn(0f, 1f) * 24.dp.toPx()
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && r > 0.1f) {
+                                    renderEffect = android.graphics.RenderEffect
+                                        .createBlurEffect(r, r, android.graphics.Shader.TileMode.CLAMP)
+                                        .asComposeRenderEffect()
+                                }
                             }
                             .drawWithContent {
                                 drawContent()

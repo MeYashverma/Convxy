@@ -269,9 +269,14 @@ fun HeroBackground(
                 if (blurArtwork) {
                     // Blurred lower layer: fills behind the list and dissolves
                     // into the tint (the primary-color gradient) toward the
-                    // bottom.
+                    // bottom. Decoded at low resolution — a 48dp blur erases all
+                    // detail, so a ~160px source is visually identical to full-res
+                    // while cutting decode time and bitmap memory dramatically.
                     AsyncImage(
-                        model = heroSource.url,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(heroSource.url)
+                            .size(160)
+                            .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

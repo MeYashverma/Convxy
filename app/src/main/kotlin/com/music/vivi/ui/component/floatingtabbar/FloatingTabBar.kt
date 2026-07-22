@@ -1142,7 +1142,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                             shape = { shapes.tabShape },
                             effects = {
                                 val progress = dampedDragAnimation.pressProgress
-                                // Matches Expy KoshTabBar's puck lens exactly.
+                                // Soft frosted puck at rest (constant blur), deepening
+                                // into a lens on press.
+                                blur(6f.dp.toPx())
                                 lens(
                                     10f.dp.toPx() * progress,
                                     14f.dp.toPx() * progress,
@@ -1169,10 +1171,10 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                             },
                             onDrawSurface = {
-                                // Matches Expy KoshTabBar exactly: only a barely-there
-                                // accent wash, so the puck always reads as translucent
-                                // glass over the backdrop (no opaque/dark chip).
-                                drawRect(accentColor.copy(alpha = 0.03f))
+                                // At rest the active tab reads as a colored frosted pill:
+                                // a 0.3 tint in the liquid-glass text/selected color over
+                                // the blurred backdrop.
+                                drawRect(accentColor.copy(alpha = 0.3f))
                             }
                         )
                     } else {

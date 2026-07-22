@@ -32,6 +32,19 @@ val DefaultThemeColor = AppleTokens.AccentRed
  */
 val LocalAccentColor = androidx.compose.runtime.compositionLocalOf { DefaultThemeColor }
 
+/**
+ * The accent tuned for readable body text: same hue, lightened on dark
+ * backgrounds and darkened on light ones, but never pushed to near-white or
+ * near-black — so it reads as "coloured text," legible on either theme.
+ * Consume via [LocalAccentTextColor].
+ */
+fun accentTextColor(accent: Color, dark: Boolean): Color =
+    if (dark) androidx.compose.ui.graphics.lerp(accent, Color.White, 0.35f)
+    else androidx.compose.ui.graphics.lerp(accent, Color.Black, 0.45f)
+
+/** Accent-contrast text color, provided app-wide from the current accent + theme. */
+val LocalAccentTextColor = androidx.compose.runtime.compositionLocalOf { DefaultThemeColor }
+
 @Composable
 fun vivimusicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -55,7 +68,10 @@ fun vivimusicTheme(
         }
     }
 
-    androidx.compose.runtime.CompositionLocalProvider(LocalAccentColor provides themeColor) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalAccentColor provides themeColor,
+        LocalAccentTextColor provides accentTextColor(themeColor, darkTheme),
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = AppTypography,

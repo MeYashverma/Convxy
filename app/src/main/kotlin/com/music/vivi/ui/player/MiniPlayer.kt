@@ -125,6 +125,7 @@ import com.music.vivi.models.MediaMetadata
 import com.music.vivi.playback.CastConnectionHandler
 import com.music.vivi.playback.PlayerConnection
 import com.music.vivi.ui.screens.settings.DarkMode
+import com.music.vivi.ui.component.AnimatedPlayPauseIcon
 import com.music.vivi.ui.component.GlassComponent
 import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.ui.component.backdrop.catalog.utils.InteractiveHighlight
@@ -852,17 +853,17 @@ private fun LegacyPlayPauseButton(
             }
         },
     ) {
-        Icon(
-            painter = painterResource(
-                when {
-                    isListenTogetherGuest -> if (isMuted) R.drawable.volume_off else R.drawable.volume_up
-                    playbackState == Player.STATE_ENDED -> R.drawable.replay
-                    effectiveIsPlaying -> R.drawable.pause
-                    else -> R.drawable.play
-                }
-            ),
-            contentDescription = null,
-        )
+        when {
+            isListenTogetherGuest -> Icon(
+                painter = painterResource(if (isMuted) R.drawable.volume_off else R.drawable.volume_up),
+                contentDescription = null,
+            )
+            playbackState == Player.STATE_ENDED -> Icon(
+                painter = painterResource(R.drawable.replay),
+                contentDescription = null,
+            )
+            else -> AnimatedPlayPauseIcon(isPlaying = effectiveIsPlaying, size = 24.dp)
+        }
     }
 }
 

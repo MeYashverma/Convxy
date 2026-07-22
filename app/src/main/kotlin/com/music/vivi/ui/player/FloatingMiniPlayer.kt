@@ -56,6 +56,7 @@ import com.music.vivi.R
 import com.music.vivi.constants.SwipeSensitivityKey
 import com.music.vivi.constants.SwipeThumbnailKey
 import com.music.vivi.extensions.togglePlayPause
+import com.music.vivi.ui.component.AnimatedPlayPauseIcon
 import com.music.vivi.ui.component.backdrop.catalog.utils.InteractiveHighlight
 import com.music.vivi.utils.rememberPreference
 import kotlin.math.abs
@@ -257,10 +258,10 @@ fun FloatingMiniPlayer(
                 onClick = { playerConnection.player.togglePlayPause() },
                 modifier = Modifier.size(controlSize),
             ) {
-                Icon(
-                    painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
-                    contentDescription = null,
+                AnimatedPlayPauseIcon(
+                    isPlaying = isPlaying,
                     tint = contentColor,
+                    size = 24.dp,
                 )
             }
 

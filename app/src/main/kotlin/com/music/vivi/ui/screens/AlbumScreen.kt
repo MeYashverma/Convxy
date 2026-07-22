@@ -147,6 +147,9 @@ import com.music.vivi.ui.player.CanvasArtworkPlayer
 import com.music.vivi.ui.theme.rememberArtworkTint
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.rememberPreference
+import com.music.vivi.constants.IosOverscrollKey
+import com.music.vivi.ui.utils.iosOverscroll
+import com.music.vivi.ui.component.AnimatedPlayPauseIcon
 import com.music.vivi.viewmodels.AlbumViewModel
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -288,6 +291,7 @@ fun AlbumScreen(
     }
     LazyColumn(
         state = lazyListState,
+        modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         val albumWithSongs = albumWithSongs
@@ -573,16 +577,11 @@ fun AlbumScreen(
                             modifier = Modifier.size(72.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    painter = painterResource(
-                                        if (isPlaying && mediaMetadata?.album?.id == albumWithSongs.album.id)
-                                            R.drawable.pause
-                                        else
-                                            R.drawable.play
-                                    ),
-                                    contentDescription = null,
+                                AnimatedPlayPauseIcon(
+                                    isPlaying = isPlaying && mediaMetadata?.album?.id == albumWithSongs.album.id,
                                     tint = tint,
-                                    modifier = Modifier.size(32.dp).offset(x = if (isPlaying && mediaMetadata?.album?.id == albumWithSongs.album.id) 0.dp else 2.dp)
+                                    size = 32.dp,
+                                    modifier = Modifier.offset(x = 2.dp)
                                 )
                             }
                         }

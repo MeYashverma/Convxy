@@ -142,6 +142,8 @@ import com.music.vivi.ui.menu.YouTubeSongMenu
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.ui.utils.fadingEdge
 import com.music.vivi.ui.utils.isScrollingUp
+import com.music.vivi.ui.utils.iosOverscroll
+import com.music.vivi.constants.IosOverscrollKey
 import com.music.vivi.ui.utils.resize
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.rememberPreference
@@ -252,6 +254,7 @@ fun ArtistScreen(
         }
         LazyColumn(
             state = lazyListState,
+            modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
             if (artistPage == null && !showLocal) {

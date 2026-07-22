@@ -49,7 +49,6 @@ import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -863,10 +862,6 @@ private fun SharedTransitionScope.ExpandedTabs(
     val layoutDirection = LocalLayoutDirection.current
     val isLtr = layoutDirection == LayoutDirection.Ltr
     val animationScope = rememberCoroutineScope()
-    // Read once here (composable context) — the puck's onDrawSurface lambda
-    // runs during draw, where @Composable calls like isSystemInDarkTheme()
-    // aren't legal.
-    val isSystemInDarkTheme = isSystemInDarkTheme()
 
     val tabWidthPx = with(density) { sizes.tabWidth.toPx() }
     // The row's own content padding insets the tabs from the pill's edges, so
@@ -941,13 +936,18 @@ private fun SharedTransitionScope.ExpandedTabs(
     // navigation) rather than a drag on this bar.
     LaunchedEffect(selectedTabKey, tabsCount) {
         val index = allTabs.indexOfFirst { it.key == selectedTabKey }
-        if (index != -1 && index != currentIndex) {
+        if (index != -1) {
             currentIndex = index
-            // updateValue, not animateToValue: a tap/external nav must snap the
-            // puck to the new tab fast and reliably. animateToValue added a
-            // press-grow (slow, made the selected icon briefly double up with
-            // the puck's glass copy) and ran under mutatorMutex where it could
-            // be cancelled, leaving the puck lagging or stuck on the old tab.
+            // Re-pin on EVERY selection change, not only when currentIndex differs:
+            // the puck's animated value can drift out from under a matching currentIndex
+            // (a cancelled drag, an interrupted settle) and strand the indicator on the
+            // wrong tab — the "selected icon doesn't update" bug. Forcing updateValue
+            // here always snaps it back to the actually-selected route.
+            //
+            // updateValue, not animateToValue: a tap/external nav must snap the puck to
+            // the new tab fast and reliably. animateToValue added a press-grow (slow, made
+            // the selected icon briefly double up with the puck's glass copy) and ran under
+            // mutatorMutex where it could be cancelled, leaving the puck lagging.
             dampedDragAnimation.updateValue(index.toFloat())
         }
     }
@@ -1135,10 +1135,10 @@ private fun SharedTransitionScope.ExpandedTabs(
                             shape = { shapes.tabShape },
                             effects = {
                                 val progress = dampedDragAnimation.pressProgress
-//                                blur(2f.dp.toPx())
+                                // Matches Expy KoshTabBar's puck lens exactly.
                                 lens(
-                                    20f.dp.toPx() * progress,
-                                    28f.dp.toPx() * progress,
+                                    10f.dp.toPx() * progress,
+                                    14f.dp.toPx() * progress,
                                     chromaticAberration = true
                                 )
                             },
@@ -1162,22 +1162,10 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                             },
                             onDrawSurface = {
-                                // Matches LiquidBottomTabs exactly: a light
-                                // 10%-alpha wash, not an opaque theme color.
-                                // Using colors.backgroundColor at full alpha
-                                // here made the puck fully opaque at rest,
-                                // hiding the glass/backdrop entirely except
-                                // mid-press — the puck should always read as
-                                // translucent glass, not a solid color chip.
-                                val progress = dampedDragAnimation.pressProgress
-                                // Darker selected puck: a deeper wash so the pill
-                                // reads as a darker chip behind the accent icon.
-                                drawRect(
-                                    if (isSystemInDarkTheme) Color.Black.copy(alpha = 0.35f)
-                                    else Color.Black.copy(alpha = 0.15f),
-                                    alpha = 1f - progress
-                                )
-                                drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                                // Matches Expy KoshTabBar exactly: only a barely-there
+                                // accent wash, so the puck always reads as translucent
+                                // glass over the backdrop (no opaque/dark chip).
+                                drawRect(accentColor.copy(alpha = 0.03f))
                             }
                         )
                     } else {

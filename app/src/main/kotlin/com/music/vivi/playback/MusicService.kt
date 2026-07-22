@@ -82,6 +82,7 @@ import com.music.vivi.R
 import com.music.vivi.constants.AudioNormalizationKey
 import com.music.vivi.constants.AudioOffload
 import com.music.vivi.constants.AudioQualityKey
+import com.music.vivi.constants.EnableTidalStreamingKey
 import com.music.vivi.constants.AutoDownloadOnLikeKey
 import com.music.vivi.constants.AutoLoadMoreKey
 import com.music.vivi.constants.AutoSkipNextOnErrorKey
@@ -2724,24 +2725,31 @@ class MusicService :
                 return@Factory dataSpec
             }
 
+            // Lossless namespaces the whole cache chain so FLAC and Opus/AAC bytes
+            // for the same video never collide across a toggle. Streaming only:
+            // offline downloads live in the plain (Opus) namespace.
+            val losslessOn = dataStore.get(EnableTidalStreamingKey, false)
+            val effKey = if (losslessOn) "$mediaId#flac" else mediaId
+            val spec = if (effKey == mediaId) dataSpec else dataSpec.buildUpon().setKey(effKey).build()
+
             // Check if we need to bypass cache for quality change
             val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
 
             if (!shouldBypassCache) {
                 if (downloadCache.isCached(
-                        mediaId,
+                        effKey,
                         dataSpec.position,
                         if (dataSpec.length >= 0) dataSpec.length else 1
                     ) ||
-                    playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
+                    playerCache.isCached(effKey, dataSpec.position, CHUNK_LENGTH)
                 ) {
                     scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                    return@Factory dataSpec
+                    return@Factory spec
                 }
 
-                songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                songUrlCache[effKey]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                     scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                    return@Factory dataSpec.withUri(it.first.toUri())
+                    return@Factory spec.withUri(it.first.toUri())
                 }
             } else {
                 Timber.tag("MusicService").i("BYPASSING CACHE for $mediaId due to quality change")
@@ -2821,9 +2829,9 @@ class MusicService :
 
                 val streamUrl = nonNullPlayback.streamUrl
 
-                songUrlCache[mediaId] =
+                songUrlCache[effKey] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+                return@Factory spec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }
     }

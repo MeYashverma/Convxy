@@ -126,6 +126,9 @@ constructor(
                     connectivityManager = connectivityManager,
                     // Pass context so the JioSaavn intercept fires when the toggle is ON
                     context = appContext,
+                    // Lossless is streaming-only for now: downloads stay YouTube so the
+                    // offline cache (keyed by videoId) never mixes FLAC and Opus bytes.
+                    allowLossless = false,
                 )
             }.getOrThrow()
             val format = playbackData.format

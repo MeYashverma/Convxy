@@ -27,8 +27,13 @@ import com.music.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.music.innertube.models.response.PlayerResponse
 import com.music.vivi.constants.AudioQuality
 import com.music.vivi.constants.EnableSaavnStreamingKey
+import com.music.vivi.constants.EnableTidalStreamingKey
 import com.music.vivi.constants.SaavnAudioQuality
 import com.music.vivi.constants.SaavnAudioQualityKey
+import com.music.vivi.constants.TidalInstanceUrlKey
+import com.music.vivi.constants.TidalQuality
+import com.music.vivi.constants.TidalQualityKey
+import com.music.vivi.utils.tidal.TidalService
 import com.music.vivi.utils.cipher.CipherDeobfuscator
 import com.music.vivi.utils.YTPlayerUtils.MAIN_CLIENT
 import com.music.vivi.utils.YTPlayerUtils.STREAM_FALLBACK_CLIENTS
@@ -126,6 +131,8 @@ object YTPlayerUtils {
         val streamExpiresInSeconds: Int,
         /** True when the stream is sourced from JioSaavn (not YouTube). */
         val isSaavnStream: Boolean = false,
+        /** True when the stream is lossless FLAC sourced from TIDAL (hifi-api). */
+        val isTidalStream: Boolean = false,
     )
     /**
      * Custom player response intended to use for playback.
@@ -139,12 +146,113 @@ object YTPlayerUtils {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
         context: android.content.Context? = null,
+        /** Downloads pass false so the offline copy stays YouTube; playback allows lossless. */
+        allowLossless: Boolean = true,
     ): Result<PlaybackData> {
         // ── JioSaavn intercept ───────────────────────────────────────────────
         // If the user has enabled JioSaavn streaming, try to resolve the stream
         // URL from JioSaavn first. We fall through to YouTube on ANY failure so
         // the user always hears audio.
         if (context != null) {
+            // ── Lossless (TIDAL) intercept ───────────────────────────────────────
+            // Opt-in FLAC from a public hifi-api instance. Tried BEFORE JioSaavn so
+            // lossless wins. Falls through to Saavn/YouTube on ANY failure.
+            if (allowLossless && context.dataStore.get(EnableTidalStreamingKey, false)) {
+                Timber.tag(TAG).d("Lossless enabled — trying TIDAL for videoId=$videoId")
+                val tidalResult = runCatching {
+                    val (currentSong, meta) = coroutineScope {
+                        val nextDeferred = async {
+                            val nextResult = YouTube.next(WatchEndpoint(videoId = videoId)).getOrNull()
+                            nextResult?.items?.getOrNull(nextResult.currentIndex ?: 0)
+                                ?: nextResult?.items?.firstOrNull()
+                        }
+                        val metaDeferred = async { playerResponseForMetadata(videoId, playlistId).getOrNull() }
+                        nextDeferred.await() to metaDeferred.await()
+                    }
+
+                    val title = currentSong?.title ?: meta?.videoDetails?.title.orEmpty()
+                    if (title.isBlank()) return@runCatching null
+
+                    val artistNames: List<String> = if (currentSong?.artists?.isNotEmpty() == true) {
+                        currentSong.artists.map { it.name }
+                    } else {
+                        listOf(
+                            meta?.videoDetails?.author.orEmpty()
+                                .replace(Regex("(?i)\\s*-\\s*topic\\b"), "")
+                                .replace(Regex("(?i)\\s*VEVO\\b"), "")
+                                .trim()
+                        ).filter { it.isNotBlank() }
+                    }
+                    val query = "$title ${artistNames.joinToString(" ")}"
+                        .replace("&", " ").replace(",", " ")
+                        .replace(Regex("\\s+"), " ").trim()
+
+                    val wantedTitle = title.lowercase(java.util.Locale.US)
+                    val wantedArtists = artistNames.map { it.lowercase(java.util.Locale.US) }
+                    val customUrl = context.dataStore.get(TidalInstanceUrlKey, "").ifBlank { null }
+
+                    val candidates = TidalService.search(query, customUrl)
+                    val best = candidates.firstOrNull { c ->
+                        val ct = c.title.lowercase(java.util.Locale.US)
+                        val ca = c.artistNames.map { it.lowercase(java.util.Locale.US) }
+                        val titleOk = ct.contains(wantedTitle) || wantedTitle.contains(ct)
+                        val artistOk = wantedArtists.isEmpty() || wantedArtists.any { w ->
+                            ca.any { it.contains(w) || w.contains(it) }
+                        }
+                        titleOk && artistOk
+                    } ?: run {
+                        Timber.tag(TAG).d("TIDAL: no match for \"$query\" — falling back")
+                        return@runCatching null
+                    }
+
+                    val quality = runCatching {
+                        TidalQuality.valueOf(context.dataStore.get(TidalQualityKey, TidalQuality.LOSSLESS.name))
+                    }.getOrDefault(TidalQuality.LOSSLESS)
+
+                    val streamUrl = TidalService.streamUrl(best.id, quality.toApiValue(), customUrl)
+                        ?: run {
+                            Timber.tag(TAG).d("TIDAL: no stream URL for id=${best.id} — falling back")
+                            return@runCatching null
+                        }
+
+                    Timber.tag(TAG).i("Tidal: streaming FLAC \"${best.title}\" (id=${best.id}, ${quality.toApiValue()}) for videoId=$videoId")
+                    PlaybackData(
+                        audioConfig      = meta?.playerConfig?.audioConfig,
+                        videoDetails     = meta?.videoDetails,
+                        playbackTracking = meta?.playbackTracking,
+                        format           = PlayerResponse.StreamingData.Format(
+                            itag             = 9999,               // sentinel: lossless FLAC
+                            url              = streamUrl,
+                            mimeType         = "audio/flac",
+                            bitrate          = 1_411_000,          // nominal 16/44.1 stereo, for the badge
+                            width            = null,
+                            height           = null,
+                            contentLength    = null,
+                            quality          = quality.toApiValue(),
+                            fps              = null,
+                            qualityLabel     = null,
+                            averageBitrate   = null,
+                            audioQuality     = quality.toApiValue(),
+                            approxDurationMs = best.duration?.let { (it * 1000L).toString() },
+                            audioSampleRate  = 44100,
+                            audioChannels    = 2,
+                            loudnessDb       = null,
+                            lastModified     = null,
+                            signatureCipher  = null,
+                            cipher           = null,
+                            audioTrack       = null,
+                        ),
+                        streamUrl              = streamUrl,
+                        streamExpiresInSeconds = 3600,
+                        isTidalStream          = true,
+                    )
+                }.getOrNull()
+
+                if (tidalResult != null) return Result.success(tidalResult)
+                Timber.tag(TAG).d("TIDAL intercept failed or returned null — trying next source")
+            }
+            // ── End TIDAL intercept ──────────────────────────────────────────────
+
             val saavnEnabled = context.dataStore.get(EnableSaavnStreamingKey, false)
             if (saavnEnabled) {
                 Timber.tag(TAG).d("JioSaavn streaming enabled — trying Saavn for videoId=$videoId")

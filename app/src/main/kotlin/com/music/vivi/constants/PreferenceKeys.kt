@@ -106,6 +106,26 @@ val AudioOffload = booleanPreferencesKey("enableOffload")
 val EnableSaavnStreamingKey = booleanPreferencesKey("enableSaavnStreaming")
 val SaavnAudioQualityKey    = stringPreferencesKey("saavnAudioQuality")
 
+// Lossless (TIDAL via hifi-api). Opt-in, off by default. Streaming only for now.
+val EnableTidalStreamingKey = booleanPreferencesKey("enableTidalStreaming")
+val TidalQualityKey         = stringPreferencesKey("tidalQuality")
+val TidalInstanceUrlKey     = stringPreferencesKey("tidalInstanceUrl")
+
+enum class TidalQuality {
+    LOSSLESS,   // 16-bit/44.1kHz FLAC — direct URL, ships now
+    HI_RES;     // 24-bit — DASH, not wired yet (inert)
+
+    fun toApiValue() = when (this) {
+        LOSSLESS -> "LOSSLESS"
+        HI_RES   -> "HI_RES_LOSSLESS"
+    }
+
+    fun toLabel() = when (this) {
+        LOSSLESS -> "Lossless (16-bit FLAC)"
+        HI_RES   -> "Hi-Res (24-bit)"
+    }
+}
+
 enum class SaavnAudioQuality {
     QUALITY_320,
     QUALITY_160,

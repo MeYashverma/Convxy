@@ -43,6 +43,7 @@ import com.music.vivi.constants.AudioOffload
 import com.music.vivi.constants.AudioQuality
 import com.music.vivi.constants.AudioQualityKey
 import com.music.vivi.constants.EnableSaavnStreamingKey
+import com.music.vivi.constants.EnableTidalStreamingKey
 import com.music.vivi.constants.SaavnAudioQuality
 import com.music.vivi.constants.SaavnAudioQualityKey
 import com.music.vivi.constants.AutoDownloadOnLikeKey
@@ -195,6 +196,10 @@ fun PlayerSettings(
         SaavnAudioQualityKey,
         defaultValue = SaavnAudioQuality.QUALITY_320
     )
+    val (tidalEnabled, _) = rememberPreference(
+        EnableTidalStreamingKey,
+        defaultValue = false
+    )
 
     var showAudioQualityDialog by remember {
         mutableStateOf(false)
@@ -293,6 +298,21 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { navController.navigate("settings/player/jio") }
+                ))
+                // Lossless (TIDAL) streaming navigation
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.graphic_eq),
+                    title = { Text(stringResource(R.string.lossless_settings)) },
+                    description = {
+                        Text(
+                            if (tidalEnabled) {
+                                stringResource(R.string.lossless_streaming_enabled)
+                            } else {
+                                stringResource(R.string.lossless_streaming_disabled)
+                            }
+                        )
+                    },
+                    onClick = { navController.navigate("settings/player/lossless") }
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.linear_scale),

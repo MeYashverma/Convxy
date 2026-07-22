@@ -953,6 +953,16 @@
     <string name="jiosaavn_streaming_disabled">Disabled</string>
     <string name="jiosaavn_beta_info">This is currently in beta, don\'t report things based on JioSaavn. If JioSaavn is enabled and a song isn\'t available in JioSaavn, it will use YouTube Music as the next source. Downloading at 320 kbps is also supported when using JioSaavn.</string>
 
+    <!-- Lossless (TIDAL) streaming -->
+    <string name="lossless_settings">Lossless streaming</string>
+    <string name="lossless_streaming_enabled">Enabled — FLAC via TIDAL</string>
+    <string name="lossless_streaming_disabled">Disabled</string>
+    <string name="enable_tidal_streaming">Enable lossless streaming</string>
+    <string name="enable_tidal_streaming_desc">Stream 16-bit FLAC from public TIDAL (hifi-api) servers instead of YouTube. Off by default. If a song has no lossless match, playback silently falls back to YouTube so audio never breaks. These public servers proxy TIDAL without a subscription — availability is not guaranteed and this is a legal grey area; use at your own discretion. No account or credentials are stored. Currently affects streaming only, not downloads.</string>
+    <string name="tidal_instance_url">Custom server URL (optional)</string>
+    <string name="tidal_instance_url_hint">https://your-hifi-api.example.com</string>
+    <string name="tidal_beta_info">Beta. Leave the server URL empty to use the bundled public servers. To self-host, run any hifi-api instance and paste its base URL above — it is tried before the bundled list.</string>
+
     <!-- Spotify Import -->
     <string name="spotify">Spotify</string>
     <string name="import_action">Import</string>

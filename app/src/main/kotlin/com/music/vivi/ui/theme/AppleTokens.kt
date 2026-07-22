@@ -12,9 +12,10 @@ object AppleTokens {
     // Accent
     val AccentRed = Color(0xFFFA2D48)
 
-    // Surfaces
-    val Bg = Color(0xFF000000)
-    val BgElevated = Color(0xFF0B0B0B)
+    // Surfaces — Apple-style soft dark greys, not pure black (pure black stays an
+    // opt-in via the PureBlack setting for OLED). Monotonic elevation ladder.
+    val Bg = Color(0xFF121212)
+    val BgElevated = Color(0xFF1A1A1A)
     val Card = Color(0xFF1C1C1E)
     val CardSecondary = Color(0xFF2C2C2E)
 

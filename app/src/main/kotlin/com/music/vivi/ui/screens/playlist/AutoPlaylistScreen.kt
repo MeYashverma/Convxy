@@ -122,6 +122,8 @@ import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.makeTimeString
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
+import com.music.vivi.constants.IosOverscrollKey
+import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.viewmodels.AutoPlaylistViewModel
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -283,6 +285,7 @@ fun AutoPlaylistScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = lazyListState,
+                    modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(key = "header_title") {

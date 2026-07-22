@@ -292,6 +292,7 @@
     <string name="action_login">Log in</string>
     <string name="login">Login</string>
     <string name="show_audio_quality_badge">Show audio quality badge</string>
+    <string name="mini_player_waveform">Mini player waveform seek bar</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
 

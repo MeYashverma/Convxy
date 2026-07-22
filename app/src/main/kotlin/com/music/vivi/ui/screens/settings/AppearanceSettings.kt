@@ -110,6 +110,7 @@ import com.music.vivi.constants.LyricsGlowEffectKey
 import com.music.vivi.constants.LyricsLineSpacingKey
 import com.music.vivi.constants.LyricsScrollKey
 import com.music.vivi.constants.ShowAudioQualityBadgeKey
+import com.music.vivi.constants.MiniPlayerWaveformKey
 import com.music.vivi.constants.ShowCommentButtonKey
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,6 +128,10 @@ fun AppearanceSettings(
     val (showAudioQualityBadge, onShowAudioQualityBadgeChange) = rememberPreference(
         ShowAudioQualityBadgeKey,
         defaultValue = true
+    )
+    val (miniPlayerWaveform, onMiniPlayerWaveformChange) = rememberPreference(
+        MiniPlayerWaveformKey,
+        defaultValue = false
     )
 
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
@@ -670,6 +675,26 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onShowAudioQualityBadgeChange(!showAudioQualityBadge) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.mini_player_waveform)) },
+                    trailingContent = {
+                        Switch(
+                            checked = miniPlayerWaveform,
+                            onCheckedChange = onMiniPlayerWaveformChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (miniPlayerWaveform) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onMiniPlayerWaveformChange(!miniPlayerWaveform) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),

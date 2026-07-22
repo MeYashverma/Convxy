@@ -273,6 +273,7 @@ val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
 val ShowLocalPlaylistKey = booleanPreferencesKey("show_local_playlist")
 val ShowAudioQualityBadgeKey = booleanPreferencesKey("show_audio_quality_badge")
 val ShowCommentButtonKey = booleanPreferencesKey("show_comment_button")
+val MiniPlayerWaveformKey = booleanPreferencesKey("mini_player_waveform")
 
 enum class LibraryViewType {
     LIST,

@@ -34,6 +34,13 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.height
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import com.music.vivi.ui.theme.LocalAccentColor
+import com.music.vivi.constants.MiniPlayerWaveformKey
+import com.music.vivi.ui.component.WaveformSeekBar
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +90,18 @@ fun FloatingMiniPlayer(
     val playerConnection = LocalPlayerConnection.current ?: return
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+
+    val waveformEnabled by rememberPreference(MiniPlayerWaveformKey, false)
+    var wavePosition by remember { mutableLongStateOf(0L) }
+    var waveDuration by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(waveformEnabled, mediaMetadata?.id) {
+        if (!waveformEnabled) return@LaunchedEffect
+        while (isActive) {
+            wavePosition = playerConnection.player.currentPosition
+            waveDuration = playerConnection.player.duration.coerceAtLeast(0L)
+            delay(400)
+        }
+    }
 
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
@@ -252,6 +271,22 @@ fun FloatingMiniPlayer(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+            }
+
+            if (!isInline && waveformEnabled) {
+                WaveformSeekBar(
+                    progress = if (waveDuration > 0L) wavePosition.toFloat() / waveDuration else 0f,
+                    onSeek = { f ->
+                        if (waveDuration > 0L) playerConnection.player.seekTo((f * waveDuration).toLong())
+                    },
+                    playedColor = LocalAccentColor.current,
+                    trackColor = contentColor.copy(alpha = 0.25f),
+                    seed = mediaMetadata?.id?.hashCode() ?: 0,
+                    modifier = Modifier
+                        .width(64.dp)
+                        .height(24.dp),
+                )
+                Spacer(Modifier.width(8.dp))
             }
 
             IconButton(

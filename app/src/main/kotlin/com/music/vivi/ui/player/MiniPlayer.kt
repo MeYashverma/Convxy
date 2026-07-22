@@ -56,7 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableLongState
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -143,7 +143,6 @@ import com.music.vivi.vivimusic.isBluetoothHeadphoneConnected
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Speaker
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
@@ -218,10 +217,10 @@ private fun NewMiniPlayer(
     val miniPlayerBackground by rememberEnumPreference(MiniPlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
     
     // Player states - only collect what's needed at this level
-    val playbackState by playerConnection.playbackState.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val canSkipNext by playerConnection.canSkipNext.collectAsState()
-    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
+    val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
+    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
     
     // Cast state - safely access castConnectionHandler to prevent crashes during service lifecycle changes
     val castHandler = remember(playerConnection) {
@@ -231,7 +230,7 @@ private fun NewMiniPlayer(
             null
         }
     }
-    val isCasting by castHandler?.isCasting?.collectAsState() ?: remember { mutableStateOf(false) }
+    val isCasting by castHandler?.isCasting?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
 
     // Audio Output State
     val context = LocalContext.current
@@ -476,11 +475,11 @@ private fun NewMiniPlayerPlayButton(
     outlineColor: Color,
     listenTogetherManager: ListenTogetherManager?
 ) {
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val castIsPlaying by castHandler?.castIsPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val castIsPlaying by castHandler?.castIsPlaying?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
     val effectiveIsPlaying = if (isCasting) castIsPlaying else isPlaying
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
-    val isMuted by playerConnection.isMuted.collectAsState()
+    val isMuted by playerConnection.isMuted.collectAsStateWithLifecycle()
 
     
     val trackColor = outlineColor.copy(alpha = 0.2f)
@@ -585,7 +584,7 @@ private fun NewMiniPlayerSongInfo(
     errorColor: Color,
     modifier: Modifier = Modifier
 ) {
-    val error by LocalPlayerConnection.current?.error?.collectAsState() ?: remember { mutableStateOf(null) }
+    val error by LocalPlayerConnection.current?.error?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
     
     Column(
         modifier = modifier,
@@ -643,10 +642,10 @@ private fun LegacyMiniPlayer(
     val playerConnection = LocalPlayerConnection.current ?: return
     val pureBlack by rememberPreference(PureBlackMiniPlayerKey, defaultValue = false)
     
-    val playbackState by playerConnection.playbackState.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val canSkipNext by playerConnection.canSkipNext.collectAsState()
-    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
+    val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
+    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
     
     val castHandler = remember(playerConnection) {
         try {
@@ -655,7 +654,7 @@ private fun LegacyMiniPlayer(
             null
         }
     }
-    val isCasting by castHandler?.isCasting?.collectAsState() ?: remember { mutableStateOf(false) }
+    val isCasting by castHandler?.isCasting?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
 
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
@@ -830,11 +829,11 @@ private fun LegacyPlayPauseButton(
     playerConnection: PlayerConnection,
     listenTogetherManager: ListenTogetherManager?
 ) {
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val castIsPlaying by castHandler?.castIsPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val castIsPlaying by castHandler?.castIsPlaying?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
     val effectiveIsPlaying = if (isCasting) castIsPlaying else isPlaying
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
-    val isMuted by playerConnection.isMuted.collectAsState()
+    val isMuted by playerConnection.isMuted.collectAsStateWithLifecycle()
 
 
     IconButton(
@@ -873,7 +872,7 @@ private fun LegacyMiniMediaInfo(
     pureBlack: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val error by LocalPlayerConnection.current?.error?.collectAsState() ?: remember { mutableStateOf(null) }
+    val error by LocalPlayerConnection.current?.error?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     
     Row(
@@ -962,7 +961,7 @@ private fun FavoriteButton(
 ) {
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val librarySong by database.song(songId).collectAsState(initial = null)
+    val librarySong by database.song(songId).collectAsStateWithLifecycle(initialValue =null)
     val isLiked = librarySong?.song?.liked == true
     
     Box(

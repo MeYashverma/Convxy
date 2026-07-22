@@ -128,6 +128,9 @@ import coil3.request.crossfade
 import coil3.toBitmap
 import com.music.vivi.ui.component.backdrop.backdrops.layerBackdrop
 import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.music.vivi.ui.component.backdrop.drawPlainBackdrop
+import com.music.vivi.ui.component.backdrop.effects.blur
+import com.music.vivi.ui.component.backdrop.isRenderEffectSupported
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
@@ -566,7 +569,7 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassVibrancy) = rememberPreference(LiquidGlassVibrancyKey, defaultValue = 1.2f)
                 val (liquidGlassBlurRadius) = rememberPreference(LiquidGlassBlurRadiusKey, defaultValue = 2f)
                 val (liquidGlassLensHeight) = rememberPreference(LiquidGlassLensHeightKey, defaultValue = 0.4f)
-                val (liquidGlassLensAmount) = rememberPreference(LiquidGlassLensAmountKey, defaultValue = 0.65f)
+                val (liquidGlassLensAmount) = rememberPreference(LiquidGlassLensAmountKey, defaultValue = 0.6f)
                 val (liquidGlassChromaticAberration) = rememberPreference(LiquidGlassChromaticAberrationKey, defaultValue = false)
                 val (liquidGlassDepthEffect) = rememberPreference(LiquidGlassDepthEffectKey, defaultValue = false)
                 // 0 (fully transparent, unreachable from the color picker) marks the
@@ -917,7 +920,34 @@ class MainActivity : ComponentActivity() {
                                 exit = fadeOut(animationSpec = tween(durationMillis = 200))
                             ) {
                                 Row {
-                                    TopAppBar(
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                                            .drawPlainBackdrop(
+                                                backdrop = LocalAppBackdrop.current,
+                                                shape = { RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp) },
+                                                effects = {
+                                                    if (isRenderEffectSupported()) {
+                                                        blur(20f)
+                                                    }
+                                                },
+                                                onDrawSurface = {
+                                                    // Progressive darkening scrim ON TOP of the blurred
+                                                    // backdrop but BEHIND the sharp content (drawContent).
+                                                    drawRect(
+                                                        brush = Brush.verticalGradient(
+                                                            colors = listOf(
+                                                                Color.Black.copy(alpha = 0.55f),
+                                                                Color.Black.copy(alpha = 0.20f),
+                                                                Color.Transparent,
+                                                            ),
+                                                        ),
+                                                    )
+                                                },
+                                            )
+                                    ) {
+                                        TopAppBar(
                                         navigationIcon = {
                                             Box(modifier = Modifier.padding(start = 12.dp)) {
                                                 Image(
@@ -1017,6 +1047,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     )
+                                    }
                                 }
                             }
                         },

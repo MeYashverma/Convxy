@@ -6,9 +6,11 @@
 package com.music.vivi.ui.component
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -99,20 +101,28 @@ fun rememberPlaylistCoverPicker(
     LaunchedEffect(result.value) {
         val uri = result.value ?: return@LaunchedEffect
         withContext(Dispatchers.IO) {
-            if (playlist.playlist.browseId == null) {
-                database.query { update(playlist.playlist.copy(thumbnailUrl = uri.toString())) }
-            } else {
+            // Persist the crop out of the volatile cache dir and store it as a local DB
+            // override so EVERY card (local or online) updates immediately, regardless of
+            // whether the playlist can be synced to YouTube.
+            val localUri = persistPlaylistCover(context, uri, playlist.playlist.id) ?: uri
+            database.query { update(playlist.playlist.copy(thumbnailUrl = localUri.toString())) }
+
+            // Owned/synced playlists: also push the cover to YouTube (best-effort).
+            val browseId = playlist.playlist.browseId
+            if (browseId != null && playlist.playlist.isEditable) {
                 val bytes = uriToByteArray(context, uri)
-                YouTube.uploadCustomThumbnailLink(playlist.playlist.browseId, bytes!!)
-                    .onSuccess { newUrl ->
-                        database.query { update(playlist.playlist.copy(thumbnailUrl = newUrl)) }
-                    }
-                    .onFailure {
-                        if (it is ClientRequestException) {
-                            onError("${it.response.status.value} ${it.response.status.description}")
+                if (bytes != null) {
+                    YouTube.uploadCustomThumbnailLink(browseId, bytes)
+                        .onSuccess { newUrl ->
+                            database.query { update(playlist.playlist.copy(thumbnailUrl = newUrl)) }
                         }
-                        reportException(it)
-                    }
+                        .onFailure {
+                            if (it is ClientRequestException) {
+                                onError("${it.response.status.value} ${it.response.status.description}")
+                            }
+                            reportException(it)
+                        }
+                }
             }
         }
         result.value = null
@@ -124,3 +134,19 @@ fun rememberPlaylistCoverPicker(
         )
     }
 }
+
+/**
+ * Copies the cropped cover out of the volatile cache dir into filesDir so it survives cache
+ * eviction, using a fresh timestamped filename (which also busts Coil's uri-keyed cache) and
+ * deleting any prior cover for this playlist. Returns the persisted file uri, or null on failure.
+ */
+private fun persistPlaylistCover(context: Context, src: Uri, playlistId: String): Uri? = runCatching {
+    val safeId = playlistId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+    val dir = File(context.filesDir, "playlist_covers").apply { mkdirs() }
+    dir.listFiles { f -> f.name.startsWith("${safeId}_") }?.forEach { it.delete() }
+    val dest = File(dir, "${safeId}_${System.currentTimeMillis()}.jpg")
+    context.contentResolver.openInputStream(src)?.use { input ->
+        dest.outputStream().use { out -> input.copyTo(out) }
+    } ?: return@runCatching null
+    dest.toUri()
+}.getOrNull()

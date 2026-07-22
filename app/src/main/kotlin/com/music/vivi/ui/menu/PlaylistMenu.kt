@@ -482,6 +482,10 @@ fun PlaylistMenu(
                                 }
                             )
                         )
+                    }
+                    // Custom cover works for any real playlist (local, or online via a local
+                    // override), so it isn't gated by `editable` like rename is.
+                    if (autoPlaylist != true && !isGuest) {
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.edit_playlist_cover)) },

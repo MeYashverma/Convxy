@@ -356,6 +356,8 @@ fun BottomSheetPlayer(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
     )
+    val currentFormat by playerConnection.currentFormat.collectAsState(initial = null)
+    val isLosslessStream = currentFormat?.mimeType?.contains("flac", ignoreCase = true) == true
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SLIM)
     val squigglySlider by rememberPreference(SquigglySliderKey, defaultValue = false)
     
@@ -2141,10 +2143,14 @@ fun BottomSheetPlayer(
                                             }
                                     )
                                     Text(
-                                        text = when (audioQuality) {
-                                            AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
-                                            AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
-                                            AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                                        text = if (isLosslessStream) {
+                                            stringResource(R.string.audio_quality_lossless)
+                                        } else {
+                                            when (audioQuality) {
+                                                AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
+                                                AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
+                                                AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                                            }
                                         }.uppercase(),
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontSize = 10.sp,

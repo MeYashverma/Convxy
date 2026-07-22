@@ -223,7 +223,8 @@ object YTPlayerUtils {
                         format           = PlayerResponse.StreamingData.Format(
                             itag             = 9999,               // sentinel: lossless FLAC
                             url              = streamUrl,
-                            mimeType         = "audio/flac",
+                            // codecs= segment so the media-info sheet shows "flac", not the "mp3" default
+                            mimeType         = "audio/flac; codecs=\"flac\"",
                             bitrate          = 1_411_000,          // nominal 16/44.1 stereo, for the badge
                             width            = null,
                             height           = null,

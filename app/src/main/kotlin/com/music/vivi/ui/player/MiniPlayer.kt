@@ -33,8 +33,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import com.music.vivi.ui.component.WaveformSeekBar
 import com.music.vivi.ui.component.ScrollingWaveformSeekBar
+import com.music.vivi.ui.component.rememberPlaybackFraction
 import com.music.vivi.constants.MiniPlayerWaveformKey
 import com.music.vivi.constants.PlayerGradientBottomKey
 import com.music.vivi.constants.PlayerGradientTopKey
@@ -222,6 +222,7 @@ private fun NewMiniPlayer(
     
     val miniPlayerBackground by rememberEnumPreference(MiniPlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
     val miniPlayerWaveform by rememberPreference(MiniPlayerWaveformKey, defaultValue = false)
+    val waveFraction = rememberPlaybackFraction(playerConnection.player)
     
     // Player states - only collect what's needed at this level
     val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
@@ -420,7 +421,7 @@ private fun NewMiniPlayer(
 
                 if (miniPlayerWaveform) {
                     ScrollingWaveformSeekBar(
-                        progress = { progressState.progress },
+                        progress = { waveFraction.value },
                         onSeek = { f ->
                             val d = playerConnection.player.duration
                             if (d > 0L) playerConnection.player.seekTo((f * d).toLong())

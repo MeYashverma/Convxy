@@ -90,7 +90,6 @@ import com.music.vivi.constants.HidePlayerThumbnailKey
 import com.music.vivi.constants.PlayerBackgroundStyle
 import com.music.vivi.constants.PlayerBackgroundStyleKey
 import com.music.vivi.constants.PlayerHorizontalPadding
-import com.music.vivi.constants.RotatingThumbnailKey
 import com.music.vivi.constants.PlayerArtworkStyle
 import com.music.vivi.constants.PlayerArtworkStyleKey
 import androidx.compose.foundation.Canvas
@@ -616,14 +615,7 @@ private fun ThumbnailItem(
     playerBackground: PlayerBackgroundStyle = PlayerBackgroundStyle.DEFAULT,
     modifier: Modifier = Modifier,
 ) {
-    val legacyRotatingThumbnail by rememberPreference(RotatingThumbnailKey, defaultValue = false)
-    val (storedArtworkStyle) = rememberEnumPreference(PlayerArtworkStyleKey, defaultValue = PlayerArtworkStyle.CARD)
-    // Old boolean pref still wins while it's on and no new style has been picked.
-    val artworkStyle = if (storedArtworkStyle == PlayerArtworkStyle.CARD && legacyRotatingThumbnail) {
-        PlayerArtworkStyle.CLOVER
-    } else {
-        storedArtworkStyle
-    }
+    val (artworkStyle) = rememberEnumPreference(PlayerArtworkStyleKey, defaultValue = PlayerArtworkStyle.CARD)
     val rotatingThumbnail = artworkStyle != PlayerArtworkStyle.CARD
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val isCurrentItem = item.mediaId == currentMediaId

@@ -9,10 +9,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
@@ -24,6 +28,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.media3.common.Player
+import kotlinx.coroutines.isActive
+import kotlin.math.floor
 import kotlin.random.Random
 
 /**
@@ -38,63 +45,6 @@ fun waveformBars(seed: Int, count: Int): FloatArray {
         // Random-walk so neighbouring bars relate (reads like audio, not white noise).
         prev = (prev + (rnd.nextFloat() - 0.5f) * 0.6f).coerceIn(0.12f, 1f)
         prev
-    }
-}
-
-/**
- * A small SoundCloud-style waveform that doubles as a seek bar: bars up to
- * [progress] are painted [playedColor], the rest [trackColor]; tap or horizontal
- * drag reports the target fraction (0..1) via [onSeek].
- */
-@Composable
-fun WaveformSeekBar(
-    progress: () -> Float,
-    onSeek: (Float) -> Unit,
-    playedColor: Color,
-    trackColor: Color,
-    modifier: Modifier = Modifier,
-    bars: Int = 28,
-    seed: Int = 0,
-) {
-    val heights = remember(seed, bars) { waveformBars(seed, bars) }
-    var dragFraction by remember { mutableStateOf<Float?>(null) }
-
-    Canvas(
-        modifier = modifier
-            .pointerInput(Unit) {
-                detectTapGestures { o -> onSeek((o.x / size.width).coerceIn(0f, 1f)) }
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { o -> dragFraction = (o.x / size.width).coerceIn(0f, 1f) },
-                    onDragEnd = { dragFraction?.let(onSeek); dragFraction = null },
-                    onDragCancel = { dragFraction = null },
-                ) { change, _ ->
-                    dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                }
-            }
-    ) {
-        val n = heights.size
-        if (n == 0 || size.width <= 0f) return@Canvas
-        // Read progress in the draw phase so a playing song repaints the fill
-        // without recomposing the mini player.
-        val shown = (dragFraction ?: progress()).coerceIn(0f, 1f)
-        val gapTotal = size.width * 0.4f
-        val gap = gapTotal / (n - 1).coerceAtLeast(1)
-        val barW = (size.width - gap * (n - 1)) / n
-        val midY = size.height / 2f
-        val minH = size.height * 0.14f
-        for (i in 0 until n) {
-            val h = (heights[i] * size.height).coerceAtLeast(minH)
-            val x = i * (barW + gap)
-            val frac = (i + 0.5f) / n
-            drawRoundRect(
-                color = if (frac <= shown) playedColor else trackColor,
-                topLeft = Offset(x, midY - h / 2f),
-                size = Size(barW, h),
-                cornerRadius = CornerRadius(barW / 2f, barW / 2f),
-            )
-        }
     }
 }
 
@@ -163,22 +113,25 @@ fun ScrollingWaveformSeekBar(
 
         val currentProgress = (dragOffset ?: progress()).coerceIn(0f, 1f)
         val midY = size.height / 2f
-        val halfVisible = visibleBars / 2f
+        val minH = size.height * 0.15f
+
+        // One fixed-width slot per visible bar. Bars are positioned from a
+        // FRACTIONAL first index, so the window glides continuously instead of
+        // jumping a whole bar at a time — that snapping is what read as lag.
+        val slot = size.width / visibleBars
+        val barWidth = slot * 0.55f
         val centerBar = currentProgress * (n - 1)
+        val firstBar = centerBar - visibleBars / 2f
+        val startIndex = floor(firstBar).toInt()
 
-        // Evenly space bars across the full width
-        val barWidth = size.width / visibleBars * 0.55f
-        val gap = (size.width - barWidth * visibleBars) / (visibleBars + 1)
+        for (i in startIndex..(startIndex + visibleBars + 1)) {
+            if (i < 0 || i >= n) continue
 
-        for (j in 0 until visibleBars) {
-            val barIndex = (centerBar - halfVisible + 0.5f + j).toInt()
-            if (barIndex < 0 || barIndex >= n) continue
+            val x = (i - firstBar) * slot + slot / 2f
+            if (x < -slot || x > size.width + slot) continue
 
-            val h = (heights[barIndex] * size.height * 0.9f).coerceAtLeast(size.height * 0.15f)
-            val x = gap + j * (barWidth + gap) + barWidth / 2f
-
-            val isPlayed = barIndex <= centerBar
-            val color = if (isPlayed) playedColor else trackColor
+            val h = (heights[i] * size.height * 0.9f).coerceAtLeast(minH)
+            val color = if (i <= centerBar) playedColor else trackColor
 
             drawRoundRect(
                 color = color,
@@ -188,4 +141,28 @@ fun ScrollingWaveformSeekBar(
             )
         }
     }
+}
+
+/**
+ * Playback position as a 0..1 fraction, refreshed once per frame straight off the
+ * player's clock. Polling on a timer makes the waveform advance in visible steps;
+ * this keeps it gliding. Backed by a float state, so callers that read it inside a
+ * draw lambda repaint without recomposing.
+ */
+@Composable
+fun rememberPlaybackFraction(player: Player): State<Float> {
+    val fraction = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(player) {
+        while (isActive) {
+            withFrameMillis {
+                val duration = player.duration
+                fraction.floatValue = if (duration > 0L) {
+                    (player.currentPosition.toFloat() / duration).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+            }
+        }
+    }
+    return fraction
 }

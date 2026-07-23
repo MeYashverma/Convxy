@@ -40,7 +40,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import com.music.vivi.ui.theme.LocalAccentColor
 import com.music.vivi.constants.MiniPlayerWaveformKey
-import com.music.vivi.ui.component.WaveformSeekBar
+import com.music.vivi.ui.component.ScrollingWaveformSeekBar
+import com.music.vivi.ui.component.rememberPlaybackFraction
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,16 +93,7 @@ fun FloatingMiniPlayer(
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
 
     val waveformEnabled by rememberPreference(MiniPlayerWaveformKey, false)
-    var wavePosition by remember { mutableLongStateOf(0L) }
-    var waveDuration by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(waveformEnabled, mediaMetadata?.id) {
-        if (!waveformEnabled) return@LaunchedEffect
-        while (isActive) {
-            wavePosition = playerConnection.player.currentPosition
-            waveDuration = playerConnection.player.duration.coerceAtLeast(0L)
-            delay(400)
-        }
-    }
+    val waveFraction = rememberPlaybackFraction(playerConnection.player)
 
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
@@ -274,16 +266,18 @@ fun FloatingMiniPlayer(
             }
 
             if (!isInline && waveformEnabled) {
-                WaveformSeekBar(
-                    progress = { if (waveDuration > 0L) wavePosition.toFloat() / waveDuration else 0f },
+                ScrollingWaveformSeekBar(
+                    progress = { waveFraction.value },
                     onSeek = { f ->
-                        if (waveDuration > 0L) playerConnection.player.seekTo((f * waveDuration).toLong())
+                        val duration = playerConnection.player.duration
+                        if (duration > 0L) playerConnection.player.seekTo((f * duration).toLong())
                     },
                     playedColor = LocalAccentColor.current,
                     trackColor = contentColor.copy(alpha = 0.25f),
                     seed = mediaMetadata?.id?.hashCode() ?: 0,
+                    visibleBars = 12,
                     modifier = Modifier
-                        .width(64.dp)
+                        .width(72.dp)
                         .height(24.dp),
                 )
                 Spacer(Modifier.width(8.dp))

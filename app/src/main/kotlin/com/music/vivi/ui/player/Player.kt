@@ -205,6 +205,7 @@ import com.music.vivi.ui.component.PLAYER_BLUR_MULTIPLIER
 import com.music.vivi.ui.component.isGlassAllowed
 import com.music.vivi.ui.component.liquidGlass
 import com.music.vivi.ui.component.ScrollingWaveformSeekBar
+import com.music.vivi.ui.component.rememberPlaybackFraction
 import com.music.vivi.ui.component.WavySlider
 import com.music.vivi.ui.component.rememberBottomSheetState
 import com.music.vivi.ui.menu.OldPlayerMenu
@@ -2065,11 +2066,17 @@ fun BottomSheetPlayer(
                         playerBackground = playerBackground,
                         useDarkTheme = useDarkTheme
                     )
+                    // Per-frame off the player clock, so the waveform glides rather
+                    // than stepping with the once-a-second position state.
+                    val waveFraction = rememberPlaybackFraction(playerConnection.player)
                     ScrollingWaveformSeekBar(
                         progress = {
-                            if (duration > 0L && duration != C.TIME_UNSET) {
-                                (sliderPosition ?: effectivePosition).toFloat() / duration
-                            } else 0f
+                            val dragged = sliderPosition
+                            if (dragged != null && duration > 0L && duration != C.TIME_UNSET) {
+                                dragged.toFloat() / duration
+                            } else {
+                                waveFraction.value
+                            }
                         },
                         onSeek = { f ->
                             if (!isListenTogetherGuest && duration > 0L && duration != C.TIME_UNSET) {

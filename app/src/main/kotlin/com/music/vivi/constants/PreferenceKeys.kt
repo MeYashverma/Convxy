@@ -542,7 +542,6 @@ val RepeatModeKey = intPreferencesKey("repeatMode")
 
 val SearchSourceKey = stringPreferencesKey("searchSource")
 val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
-val RotatingThumbnailKey = booleanPreferencesKey("rotatingThumbnail")
 val CanvasThumbnailAnimationKey = booleanPreferencesKey("canvasThumbnailAnimation")
 val CanvasSourceKey = stringPreferencesKey("canvasSource")
 

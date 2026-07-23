@@ -50,6 +50,15 @@ object AppleTokens {
         bg.shiftedForContrast(saturation = 0.42f, lightness = 0.76f to 0.34f)
 
     /**
+     * Headings on [bg] — artist names, section titles, the top-bar title. Carries
+     * the most tint of the three: a heading is short and large, so it can be
+     * clearly the screen's colour without costing legibility the way body copy
+     * would.
+     */
+    fun onColorHeading(bg: Color): Color =
+        bg.shiftedForContrast(saturation = 0.55f, lightness = 0.88f to 0.18f)
+
+    /**
      * @param lightness (on-dark, on-light) target lightness.
      */
     private fun Color.shiftedForContrast(saturation: Float, lightness: Pair<Float, Float>): Color {

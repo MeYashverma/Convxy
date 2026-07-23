@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.music.vivi.R
 
 import androidx.compose.material3.LocalContentColor
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import androidx.compose.ui.graphics.Color
 
 @Composable
@@ -51,7 +52,10 @@ fun NavigationTitle(
     onClick: (() -> Unit)? = null,
     onPlayAllClick: (() -> Unit)? = null,
 ) {
-    val contentColor = color ?: LocalContentColor.current
+    // Headings take the accent-contrast colour rather than plain content colour.
+    // Hero screens provide their own artwork tint into this local, so a section
+    // title matches the screen it is on rather than the app-wide accent.
+    val contentColor = color ?: LocalAccentTextColor.current
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

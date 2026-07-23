@@ -141,6 +141,8 @@ import com.music.vivi.ui.menu.AlbumMenu
 import com.music.vivi.ui.menu.SelectionSongMenu
 import com.music.vivi.ui.menu.SongMenu
 import com.music.vivi.ui.menu.YouTubeAlbumMenu
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
@@ -282,7 +284,8 @@ fun AlbumScreen(
     ) {
     CompositionLocalProvider(
         LocalAppBackdrop provides heroBackdrop,
-        LocalContentColor provides onTint
+        LocalContentColor provides onTint,
+        LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
     ) {
     // Built INSIDE the provider so liquidGlass captures heroBackdrop, not the
     // root appBackdrop — sampling appBackdrop here is the RenderNode cycle.
@@ -648,7 +651,7 @@ fun AlbumScreen(
                         )
 
                         androidx.compose.runtime.CompositionLocalProvider(
-                            androidx.compose.material3.LocalContentColor provides onTint
+                            androidx.compose.material3.LocalContentColor provides onTint,
                         ) {
                             ExpandableText(
                                 text = description ?: staticDescription,

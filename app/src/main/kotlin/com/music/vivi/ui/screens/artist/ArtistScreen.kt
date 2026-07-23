@@ -140,6 +140,8 @@ import com.music.vivi.ui.menu.YouTubeArtistMenu
 import com.music.vivi.ui.menu.YouTubePlaylistMenu
 import com.music.vivi.ui.menu.YouTubeSongMenu
 import androidx.compose.ui.graphics.graphicsLayer
+import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
@@ -246,7 +248,8 @@ fun ArtistScreen(
     ) {
     CompositionLocalProvider(
         LocalAppBackdrop provides heroBackdrop,
-        LocalContentColor provides onTint
+        LocalContentColor provides onTint,
+        LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
     ) {
         // Built INSIDE the provider so liquidGlass captures heroBackdrop, not the
         // root appBackdrop — sampling appBackdrop here is the RenderNode cycle.
@@ -459,7 +462,9 @@ fun ArtistScreen(
                                         text = artistName?.lowercase() ?: "unknown",
                                         style = MaterialTheme.typography.headlineLarge,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = onTint,
+                                        // The page's biggest heading: carries the artwork
+                                        // tint plainly rather than flat content colour.
+                                        color = LocalAccentTextColor.current,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         fontSize = 42.sp,
@@ -544,7 +549,7 @@ fun ArtistScreen(
                                             )
                                             
                                             androidx.compose.runtime.CompositionLocalProvider(
-                                                androidx.compose.material3.LocalContentColor provides onTint
+                                                androidx.compose.material3.LocalContentColor provides onTint,
                                             ) {
                                                 ExpandableText(
                                                     text = description.orEmpty(),

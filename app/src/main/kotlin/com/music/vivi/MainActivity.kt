@@ -209,6 +209,7 @@ import com.music.vivi.ui.screens.settings.DarkMode
 import com.music.vivi.ui.screens.settings.NavigationTab
 import com.music.vivi.ui.theme.ColorSaver
 import com.music.vivi.ui.theme.DefaultThemeColor
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.theme.extractThemeColor
 import com.music.vivi.ui.theme.vivimusicTheme
 import com.music.vivi.ui.utils.appBarScrollBehavior
@@ -980,6 +981,10 @@ class MainActivity : ComponentActivity() {
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 24.sp
                                                 ),
+                                                // The bar is a Scaffold slot outside the screen
+                                                // content, so this is the app-wide accent text
+                                                // colour, not any screen's hero tint.
+                                                color = LocalAccentTextColor.current,
                                             )
                                         },
                                         actions = {

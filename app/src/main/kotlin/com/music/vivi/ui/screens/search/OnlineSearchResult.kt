@@ -101,6 +101,7 @@ import com.music.vivi.ui.component.NavigationTitle
 import com.music.vivi.ui.component.YouTubeListItem
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.runtime.CompositionLocalProvider
@@ -350,7 +351,8 @@ fun OnlineSearchResult(
 
       CompositionLocalProvider(
           LocalAppBackdrop provides heroBackdrop,
-          LocalContentColor provides onTint
+          LocalContentColor provides onTint,
+          LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
       ) {
         Column(
             modifier = Modifier

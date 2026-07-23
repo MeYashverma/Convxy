@@ -76,6 +76,7 @@ import com.music.vivi.ui.component.shimmer.ShimmerHost
 import com.music.vivi.ui.component.YouTubeGridItem
 import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.utils.rememberEnumPreference
@@ -121,7 +122,8 @@ fun NewReleaseScreen(
     ) {
       CompositionLocalProvider(
           LocalAppBackdrop provides heroBackdrop,
-          LocalContentColor provides onTint
+          LocalContentColor provides onTint,
+          LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
       ) {
         val chromeShape = ContinuousRoundedRectangle(percent = 50)
         

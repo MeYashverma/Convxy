@@ -150,6 +150,7 @@ import com.music.vivi.ui.utils.heroPullZoom
 import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.theme.rememberArtworkTint
 import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.ui.menu.YouTubeArtistMenu
@@ -316,7 +317,8 @@ fun OnlinePlaylistScreen(
     ) {
       CompositionLocalProvider(
           LocalAppBackdrop provides heroBackdrop,
-          LocalContentColor provides onTint
+          LocalContentColor provides onTint,
+          LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
       ) {
         // Built INSIDE the provider so liquidGlass captures heroBackdrop, not the
         // root appBackdrop — sampling appBackdrop here is the RenderNode cycle.

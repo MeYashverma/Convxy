@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
@@ -95,7 +96,8 @@ fun MoodAndGenresScreen(
     ) {
       CompositionLocalProvider(
           LocalAppBackdrop provides heroBackdrop,
-          LocalContentColor provides onTint
+          LocalContentColor provides onTint,
+          LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
       ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(

@@ -183,6 +183,7 @@ import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.theme.rememberArtworkTint
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.utils.listItemShape
@@ -568,7 +569,8 @@ fun LocalPlaylistScreen(
     ) {
     CompositionLocalProvider(
         LocalAppBackdrop provides heroBackdrop,
-        LocalContentColor provides onTint
+        LocalContentColor provides onTint,
+        LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
     ) {
         val chromeBackgroundModifier = if (useGlass) {
             Modifier.liquidGlass(config = glassConfig, shape = chromeShape, highlightAlpha = 0.3f)
@@ -1452,7 +1454,7 @@ fun LocalPlaylistHeader(
                 )
 
                 androidx.compose.runtime.CompositionLocalProvider(
-                    androidx.compose.material3.LocalContentColor provides onTint
+                    androidx.compose.material3.LocalContentColor provides onTint,
                 ) {
                     ExpandableText(
                         text = staticDescription,

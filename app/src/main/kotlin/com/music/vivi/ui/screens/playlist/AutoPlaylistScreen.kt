@@ -119,6 +119,7 @@ import com.music.vivi.ui.menu.AutoPlaylistMenu
 import com.music.vivi.ui.menu.SelectionSongMenu
 import com.music.vivi.ui.menu.SongMenu
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.ui.utils.combinedBounceClick
 import com.music.vivi.utils.listItemShape
@@ -283,6 +284,7 @@ fun AutoPlaylistScreen(
         CompositionLocalProvider(
             LocalAppBackdrop provides heroBackdrop,
             LocalContentColor provides onTint,
+            LocalAccentTextColor provides AppleTokens.onColorHeading(tint)
         ) {
             val chromeShape = ContinuousRoundedRectangle(percent = 50)
 

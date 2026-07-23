@@ -8,7 +8,6 @@ package com.music.vivi.ui.utils
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.OverscrollFactory
 import androidx.compose.runtime.Composable
@@ -42,7 +41,6 @@ private val MaxPull = 160.dp
  *
  * Replaces Android's stretch/glow edge effect while it is provided.
  */
-@OptIn(ExperimentalFoundationApi::class)
 class IosOverscrollEffect(
     density: Density,
     private val scope: CoroutineScope,
@@ -122,7 +120,6 @@ private class IosOverscrollNode(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 private class IosOverscrollFactory(
     private val density: Density,
     private val scope: CoroutineScope,
@@ -136,7 +133,6 @@ private class IosOverscrollFactory(
 }
 
 /** Factory to hand to `LocalOverscrollFactory` to make the whole app bounce. */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun rememberIosOverscrollFactory(): OverscrollFactory {
     val density = LocalDensity.current

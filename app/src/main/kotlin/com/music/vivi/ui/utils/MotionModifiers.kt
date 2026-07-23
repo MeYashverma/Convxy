@@ -21,19 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
-/**
- * Was a per-container rubber-band overscroll. The same physics now lives in
- * [IosOverscrollEffect], installed once for the whole app, so this does nothing.
- */
-@Deprecated(
-    "Overscroll is now installed app-wide via LocalOverscrollFactory in MainActivity; " +
-        "this is a no-op. To opt a list out (e.g. so heroPullZoom gets the top pull), " +
-        "pass overscrollEffect = null to the LazyColumn instead.",
-    ReplaceWith("this"),
-)
-@Suppress("UNUSED_PARAMETER")
-fun Modifier.iosOverscroll(enabled: Boolean, allowTopPull: Boolean = true): Modifier = this
-
 /** Shared pull state for [heroPullZoom]; read [Animatable.value] to derive a hero scale. */
 @Composable
 fun rememberHeroPull(): Animatable<Float, AnimationVector1D> = remember { Animatable(0f) }

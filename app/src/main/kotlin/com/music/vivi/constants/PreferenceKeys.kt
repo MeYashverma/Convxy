@@ -61,7 +61,8 @@ val EnableSettingsPopupKey = booleanPreferencesKey("enableSettingsPopup")
 enum class SliderStyle {
     DEFAULT,
     WAVY,
-    SLIM
+    SLIM,
+    WAVEFORM
 }
 
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"

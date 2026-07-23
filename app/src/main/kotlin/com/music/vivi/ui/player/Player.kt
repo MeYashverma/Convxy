@@ -201,6 +201,7 @@ import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.ui.component.PLAYER_BLUR_MULTIPLIER
 import com.music.vivi.ui.component.isGlassAllowed
 import com.music.vivi.ui.component.liquidGlass
+import com.music.vivi.ui.component.ScrollingWaveformSeekBar
 import com.music.vivi.ui.component.WavySlider
 import com.music.vivi.ui.component.rememberBottomSheetState
 import com.music.vivi.ui.menu.OldPlayerMenu
@@ -2026,6 +2027,42 @@ fun BottomSheetPlayer(
                             )
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
+                    )
+                }
+
+                SliderStyle.WAVEFORM -> {
+                    val waveColors = PlayerSliderColors.getSliderColors(
+                        activeColor = if (useNewPlayerDesign) textButtonColor else textButtonColor.copy(alpha = 0.7f),
+                        playerBackground = playerBackground,
+                        useDarkTheme = useDarkTheme
+                    )
+                    ScrollingWaveformSeekBar(
+                        progress = {
+                            if (duration > 0L && duration != C.TIME_UNSET) {
+                                (sliderPosition ?: effectivePosition).toFloat() / duration
+                            } else 0f
+                        },
+                        onSeek = { f ->
+                            if (!isListenTogetherGuest && duration > 0L && duration != C.TIME_UNSET) {
+                                val target = (f * duration).toLong()
+                                if (isCasting) {
+                                    castHandler?.seekTo(target)
+                                    lastManualSeekTime = System.currentTimeMillis()
+                                } else {
+                                    playerConnection.player.seekTo(target)
+                                }
+                                position = target
+                            }
+                        },
+                        playedColor = waveColors.activeTrackColor,
+                        trackColor = waveColors.inactiveTrackColor,
+                        seed = mediaMetadata?.id?.hashCode() ?: 0,
+                        totalBars = 160,
+                        visibleBars = 44,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PlayerHorizontalPadding)
+                            .height(40.dp),
                     )
                 }
             }

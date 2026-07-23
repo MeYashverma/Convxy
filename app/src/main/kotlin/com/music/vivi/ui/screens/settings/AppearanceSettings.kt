@@ -467,6 +467,7 @@ fun AppearanceSettings(
                     SliderStyle.DEFAULT -> stringResource(R.string.default_style)
                     SliderStyle.WAVY -> stringResource(R.string.wavy)
                     SliderStyle.SLIM -> stringResource(R.string.slim)
+                    SliderStyle.WAVEFORM -> stringResource(R.string.waveform)
                 }
             }
         )
@@ -719,6 +720,7 @@ fun AppearanceSettings(
                                 SliderStyle.DEFAULT -> stringResource(R.string.default_style)
                                 SliderStyle.WAVY -> stringResource(R.string.wavy)
                                 SliderStyle.SLIM -> stringResource(R.string.slim)
+                                SliderStyle.WAVEFORM -> stringResource(R.string.waveform)
                             }
                         )
                     },

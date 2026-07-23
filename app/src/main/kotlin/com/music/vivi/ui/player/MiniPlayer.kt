@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import com.music.vivi.ui.component.WaveformSeekBar
+import com.music.vivi.ui.component.ScrollingWaveformSeekBar
 import com.music.vivi.constants.MiniPlayerWaveformKey
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -413,6 +414,23 @@ private fun NewMiniPlayer(
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))
+
+                if (miniPlayerWaveform) {
+                    ScrollingWaveformSeekBar(
+                        progress = { progressState.progress },
+                        onSeek = { f ->
+                            val d = playerConnection.player.duration
+                            if (d > 0L) playerConnection.player.seekTo((f * d).toLong())
+                        },
+                        playedColor = primaryColor,
+                        trackColor = outlineColor.copy(alpha = 0.2f),
+                        seed = mediaMetadata?.id?.hashCode() ?: 0,
+                        modifier = Modifier
+                            .width(100.dp)
+                            .height(28.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
                 
                 // Cast indicator
                 if (isCasting) {
@@ -784,23 +802,6 @@ private fun LegacyMiniPlayer(
                         modifier = Modifier.padding(horizontal = 6.dp),
                     )
                 }
-            }
-
-            if (miniPlayerWaveform) {
-                WaveformSeekBar(
-                    progress = { progressState.progress },
-                    onSeek = { f ->
-                        val d = playerConnection.player.duration
-                        if (d > 0L) playerConnection.player.seekTo((f * d).toLong())
-                    },
-                    playedColor = primaryColor,
-                    trackColor = trackColor,
-                    seed = mediaMetadata?.id?.hashCode() ?: 0,
-                    modifier = Modifier
-                        .width(72.dp)
-                        .height(24.dp),
-                )
-                Spacer(Modifier.width(8.dp))
             }
 
             LegacyPlayPauseButton(

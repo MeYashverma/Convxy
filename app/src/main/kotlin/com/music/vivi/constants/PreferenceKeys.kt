@@ -441,7 +441,21 @@ enum class PlayerBackgroundStyle {
     GLOW_ANIMATED,
     APPLE_MUSIC,
     LIVE_MESH,
+    STATIC,
+    CUSTOM_GRADIENT,
 }
+
+/** Shape + motion applied to the player artwork. */
+enum class PlayerArtworkStyle {
+    CARD,
+    VINYL,
+    CLOVER,
+}
+
+val PlayerArtworkStyleKey = stringPreferencesKey("playerArtworkStyle")
+val PlayerStaticColorKey = intPreferencesKey("playerStaticColor")
+val PlayerGradientTopKey = intPreferencesKey("playerGradientTop")
+val PlayerGradientBottomKey = intPreferencesKey("playerGradientBottom")
 
 val TopSize = stringPreferencesKey("topSize")
 val HistoryDuration = floatPreferencesKey("historyDuration")

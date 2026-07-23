@@ -91,6 +91,12 @@ import com.music.vivi.constants.PlayerBackgroundStyle
 import com.music.vivi.constants.PlayerBackgroundStyleKey
 import com.music.vivi.constants.PlayerHorizontalPadding
 import com.music.vivi.constants.RotatingThumbnailKey
+import com.music.vivi.constants.PlayerArtworkStyle
+import com.music.vivi.constants.PlayerArtworkStyleKey
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.music.vivi.constants.SeekExtraSeconds
 import com.music.vivi.constants.SwipeThumbnailKey
 import com.music.vivi.constants.ThumbnailCornerRadiusKey
@@ -215,7 +221,7 @@ private fun getMediaItems(
 private fun getTextColor(playerBackground: PlayerBackgroundStyle): Color {
     return when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
-        PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH -> Color.White
+        PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH, PlayerBackgroundStyle.STATIC, PlayerBackgroundStyle.CUSTOM_GRADIENT -> Color.White
     }
 }
 
@@ -610,10 +616,18 @@ private fun ThumbnailItem(
     playerBackground: PlayerBackgroundStyle = PlayerBackgroundStyle.DEFAULT,
     modifier: Modifier = Modifier,
 ) {
-    val rotatingThumbnail by rememberPreference(RotatingThumbnailKey, defaultValue = false)
+    val legacyRotatingThumbnail by rememberPreference(RotatingThumbnailKey, defaultValue = false)
+    val (storedArtworkStyle) = rememberEnumPreference(PlayerArtworkStyleKey, defaultValue = PlayerArtworkStyle.CARD)
+    // Old boolean pref still wins while it's on and no new style has been picked.
+    val artworkStyle = if (storedArtworkStyle == PlayerArtworkStyle.CARD && legacyRotatingThumbnail) {
+        PlayerArtworkStyle.CLOVER
+    } else {
+        storedArtworkStyle
+    }
+    val rotatingThumbnail = artworkStyle != PlayerArtworkStyle.CARD
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val isCurrentItem = item.mediaId == currentMediaId
-    
+
     val infiniteTransition = rememberInfiniteTransition(label = "ThumbnailRotation")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -687,14 +701,15 @@ private fun ThumbnailItem(
                     rotationZ = rotation
                 }
                 .clip(
-                    if (rotatingThumbnail) {
-                        MaterialShapes.Clover8Leaf.toShape()
-                    } else {
-                        RoundedCornerShape(dimensions.cornerRadius)
+                    when (artworkStyle) {
+                        PlayerArtworkStyle.VINYL -> CircleShape
+                        PlayerArtworkStyle.CLOVER -> MaterialShapes.Clover8Leaf.toShape()
+                        PlayerArtworkStyle.CARD -> RoundedCornerShape(dimensions.cornerRadius)
                     }
                 )
+                // A vinyl spins with its label, so only the clover shape counter-rotates.
                 .graphicsLayer {
-                    rotationZ = -rotation
+                    rotationZ = if (artworkStyle == PlayerArtworkStyle.VINYL) 0f else -rotation
                 }
         ) {
             if (hidePlayerThumbnail) {
@@ -712,6 +727,30 @@ private fun ThumbnailItem(
                 )
             }
             
+            if (artworkStyle == PlayerArtworkStyle.VINYL) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val r = size.minDimension / 2f
+                    val c = Offset(size.width / 2f, size.height / 2f)
+                    // Black record body drawn as a ring, so the art stays visible
+                    // in the middle as the vinyl's paper label.
+                    drawCircle(
+                        color = Color.Black.copy(alpha = 0.82f),
+                        radius = r * 0.67f,
+                        center = c,
+                        style = Stroke(width = r * 0.66f),
+                    )
+                    for (i in 1..7) {
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.05f),
+                            radius = r * (0.40f + i * 0.083f),
+                            center = c,
+                            style = Stroke(width = 1.dp.toPx()),
+                        )
+                    }
+                    drawCircle(Color.Black, radius = r * 0.055f, center = c)
+                }
+            }
+
             if (canvasThumbnailAnimation && item.mediaId == currentMediaId && !rotatingThumbnail && playerBackground != PlayerBackgroundStyle.APPLE_MUSIC) {
                 val (canvasSource) = rememberEnumPreference(CanvasSourceKey, defaultValue = CanvasSource.AUTO)
                 var canvasArtwork by remember(item.mediaId) { mutableStateOf<CanvasArtwork?>(null) }

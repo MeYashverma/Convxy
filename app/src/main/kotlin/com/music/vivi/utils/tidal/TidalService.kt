@@ -27,6 +27,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -104,6 +105,17 @@ private data class BtsManifest(
     @SerialName("urls")     val urls: List<String> = emptyList(),
 )
 
+// ─── Live-instance discovery (uptime worker) ─────────────────────────────────
+
+@Serializable
+private data class UptimeTarget(@SerialName("url") val url: String = "")
+
+@Serializable
+private data class UptimeResponse(
+    @SerialName("api")       val api: List<UptimeTarget> = emptyList(),
+    @SerialName("streaming") val streaming: List<UptimeTarget> = emptyList(),
+)
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 object TidalService {
@@ -111,17 +123,33 @@ object TidalService {
     private const val TAG = "TidalService"
 
     /**
-     * Bundled public hifi-api instances, tried in order. These flap — the caller
-     * always degrades to YouTube on total failure, so a dead list is harmless.
-     * A user-supplied instance (settings) is tried before any of these.
+     * Last-resort fallback instances (hifi-api scheme). Public instances flap
+     * constantly, so the live list is normally discovered at runtime from the
+     * uptime workers below; these are only used if that discovery fails.
      */
     val BUNDLED_INSTANCES: List<String> = listOf(
-        "https://tidal.401658.xyz",
-        "https://tidal-api.binimum.org",
-        "https://tidal.kinoplus.online",
-        "https://hifi-one.spotisaver.net",
-        "https://hifi-two.spotisaver.net",
+        "https://api.monochrome.tf",
+        "https://eu-central.monochrome.tf",
+        "https://us-west.monochrome.tf",
+        "https://monochrome-api.samidy.com",
     )
+
+    /**
+     * Uptime workers that publish the currently-online instances as
+     * { "api": [{url}], "streaming": [{url}] }. Fetched at runtime and cached so
+     * the feature self-heals as instances go up/down.
+     */
+    private val UPTIME_WORKERS = listOf(
+        "https://tidal-uptime.props-76styles.workers.dev/",
+        "https://tidal-uptime.jiffy-puffs-1j.workers.dev/",
+    )
+
+    // Browser-ish identity so instances that block bots/datacenter UAs still answer.
+    private const val UA = "Mozilla/5.0 (compatible; ViviMusic/1.0)"
+
+    @Volatile private var cachedLive: List<String> = emptyList()
+    @Volatile private var cachedAt: Long = 0L
+    private const val LIVE_TTL_MS = 10 * 60 * 1000L
 
     private val json = Json {
         isLenient         = true
@@ -142,10 +170,34 @@ object TidalService {
         }
     }
 
-    /** Ordered instance list: user override first (if any), then bundled. */
-    private fun instances(customBaseUrl: String?): List<String> {
+    /** Currently-online instances from the uptime workers, cached for [LIVE_TTL_MS]. */
+    private suspend fun liveInstances(): List<String> {
+        val now = System.currentTimeMillis()
+        if (now - cachedAt < LIVE_TTL_MS && cachedLive.isNotEmpty()) return cachedLive
+        for (worker in UPTIME_WORKERS) {
+            val hosts = runCatching {
+                val resp = client.get(worker) {
+                    headers.append(HttpHeaders.Accept, "application/json")
+                    headers.append(HttpHeaders.UserAgent, UA)
+                }
+                if (resp.status != HttpStatusCode.OK) return@runCatching emptyList<String>()
+                val body = resp.body<UptimeResponse>()
+                (body.api + body.streaming).map { it.url.trimEnd('/') }.filter { it.startsWith("http") }
+            }.getOrElse { emptyList() }
+            if (hosts.isNotEmpty()) {
+                Log.d(TAG, "live instances (${hosts.size}) via $worker")
+                cachedLive = hosts
+                cachedAt = now
+                return hosts
+            }
+        }
+        return emptyList()
+    }
+
+    /** Ordered: user override first, then live-discovered, then bundled fallback. */
+    private suspend fun orderedInstances(customBaseUrl: String?): List<String> {
         val custom = customBaseUrl?.trim()?.trimEnd('/')?.takeIf { it.startsWith("http") }
-        return if (custom != null) listOf(custom) + BUNDLED_INSTANCES else BUNDLED_INSTANCES
+        return (listOfNotNull(custom) + liveInstances() + BUNDLED_INSTANCES).distinct()
     }
 
     /**
@@ -154,11 +206,13 @@ object TidalService {
      */
     suspend fun search(query: String, customBaseUrl: String? = null): List<TidalTrack> {
         if (query.isBlank()) return emptyList()
-        for (base in instances(customBaseUrl)) {
+        for (base in orderedInstances(customBaseUrl)) {
             val hits = runCatching {
                 val resp = client.get("$base/search/") {
                     parameter("s", query)
                     headers.append(HttpHeaders.Accept, "application/json")
+                    headers.append(HttpHeaders.UserAgent, UA)
+                    headers.append(HttpHeaders.AcceptEncoding, "identity")
                 }
                 if (resp.status != HttpStatusCode.OK) return@runCatching emptyList<TidalTrack>()
                 val body = resp.body<TidalSearchResponse>()
@@ -187,16 +241,27 @@ object TidalService {
         quality: String,
         customBaseUrl: String? = null,
     ): String? {
-        for (base in instances(customBaseUrl)) {
+        for (base in orderedInstances(customBaseUrl)) {
             val url = runCatching {
                 val resp = client.get("$base/track/") {
                     parameter("id", trackId)
                     parameter("quality", quality)
                     headers.append(HttpHeaders.Accept, "application/json")
+                    headers.append(HttpHeaders.UserAgent, UA)
+                    headers.append(HttpHeaders.AcceptEncoding, "identity")
                 }
-                if (resp.status != HttpStatusCode.OK) return@runCatching null
-                val data = resp.body<TidalTrackResponse>().data ?: return@runCatching null
-                decodeManifestUrl(data.manifest, data.manifestMimeType)
+                if (resp.status != HttpStatusCode.OK) {
+                    Log.d(TAG, "track HTTP ${resp.status.value} on $base id=$trackId body=${resp.bodyAsText().take(200)}")
+                    return@runCatching null
+                }
+                val data = resp.body<TidalTrackResponse>().data
+                if (data?.manifest == null) {
+                    Log.d(TAG, "track no manifest on $base id=$trackId mime=${data?.manifestMimeType}")
+                    return@runCatching null
+                }
+                decodeManifestUrl(data.manifest, data.manifestMimeType).also {
+                    if (it == null) Log.d(TAG, "track manifest not decodable on $base mime=${data.manifestMimeType} head=${data.manifest.take(24)}")
+                }
             }.getOrElse {
                 Log.d(TAG, "streamUrl failed on $base: ${it.message}")
                 null

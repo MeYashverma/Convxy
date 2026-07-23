@@ -72,11 +72,8 @@ import com.music.vivi.constants.LyricsAnimationStyleKey
 import com.music.vivi.constants.LyricsStandardBlurKey
 import com.music.vivi.constants.LyricsTextPositionKey
 import com.music.vivi.constants.LyricsTextSizeKey
-import com.music.vivi.constants.PlayerBackgroundStyle
-import com.music.vivi.constants.PlayerBackgroundStyleKey
 import com.music.vivi.constants.PlayerButtonsStyle
 import com.music.vivi.constants.PlayerButtonsStyleKey
-import com.music.vivi.constants.RotatingThumbnailKey
 import com.music.vivi.constants.ShowCachedPlaylistKey
 import com.music.vivi.constants.ShowDownloadedPlaylistKey
 import com.music.vivi.constants.ShowLikedPlaylistKey
@@ -155,12 +152,6 @@ fun AppearanceSettings(
         CropAlbumArtKey,
         defaultValue = false
     )
-    val (playerBackground, onPlayerBackgroundChange) =
-        rememberEnumPreference(
-            PlayerBackgroundStyleKey,
-            defaultValue = PlayerBackgroundStyle.APPLE_MUSIC,
-        )
-
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(
         DefaultOpenTabKey,
         defaultValue = NavigationTab.HOME
@@ -213,10 +204,6 @@ fun AppearanceSettings(
     val (canvasSource) = rememberEnumPreference(
         CanvasSourceKey,
         defaultValue = CanvasSource.AUTO
-    )
-    val (rotatingThumbnail, onRotatingThumbnailChange) = rememberPreference(
-        RotatingThumbnailKey,
-        defaultValue = false
     )
     val (gridItemSize, onGridItemSizeChange) = rememberEnumPreference(
         GridItemsSizeKey,
@@ -281,18 +268,10 @@ fun AppearanceSettings(
         defaultValue = true
     )
 
-    val availableBackgroundStyles = PlayerBackgroundStyle.entries.filter {
-        it != PlayerBackgroundStyle.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    }
-
     val (defaultChip, onDefaultChipChange) = rememberEnumPreference(
         key = ChipSortTypeKey,
         defaultValue = LibraryFilter.LIBRARY
     )
-
-    var showPlayerBackgroundDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
 
     var showPlayerButtonsStyleDialog by rememberSaveable {
         mutableStateOf(false)
@@ -424,29 +403,6 @@ fun AppearanceSettings(
                 when (it) {
                     GridItemSize.BIG -> stringResource(R.string.big)
                     GridItemSize.SMALL -> stringResource(R.string.small)
-                }
-            }
-        )
-    }
-
-    if (showPlayerBackgroundDialog) {
-        EnumDialog(
-            onDismiss = { showPlayerBackgroundDialog = false },
-            onSelect = {
-                onPlayerBackgroundChange(it)
-                showPlayerBackgroundDialog = false
-            },
-            title = stringResource(R.string.player_background_style),
-            current = playerBackground,
-            values = availableBackgroundStyles,
-            valueText = {
-                when (it) {
-                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                    PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
-                    PlayerBackgroundStyle.APPLE_MUSIC -> stringResource(R.string.apple_music)
-                    PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
                 }
             }
         )
@@ -587,20 +543,9 @@ fun AppearanceSettings(
             items = listOfNotNull(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.gradient),
-                    title = { Text(stringResource(R.string.player_background_style)) },
-                    description = {
-                        Text(
-                            when (playerBackground) {
-                                PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                                PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                                PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                                PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
-                                PlayerBackgroundStyle.APPLE_MUSIC -> stringResource(R.string.apple_music)
-                                PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
-                            }
-                        )
-                    },
-                    onClick = { showPlayerBackgroundDialog = true }
+                    title = { Text(stringResource(R.string.player_theme)) },
+                    description = { Text(stringResource(R.string.player_theme_desc)) },
+                    onClick = { navController.navigate("settings/appearance/playertheme") }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.hide_image),
@@ -763,27 +708,6 @@ fun AppearanceSettings(
                         Text(summary)
                     },
                     onClick = { navController.navigate("settings/appearance/canvas") }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.image),
-                    title = { Text(stringResource(R.string.rotating_thumbnail)) },
-                    description = { Text(stringResource(R.string.rotating_thumbnail_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = rotatingThumbnail,
-                            onCheckedChange = onRotatingThumbnailChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (rotatingThumbnail) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onRotatingThumbnailChange(!rotatingThumbnail) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.chat_msg),

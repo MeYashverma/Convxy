@@ -166,6 +166,9 @@ import com.music.vivi.constants.EnableLyricsThumbnailPlayPauseKey
 import com.music.vivi.constants.KeepScreenOn
 import com.music.vivi.constants.PlayerBackgroundStyle
 import com.music.vivi.constants.PlayerBackgroundStyleKey
+import com.music.vivi.constants.PlayerGradientBottomKey
+import com.music.vivi.constants.PlayerGradientTopKey
+import com.music.vivi.constants.PlayerStaticColorKey
 import com.music.vivi.constants.PlayerButtonsStyle
 import com.music.vivi.constants.PlayerButtonsStyleKey
 import com.music.vivi.constants.PlayerHorizontalPadding
@@ -293,7 +296,7 @@ fun BottomSheetPlayer(
 
     val shouldUseDarkButtonColors = remember(playerBackground, useDarkTheme) {
         when (playerBackground) {
-            PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH -> true
+            PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH, PlayerBackgroundStyle.STATIC, PlayerBackgroundStyle.CUSTOM_GRADIENT -> true
             PlayerBackgroundStyle.DEFAULT -> useDarkTheme
         }
     }
@@ -310,7 +313,7 @@ fun BottomSheetPlayer(
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             
             when (playerBackground) {
-                PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH -> {
+                PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH, PlayerBackgroundStyle.STATIC, PlayerBackgroundStyle.CUSTOM_GRADIENT -> {
                     insetsController.isAppearanceLightStatusBars = false
                 }
                 PlayerBackgroundStyle.DEFAULT -> {
@@ -332,6 +335,10 @@ fun BottomSheetPlayer(
             }
         }
     }
+    val staticColor by rememberPreference(PlayerStaticColorKey, defaultValue = 0xFF1A1A1A.toInt())
+    val gradientTop by rememberPreference(PlayerGradientTopKey, defaultValue = 0xFF3A1C71.toInt())
+    val gradientBottom by rememberPreference(PlayerGradientBottomKey, defaultValue = 0xFF0B0B0B.toInt())
+
     val onBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.secondary
         else -> MaterialTheme.colorScheme.onSurface
@@ -540,6 +547,7 @@ fun BottomSheetPlayer(
             PlayerBackgroundStyle.GLOW_ANIMATED -> Color.White
             PlayerBackgroundStyle.APPLE_MUSIC -> Color.White
             PlayerBackgroundStyle.LIVE_MESH -> Color.White
+            PlayerBackgroundStyle.STATIC, PlayerBackgroundStyle.CUSTOM_GRADIENT -> Color.White
         },
         label = "TextBackgroundColor"
     )
@@ -552,6 +560,7 @@ fun BottomSheetPlayer(
             PlayerBackgroundStyle.GLOW_ANIMATED -> Color.Black
             PlayerBackgroundStyle.APPLE_MUSIC -> Color.Black
             PlayerBackgroundStyle.LIVE_MESH -> Color.Black
+            PlayerBackgroundStyle.STATIC, PlayerBackgroundStyle.CUSTOM_GRADIENT -> Color.Black
         },
         label = "icBackgroundColor"
     )
@@ -1365,6 +1374,26 @@ fun BottomSheetPlayer(
                                 }
                             }
                         }
+                    }
+                    PlayerBackgroundStyle.STATIC -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(backgroundAlpha)
+                                .background(Color(staticColor))
+                        )
+                    }
+                    PlayerBackgroundStyle.CUSTOM_GRADIENT -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(backgroundAlpha)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color(gradientTop), Color(gradientBottom))
+                                    )
+                                )
+                        )
                     }
                     PlayerBackgroundStyle.DEFAULT -> {
                         // Nothing

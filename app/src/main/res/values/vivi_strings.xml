@@ -195,6 +195,17 @@
     <string name="auto_scroll">Re-sync</string>
     <string name="slim">Slim</string>
     <string name="waveform">Waveform</string>
+    <string name="player_theme">Player theme</string>
+    <string name="player_theme_desc">Artwork shape and player background</string>
+    <string name="player_theme_artwork">Artwork</string>
+    <string name="player_theme_card">Card</string>
+    <string name="player_theme_vinyl">Vinyl</string>
+    <string name="player_theme_clover">Clover</string>
+    <string name="player_theme_static">Static color</string>
+    <string name="player_theme_custom_gradient">Custom gradient</string>
+    <string name="player_theme_static_color">Background color</string>
+    <string name="player_theme_gradient_top">Gradient top</string>
+    <string name="player_theme_gradient_bottom">Gradient bottom</string>
     <string name="slim_navbar">Slim bottom navigation bar</string>
     <string name="auto_playlists">Auto playlists</string>
     <string name="show_liked_playlist">Show \"Liked\" playlist</string>

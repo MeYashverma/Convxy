@@ -1144,7 +1144,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 val progress = dampedDragAnimation.pressProgress
                                 // Soft frosted puck at rest (constant blur), deepening
                                 // into a lens on press.
-                                blur(6f.dp.toPx())
+//                                blur(6f.dp.toPx())
                                 lens(
                                     10f.dp.toPx() * progress,
                                     14f.dp.toPx() * progress,

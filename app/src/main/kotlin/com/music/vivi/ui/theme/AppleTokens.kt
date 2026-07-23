@@ -56,9 +56,18 @@ object AppleTokens {
         val hsl = FloatArray(3)
         androidx.core.graphics.ColorUtils.colorToHSL(toArgb(), hsl)
         val onDark = luminance() <= 0.5f
-        // A near-grey tint has no meaningful hue to carry, so don't invent one.
-        hsl[1] = if (hsl[1] < 0.08f) 0f else minOf(hsl[1], saturation)
-        hsl[2] = if (onDark) lightness.first else lightness.second
+        val target = if (onDark) lightness.first else lightness.second
+        // No artwork (the tint is still black) or a monochrome cover means there
+        // is no hue to carry. For primary text, nudging lightness off the extreme
+        // would only mute it to a grey, so hand back plain white/near-black.
+        // Secondary text is meant to sit back, so it keeps its target.
+        if (hsl[1] < 0.08f) {
+            hsl[1] = 0f
+            hsl[2] = if (target > 0.9f) 1f else if (target < 0.12f) 0.04f else target
+        } else {
+            hsl[1] = minOf(hsl[1], saturation)
+            hsl[2] = target
+        }
         return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl))
     }
 

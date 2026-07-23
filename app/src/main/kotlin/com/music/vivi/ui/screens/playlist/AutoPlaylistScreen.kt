@@ -103,6 +103,10 @@ import com.music.vivi.ui.component.EmptyPlaceholder
 import com.music.vivi.ui.component.ExpandableText
 import com.music.vivi.ui.component.GlassCircleButton
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.constants.IosOverscrollKey
+import com.music.vivi.ui.utils.rememberHeroPull
+import com.music.vivi.ui.utils.heroPullZoom
+import androidx.compose.ui.platform.LocalDensity
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.MenuState
@@ -122,8 +126,6 @@ import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.makeTimeString
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
-import com.music.vivi.constants.IosOverscrollKey
-import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.viewmodels.AutoPlaylistViewModel
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -268,12 +270,18 @@ fun AutoPlaylistScreen(
         }
     }
 
+    val heroPull = rememberHeroPull()
+    val heroMaxPull = with(LocalDensity.current) { 220.dp.toPx() }
+    val heroScale = 1f + (heroPull.value / heroMaxPull) * 0.18f
+    val overscrollEnabled = rememberPreference(IosOverscrollKey, false).value
+
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
         blurArtwork = true,
         bottomGradient = true,
         topBlurProgress = heroTopBlur,
+        heroScale = heroScale,
         modifier = Modifier.fillMaxSize(),
     ) {
         CompositionLocalProvider(
@@ -285,7 +293,13 @@ fun AutoPlaylistScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = lazyListState,
-                    modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
+                    // No bounce here: the top pull drives the hero zoom instead.
+                    overscrollEffect = null,
+                    modifier = if (overscrollEnabled) {
+                        Modifier.heroPullZoom(heroPull, heroMaxPull)
+                    } else {
+                        Modifier
+                    },
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(key = "header_title") {

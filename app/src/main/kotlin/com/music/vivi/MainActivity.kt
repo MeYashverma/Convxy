@@ -69,6 +69,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -217,6 +219,8 @@ import com.music.vivi.utils.dataStore
 import com.music.vivi.utils.get
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
+import com.music.vivi.constants.IosOverscrollKey
+import com.music.vivi.ui.utils.rememberIosOverscrollFactory
 import com.music.vivi.utils.reportException
 import com.music.vivi.utils.setAppLocale
 import com.music.vivi.viewmodels.HistoryViewModel
@@ -397,7 +401,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-    @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
     @Composable
     private fun vivimusicApp(
         playerConnection: PlayerConnection?,
@@ -897,7 +901,14 @@ class MainActivity : ComponentActivity() {
                     drawContent()
                 }
 
+                // One provider replaces Android's stretch/glow edge effect with the
+                // iOS rubber-band for every scroll container in the app.
+                val iosOverscroll by rememberPreference(IosOverscrollKey, defaultValue = false)
+                val iosOverscrollFactory = rememberIosOverscrollFactory()
+
                 CompositionLocalProvider(
+                    LocalOverscrollFactory provides
+                        if (iosOverscroll) iosOverscrollFactory else LocalOverscrollFactory.current,
                     LocalDatabase provides database,
                     LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
                     LocalPlayerConnection provides playerConnection,

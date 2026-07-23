@@ -157,8 +157,6 @@ import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.makeTimeString
 import com.music.vivi.utils.rememberPreference
-import com.music.vivi.constants.IosOverscrollKey
-import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.viewmodels.OnlinePlaylistViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -325,7 +323,7 @@ fun OnlinePlaylistScreen(
         }
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
+            modifier = Modifier,
             contentPadding = LocalPlayerAwareWindowInsets.current
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 .union(WindowInsets.ime)

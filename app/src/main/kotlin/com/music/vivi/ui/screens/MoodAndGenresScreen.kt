@@ -46,8 +46,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.music.vivi.constants.IosOverscrollKey
-import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.utils.rememberPreference
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
@@ -95,7 +93,7 @@ fun MoodAndGenresScreen(
       ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
-                modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
+                modifier = Modifier,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item(key = "header") {

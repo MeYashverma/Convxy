@@ -186,8 +186,6 @@ import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.makeTimeString
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
-import com.music.vivi.constants.IosOverscrollKey
-import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.utils.reportException
 import com.music.vivi.viewmodels.LocalPlaylistViewModel
 import com.yalantis.ucrop.UCrop
@@ -575,7 +573,7 @@ fun LocalPlaylistScreen(
         }
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
+            modifier = Modifier,
             contentPadding = LocalPlayerAwareWindowInsets.current
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 .union(WindowInsets.ime)

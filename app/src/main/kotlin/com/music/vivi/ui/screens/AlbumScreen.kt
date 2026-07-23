@@ -147,8 +147,6 @@ import com.music.vivi.ui.player.CanvasArtworkPlayer
 import com.music.vivi.ui.theme.rememberArtworkTint
 import com.music.vivi.utils.listItemShape
 import com.music.vivi.utils.rememberPreference
-import com.music.vivi.constants.IosOverscrollKey
-import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.ui.component.AnimatedPlayPauseIcon
 import com.music.vivi.viewmodels.AlbumViewModel
 
@@ -291,7 +289,7 @@ fun AlbumScreen(
     }
     LazyColumn(
         state = lazyListState,
-        modifier = Modifier.iosOverscroll(rememberPreference(IosOverscrollKey, false).value),
+        modifier = Modifier,
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         val albumWithSongs = albumWithSongs

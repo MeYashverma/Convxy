@@ -96,8 +96,6 @@ import com.music.vivi.ui.component.PlaylistGridItem
 import com.music.vivi.ui.component.CreatePlaylistDialog
 import com.music.vivi.ui.component.HideOnScrollFAB
 import com.music.vivi.ui.component.HomeImageBackground
-import com.music.vivi.constants.IosOverscrollKey
-import com.music.vivi.ui.utils.iosOverscroll
 import com.music.vivi.ui.component.PlaylistListItem
 import com.music.vivi.ui.component.SortHeader
 import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
@@ -228,7 +226,6 @@ fun LibraryMixScreen(
     val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
     val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, true)
     val (showLocal) = rememberPreference(ShowLocalPlaylistKey, true)
-    val (iosOverscroll) = rememberPreference(IosOverscrollKey, false)
 
     var allItems = albums + artists + playlists
     val collator = Collator.getInstance(LocalLocale.current.platformLocale)
@@ -387,7 +384,7 @@ fun LibraryMixScreen(
                 LibraryViewType.LIST ->
                     LazyColumn(
                         state = lazyListState,
-                        modifier = Modifier.iosOverscroll(iosOverscroll, allowTopPull = false),
+                        modifier = Modifier,
                         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                     ) {
                         item(key = "header_title") {
@@ -686,7 +683,7 @@ fun LibraryMixScreen(
             LibraryViewType.GRID ->
                 LazyVerticalGrid(
                     state = lazyGridState,
-                    modifier = Modifier.iosOverscroll(iosOverscroll),
+                    modifier = Modifier,
                     columns =
                     GridCells.Adaptive(
                         minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,

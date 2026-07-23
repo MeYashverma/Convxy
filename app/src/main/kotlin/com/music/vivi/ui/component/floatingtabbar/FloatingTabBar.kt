@@ -1240,6 +1240,12 @@ private fun SharedTransitionScope.ExpandedTabs(
                         else size.width - (dampedDragAnimation.value + 1f) * tabWidthPx + panelOffset
                     scaleX = dampedDragAnimation.scaleX
                     scaleY = dampedDragAnimation.scaleY
+                    // Only the settled state gets the crisp copy. While pressed or
+                    // dragging this fades out and the puck's own refraction takes
+                    // over, which is the effect worth seeing during the gesture.
+                    // Read here in the draw phase, so the fade costs no
+                    // recomposition.
+                    alpha = 1f - dampedDragAnimation.pressProgress
                 }
                 .width(sizes.tabWidth)
                 .fillMaxHeight()
@@ -1260,7 +1266,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                     title = { tab.title() },
                     isInline = false,
                     isStandalone = false,
-                    contentScale = lerp(1f, 1.12f, dampedDragAnimation.pressProgress),
+                    // No press zoom needed: this is only visible at rest, where the
+                    // row's own lerp lands on 1f anyway. Leaving it out keeps the
+                    // overlay from recomposing on every frame of a drag.
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(sizes.tabExpandedContentPadding),

@@ -36,8 +36,10 @@ import androidx.compose.foundation.layout.Spacer
 import com.music.vivi.ui.component.ScrollingWaveformSeekBar
 import com.music.vivi.ui.component.rememberPlaybackFraction
 import com.music.vivi.constants.MiniPlayerWaveformKey
-import com.music.vivi.constants.PlayerGradientBottomKey
-import com.music.vivi.constants.PlayerGradientTopKey
+import com.music.vivi.constants.PlayerGradientAngleKey
+import com.music.vivi.constants.PlayerGradientStopsKey
+import com.music.vivi.ui.theme.decodeGradientStops
+import com.music.vivi.ui.theme.tiltedGradient
 import com.music.vivi.constants.PlayerStaticColorKey
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -1216,13 +1218,10 @@ private fun MiniPlayerBackgroundLayer(
         }
 
         PlayerBackgroundStyle.CUSTOM_GRADIENT -> {
-            val top by rememberPreference(PlayerGradientTopKey, defaultValue = 0xFF3A1C71.toInt())
-            val bottom by rememberPreference(PlayerGradientBottomKey, defaultValue = 0xFF0B0B0B.toInt())
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Brush.verticalGradient(listOf(Color(top), Color(bottom))))
-            )
+            val stopsRaw by rememberPreference(PlayerGradientStopsKey, defaultValue = "")
+            val angle by rememberPreference(PlayerGradientAngleKey, defaultValue = 90f)
+            val stops = remember(stopsRaw) { decodeGradientStops(stopsRaw) }
+            Box(modifier = Modifier.fillMaxSize().tiltedGradient(stops, angle))
         }
 
         else -> {}

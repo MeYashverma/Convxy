@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,19 +32,27 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -52,32 +61,40 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.music.vivi.LocalPlayerAwareWindowInsets
 import com.music.vivi.LocalPlayerConnection
 import com.music.vivi.R
-import com.music.vivi.models.MediaMetadata
 import com.music.vivi.constants.PlayerArtworkStyle
 import com.music.vivi.constants.PlayerArtworkStyleKey
 import com.music.vivi.constants.PlayerBackgroundStyle
 import com.music.vivi.constants.PlayerBackgroundStyleKey
-import com.music.vivi.constants.PlayerGradientBottomKey
-import com.music.vivi.constants.PlayerGradientTopKey
+import com.music.vivi.constants.PlayerGradientAngleKey
+import com.music.vivi.constants.PlayerGradientStopsKey
 import com.music.vivi.constants.PlayerStaticColorKey
+import com.music.vivi.constants.SliderStyle
+import com.music.vivi.constants.SliderStyleKey
+import com.music.vivi.models.MediaMetadata
 import com.music.vivi.ui.component.ColorPickerDialog
 import com.music.vivi.ui.component.IconButton as AppIconButton
+import com.music.vivi.ui.theme.DefaultGradientStops
+import com.music.vivi.ui.theme.decodeGradientStops
+import com.music.vivi.ui.theme.encodeGradientStops
+import com.music.vivi.ui.theme.tiltedGradient
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.utils.rememberEnumPreference
 import com.music.vivi.utils.rememberPreference
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.math.roundToInt
 
 private val PresetCardWidth = 148.dp
 
 /**
  * Player theme picker: preset cards that render a live miniature of the real
- * player, so the artwork shape and the background style are chosen by looking
+ * player, so the artwork shape, background and seek bar are chosen by looking
  * at them rather than by reading a list of names.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,19 +109,26 @@ fun PlayerThemeScreen(
     val (background, onBackgroundChange) = rememberEnumPreference(
         PlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.APPLE_MUSIC
     )
+    val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
+        SliderStyleKey, defaultValue = SliderStyle.DEFAULT
+    )
     val (staticColorInt, onStaticColorChange) = rememberPreference(
         PlayerStaticColorKey, defaultValue = 0xFF1A1A1A.toInt()
     )
-    val (gradientTopInt, onGradientTopChange) = rememberPreference(
-        PlayerGradientTopKey, defaultValue = 0xFF3A1C71.toInt()
+    val (gradientStopsRaw, onGradientStopsChange) = rememberPreference(
+        PlayerGradientStopsKey, defaultValue = ""
     )
-    val (gradientBottomInt, onGradientBottomChange) = rememberPreference(
-        PlayerGradientBottomKey, defaultValue = 0xFF0B0B0B.toInt()
+    val (gradientAngle, onGradientAngleChange) = rememberPreference(
+        PlayerGradientAngleKey, defaultValue = 90f
     )
+    val gradientStops = remember(gradientStopsRaw) { decodeGradientStops(gradientStopsRaw) }
 
     var showStaticPicker by rememberSaveable { mutableStateOf(false) }
-    var showTopPicker by rememberSaveable { mutableStateOf(false) }
-    var showBottomPicker by rememberSaveable { mutableStateOf(false) }
+    var showGradientSheet by rememberSaveable { mutableStateOf(false) }
+
+    // Apple Music draws its own square artwork treatment, so the shape presets
+    // have nothing to act on while it is selected.
+    val artworkLocked = background == PlayerBackgroundStyle.APPLE_MUSIC
 
     // Preview the song that is actually playing; fall back to the app icon.
     val playerConnection = LocalPlayerConnection.current
@@ -119,6 +143,9 @@ fun PlayerThemeScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         SectionTitle(stringResource(R.string.player_theme_artwork))
+        if (artworkLocked) {
+            LockedNote(stringResource(R.string.player_theme_artwork_locked))
+        }
         PresetRow {
             PlayerArtworkStyle.entries.forEach { style ->
                 PresetCard(
@@ -128,15 +155,17 @@ fun PlayerThemeScreen(
                         PlayerArtworkStyle.CLOVER -> stringResource(R.string.player_theme_clover)
                     },
                     selected = artworkStyle == style,
+                    enabled = !artworkLocked,
                     onClick = { onArtworkStyleChange(style) },
                 ) {
                     PlayerPreview(
                         artworkStyle = style,
                         background = background,
+                        sliderStyle = sliderStyle,
                         artworkUrl = artworkUrl,
                         staticColor = Color(staticColorInt),
-                        gradientTop = Color(gradientTopInt),
-                        gradientBottom = Color(gradientBottomInt),
+                        gradientStops = gradientStops,
+                        gradientAngle = gradientAngle,
                     )
                 }
             }
@@ -155,34 +184,66 @@ fun PlayerThemeScreen(
                     PlayerPreview(
                         artworkStyle = artworkStyle,
                         background = style,
+                        sliderStyle = sliderStyle,
                         artworkUrl = artworkUrl,
                         staticColor = Color(staticColorInt),
-                        gradientTop = Color(gradientTopInt),
-                        gradientBottom = Color(gradientBottomInt),
+                        gradientStops = gradientStops,
+                        gradientAngle = gradientAngle,
                     )
                 }
             }
         }
 
         if (background == PlayerBackgroundStyle.STATIC) {
-            ColorRow(
+            SettingRow(
                 title = stringResource(R.string.player_theme_static_color),
-                color = Color(staticColorInt),
                 onClick = { showStaticPicker = true },
-            )
+            ) {
+                Box(
+                    Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(staticColorInt))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                )
+            }
         }
 
         if (background == PlayerBackgroundStyle.CUSTOM_GRADIENT) {
-            ColorRow(
-                title = stringResource(R.string.player_theme_gradient_top),
-                color = Color(gradientTopInt),
-                onClick = { showTopPicker = true },
-            )
-            ColorRow(
-                title = stringResource(R.string.player_theme_gradient_bottom),
-                color = Color(gradientBottomInt),
-                onClick = { showBottomPicker = true },
-            )
+            SettingRow(
+                title = stringResource(R.string.player_theme_edit_gradient),
+                onClick = { showGradientSheet = true },
+            ) {
+                Box(
+                    Modifier
+                        .width(56.dp)
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .tiltedGradient(gradientStops, gradientAngle)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                )
+            }
+        }
+
+        SectionTitle(stringResource(R.string.slider_style))
+        PresetRow {
+            SliderStyle.entries.forEach { style ->
+                PresetCard(
+                    label = sliderLabel(style),
+                    selected = sliderStyle == style,
+                    onClick = { onSliderStyleChange(style) },
+                ) {
+                    PlayerPreview(
+                        artworkStyle = artworkStyle,
+                        background = background,
+                        sliderStyle = style,
+                        artworkUrl = artworkUrl,
+                        staticColor = Color(staticColorInt),
+                        gradientStops = gradientStops,
+                        gradientAngle = gradientAngle,
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -197,22 +258,14 @@ fun PlayerThemeScreen(
             defaultColor = Color(0xFF1A1A1A),
         )
     }
-    if (showTopPicker) {
-        ColorPickerDialog(
-            initialColor = Color(gradientTopInt),
-            title = stringResource(R.string.player_theme_gradient_top),
-            onDismiss = { showTopPicker = false },
-            onConfirm = { onGradientTopChange(it.toArgb()); showTopPicker = false },
-            defaultColor = Color(0xFF3A1C71),
-        )
-    }
-    if (showBottomPicker) {
-        ColorPickerDialog(
-            initialColor = Color(gradientBottomInt),
-            title = stringResource(R.string.player_theme_gradient_bottom),
-            onDismiss = { showBottomPicker = false },
-            onConfirm = { onGradientBottomChange(it.toArgb()); showBottomPicker = false },
-            defaultColor = Color(0xFF0B0B0B),
+
+    if (showGradientSheet) {
+        GradientSheet(
+            stops = gradientStops,
+            angle = gradientAngle,
+            onDismiss = { showGradientSheet = false },
+            onStopsChange = { onGradientStopsChange(encodeGradientStops(it)) },
+            onAngleChange = onGradientAngleChange,
         )
     }
 
@@ -230,6 +283,150 @@ fun PlayerThemeScreen(
     )
 }
 
+/**
+ * Multi-stop gradient editor: tap a stop to recolour it, add or remove stops, and
+ * tilt the whole thing. Every control writes straight through, so the preset card
+ * behind the sheet updates as you drag.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GradientSheet(
+    stops: List<Color>,
+    angle: Float,
+    onDismiss: () -> Unit,
+    onStopsChange: (List<Color>) -> Unit,
+    onAngleChange: (Float) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val working = remember(stops) { stops.toMutableStateList() }
+    var editingIndex by remember { mutableIntStateOf(-1) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding(),
+        ) {
+            Text(
+                text = stringResource(R.string.player_theme_custom_gradient),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Spacer(Modifier.height(16.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .tiltedGradient(working.toList(), angle)
+            )
+
+            Spacer(Modifier.height(20.dp))
+            Text(stringResource(R.string.player_theme_stops), style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                working.forEachIndexed { index, color ->
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable { editingIndex = index }
+                    )
+                }
+                // Cap at five: past that the stops are too close to tell apart.
+                if (working.size < 5) {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable {
+                                working.add(working.lastOrNull() ?: Color.Black)
+                                onStopsChange(working.toList())
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.add),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+
+            if (working.size > 2) {
+                TextButton(
+                    onClick = {
+                        working.removeAt(working.lastIndex)
+                        onStopsChange(working.toList())
+                    }
+                ) { Text(stringResource(R.string.player_theme_remove_stop)) }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.player_theme_tilt, angle.roundToInt()),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Slider(
+                value = angle,
+                onValueChange = onAngleChange,
+                valueRange = 0f..360f,
+            )
+
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GradientPresetChip(stringResource(R.string.player_theme_tilt_vertical)) { onAngleChange(90f) }
+                GradientPresetChip(stringResource(R.string.player_theme_tilt_horizontal)) { onAngleChange(0f) }
+                GradientPresetChip(stringResource(R.string.player_theme_tilt_diagonal)) { onAngleChange(45f) }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            TextButton(
+                onClick = {
+                    working.clear()
+                    working.addAll(DefaultGradientStops)
+                    onStopsChange(DefaultGradientStops)
+                    onAngleChange(90f)
+                }
+            ) { Text(stringResource(R.string.reset)) }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+
+    if (editingIndex in working.indices) {
+        val index = editingIndex
+        ColorPickerDialog(
+            initialColor = working[index],
+            title = stringResource(R.string.player_theme_stops),
+            onDismiss = { editingIndex = -1 },
+            onConfirm = { color ->
+                working[index] = color
+                onStopsChange(working.toList())
+                editingIndex = -1
+            },
+        )
+    }
+}
+
+@Composable
+private fun GradientPresetChip(label: String, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
+}
+
 @Composable
 private fun backgroundLabel(style: PlayerBackgroundStyle) = when (style) {
     PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
@@ -243,12 +440,30 @@ private fun backgroundLabel(style: PlayerBackgroundStyle) = when (style) {
 }
 
 @Composable
+private fun sliderLabel(style: SliderStyle) = when (style) {
+    SliderStyle.DEFAULT -> stringResource(R.string.default_style)
+    SliderStyle.WAVY -> stringResource(R.string.wavy)
+    SliderStyle.SLIM -> stringResource(R.string.slim)
+    SliderStyle.WAVEFORM -> stringResource(R.string.waveform)
+}
+
+@Composable
 private fun SectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun LockedNote(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
     )
 }
 
@@ -267,26 +482,31 @@ private fun PresetCard(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     preview: @Composable () -> Unit,
 ) {
+    val shape = RoundedCornerShape(18.dp)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(PresetCardWidth)
             .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
+            // Disabled presets stay readable but visibly out of play.
+            .alpha(if (enabled) 1f else 0.38f)
             .padding(bottom = 4.dp),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.62f)
-                .clip(RoundedCornerShape(18.dp))
+                .shadow(if (selected) 10.dp else 5.dp, shape)
+                .clip(shape)
                 .border(
                     width = if (selected) 2.dp else 1.dp,
                     color = if (selected) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(18.dp),
+                    shape = shape,
                 )
         ) { preview() }
 
@@ -319,28 +539,27 @@ private fun PresetCard(
     }
 }
 
-/** Miniature of the real player: background wash + artwork shape + fake controls. */
+/** Miniature of the real player: background wash + artwork shape + seek bar. */
 @Composable
 private fun PlayerPreview(
     artworkStyle: PlayerArtworkStyle,
     background: PlayerBackgroundStyle,
+    sliderStyle: SliderStyle,
     artworkUrl: String?,
     staticColor: Color,
-    gradientTop: Color,
-    gradientBottom: Color,
+    gradientStops: List<Color>,
+    gradientAngle: Float,
 ) {
     val accent = MaterialTheme.colorScheme.primary
-    val backdrop: Brush = when (background) {
-        PlayerBackgroundStyle.DEFAULT -> Brush.verticalGradient(
-            listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surface)
-        )
+    val surface = MaterialTheme.colorScheme.surface
+    val backdrop: Brush? = when (background) {
+        PlayerBackgroundStyle.DEFAULT -> Brush.verticalGradient(listOf(surface, surface))
         PlayerBackgroundStyle.STATIC -> Brush.verticalGradient(listOf(staticColor, staticColor))
-        PlayerBackgroundStyle.CUSTOM_GRADIENT ->
-            Brush.verticalGradient(listOf(gradientTop, gradientBottom))
+        // Drawn by tiltedGradient below so the tilt shows in the preview too.
+        PlayerBackgroundStyle.CUSTOM_GRADIENT -> null
         PlayerBackgroundStyle.LIVE_MESH ->
             Brush.linearGradient(listOf(accent, Color.Black, accent.copy(alpha = 0.4f)))
-        PlayerBackgroundStyle.GLOW_ANIMATED ->
-            Brush.radialGradient(listOf(accent, Color.Black))
+        PlayerBackgroundStyle.GLOW_ANIMATED -> Brush.radialGradient(listOf(accent, Color.Black))
         else -> Brush.verticalGradient(listOf(accent.copy(alpha = 0.55f), Color.Black))
     }
     val onBackdrop = if (background == PlayerBackgroundStyle.DEFAULT) {
@@ -353,7 +572,13 @@ private fun PlayerPreview(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxSize()
-            .background(backdrop)
+            .then(
+                if (backdrop != null) {
+                    Modifier.background(backdrop)
+                } else {
+                    Modifier.tiltedGradient(gradientStops, gradientAngle)
+                }
+            )
             .padding(12.dp),
     ) {
         Spacer(Modifier.height(8.dp))
@@ -395,7 +620,7 @@ private fun PlayerPreview(
         Spacer(Modifier.height(5.dp))
         Bar(onBackdrop.copy(alpha = 0.45f), widthFraction = 0.55f, height = 5.dp)
         Spacer(Modifier.height(12.dp))
-        Bar(onBackdrop.copy(alpha = 0.35f), widthFraction = 1f, height = 4.dp)
+        SeekBarPreview(sliderStyle, onBackdrop)
         Spacer(Modifier.height(12.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -408,8 +633,80 @@ private fun PlayerPreview(
     }
 }
 
+/** Tiny stand-in for each seek bar style, drawn at roughly a third of playback. */
 @Composable
-private fun Bar(color: Color, widthFraction: Float, height: androidx.compose.ui.unit.Dp) {
+private fun SeekBarPreview(style: SliderStyle, color: Color) {
+    when (style) {
+        SliderStyle.DEFAULT -> Canvas(Modifier.fillMaxWidth().height(10.dp)) {
+            val y = size.height / 2f
+            val split = size.width * 0.35f
+            drawLine(color.copy(alpha = 0.3f), androidx.compose.ui.geometry.Offset(0f, y),
+                androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 3f)
+            drawLine(color, androidx.compose.ui.geometry.Offset(0f, y),
+                androidx.compose.ui.geometry.Offset(split, y), strokeWidth = 3f)
+            drawCircle(color, radius = size.height * 0.35f,
+                center = androidx.compose.ui.geometry.Offset(split, y))
+        }
+
+        SliderStyle.WAVY -> Canvas(Modifier.fillMaxWidth().height(10.dp)) {
+            val y = size.height / 2f
+            val split = size.width * 0.35f
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, y)
+                var x = 0f
+                var up = true
+                while (x < split) {
+                    val next = (x + 6f).coerceAtMost(split)
+                    quadraticTo(x + 3f, if (up) y - 5f else y + 5f, next, y)
+                    x = next
+                    up = !up
+                }
+            }
+            drawPath(path, color, style = Stroke(width = 3f))
+            drawLine(color.copy(alpha = 0.3f), androidx.compose.ui.geometry.Offset(split, y),
+                androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 3f)
+        }
+
+        SliderStyle.SLIM -> Row(Modifier.fillMaxWidth()) {
+            Box(
+                Modifier
+                    .weight(0.35f)
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(Modifier.width(2.dp))
+            Box(
+                Modifier
+                    .weight(0.65f)
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.3f))
+            )
+        }
+
+        SliderStyle.WAVEFORM -> Canvas(Modifier.fillMaxWidth().height(16.dp)) {
+            val bars = 14
+            val slot = size.width / bars
+            val barW = slot * 0.5f
+            val mid = size.height / 2f
+            val heights = com.music.vivi.ui.component.waveformBars(7, bars)
+            for (i in 0 until bars) {
+                val h = (heights[i] * size.height).coerceAtLeast(size.height * 0.2f)
+                val x = i * slot + slot / 2f
+                drawRoundRect(
+                    color = if (i < bars / 2) color else color.copy(alpha = 0.3f),
+                    topLeft = androidx.compose.ui.geometry.Offset(x - barW / 2f, mid - h / 2f),
+                    size = androidx.compose.ui.geometry.Size(barW, h),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barW / 2f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Bar(color: Color, widthFraction: Float, height: Dp) {
     Box(
         Modifier
             .fillMaxWidth(widthFraction)
@@ -420,12 +717,12 @@ private fun Bar(color: Color, widthFraction: Float, height: androidx.compose.ui.
 }
 
 @Composable
-private fun Dot(color: Color, size: androidx.compose.ui.unit.Dp) {
+private fun Dot(color: Color, size: Dp) {
     Box(Modifier.size(size).clip(CircleShape).background(color))
 }
 
 @Composable
-private fun ColorRow(title: String, color: Color, onClick: () -> Unit) {
+private fun SettingRow(title: String, onClick: () -> Unit, trailing: @Composable () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -434,12 +731,6 @@ private fun ColorRow(title: String, color: Color, onClick: () -> Unit) {
             .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Box(
-            Modifier
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(color)
-                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-        )
+        trailing()
     }
 }

@@ -454,8 +454,10 @@ enum class PlayerArtworkStyle {
 
 val PlayerArtworkStyleKey = stringPreferencesKey("playerArtworkStyle")
 val PlayerStaticColorKey = intPreferencesKey("playerStaticColor")
-val PlayerGradientTopKey = intPreferencesKey("playerGradientTop")
-val PlayerGradientBottomKey = intPreferencesKey("playerGradientBottom")
+
+/** Comma-separated ARGB ints; see ui/theme/PlayerGradient.kt for the codec. */
+val PlayerGradientStopsKey = stringPreferencesKey("playerGradientStops")
+val PlayerGradientAngleKey = floatPreferencesKey("playerGradientAngle")
 
 val TopSize = stringPreferencesKey("topSize")
 val HistoryDuration = floatPreferencesKey("historyDuration")

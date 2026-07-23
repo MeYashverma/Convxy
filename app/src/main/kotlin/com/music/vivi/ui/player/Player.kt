@@ -166,8 +166,10 @@ import com.music.vivi.constants.EnableLyricsThumbnailPlayPauseKey
 import com.music.vivi.constants.KeepScreenOn
 import com.music.vivi.constants.PlayerBackgroundStyle
 import com.music.vivi.constants.PlayerBackgroundStyleKey
-import com.music.vivi.constants.PlayerGradientBottomKey
-import com.music.vivi.constants.PlayerGradientTopKey
+import com.music.vivi.constants.PlayerGradientAngleKey
+import com.music.vivi.constants.PlayerGradientStopsKey
+import com.music.vivi.ui.theme.decodeGradientStops
+import com.music.vivi.ui.theme.tiltedGradient
 import com.music.vivi.constants.PlayerStaticColorKey
 import com.music.vivi.constants.PlayerButtonsStyle
 import com.music.vivi.constants.PlayerButtonsStyleKey
@@ -337,8 +339,9 @@ fun BottomSheetPlayer(
         }
     }
     val staticColor by rememberPreference(PlayerStaticColorKey, defaultValue = 0xFF1A1A1A.toInt())
-    val gradientTop by rememberPreference(PlayerGradientTopKey, defaultValue = 0xFF3A1C71.toInt())
-    val gradientBottom by rememberPreference(PlayerGradientBottomKey, defaultValue = 0xFF0B0B0B.toInt())
+    val gradientStopsRaw by rememberPreference(PlayerGradientStopsKey, defaultValue = "")
+    val gradientStops = remember(gradientStopsRaw) { decodeGradientStops(gradientStopsRaw) }
+    val gradientAngle by rememberPreference(PlayerGradientAngleKey, defaultValue = 90f)
 
     val onBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.secondary
@@ -1389,11 +1392,7 @@ fun BottomSheetPlayer(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .alpha(backgroundAlpha)
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color(gradientTop), Color(gradientBottom))
-                                    )
-                                )
+                                .tiltedGradient(gradientStops, gradientAngle)
                         )
                     }
                     PlayerBackgroundStyle.DEFAULT -> {

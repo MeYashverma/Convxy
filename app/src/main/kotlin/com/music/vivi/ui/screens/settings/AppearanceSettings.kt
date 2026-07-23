@@ -79,8 +79,6 @@ import com.music.vivi.constants.ShowDownloadedPlaylistKey
 import com.music.vivi.constants.ShowLikedPlaylistKey
 import com.music.vivi.constants.ShowTopPlaylistKey
 import com.music.vivi.constants.ShowUploadedPlaylistKey
-import com.music.vivi.constants.SliderStyle
-import com.music.vivi.constants.SliderStyleKey
 import com.music.vivi.constants.SlimNavBarKey
 import com.music.vivi.constants.SquigglySliderKey
 import com.music.vivi.constants.SwipeSensitivityKey
@@ -181,10 +179,6 @@ fun AppearanceSettings(
     val (swipeLyrics, onSwipeLyricsChange) = rememberPreference(SwipeLyricsKey, defaultValue = false)
     val (enableLyricsThumbnailPlayPause, onEnableLyricsThumbnailPlayPauseChange) = rememberPreference(EnableLyricsThumbnailPlayPauseKey, defaultValue = false)
 
-    val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
-        SliderStyleKey,
-        defaultValue = SliderStyle.DEFAULT
-    )
     val (squigglySlider, onSquigglySliderChange) = rememberPreference(
         SquigglySliderKey,
         defaultValue = false
@@ -274,10 +268,6 @@ fun AppearanceSettings(
     )
 
     var showPlayerButtonsStyleDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showSliderStyleDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -403,27 +393,6 @@ fun AppearanceSettings(
                 when (it) {
                     GridItemSize.BIG -> stringResource(R.string.big)
                     GridItemSize.SMALL -> stringResource(R.string.small)
-                }
-            }
-        )
-    }
-
-    if (showSliderStyleDialog) {
-        EnumDialog(
-            onDismiss = { showSliderStyleDialog = false },
-            onSelect = {
-                onSliderStyleChange(it)
-                showSliderStyleDialog = false
-            },
-            title = stringResource(R.string.player_slider_style),
-            current = sliderStyle,
-            values = SliderStyle.entries,
-            valueText = {
-                when (it) {
-                    SliderStyle.DEFAULT -> stringResource(R.string.default_style)
-                    SliderStyle.WAVY -> stringResource(R.string.wavy)
-                    SliderStyle.SLIM -> stringResource(R.string.slim)
-                    SliderStyle.WAVEFORM -> stringResource(R.string.waveform)
                 }
             }
         )
@@ -655,21 +624,6 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { showPlayerButtonsStyleDialog = true }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.tune),
-                    title = { Text(stringResource(R.string.player_slider_style)) },
-                    description = {
-                        Text(
-                            when (sliderStyle) {
-                                SliderStyle.DEFAULT -> stringResource(R.string.default_style)
-                                SliderStyle.WAVY -> stringResource(R.string.wavy)
-                                SliderStyle.SLIM -> stringResource(R.string.slim)
-                                SliderStyle.WAVEFORM -> stringResource(R.string.waveform)
-                            }
-                        )
-                    },
-                    onClick = { showSliderStyleDialog = true }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),

@@ -204,8 +204,15 @@
     <string name="player_theme_static">Static color</string>
     <string name="player_theme_custom_gradient">Custom gradient</string>
     <string name="player_theme_static_color">Background color</string>
-    <string name="player_theme_gradient_top">Gradient top</string>
-    <string name="player_theme_gradient_bottom">Gradient bottom</string>
+    <string name="player_theme_edit_gradient">Edit gradient</string>
+    <string name="player_theme_stops">Colors</string>
+    <string name="player_theme_remove_stop">Remove last color</string>
+    <string name="player_theme_tilt">Tilt · %1$d°</string>
+    <string name="player_theme_tilt_vertical">Vertical</string>
+    <string name="player_theme_tilt_horizontal">Horizontal</string>
+    <string name="player_theme_tilt_diagonal">Diagonal</string>
+    <string name="player_theme_artwork_locked">Apple Music draws its own artwork, so shapes are unavailable with it.</string>
+    <string name="slider_style">Seek bar</string>
     <string name="slim_navbar">Slim bottom navigation bar</string>
     <string name="auto_playlists">Auto playlists</string>
     <string name="show_liked_playlist">Show \"Liked\" playlist</string>

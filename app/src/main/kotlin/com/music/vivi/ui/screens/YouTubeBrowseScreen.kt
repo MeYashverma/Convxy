@@ -61,6 +61,8 @@ import com.music.vivi.models.toMediaMetadata
 import com.music.vivi.playback.queues.YouTubeQueue
 import com.music.vivi.ui.component.GlassCircleButton
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.ui.component.LocalMenuState
@@ -120,9 +122,12 @@ fun YouTubeBrowseScreen(
     val useGlass = glassConfig.globalEnabled && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
 
+    val heroZoom = rememberHeroZoom()
+
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
+        heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
@@ -133,9 +138,11 @@ fun YouTubeBrowseScreen(
 
         Box(modifier = Modifier.fillMaxSize()) {
             LazyVerticalGrid(
+                // No bounce here: the top pull drives the hero zoom instead.
+                overscrollEffect = null,
+                modifier = Modifier.heroPullZoom(heroZoom).fillMaxSize(),
                 columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-                modifier = Modifier.fillMaxSize()
             ) {
                 browseResult?.let { result ->
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {

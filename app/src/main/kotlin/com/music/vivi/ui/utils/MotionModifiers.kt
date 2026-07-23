@@ -10,20 +10,54 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import com.music.vivi.constants.IosOverscrollKey
+import com.music.vivi.utils.rememberPreference
 import kotlinx.coroutines.launch
 
 /** Shared pull state for [heroPullZoom]; read [Animatable.value] to derive a hero scale. */
 @Composable
 fun rememberHeroPull(): Animatable<Float, AnimationVector1D> = remember { Animatable(0f) }
+
+/**
+ * Everything a hero screen needs for pull-to-zoom, so each one is two lines
+ * instead of five: pass [scale] to `HeroBackground(heroScale = …)` and
+ * [Modifier.heroPullZoom] to its list.
+ */
+@Stable
+class HeroZoom(
+    val pull: Animatable<Float, AnimationVector1D>,
+    val maxPull: Float,
+    val enabled: Boolean,
+) {
+    val scale: Float
+        get() = if (enabled) 1f + (pull.value / maxPull) * 0.18f else 1f
+}
+
+@Composable
+fun rememberHeroZoom(maxPull: Dp = 220.dp): HeroZoom {
+    val pull = rememberHeroPull()
+    val maxPullPx = with(LocalDensity.current) { maxPull.toPx() }
+    val enabled by rememberPreference(IosOverscrollKey, defaultValue = false)
+    return remember(pull, maxPullPx, enabled) { HeroZoom(pull, maxPullPx, enabled) }
+}
+
+/** Applies [heroPullZoom] only when the iOS-motion preference is on. */
+fun Modifier.heroPullZoom(zoom: HeroZoom): Modifier =
+    if (zoom.enabled) heroPullZoom(zoom.pull, zoom.maxPull) else this
 
 /**
  * Pull-to-zoom for a hero-header list: absorbs only the top-edge (pull-down) overscroll

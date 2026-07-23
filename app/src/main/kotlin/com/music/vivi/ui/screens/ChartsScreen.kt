@@ -75,6 +75,8 @@ import com.music.vivi.ui.component.YouTubeGridItem
 import androidx.compose.material3.Text
 import com.music.vivi.ui.component.YouTubeListItem
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
 import androidx.compose.foundation.layout.windowInsetsPadding
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
@@ -139,9 +141,12 @@ fun ChartsScreen(
     val useGlass = glassConfig.globalEnabled && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
 
+    val heroZoom = rememberHeroZoom()
+
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
+        heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
@@ -227,6 +232,9 @@ fun ChartsScreen(
                 }
             } else {
                 LazyColumn(
+                    // No bounce here: the top pull drives the hero zoom instead.
+                    overscrollEffect = null,
+                    modifier = Modifier.heroPullZoom(heroZoom),
                     state = lazyListState,
                     contentPadding = LocalPlayerAwareWindowInsets.current
                         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)

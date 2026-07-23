@@ -75,9 +75,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalDensity
-import com.music.vivi.constants.IosOverscrollKey
-import com.music.vivi.ui.utils.rememberHeroPull
+import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
 import com.music.vivi.utils.rememberPreference
 import androidx.compose.ui.util.fastForEachReversed
@@ -284,10 +282,7 @@ fun TopPlaylistScreen(
     val useGlass = glassConfig.globalEnabled && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
 
-    val heroPull = rememberHeroPull()
-    val heroMaxPull = with(LocalDensity.current) { 220.dp.toPx() }
-    val heroScale = 1f + (heroPull.value / heroMaxPull) * 0.18f
-    val overscrollEnabled = rememberPreference(IosOverscrollKey, false).value
+    val heroZoom = rememberHeroZoom()
 
     HeroBackground(
         tint = tint,
@@ -295,7 +290,7 @@ fun TopPlaylistScreen(
         blurArtwork = true,
         bottomGradient = true,
         topBlurProgress = rememberHeroTopBlur(state),
-        heroScale = heroScale,
+        heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
@@ -314,7 +309,7 @@ fun TopPlaylistScreen(
                 state = state,
                 // No bounce here: the top pull drives the hero zoom instead.
                 overscrollEffect = null,
-                modifier = if (overscrollEnabled) Modifier.heroPullZoom(heroPull, heroMaxPull) else Modifier,
+                modifier = Modifier.heroPullZoom(heroZoom),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 if (songs != null) {

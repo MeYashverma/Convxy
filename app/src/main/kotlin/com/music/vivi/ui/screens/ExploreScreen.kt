@@ -73,6 +73,8 @@ import com.music.vivi.ui.component.YouTubeGridItem
 import androidx.compose.material3.Text
 import com.music.vivi.ui.component.YouTubeListItem
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
@@ -149,9 +151,12 @@ fun ExploreScreen(
     val useGlass = glassConfig.globalEnabled && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
 
+    val heroZoom = rememberHeroZoom()
+
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
+        heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
@@ -161,7 +166,9 @@ fun ExploreScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState),
+                .heroPullZoom(heroZoom)
+                // No bounce here: the top pull drives the hero zoom instead.
+                .verticalScroll(scrollState, overscrollEffect = null),
         ) {
             Spacer(
                 Modifier.height(

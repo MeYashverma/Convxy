@@ -14,6 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
 import com.music.vivi.ui.theme.AppleTokens
 import com.music.vivi.ui.component.HeroBackground
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
 import com.music.vivi.ui.component.HeroSource
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.backdrop.backdrops.rememberLayerBackdrop
@@ -81,10 +83,13 @@ fun MoodAndGenresScreen(
 
     val heroBackdrop = rememberLayerBackdrop()
 
+    val heroZoom = rememberHeroZoom()
+
     HeroBackground(
         tint = tint,
         heroSource = HeroSource.Default,
         bottomGradient = true,
+        heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {
       CompositionLocalProvider(
@@ -93,7 +98,9 @@ fun MoodAndGenresScreen(
       ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
-                modifier = Modifier,
+                // No bounce here: the top pull drives the hero zoom instead.
+                overscrollEffect = null,
+                modifier = Modifier.heroPullZoom(heroZoom),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item(key = "header") {

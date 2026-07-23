@@ -1152,11 +1152,15 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 val progress = dampedDragAnimation.pressProgress
                                 // Soft frosted puck at rest (constant blur), deepening
                                 //
-                                blur(6f.dp.toPx() * (1f - progress))
+                                blur(5f.dp.toPx() * (1f - progress))
 
+                                // Refraction is strongest at REST: that is when the
+                                // puck is static glass and can afford to bend what is
+                                // under it. Pressing eases it back to the previous
+                                // values so the moving puck stays legible.
                                 lens(
-                                    10f.dp.toPx() * progress,
-                                    14f.dp.toPx() * progress,
+                                    lerp(16f.dp.toPx(), 10f.dp.toPx(), progress),
+                                    lerp(22f.dp.toPx(), 14f.dp.toPx(), progress),
                                     chromaticAberration = true
                                 )
                             },
@@ -1189,7 +1193,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // while pressed.
                                 val progress = dampedDragAnimation.pressProgress
 
-                                drawRect(Color.Black.copy(alpha = 0.8f - 0.6f * progress))
+                                drawRect(Color.Black.copy(alpha = 0.6f - 0.4f * progress))
                             }
                         )
                     } else {
@@ -1240,12 +1244,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                         else size.width - (dampedDragAnimation.value + 1f) * tabWidthPx + panelOffset
                     scaleX = dampedDragAnimation.scaleX
                     scaleY = dampedDragAnimation.scaleY
-                    // Only the settled state gets the crisp copy. While pressed or
-                    // dragging this fades out and the puck's own refraction takes
-                    // over, which is the effect worth seeing during the gesture.
-                    // Read here in the draw phase, so the fade costs no
-                    // recomposition.
-                    alpha = 1f - dampedDragAnimation.pressProgress
+                    // Settled state only. Fades roughly three times faster than the
+                    // press ramp, so it is fully gone a third of the way into the
+                    // gesture instead of lingering over the moving puck. Read in the
+                    // draw phase, so it costs no recomposition.
+                    alpha = (1f - dampedDragAnimation.pressProgress * 3f).fastCoerceIn(0f, 1f)
                 }
                 .width(sizes.tabWidth)
                 .fillMaxHeight()
@@ -1266,9 +1269,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                     title = { tab.title() },
                     isInline = false,
                     isStandalone = false,
-                    // No press zoom needed: this is only visible at rest, where the
-                    // row's own lerp lands on 1f anyway. Leaving it out keeps the
-                    // overlay from recomposing on every frame of a drag.
+                    // No press zoom: only visible at rest, where the row's own lerp
+                    // lands on 1f. Leaving it out also stops the overlay recomposing
+                    // on every frame of a drag.
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(sizes.tabExpandedContentPadding),

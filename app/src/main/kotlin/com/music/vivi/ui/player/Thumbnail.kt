@@ -90,6 +90,7 @@ import com.music.vivi.constants.HidePlayerThumbnailKey
 import com.music.vivi.constants.PlayerBackgroundStyle
 import com.music.vivi.constants.PlayerBackgroundStyleKey
 import com.music.vivi.constants.PlayerHorizontalPadding
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
 import com.music.vivi.constants.PlayerArtworkStyle
 import com.music.vivi.constants.PlayerArtworkStyleKey
 import androidx.compose.foundation.Canvas
@@ -696,7 +697,8 @@ private fun ThumbnailItem(
                     when (artworkStyle) {
                         PlayerArtworkStyle.VINYL -> CircleShape
                         PlayerArtworkStyle.CLOVER -> MaterialShapes.Clover8Leaf.toShape()
-                        PlayerArtworkStyle.CARD -> RoundedCornerShape(dimensions.cornerRadius)
+                        // Continuous (squircle) corners, matching the rest of the chrome.
+                        PlayerArtworkStyle.CARD -> ContinuousRoundedRectangle(dimensions.cornerRadius)
                     }
                 )
                 // A vinyl spins with its label, so only the clover shape counter-rotates.

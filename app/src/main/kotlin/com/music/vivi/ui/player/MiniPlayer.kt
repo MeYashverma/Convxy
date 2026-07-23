@@ -126,6 +126,7 @@ import com.music.vivi.constants.PureBlackMiniPlayerKey
 import com.music.vivi.constants.SwipeSensitivityKey
 import com.music.vivi.constants.SwipeThumbnailKey
 import com.music.vivi.constants.ThumbnailCornerRadius
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
 import com.music.vivi.constants.UseNewMiniPlayerDesignKey
 import com.music.vivi.db.entities.ArtistEntity
 import com.music.vivi.listentogether.ListenTogetherManager
@@ -910,7 +911,7 @@ private fun LegacyMiniMediaInfo(
             modifier = Modifier
                 .padding(6.dp)
                 .size(48.dp)
-                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .clip(ContinuousRoundedRectangle(ThumbnailCornerRadius))
         ) {
             Box(
                 modifier = Modifier
@@ -924,7 +925,7 @@ private fun LegacyMiniMediaInfo(
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+                    .clip(ContinuousRoundedRectangle(ThumbnailCornerRadius)),
             )
 
             androidx.compose.animation.AnimatedVisibility(visible = error != null, enter = fadeIn(), exit = fadeOut()) {
@@ -933,7 +934,7 @@ private fun LegacyMiniMediaInfo(
                         .fillMaxSize()
                         .background(
                             color = if (pureBlack) Color.Black else Color.Black.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(ThumbnailCornerRadius),
+                            shape = ContinuousRoundedRectangle(ThumbnailCornerRadius),
                         ),
                 ) {
                     Icon(

@@ -79,6 +79,7 @@ import com.music.vivi.constants.SliderStyle
 import com.music.vivi.constants.SliderStyleKey
 import com.music.vivi.models.MediaMetadata
 import com.music.vivi.ui.component.ColorPickerDialog
+import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
 import com.music.vivi.ui.component.IconButton as AppIconButton
 import com.music.vivi.ui.theme.DefaultGradientStops
 import com.music.vivi.ui.theme.decodeGradientStops
@@ -588,7 +589,7 @@ private fun PlayerPreview(
                 .aspectRatio(1f)
                 .clip(
                     when (artworkStyle) {
-                        PlayerArtworkStyle.CARD -> RoundedCornerShape(10.dp)
+                        PlayerArtworkStyle.CARD -> ContinuousRoundedRectangle(10.dp)
                         else -> CircleShape
                     }
                 ),

@@ -423,14 +423,17 @@ private fun NewMiniPlayer(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 if (miniPlayerWaveform) {
+                    // Match the glass chrome's text colour, so the waveform reads as
+                    // part of the same material rather than as an accent element.
+                    val waveColor = LocalGlassEffectConfig.current.textColor
                     ScrollingWaveformSeekBar(
                         progress = { waveFraction.value },
                         onSeek = { f ->
                             val d = playerConnection.player.duration
                             if (d > 0L) playerConnection.player.seekTo((f * d).toLong())
                         },
-                        playedColor = primaryColor,
-                        trackColor = outlineColor.copy(alpha = 0.2f),
+                        playedColor = waveColor,
+                        trackColor = waveColor.copy(alpha = 0.25f),
                         seed = mediaMetadata?.id?.hashCode() ?: 0,
                         modifier = Modifier
                             .width(100.dp)

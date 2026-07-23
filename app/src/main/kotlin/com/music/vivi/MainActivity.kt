@@ -909,7 +909,10 @@ class MainActivity : ComponentActivity() {
                     LocalOverscrollFactory provides
                         if (iosOverscroll) iosOverscrollFactory else LocalOverscrollFactory.current,
                     LocalDatabase provides database,
-                    LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
+                    // onSurface already carries the accent-contrast treatment (see
+                    // ColorScheme.accentText), so pure black must not force plain white
+                    // back over it.
+                    LocalContentColor provides MaterialTheme.colorScheme.onSurface,
                     LocalPlayerConnection provides playerConnection,
                     LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
                     LocalDownloadUtil provides downloadUtil,

@@ -38,9 +38,19 @@ val LocalAccentColor = androidx.compose.runtime.compositionLocalOf { DefaultThem
  * near-black — so it reads as "coloured text," legible on either theme.
  * Consume via [LocalAccentTextColor].
  */
-fun accentTextColor(accent: Color, dark: Boolean): Color =
-    if (dark) androidx.compose.ui.graphics.lerp(accent, Color.White, 0.35f)
-    else androidx.compose.ui.graphics.lerp(accent, Color.Black, 0.45f)
+fun accentTextColor(accent: Color, dark: Boolean): Color {
+    val blended = if (dark) {
+        androidx.compose.ui.graphics.lerp(accent, Color.White, 0.35f)
+    } else {
+        androidx.compose.ui.graphics.lerp(accent, Color.Black, 0.45f)
+    }
+    // A very dark or very pale accent can survive the blend and still be
+    // unreadable against the surface, so clamp lightness rather than trust it.
+    val hsl = FloatArray(3)
+    androidx.core.graphics.ColorUtils.colorToHSL(blended.toArgb(), hsl)
+    hsl[2] = if (dark) hsl[2].coerceAtLeast(0.72f) else hsl[2].coerceAtMost(0.32f)
+    return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl))
+}
 
 /** Accent-contrast text color, provided app-wide from the current accent + theme. */
 val LocalAccentTextColor = androidx.compose.runtime.compositionLocalOf { DefaultThemeColor }
@@ -59,13 +69,10 @@ fun vivimusicTheme(
         style = PaletteStyle.TonalSpot,
     )
 
-    val colorScheme = remember(baseColorScheme, pureBlack, darkTheme) {
+    val colorScheme = remember(baseColorScheme, pureBlack, darkTheme, themeColor) {
         val withApple = if (darkTheme) baseColorScheme.appleSurfaces() else baseColorScheme
-        if (darkTheme && pureBlack) {
-            withApple.pureBlack(true)
-        } else {
-            withApple
-        }
+        val withBlack = if (darkTheme && pureBlack) withApple.pureBlack(true) else withApple
+        withBlack.accentText(themeColor, darkTheme)
     }
 
     androidx.compose.runtime.CompositionLocalProvider(
@@ -127,6 +134,31 @@ fun ColorScheme.appleSurfaces() = copy(
     primaryContainer = AppleTokens.CardSecondary,
     onPrimaryContainer = Color.White,
 )
+
+/**
+ * Swaps Material's neutral text roles for accent-contrast ones, so every screen
+ * picks it up from `MaterialTheme.colorScheme` without being edited.
+ *
+ * Body text keeps only a whisper of the accent — it has to stay readable over
+ * long lists — while secondary text carries it plainly, which is what replaces
+ * M3's washed-out grey. Tune the two lerp amounts to taste; they are the whole
+ * calibration.
+ */
+fun ColorScheme.accentText(accent: Color, dark: Boolean): ColorScheme {
+    val body = if (dark) {
+        androidx.compose.ui.graphics.lerp(accent, Color.White, 0.86f)
+    } else {
+        androidx.compose.ui.graphics.lerp(accent, Color.Black, 0.86f)
+    }
+    val secondary = accentTextColor(accent, dark)
+    return copy(
+        onSurface = body,
+        onBackground = body,
+        onSurfaceVariant = secondary,
+        onSecondaryContainer = secondary,
+        onTertiaryContainer = secondary,
+    )
+}
 
 fun ColorScheme.pureBlack(apply: Boolean) =
     if (apply) copy(

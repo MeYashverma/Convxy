@@ -38,7 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.height
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import com.music.vivi.ui.theme.LocalAccentColor
+import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.constants.MiniPlayerWaveformKey
 import com.music.vivi.ui.component.ScrollingWaveformSeekBar
 import com.music.vivi.ui.component.rememberPlaybackFraction
@@ -266,14 +266,15 @@ fun FloatingMiniPlayer(
             }
 
             if (!isInline && waveformEnabled) {
+                val waveColor = LocalGlassEffectConfig.current.textColor
                 ScrollingWaveformSeekBar(
                     progress = { waveFraction.value },
                     onSeek = { f ->
                         val duration = playerConnection.player.duration
                         if (duration > 0L) playerConnection.player.seekTo((f * duration).toLong())
                     },
-                    playedColor = LocalAccentColor.current,
-                    trackColor = contentColor.copy(alpha = 0.25f),
+                    playedColor = waveColor,
+                    trackColor = waveColor.copy(alpha = 0.25f),
                     seed = mediaMetadata?.id?.hashCode() ?: 0,
                     visibleBars = 12,
                     modifier = Modifier

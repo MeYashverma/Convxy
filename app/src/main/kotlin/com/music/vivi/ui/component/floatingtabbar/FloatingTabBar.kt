@@ -1151,8 +1151,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                             effects = {
                                 val progress = dampedDragAnimation.pressProgress
                                 // Soft frosted puck at rest (constant blur), deepening
-                                // into a lens on press.
-//                                blur(6f.dp.toPx())
+                                //
+                                blur(6f.dp.toPx() * (1f - progress))
+
                                 lens(
                                     10f.dp.toPx() * progress,
                                     14f.dp.toPx() * progress,
@@ -1187,7 +1188,8 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // leaving the icon at full strength, deepening only
                                 // while pressed.
                                 val progress = dampedDragAnimation.pressProgress
-                                drawRect(accentColor.copy(alpha = 0.10f + 0.12f * progress))
+
+                                drawRect(Color.Black.copy(alpha = 0.8f - 0.6f * progress))
                             }
                         )
                     } else {
@@ -1210,6 +1212,46 @@ private fun SharedTransitionScope.ExpandedTabs(
                     }
                 )
         )
+
+        // The selected icon, drawn a second time above the puck.
+        //
+        // What shows *through* the puck is the hidden accent-tinted tab row
+        // refracted by the glass, and the puck's surface tint necessarily paints
+        // over it — so that copy can never be at full opacity. Redrawing the icon
+        // here is the only way to keep it crisp.
+        //
+        // It rides the puck's own translation and squash, so the two cannot drift
+        // apart mid-drag, and it always covers the dimmed copy underneath rather
+        // than ghosting beside it. Which icon to draw is derived state, so this
+        // recomposes when the puck crosses into a new tab, not every frame.
+        val puckIndex by remember(tabsCount) {
+            derivedStateOf {
+                dampedDragAnimation.value
+                    .fastRoundToInt()
+                    .coerceIn(0, (tabsCount - 1).coerceAtLeast(0))
+            }
+        }
+        Box(
+            Modifier
+                .padding(sizes.tabBarContentPadding)
+                .graphicsLayer {
+                    translationX =
+                        if (isLtr) dampedDragAnimation.value * tabWidthPx + panelOffset
+                        else size.width - (dampedDragAnimation.value + 1f) * tabWidthPx + panelOffset
+                    scaleX = dampedDragAnimation.scaleX
+                    scaleY = dampedDragAnimation.scaleY
+                }
+                .width(sizes.tabWidth)
+                .fillMaxHeight()
+                // Purely decorative: the tab underneath keeps the click and the
+                // semantics, and this must never swallow either.
+                .clearAndSetSemantics {},
+            contentAlignment = Alignment.Center,
+        ) {
+            // No tint override: the icon keeps the selected colour its caller gave
+            // it, which is the whole point of drawing it again.
+            currentTabs.value.getOrNull(puckIndex)?.icon?.invoke()
+        }
     }
 }
 

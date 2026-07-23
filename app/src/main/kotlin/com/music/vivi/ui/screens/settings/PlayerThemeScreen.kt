@@ -58,6 +58,7 @@ import coil3.compose.AsyncImage
 import com.music.vivi.LocalPlayerAwareWindowInsets
 import com.music.vivi.LocalPlayerConnection
 import com.music.vivi.R
+import com.music.vivi.models.MediaMetadata
 import com.music.vivi.constants.PlayerArtworkStyle
 import com.music.vivi.constants.PlayerArtworkStyleKey
 import com.music.vivi.constants.PlayerBackgroundStyle
@@ -108,7 +109,7 @@ fun PlayerThemeScreen(
     // Preview the song that is actually playing; fall back to the app icon.
     val playerConnection = LocalPlayerConnection.current
     val mediaMetadata by remember(playerConnection) {
-        playerConnection?.mediaMetadata ?: MutableStateFlow(null)
+        playerConnection?.mediaMetadata ?: MutableStateFlow<MediaMetadata?>(null)
     }.collectAsState()
     val artworkUrl = mediaMetadata?.thumbnailUrl
 

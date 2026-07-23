@@ -141,6 +141,7 @@ import com.music.vivi.ui.menu.YouTubePlaylistMenu
 import com.music.vivi.ui.menu.YouTubeSongMenu
 import androidx.compose.ui.graphics.graphicsLayer
 import com.music.vivi.ui.theme.AppleTokens
+import com.music.vivi.ui.theme.rememberBrandFontFamily
 import com.music.vivi.ui.theme.LocalAccentTextColor
 import com.music.vivi.ui.utils.backToMain
 import com.music.vivi.ui.utils.rememberHeroZoom
@@ -461,7 +462,8 @@ fun ArtistScreen(
                                     Text(
                                         text = artistName?.lowercase() ?: "unknown",
                                         style = MaterialTheme.typography.headlineLarge,
-                                        fontWeight = FontWeight.ExtraBold,
+                                        fontFamily = rememberBrandFontFamily(),
+                                        fontWeight = FontWeight.SemiBold,
                                         // The page's biggest heading: carries the artwork
                                         // tint plainly rather than flat content colour.
                                         color = LocalAccentTextColor.current,

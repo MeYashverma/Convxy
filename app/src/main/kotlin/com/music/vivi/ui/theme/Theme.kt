@@ -157,6 +157,9 @@ fun ColorScheme.accentText(accent: Color, dark: Boolean): ColorScheme {
         onSurfaceVariant = secondary,
         onSecondaryContainer = secondary,
         onTertiaryContainer = secondary,
+        // The subtitle role: the artist name under a song or album title reads
+        // through this everywhere in the app.
+        secondary = secondary,
     )
 }
 

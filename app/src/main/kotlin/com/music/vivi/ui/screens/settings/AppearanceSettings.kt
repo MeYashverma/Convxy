@@ -105,6 +105,7 @@ import com.music.vivi.constants.LyricsGlowEffectKey
 import com.music.vivi.constants.LyricsLineSpacingKey
 import com.music.vivi.constants.LyricsScrollKey
 import com.music.vivi.constants.ShowAudioQualityBadgeKey
+import com.music.vivi.constants.BrandFontEnabledKey
 import com.music.vivi.constants.MiniPlayerWaveformKey
 import com.music.vivi.constants.ShowCommentButtonKey
 
@@ -127,6 +128,10 @@ fun AppearanceSettings(
     val (miniPlayerWaveform, onMiniPlayerWaveformChange) = rememberPreference(
         MiniPlayerWaveformKey,
         defaultValue = false
+    )
+    val (brandFont, onBrandFontChange) = rememberPreference(
+        BrandFontEnabledKey,
+        defaultValue = true
     )
 
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
@@ -683,6 +688,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onShowCommentButtonChange(!showCommentButton) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.palette),
+                    title = { Text(stringResource(R.string.brand_font)) },
+                    description = { Text(stringResource(R.string.brand_font_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = brandFont,
+                            onCheckedChange = onBrandFontChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (brandFont) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onBrandFontChange(!brandFont) }
                 )
             )
         )

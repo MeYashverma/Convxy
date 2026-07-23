@@ -120,6 +120,7 @@ import com.music.vivi.db.entities.Song
 import com.music.vivi.extensions.toMediaItem
 import com.music.vivi.models.MediaMetadata
 import com.music.vivi.playback.queues.LocalAlbumRadio
+import com.music.vivi.ui.theme.rememberBrandFontFamily
 import com.music.vivi.ui.theme.AppleTokens
 import com.music.vivi.ui.theme.rememberArtworkTint
 import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
@@ -267,6 +268,7 @@ fun ListItem(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
+                fontFamily = rememberBrandFontFamily(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -305,6 +307,7 @@ fun ListItem(
             Text(
                 text = subtitle,
                 color = MaterialTheme.colorScheme.secondary,
+                fontFamily = rememberBrandFontFamily(),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -400,6 +403,7 @@ fun GridItem(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
+            fontFamily = rememberBrandFontFamily(),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -527,6 +531,7 @@ fun SongGridItem(
             ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
+            fontFamily = rememberBrandFontFamily(),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -748,6 +753,7 @@ fun AlbumGridItem(
             text = album.artists.joinToString { it.name },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
+            fontFamily = rememberBrandFontFamily(),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -957,6 +963,7 @@ fun PlaylistGridItem(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
+            fontFamily = rememberBrandFontFamily(),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -1190,6 +1197,7 @@ fun YouTubeGridItem(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
+                fontFamily = rememberBrandFontFamily(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

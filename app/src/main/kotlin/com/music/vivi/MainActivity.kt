@@ -209,7 +209,9 @@ import com.music.vivi.ui.screens.settings.DarkMode
 import com.music.vivi.ui.screens.settings.NavigationTab
 import com.music.vivi.ui.theme.ColorSaver
 import com.music.vivi.ui.theme.DefaultThemeColor
+import com.music.vivi.ui.theme.BrandName
 import com.music.vivi.ui.theme.LocalAccentTextColor
+import com.music.vivi.ui.theme.rememberBrandFontFamily
 import com.music.vivi.ui.theme.extractThemeColor
 import com.music.vivi.ui.theme.vivimusicTheme
 import com.music.vivi.ui.utils.appBarScrollBehavior
@@ -962,29 +964,27 @@ class MainActivity : ComponentActivity() {
                                             )
                                     ) {
                                         TopAppBar(
-                                        navigationIcon = {
-                                            Box(modifier = Modifier.padding(start = 12.dp)) {
-                                                Image(
-                                                    painter = painterResource(R.drawable.icon),
-                                                    contentDescription = null,
-                                                    modifier = Modifier
-                                                        .size(32.dp)
-                                                        .clip(CircleShape),
-                                                    contentScale = ContentScale.Crop
-                                                )
-                                            }
-                                        },
                                         title = {
+                                            // Home shows the wordmark; every other tab keeps
+                                            // its own title.
+                                            val isHome = currentTitleRes == R.string.home
                                             Text(
-                                                text = currentTitleRes?.let { stringResource(it) } ?: "",
+                                                text = if (isHome) {
+                                                    BrandName
+                                                } else {
+                                                    currentTitleRes?.let { stringResource(it) } ?: ""
+                                                },
                                                 style = MaterialTheme.typography.titleLarge.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 24.sp
+                                                    fontFamily = rememberBrandFontFamily(),
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 24.sp,
+                                                    letterSpacing = if (isHome) 1.5.sp else 0.sp,
                                                 ),
                                                 // The bar is a Scaffold slot outside the screen
                                                 // content, so this is the app-wide accent text
                                                 // colour, not any screen's hero tint.
                                                 color = LocalAccentTextColor.current,
+                                                modifier = Modifier.padding(start = 4.dp),
                                             )
                                         },
                                         actions = {

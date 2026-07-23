@@ -196,7 +196,7 @@
     <string name="slim">Slim</string>
     <string name="waveform">Waveform</string>
     <string name="brand_font">Display font</string>
-    <string name="brand_font_desc">Use Chillax for the wordmark and artist names</string>
+    <string name="brand_font_desc">Use Chillax for the CONVX wordmark and the artist page title</string>
     <string name="player_theme">Player theme</string>
     <string name="player_theme_desc">Artwork shape and player background</string>
     <string name="player_theme_artwork">Artwork</string>

@@ -126,9 +126,9 @@ fun ColorScheme.appleSurfaces() = copy(
     surfaceContainerHigh = AppleTokens.Card,
     surfaceContainerHighest = AppleTokens.CardSecondary,
     surfaceVariant = AppleTokens.CardSecondary,
-    // Neutralize the seed accent everywhere except the nav bar: generic M3
-    // controls (switches, sliders, selected states) render white-on-dark, not
-    // red. The nav bar reads the real accent via LocalAccentColor instead.
+    // primary/onPrimary set here are only a base — accentText runs afterwards and
+    // gives them the contrast-clamped accent, so controls and link text carry the
+    // theme colour rather than rendering flat white.
     primary = Color.White,
     onPrimary = Color.Black,
     primaryContainer = AppleTokens.CardSecondary,
@@ -157,9 +157,18 @@ fun ColorScheme.accentText(accent: Color, dark: Boolean): ColorScheme {
         onSurfaceVariant = secondary,
         onSecondaryContainer = secondary,
         onTertiaryContainer = secondary,
+        onPrimaryContainer = secondary,
+        onSecondary = secondary,
         // The subtitle role: the artist name under a song or album title reads
         // through this everywhere in the app.
         secondary = secondary,
+        // `primary` is the app's second-largest text/icon role after
+        // onSurfaceVariant — links, selected states, section actions. appleSurfaces
+        // had pinned it to flat white in dark mode, which is most of what still
+        // read as untinted Material. It doubles as a fill (buttons, sliders), so
+        // onPrimary flips to the opposite extreme to keep those legible.
+        primary = secondary,
+        onPrimary = if (dark) Color.Black else Color.White,
     )
 }
 

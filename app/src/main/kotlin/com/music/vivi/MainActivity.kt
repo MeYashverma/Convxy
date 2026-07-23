@@ -967,7 +967,8 @@ class MainActivity : ComponentActivity() {
                                         title = {
                                             // Home shows the wordmark; every other tab keeps
                                             // its own title.
-                                            val isHome = currentTitleRes == R.string.home
+                                            val isHome =
+                                                navBackStackEntry?.destination?.route == Screens.Home.route
                                             Text(
                                                 text = if (isHome) {
                                                     BrandName
@@ -975,8 +976,10 @@ class MainActivity : ComponentActivity() {
                                                     currentTitleRes?.let { stringResource(it) } ?: ""
                                                 },
                                                 style = MaterialTheme.typography.titleLarge.copy(
-                                                    fontFamily = rememberBrandFontFamily(),
-                                                    fontWeight = FontWeight.SemiBold,
+                                                    // Display face is for the wordmark only;
+                                                    // other tab titles keep the app typeface.
+                                                    fontFamily = if (isHome) rememberBrandFontFamily() else null,
+                                                    fontWeight = if (isHome) FontWeight.SemiBold else FontWeight.Bold,
                                                     fontSize = 24.sp,
                                                     letterSpacing = if (isHome) 1.5.sp else 0.sp,
                                                 ),

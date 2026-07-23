@@ -1004,18 +1004,26 @@ private fun SharedTransitionScope.ExpandedTabs(
                 Tab(
                     icon = {
                         Box(
-                            modifier = if (tab.key == selectedTabKey) {
-                                Modifier.sharedElement(
-                                    sharedContentState = rememberSharedContentState("tab#${tab.key}-icon"),
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    zIndexInOverlay = 1f
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    // Unselected tabs sit back; the selected one is
+                                    // never dimmed, so the puck must not darken it.
+                                    alpha = if (tab.key == selectedTabKey) 1f else 0.6f
+                                }
+                                .then(
+                                    if (tab.key == selectedTabKey) {
+                                        Modifier.sharedElement(
+                                            sharedContentState = rememberSharedContentState("tab#${tab.key}-icon"),
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                            zIndexInOverlay = 1f
+                                        )
+                                    } else {
+                                        Modifier.animateEnterExitTab(
+                                            sharedTransitionScope = this@ExpandedTabs,
+                                            animatedVisibilityScope = animatedVisibilityScope
+                                        )
+                                    }
                                 )
-                            } else {
-                                Modifier.animateEnterExitTab(
-                                    sharedTransitionScope = this@ExpandedTabs,
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
                         ) {
                             tab.icon()
                         }
@@ -1171,10 +1179,15 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                             },
                             onDrawSurface = {
-                                // At rest the active tab reads as a colored frosted pill:
-                                // a 0.3 tint in the liquid-glass text/selected color over
-                                // the blurred backdrop.
-                                drawRect(accentColor.copy(alpha = 0.3f))
+                                // What shows inside the puck is the hidden tinted tab
+                                // row sampled back through this glass, so anything
+                                // painted here lands ON TOP of the selected icon.
+                                // Black at any real strength crushes it — hence an
+                                // accent wash that defines the pill's shape while
+                                // leaving the icon at full strength, deepening only
+                                // while pressed.
+                                val progress = dampedDragAnimation.pressProgress
+                                drawRect(accentColor.copy(alpha = 0.10f + 0.12f * progress))
                             }
                         )
                     } else {

@@ -105,6 +105,7 @@ import com.music.vivi.ui.component.GlassCircleButton
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.LocalMenuState
 import com.music.vivi.ui.component.MenuState
@@ -289,7 +290,7 @@ fun AutoPlaylistScreen(
                 LazyColumn(
                     state = lazyListState,
                     // No bounce here: the top pull drives the hero zoom instead.
-                    overscrollEffect = null,
+                    overscrollEffect = heroZoom.listOverscroll(),
                     modifier = Modifier.heroPullZoom(heroZoom),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {

@@ -9,6 +9,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.OverscrollEffect
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
@@ -58,6 +60,15 @@ fun rememberHeroZoom(maxPull: Dp = 220.dp): HeroZoom {
 /** Applies [heroPullZoom] only when the iOS-motion preference is on. */
 fun Modifier.heroPullZoom(zoom: HeroZoom): Modifier =
     if (zoom.enabled) heroPullZoom(zoom.pull, zoom.maxPull) else this
+
+/**
+ * What to pass as a hero list's `overscrollEffect`: null while pull-to-zoom owns
+ * the top pull, otherwise the ambient effect, so switching the motion preference
+ * off leaves the list with normal overscroll rather than none at all.
+ */
+@Composable
+fun HeroZoom.listOverscroll(): OverscrollEffect? =
+    if (enabled) null else rememberOverscrollEffect()
 
 /**
  * Pull-to-zoom for a hero-header list: absorbs only the top-edge (pull-down) overscroll

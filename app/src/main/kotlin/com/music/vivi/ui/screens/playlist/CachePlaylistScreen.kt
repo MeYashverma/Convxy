@@ -82,6 +82,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.util.fastSumBy
 import androidx.core.net.toUri
@@ -252,7 +253,7 @@ fun CachePlaylistScreen(
             LazyColumn(
                 state = lazyListState,
                 // No bounce here: the top pull drives the hero zoom instead.
-                overscrollEffect = null,
+                overscrollEffect = heroZoom.listOverscroll(),
                 modifier = Modifier.heroPullZoom(heroZoom),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {

@@ -142,6 +142,9 @@ import com.music.vivi.ui.menu.SelectionSongMenu
 import com.music.vivi.ui.menu.SongMenu
 import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.ui.utils.backToMain
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.utils.fadingEdge
 import com.music.vivi.ui.player.CanvasArtworkPlayer
 import com.music.vivi.ui.theme.rememberArtworkTint
@@ -270,6 +273,7 @@ fun AlbumScreen(
     // refraction — but crucially no RenderNode self-reference. See ArtistScreen.kt
     // for the full explanation of the cycle this avoids.
     val heroBackdrop = rememberLayerBackdrop()
+    val heroZoom = rememberHeroZoom()
 
     Box(
         modifier = Modifier
@@ -289,7 +293,9 @@ fun AlbumScreen(
     }
     LazyColumn(
         state = lazyListState,
-        modifier = Modifier,
+        // No bounce here: the top pull drives the hero zoom instead.
+        overscrollEffect = heroZoom.listOverscroll(),
+        modifier = Modifier.heroPullZoom(heroZoom),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         val albumWithSongs = albumWithSongs
@@ -329,7 +335,12 @@ fun AlbumScreen(
                             }
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = heroZoom.scale
+                                    scaleY = heroZoom.scale
+                                }
                         ) {
                             AsyncImage(
                                 model = albumWithSongs.album.thumbnailUrl,

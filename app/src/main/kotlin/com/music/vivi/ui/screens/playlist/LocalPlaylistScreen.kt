@@ -176,6 +176,9 @@ import com.music.vivi.ui.menu.SelectionSongMenu
 import com.music.vivi.ui.menu.SongMenu
 import com.music.vivi.ui.screens.settings.DarkMode
 import com.music.vivi.ui.component.AlbumStyleHeroImage
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
@@ -550,6 +553,7 @@ fun LocalPlaylistScreen(
     // early-returns → translucent frosted surface, no RenderNode self-reference.
     // See ArtistScreen.kt for the full explanation of the cycle this avoids.
     val heroBackdrop = rememberLayerBackdrop()
+    val heroZoom = rememberHeroZoom()
 
     val heroUrl = playlist?.thumbnails?.firstOrNull()
     val heroSource = rememberHeroSource(
@@ -573,7 +577,9 @@ fun LocalPlaylistScreen(
         }
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier,
+            // No bounce here: the top pull drives the hero zoom instead.
+            overscrollEffect = heroZoom.listOverscroll(),
+            modifier = Modifier.heroPullZoom(heroZoom),
             contentPadding = LocalPlayerAwareWindowInsets.current
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 .union(WindowInsets.ime)
@@ -599,6 +605,7 @@ fun LocalPlaylistScreen(
                                 onshowDeletePlaylistDialog = { showDeletePlaylistDialog = true },
                                 onStartSearch = { isSearching = true },
                                 snackbarHostState = snackbarHostState,
+                                heroScale = heroZoom.scale,
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -1018,6 +1025,7 @@ fun LocalPlaylistHeader(
     onStartSearch: () -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier,
+    heroScale: Float = 1f,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
@@ -1208,7 +1216,7 @@ fun LocalPlaylistHeader(
                     Modifier
                 },
             ) {
-                AlbumStyleHeroImage(artworkUrl = heroUrl)
+                AlbumStyleHeroImage(artworkUrl = heroUrl, heroScale = heroScale)
                 if (editable) {
                     Box(
                         modifier = Modifier

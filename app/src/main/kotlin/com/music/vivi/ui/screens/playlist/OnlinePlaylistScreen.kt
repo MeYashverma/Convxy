@@ -145,6 +145,9 @@ import com.music.vivi.ui.component.shapes.ContinuousRoundedRectangle
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.AlbumStyleHeroImage
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
 import com.music.vivi.ui.theme.rememberArtworkTint
@@ -297,6 +300,7 @@ fun OnlinePlaylistScreen(
     // early-returns → translucent frosted surface, no RenderNode self-reference.
     // See ArtistScreen.kt for the full explanation of the cycle this avoids.
     val heroBackdrop = rememberLayerBackdrop()
+    val heroZoom = rememberHeroZoom()
 
     val heroSource = rememberHeroSource (
         staticArt = playlist?.thumbnail,
@@ -323,7 +327,9 @@ fun OnlinePlaylistScreen(
         }
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier,
+            // No bounce here: the top pull drives the hero zoom instead.
+            overscrollEffect = heroZoom.listOverscroll(),
+            modifier = Modifier.heroPullZoom(heroZoom),
             contentPadding = LocalPlayerAwareWindowInsets.current
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 .union(WindowInsets.ime)
@@ -354,7 +360,8 @@ fun OnlinePlaylistScreen(
                                 navController = navController,
                                 coroutineScope = coroutineScope,
                                 continuation = viewModel.continuation,
-                                heroBackdrop = heroBackdrop
+                                heroBackdrop = heroBackdrop,
+                                heroScale = heroZoom.scale,
                             )
                         }
                     }
@@ -683,7 +690,8 @@ private fun OnlinePlaylistHeader(
     coroutineScope: CoroutineScope,
     continuation: String?,
     heroBackdrop: LayerBackdrop,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    heroScale: Float = 1f,
 ) {
     val context = LocalContext.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -727,7 +735,7 @@ private fun OnlinePlaylistHeader(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AlbumStyleHeroImage(artworkUrl = heroUrl)
+            AlbumStyleHeroImage(artworkUrl = heroUrl, heroScale = heroScale)
 
             Spacer(Modifier.height(16.dp))
 

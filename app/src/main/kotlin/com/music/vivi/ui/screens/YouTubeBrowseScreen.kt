@@ -63,6 +63,7 @@ import com.music.vivi.ui.component.GlassCircleButton
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.component.LocalAppBackdrop
 import com.music.vivi.ui.component.LocalGlassEffectConfig
 import com.music.vivi.ui.component.LocalMenuState
@@ -139,7 +140,7 @@ fun YouTubeBrowseScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             LazyVerticalGrid(
                 // No bounce here: the top pull drives the hero zoom instead.
-                overscrollEffect = null,
+                overscrollEffect = heroZoom.listOverscroll(),
                 modifier = Modifier.heroPullZoom(heroZoom).fillMaxSize(),
                 columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),

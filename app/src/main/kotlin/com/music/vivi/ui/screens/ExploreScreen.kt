@@ -75,6 +75,7 @@ import com.music.vivi.ui.component.YouTubeListItem
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
@@ -168,7 +169,7 @@ fun ExploreScreen(
                 .fillMaxSize()
                 .heroPullZoom(heroZoom)
                 // No bounce here: the top pull drives the hero zoom instead.
-                .verticalScroll(scrollState, overscrollEffect = null),
+                .verticalScroll(scrollState, overscrollEffect = heroZoom.listOverscroll()),
         ) {
             Spacer(
                 Modifier.height(

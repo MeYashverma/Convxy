@@ -139,7 +139,11 @@ import com.music.vivi.ui.menu.YouTubeAlbumMenu
 import com.music.vivi.ui.menu.YouTubeArtistMenu
 import com.music.vivi.ui.menu.YouTubePlaylistMenu
 import com.music.vivi.ui.menu.YouTubeSongMenu
+import androidx.compose.ui.graphics.graphicsLayer
 import com.music.vivi.ui.utils.backToMain
+import com.music.vivi.ui.utils.rememberHeroZoom
+import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.utils.fadingEdge
 import com.music.vivi.ui.utils.isScrollingUp
 import com.music.vivi.ui.utils.resize
@@ -230,6 +234,7 @@ fun ArtistScreen(
     // no self-reference. (True artwork-refracting glass here would need a capture
     // layer rendered OUTSIDE the NavHost.)
     val heroBackdrop = rememberLayerBackdrop()
+    val heroZoom = rememberHeroZoom()
 
     val tint = artworkColors.getOrNull(0) ?: MaterialTheme.colorScheme.surface
     val onTint = com.music.vivi.ui.theme.AppleTokens.onColor(tint)
@@ -252,7 +257,9 @@ fun ArtistScreen(
         }
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier,
+            // No bounce here: the top pull drives the hero zoom instead.
+            overscrollEffect = heroZoom.listOverscroll(),
+            modifier = Modifier.heroPullZoom(heroZoom),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
             if (artistPage == null && !showLocal) {
@@ -367,6 +374,10 @@ fun ArtistScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .graphicsLayer {
+                                            scaleX = heroZoom.scale
+                                            scaleY = heroZoom.scale
+                                        }
                                         .fadingEdge(
                                             bottom = 200.dp,
                                         )

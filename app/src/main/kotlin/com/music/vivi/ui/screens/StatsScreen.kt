@@ -13,6 +13,7 @@ import com.music.vivi.ui.component.GlassCircleButton
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
 import com.music.vivi.ui.theme.AppleTokens
@@ -216,7 +217,7 @@ fun StatsScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 // No bounce here: the top pull drives the hero zoom instead.
-                overscrollEffect = null,
+                overscrollEffect = heroZoom.listOverscroll(),
                 modifier = Modifier.heroPullZoom(heroZoom),
                 state = lazyListState,
                 contentPadding = LocalPlayerAwareWindowInsets.current

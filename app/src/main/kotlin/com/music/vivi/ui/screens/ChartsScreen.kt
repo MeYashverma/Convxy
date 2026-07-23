@@ -77,6 +77,7 @@ import com.music.vivi.ui.component.YouTubeListItem
 import com.music.vivi.ui.component.HeroBackground
 import com.music.vivi.ui.utils.rememberHeroZoom
 import com.music.vivi.ui.utils.heroPullZoom
+import com.music.vivi.ui.utils.listOverscroll
 import androidx.compose.foundation.layout.windowInsetsPadding
 import com.music.vivi.ui.component.rememberHeroSource
 import com.music.vivi.ui.component.rememberHeroTint
@@ -233,7 +234,7 @@ fun ChartsScreen(
             } else {
                 LazyColumn(
                     // No bounce here: the top pull drives the hero zoom instead.
-                    overscrollEffect = null,
+                    overscrollEffect = heroZoom.listOverscroll(),
                     modifier = Modifier.heroPullZoom(heroZoom),
                     state = lazyListState,
                     contentPadding = LocalPlayerAwareWindowInsets.current

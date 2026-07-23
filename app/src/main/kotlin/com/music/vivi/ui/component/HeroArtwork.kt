@@ -174,6 +174,9 @@ fun AlbumStyleHeroImage(
     modifier: Modifier = Modifier,
     // Extra pull-up beyond the status bar, to lift the square higher like AlbumScreen.
     extraPullUp: androidx.compose.ui.unit.Dp = 48.dp,
+    // Driven by rememberHeroZoom() for pull-to-zoom. Applied to the drawn image
+    // only, so growing it never re-lays-out the list underneath.
+    heroScale: Float = 1f,
 ) {
     val topInset = androidx.compose.foundation.layout.WindowInsets.systemBars
         .asPaddingValues().calculateTopPadding()
@@ -192,7 +195,11 @@ fun AlbumStyleHeroImage(
                     placeable.place(0, -pullUpPx)
                 }
             }
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .graphicsLayer {
+                scaleX = heroScale
+                scaleY = heroScale
+                compositingStrategy = CompositingStrategy.Offscreen
+            }
             .drawWithContent {
                 drawContent()
                 drawRect(

@@ -1246,11 +1246,26 @@ private fun SharedTransitionScope.ExpandedTabs(
                 // Purely decorative: the tab underneath keeps the click and the
                 // semantics, and this must never swallow either.
                 .clearAndSetSemantics {},
-            contentAlignment = Alignment.Center,
         ) {
-            // No tint override: the icon keeps the selected colour its caller gave
-            // it, which is the whole point of drawing it again.
-            currentTabs.value.getOrNull(puckIndex)?.icon?.invoke()
+            currentTabs.value.getOrNull(puckIndex)?.let { tab ->
+                // Must go through Tab, not just tab.icon(): Tab is a Column of
+                // icon THEN title, so drawing the icon alone centres it on the
+                // puck while the row centres it on the icon+title pair — which is
+                // exactly how far off it looked. Same props as the row's selected
+                // tab, so the two line up.
+                Tab(
+                    // No tint override: the icon keeps the selected colour its
+                    // caller gave it, which is the point of drawing it again.
+                    icon = { tab.icon() },
+                    title = { tab.title() },
+                    isInline = false,
+                    isStandalone = false,
+                    contentScale = lerp(1f, 1.12f, dampedDragAnimation.pressProgress),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(sizes.tabExpandedContentPadding),
+                )
+            }
         }
     }
 }

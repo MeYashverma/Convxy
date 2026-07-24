@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.music.vivi.artistvideo"
+    namespace = "com.convx.music.artistvideo"
     compileSdk = 36
 
     defaultConfig {

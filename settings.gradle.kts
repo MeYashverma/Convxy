@@ -16,7 +16,7 @@ dependencyResolutionManagement {
 //     id("org.gradle.toolchains.foojay-resolver-convention") version("1.0.0")
 // }
 
-rootProject.name = "vivimusic"
+rootProject.name = "convx"
 include(":app")
 include(":canvas")
 include(":innertube")
@@ -34,6 +34,7 @@ include(":vivimusiccanvas")
 include(":paxsenixlyrics")
 include(":jiosaavn")
 include(":spotify")
+include(":spine")
 
 
 // Use a local copy of NewPipe Extractor by uncommenting the lines below.

@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="4dp"
-    android:theme="@style/Theme.Widget.Cosmos">
+    android:theme="@style/Theme.Widget.Convx">
 
     <!-- Album Art - circular bitmap set programmatically -->
     <ImageView
@@ -25,7 +25,7 @@
         android:layout_marginTop="20dp"
         android:layout_marginEnd="6dp"
         android:orientation="horizontal"
-        android:background="@drawable/widget_turntable_nav_bg"
+        android:background="@drawable/widget_pill_scrim_light"
         android:gravity="center_vertical">
 
         <!-- Previous Button -->
@@ -60,14 +60,14 @@
         android:layout_gravity="bottom|start"
         android:layout_marginBottom="12dp"
         android:layout_marginStart="12dp"
-        android:background="@drawable/widget_turntable_play_bg">
+        android:background="@drawable/widget_pill_scrim_light">
 
         <ImageView
             android:id="@+id/widget_turntable_play_pause"
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:layout_gravity="center"
-            android:src="@drawable/ic_widget_play_secondary"
+            android:src="@drawable/ic_widget_play"
             android:contentDescription="@string/play_pause" />
     </FrameLayout>
 

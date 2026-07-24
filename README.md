@@ -1,96 +1,30 @@
 <div align="center">
-  <a href="https://vivimusic.mkmdevilmi.workers.dev/">
-    <img src="assets/banner.png" alt="VIVI Music Banner" style="display: block; margin: 0 auto; max-width: 100%"/>
-  </a>
-  <br>
-  <h1>VIVI Music</h1>
-  <h3>More Than Just Music — Your Ultimate Audio Experience</h3>
+  <h1>CONVX</h1>
+  <h3>An iOS-inspired, Liquid Glass music player for Android</h3>
 
   <p>
-    <a href="https://github.com/vivizzz007/vivi-music/releases">
-      <img src="https://img.shields.io/github/v/release/vivizzz007/vivi-music?label=Download&style=for-the-badge&color=4CAF50" alt="Download Latest">
+    <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
+      <img src="https://img.shields.io/github/v/release/cosmictaserdev-creator/Convx?label=Download&style=for-the-badge&color=4CAF50" alt="Download Latest">
     </a>
-    <a href="https://github.com/vivizzz007/vivi-music/releases">
-      <img src="https://img.shields.io/github/downloads/vivizzz007/vivi-music/total?style=for-the-badge&color=blue" alt="Downloads">
+    <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
+      <img src="https://img.shields.io/github/downloads/cosmictaserdev-creator/Convx/total?style=for-the-badge&color=blue" alt="Downloads">
     </a>
     <a href="LICENSE">
-      <img src="https://img.shields.io/github/license/vivizzz007/vivi-music?style=for-the-badge" alt="License">
+      <img src="https://img.shields.io/github/license/cosmictaserdev-creator/Convx?style=for-the-badge" alt="License">
     </a>
-    <a href="https://ko-fi.com/vividhpashokan">
-      <img src="https://img.shields.io/badge/Support-Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support on Ko-fi">
+    <a href="https://discord.gg/KC9BE5Vqud">
+      <img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
     </a>
   </p>
-
 </div>
 
 <hr>
 
-<h2>🎵 About VIVI</h2>
+<h2>🎵 About Convx</h2>
 
-<table align="center" width="100%">
-  <tr valign="middle">
-    <td width="60%" align="left">
-      <p>✨ <b>VIVI</b> isn't just another music player — it's a premium, modern audio ecosystem engineered for listeners who demand more. Powered by a responsive design engine that dynamically matches your album art's color palette, VIVI completely shifts to match your aesthetic on every single beat.</p>
-      <p>From stunning animated canvas visualizers to fluid physics-based micro-animations, every interaction is crafted to elevate your listening. Stream ad-free, sync karaoke lyrics, share your sound instantly, and enjoy an elegant interface designed with modern Material 3 guidelines.</p>
-      <blockquote>
-        <b>🎵 Your music, your aesthetic — only with VIVI.</b>
-      </blockquote>
-    </td>
-    <td width="40%" align="center">
-      <p>🛡️ <b>100% Privacy-First</b><br><small>Completely local database. Absolutely zero trackers, analytics, or background telemetry.</small></p>
-      <hr width="80%">
-      <p>🎨 <b>Material You Engine</b><br><small>Stunning adaptive interface that dynamically morphs colors based on what's playing.</small></p>
-      <hr width="80%">
-      <p>🚀 <b>Ad-Free Streaming</b><br><small>Seamless background playback with high-fidelity streams from YouTube Music.</small></p>
-    </td>
-  </tr>
-</table>
+<p><b>Convx</b> is a free, open-source music player for Android that streams from YouTube Music, with a UI built around a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
 
-<hr>
-
-<h2>📸 Screenshots</h2>
-
-<table align="center">
-  <tr valign="top">
-    <td align="center">
-      <b>Player</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/1.png?raw=true" width="220" alt="Player Screen 1" />
-    </td>
-    <td align="center">
-      <b>Player</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/2.png?raw=true" width="220" alt="Player Screen 2" />
-    </td>
-    <td align="center">
-      <b>Artist Screen</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/3.png?raw=true" width="220" alt="Artist Screen" />
-    </td>
-  </tr>
-  <tr valign="top">
-    <td align="center">
-      <b>Album Page</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/4.png?raw=true" width="220" alt="Album Page" />
-    </td>
-    <td align="center">
-      <b>Search Section</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/5.png?raw=true" width="220" alt="Search Section" />
-    </td>
-    <td align="center">
-      <b>Home Page</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/6.png?raw=true" width="220" alt="Home Page" />
-    </td>
-  </tr>
-  <tr valign="top">
-    <td align="center">
-      <b>Built-in Updater</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/7.png?raw=true" width="220" alt="Built-in Updater" />
-    </td>
-    <td align="center">
-      <b>Audio Control Section</b><br><br>
-      <img src="https://github.com/vivizzz007/vivi-music/blob/main/NEW-UI/8.png?raw=true" width="220" alt="Audio Control Section" />
-    </td>
-    <td></td>
-  </tr>
-</table>
+<p>Convx started as a fork of <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a>; see <a href="#-credits">Credits</a> below.</p>
 
 <hr>
 
@@ -99,82 +33,61 @@
 <table align="center" width="100%">
   <tr valign="top">
     <td width="50%">
-      <h3>🎨 Expressive UI & Design</h3>
+      <h3>🧊 Liquid Glass UI</h3>
       <ul>
-        <li><b>Dynamic Material You:</b> Beautiful adaptive colors that shift to match your playing album art.</li>
-        <li><b>Premium Animations:</b> Silky-smooth micro-animations and seamless screen transitions.</li>
-        <li><b>Modern Architecture:</b> Sleek, modern layouts engineered with Android's latest Material 3 guidelines.</li>
+        <li><b>Real backdrop blur:</b> frosted glass chrome (nav bar, floating buttons, sheets) that actually samples and refracts the content behind it, not a flat translucent color.</li>
+        <li><b>iOS-style motion:</b> bouncy rubber-band overscroll, blurred page transitions, springy nav puck.</li>
+        <li><b>Material You:</b> adaptive colors pulled from the currently playing artwork.</li>
       </ul>
     </td>
     <td width="50%">
-      <h3>🎵 Advanced Streaming</h3>
+      <h3>🎵 Streaming</h3>
       <ul>
-        <li><b>Full Catalog Integration:</b> Stream any song from YouTube and YT Music, completely ad-free.</li>
-        <li><b>Animated Canvas:</b> Stunning Apple Music-style animated backdrops that bring music to life.</li>
-        <li><b>Background Playback:</b> High-quality continuous playback with full notification drawer controls.</li>
-      </ul>
-    </td>
-  </tr>
-  <tr valign="top">
-    <td width="50%">
-      <h3>📝 Synced Lyrics & Audio</h3>
-      <ul>
-        <li><b>Karaoke Syncing:</b> Beautiful, precise word-by-word highlighted lyrics.</li>
-        <li><b>Integrated EQ:</b> High-fidelity audio customization with an in-app Equalizer.</li>
-      </ul>
-    </td>
-    <td width="50%">
-      <h3>📥 Offline Experience</h3>
-      <ul>
-        <li><b>Local Downloads:</b> Download and cache tracks onto your device for offline enjoyment.</li>
-        <li><b>Smart Storage:</b> Intelligent cache management that optimizes space automatically.</li>
+        <li><b>Full YT Music catalog:</b> ad-free streaming and background playback with full notification/lock-screen controls.</li>
+        <li><b>Offline downloads:</b> cache tracks locally with smart storage management.</li>
+        <li><b>Lossless/high-quality audio</b> and a built-in equalizer.</li>
       </ul>
     </td>
   </tr>
   <tr valign="top">
     <td width="50%">
-      <h3>🔄 OTA Updater</h3>
+      <h3>📝 Lyrics & Social</h3>
       <ul>
-        <li><b>Seamless Updates:</b> Instant Over-the-Air updates directly inside the app.</li>
-        <li><b>Direct Delivery:</b> Always stay ahead with instant feature upgrades and patch fixes.</li>
+        <li><b>Synced, karaoke-style lyrics</b> with word-by-word highlighting.</li>
+        <li><b>Discord Rich Presence:</b> show what you're listening to on your profile.</li>
+        <li><b>Listen Together:</b> sync playback with friends in real time.</li>
       </ul>
     </td>
     <td width="50%">
-      <h3>🛡️ 100% Privacy</h3>
+      <h3>🛡️ Privacy & Updates</h3>
       <ul>
-        <li><b>Zero Data Collection:</b> No trackers, no telemetry, and no telemetry analytics.</li>
-        <li><b>Local Security:</b> All user libraries, preferences, and downloaded tracks are stored locally.</li>
+        <li><b>Zero telemetry:</b> no trackers, no analytics, fully local library and preferences.</li>
+        <li><b>Built-in updater:</b> in-app update checks and changelogs, no third-party store required.</li>
       </ul>
     </td>
   </tr>
 </table>
 
-<br>
-
 <hr>
 
-<div align="center">
-  <table border="0" cellpadding="15" cellspacing="0" width="85%">
-    <tr>
-      <td align="center">
-        <h3>💖 Support the Project</h3>
-        <p>If you love VIVI Music and want to support its maintenance and active development, please consider buying me a coffee! Your support helps keep this premium audio experience completely active, clean, and ad-free.</p>
-        <br>
-        <a href="https://ko-fi.com/vividhpashokan">
-          <img src="https://img.shields.io/badge/Support-Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support on Ko-fi">
-        </a>
-      </td>
-    </tr>
-  </table>
-</div>
+<h2>🏗️ Architecture</h2>
 
-<br>
+<p>Quick map for contributors — see <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> for the full guide.</p>
+
+<ul>
+  <li><b>UI:</b> Jetpack Compose, MVVM (<code>ui/screens</code> + <code>viewmodels</code>), navigated via <code>ui/screens/NavigationBuilder.kt</code>.</li>
+  <li><b>Liquid Glass:</b> <code>ui/component/GlassEffect.kt</code> exposes <code>Modifier.liquidGlass(...)</code>, built on a vendored, source-included copy of <a href="https://github.com/Kyant0/backdrop">Kyant0/backdrop</a> under <code>ui/component/backdrop/</code>. A <code>Backdrop</code> (usually a <code>rememberLayerBackdrop()</code> attached via <code>Modifier.layerBackdrop(...)</code> to some subtree) captures real pixels; any surface holding a reference to that same backdrop can sample, blur, and refract it through <code>drawBackdrop(...)</code>. The floating nav bar, circular back/share buttons, and sheets are all just glass surfaces sampling a nearby backdrop this way.</li>
+  <li><b>Playback:</b> Media3 <code>ExoPlayer</code> service in <code>playback/MusicService.kt</code>.</li>
+  <li><b>Data:</b> Room database (<code>db/</code>) for the local library, DataStore for preferences (<code>utils/DataStore.kt</code>, <code>constants/PreferenceKeys.kt</code>).</li>
+  <li><b>YouTube Music access:</b> the <code>innertube</code> module — an unofficial InnerTube API client, kept separate from the app module.</li>
+  <li><b>Updater:</b> <code>vivimusic/updater/</code> checks GitHub Releases for new versions and handles in-app APK download/install (FOSS/GMS build flavors behave slightly differently — see <code>BuildConfig.CAST_AVAILABLE</code>).</li>
+</ul>
 
 <hr>
 
 <h2>🚗 Android Auto Setup</h2>
 
-<p>If VIVI Music doesn't appear in Android Auto:</p>
+<p>If Convx doesn't appear in Android Auto:</p>
 
 <ol>
   <li>Open <strong>Android Auto</strong> on your phone</li>
@@ -190,7 +103,7 @@
 
 <h2>🤝 Contributing</h2>
 
-<p>Contributions are welcome! Whether it's bug reports, feature requests, or code contributions:</p>
+<p>Contributions are welcome — bug reports, feature requests, and code. Start with <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> for the project layout, build setup, and PR checklist. Short version:</p>
 
 <ol>
   <li>Fork the repository</li>
@@ -204,15 +117,13 @@
 
 <h2>🛡️ Privacy & Data Collection</h2>
 
-<p>At <strong>VIVI Music</strong>, your privacy is our top priority. We believe that your music and data belong exclusively to you.</p>
+<p>At <strong>Convx</strong>, your privacy is our top priority. We believe that your music and data belong exclusively to you.</p>
 
 <ul>
-  <li><strong>Zero Data Collection:</strong> We do <strong>not</strong> collect, store, or share any of your personal information, usage habits, or listening history.</li>
-  <li><strong>100% Local:</strong> All your settings, downloaded tracks, and offline caches are stored securely on your device.</li>
-  <li><strong>No Tracking:</strong> There are no hidden trackers, analytics, or background services monitoring your activity.</li>
+  <li><strong>Zero Data Collection:</strong> we do <strong>not</strong> collect, store, or share any of your personal information, usage habits, or listening history.</li>
+  <li><strong>100% Local:</strong> all your settings, downloaded tracks, and offline caches are stored securely on your device.</li>
+  <li><strong>No Tracking:</strong> no hidden trackers, analytics, or background services monitoring your activity.</li>
 </ul>
-
-<p>Enjoy your music with complete peace of mind, knowing that your privacy is fully protected.</p>
 
 <hr>
 
@@ -222,12 +133,12 @@
 
 <p>Any trademark, service mark, trade name, or other intellectual property rights used in this project are owned by their respective owners.</p>
 
-<p><strong>VIVI Music</strong> is an independent project created for educational and personal use purposes.</p>
+<p><strong>Convx</strong> is an independent project created for educational and personal use purposes.</p>
 
 <hr>
 
 <h2>📄 License</h2>
-<p>This project is licensed under the terms specified in the <a href="LICENSE">LICENSE</a> file.</p>
+<p>This project is licensed under the terms specified in the <a href="LICENSE">LICENSE</a> file (GPL-3.0).</p>
 
 <hr>
 
@@ -236,16 +147,16 @@
     <tr>
       <td align="center">
         <h3>💬 Community & Support</h3>
-        <p>Connect with other music lovers, suggest new features, report bugs, and stay updated with the latest releases!</p>
+        <p>Connect with other listeners, suggest features, report bugs, and stay updated on releases.</p>
         <br>
-        <a href="https://t.me/+Nen-QpiY0tk1OTE9">
-          <img src="https://img.shields.io/badge/Telegram-Join%20Community-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Join Telegram">
+        <a href="https://discord.gg/KC9BE5Vqud">
+          <img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
         </a>
         <br><br>
         <sub>
-          <a href="https://github.com/vivizzz007/vivi-music/issues">🐞 Report Bugs</a> &nbsp;•&nbsp;
-          <a href="https://github.com/vivizzz007/vivi-music/discussions">💬 Discussions</a> &nbsp;•&nbsp;
-          <a href="https://github.com/vivizzz007/vivi-music/releases">🚀 Releases</a>
+          <a href="https://github.com/cosmictaserdev-creator/Convx/issues">🐞 Report Bugs</a> &nbsp;•&nbsp;
+          <a href="https://github.com/cosmictaserdev-creator/Convx/discussions">💬 Discussions</a> &nbsp;•&nbsp;
+          <a href="https://github.com/cosmictaserdev-creator/Convx/releases">🚀 Releases</a>
         </sub>
       </td>
     </tr>
@@ -256,26 +167,25 @@
 
 <div align="center">
 
-  <h2>🙏 Special Thanks & Credits</h2>
+  <h2>🙏 Credits</h2>
 
-  <p>VIVI Music is built upon the foundation of amazing open-source projects and developers:</p>
-  <br>
+  <p>Convx is developed and maintained by <a href="https://github.com/cosmictaserdev-creator">Aryan (CosmicTaser)</a>.</p>
 
   <table border="0" cellpadding="10" cellspacing="0" width="90%">
     <tr valign="top">
       <td width="40%" align="left">
-        <b>💡 Special Thanks</b>
+        <b>💡 Built On</b>
         <ul>
-          <li><strong><a href="https://github.com/mostafaalagamy">Mostafa Alagamy</a></strong> – For their inspiration and contributions to the open source community.</li>
+          <li><strong><a href="https://github.com/vivizzz007/vivi-music">vivi-music</a></strong> by <strong>Vividh P Ashokan</strong> — the project Convx was forked from.</li>
         </ul>
       </td>
       <td width="60%" align="left">
         <b>🎖️ Foundational Projects</b>
         <ul>
-          <li><strong><a href="https://github.com/better-lyrics/better-lyrics">Better Lyrics</a></strong> – For beautiful synced lyrics and YouTube Music integration.</li>
-          <li><strong><a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a></strong> – For lyrics functionality and integration logic.</li>
-          <li><strong><a href="https://github.com/ibratabian17/YouLyPlus">YouLyPlus</a></strong> – For smooth in-app lyrics styling.</li>
-          <li><strong><a href="https://github.com/monochrome-music/monochrome">Monochrome</a></strong> – For the premium Apple Music-style visualizer canvas.</li>
+          <li><strong><a href="https://github.com/Kyant0/backdrop">Kyant0/backdrop</a></strong> — the real-time backdrop blur/refraction library the Liquid Glass UI is built on.</li>
+          <li><strong><a href="https://github.com/better-lyrics/better-lyrics">Better Lyrics</a></strong> and <strong><a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a></strong> — synced lyrics.</li>
+          <li><strong><a href="https://github.com/ibratabian17/YouLyPlus">YouLyPlus</a></strong> — in-app lyrics styling.</li>
+          <li><strong><a href="https://github.com/monochrome-music/monochrome">Monochrome</a></strong> — the animated visualizer canvas.</li>
         </ul>
       </td>
     </tr>
@@ -283,8 +193,7 @@
 
   <br>
   <p align="center">The open-source community for tools, libraries, and APIs that make this project possible.</p>
-  <p align="center"><strong>Thank you to all the amazing developers who made this project possible!</strong></p>
   <hr width="60%">
   <p align="center"><strong>Made with ❤️ for music lovers everywhere</strong></p>
-  <p align="center">⭐ Star this repo if you enjoy VIVI Music!</p>
+  <p align="center">⭐ Star this repo if you enjoy Convx!</p>
 </div>

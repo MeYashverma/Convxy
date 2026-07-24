@@ -16,12 +16,12 @@ plugins {
 }
 
 android {
-    namespace = "com.music.vivi"
+    namespace = "com.convx.music"
     compileSdk = 37
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.vivi.vivimusic"
+        applicationId = "com.convx.music"
         minSdk = 26
         targetSdk = 36
         versionCode = 71
@@ -91,10 +91,15 @@ android {
             keyPassword = "android"
         }
         create("release") {
+            // Signing material comes from the environment only. Never hardcode a
+            // fallback password here: this file is published, the keystore is not,
+            // and a leaked release password plus a leaked keystore is an
+            // unrecoverable compromise of the app's signing identity.
+            // Set STORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD before a release build.
             storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("STORE_PASSWORD") ?: "ViviMusic2026!"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "vivi"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "ViviMusic2026!"
+            storePassword = System.getenv("STORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"
@@ -286,6 +291,7 @@ dependencies {
     implementation(project(":paxsenixlyrics"))
     implementation(project(":jiosaavn"))
     implementation(project(":spotify"))
+    implementation(project(":spine"))
 
 
     implementation(libs.ktor.client.core)

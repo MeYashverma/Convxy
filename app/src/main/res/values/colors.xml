@@ -4,7 +4,11 @@
     <color name="teal_700">#FF018786</color>
     <color name="ic_launcher_static_background">#000000</color>
     
-    <!-- Widget colors for light mode -->
-    <color name="widget_text_primary">#1C1B1F</color>
-    <color name="widget_text_secondary">#49454F</color>
+
+    <!--
+      Ink on a card widget. Not day/night: the card is the album's tint, a dark
+      surface or a photo, so it is dark in either system theme. The manager
+      overrides this per instance for the one case that isn't — a LIGHT card.
+    -->
+    <color name="widget_on_card">#FFFFFFFF</color>
 </resources>

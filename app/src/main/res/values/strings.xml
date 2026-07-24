@@ -3,7 +3,7 @@
 <!-- Upstream InnerTune strings -->
 <!-- Do not add new features here -->
 <!-- Try to re-use strings here, but be careful on its usage e.g. verb vs noun -->
-<!-- "InnerTune" is replaced with "vivimusic" -->
+<!-- "InnerTune" is replaced with "Convx" -->
 <!-- Translators: Do not modify this file for translations, use InnerTune's Weblate instead. -->
 
 <resources>
@@ -254,6 +254,9 @@
 
     <!-- Settings -->
     <string name="settings">Settings</string>
+    <string name="change_card_image">Change image</string>
+    <string name="use_custom_image">Use custom image</string>
+    <string name="use_first_song_image">Use first song image</string>
     <string name="appearance">Appearance</string>
     <string name="theme">Theme</string>
     <string name="theme_desc">Customize your app theme</string>
@@ -368,7 +371,7 @@
     <string name="restore_failed">Failed to restore backup</string>
 
     <string name="discord_integration">Discord Integration</string>
-    <string name="discord_information">Cosmos uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\Cosmos will only extract your token, and everything else is stored locally.</string>
+    <string name="discord_information">Convx uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\Convx will only extract your token, and everything else is stored locally.</string>
     <string name="dismiss">Dismiss</string>
     <string name="options">Options</string>
     <string name="preview">Preview</string>

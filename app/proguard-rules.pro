@@ -6,20 +6,20 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # WEB_REMIX Streaming - WebView JavaScript interfaces
--keepclassmembers class com.music.vivi.utils.sabr.EjsNTransformSolver$SolverWebView {
+-keepclassmembers class com.convx.music.utils.sabr.EjsNTransformSolver$SolverWebView {
     @android.webkit.JavascriptInterface public *;
 }
--keepclassmembers class com.music.vivi.utils.cipher.CipherWebView {
+-keepclassmembers class com.convx.music.utils.cipher.CipherWebView {
     @android.webkit.JavascriptInterface public *;
 }
--keepclassmembers class com.music.vivi.utils.potoken.PoTokenWebView {
+-keepclassmembers class com.convx.music.utils.potoken.PoTokenWebView {
     @android.webkit.JavascriptInterface public *;
 }
 
 # Keep streaming utility classes
--keep class com.music.vivi.utils.cipher.** { *; }
--keep class com.music.vivi.utils.sabr.** { *; }
--keep class com.music.vivi.utils.potoken.** { *; }
+-keep class com.convx.music.utils.cipher.** { *; }
+-keep class com.convx.music.utils.sabr.** { *; }
+-keep class com.convx.music.utils.potoken.** { *; }
 
 # Keep coroutine continuation for WebView callbacks
 -keepclassmembers class * {
@@ -117,11 +117,11 @@
 
 ## Queue Persistence Rules
 # Keep queue-related classes to prevent serialization issues in release builds
--keep class com.music.vivi.models.PersistQueue { *; }
--keep class com.music.vivi.models.PersistPlayerState { *; }
--keep class com.music.vivi.models.QueueData { *; }
--keep class com.music.vivi.models.QueueType { *; }
--keep class com.music.vivi.playback.queues.** { *; }
+-keep class com.convx.music.models.PersistQueue { *; }
+-keep class com.convx.music.models.PersistPlayerState { *; }
+-keep class com.convx.music.models.QueueData { *; }
+-keep class com.convx.music.models.QueueType { *; }
+-keep class com.convx.music.playback.queues.** { *; }
 
 # Keep serialization methods for queue persistence
 -keepclassmembers class * implements java.io.Serializable {
@@ -135,7 +135,7 @@
 -keep interface com.yalantis.ucrop** { *; }
 
 ## Google Cast Rules
--keep class com.music.vivi.cast.** { *; }
+-keep class com.convx.music.cast.** { *; }
 -keep class com.google.android.gms.cast.** { *; }
 -keep class androidx.mediarouter.** { *; }
 
@@ -143,8 +143,8 @@
 -dontwarn com.google.re2j.**
 
 # Vibra fingerprint library
--keep class com.music.vivi.recognition.VibraSignature { *; }
--keepclassmembers class com.music.vivi.recognition.VibraSignature {
+-keep class com.convx.music.recognition.VibraSignature { *; }
+-keepclassmembers class com.convx.music.recognition.VibraSignature {
     native <methods>;
 }
 
@@ -174,13 +174,13 @@
 }
 
 ## Listen Together Serialization
--keep class com.music.vivi.listentogether.** { *; }
--keepclassmembers class com.music.vivi.listentogether.** {
+-keep class com.convx.music.listentogether.** { *; }
+-keepclassmembers class com.convx.music.listentogether.** {
     *;
 }
--keepclassmembers class com.music.vivi.listentogether.** {
+-keepclassmembers class com.convx.music.listentogether.** {
     *** Companion;
 }
--keepclasseswithmembers class com.music.vivi.listentogether.** {
+-keepclasseswithmembers class com.convx.music.listentogether.** {
     kotlinx.serialization.KSerializer serializer(...);
 }

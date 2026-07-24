@@ -1,52 +1,38 @@
-# 🤝 Contributing to Vivi Music
+# 🤝 Contributing to Convx
 
-Thank you for your interest in contributing to **Vivi Music Enterprise Edition**.
+Thanks for considering a contribution to **Convx**. This document is the real, current process — if something here goes stale, please send a PR fixing it rather than adding a second guide.
 
-> [!IMPORTANT]
-> This project follows strict engineering standards. Before writing code, you **MUST** read our [Technical Manual](../docs/Technical_Manual.md). It is the **Single Source of Truth** for architecture and workflows.
+## 🛠️ Project Layout
 
-## 🛠️ The Workflow (Strict TDD)
+Convx is a single Android Studio project (Gradle multi-module). The pieces you'll actually touch:
 
-We follow the **Red-Green-Refactor** cycle described in our [TDD Blueprint](../docs/tdd_quality_blueprint.md).
+* **`app/`** — the app itself. Compose UI lives under `app/src/main/kotlin/com/convx/music/ui/`, screens under `ui/screens/`, `viewmodels/` per screen, navigation wired in `ui/screens/NavigationBuilder.kt`.
+* **`ui/component/GlassEffect.kt`** + **`ui/component/backdrop/`** — the Liquid Glass system (a vendored, source-included copy of [Kyant0/backdrop](https://github.com/Kyant0/backdrop)). `Modifier.liquidGlass(...)` is the entry point most UI code needs; see the doc comment on `GlassCircleButton` for a worked example of a glass surface sampling a local backdrop.
+* **`innertube/`** — the unofficial YouTube Music (InnerTube) API client, kept independent of the app module.
+* Other top-level modules (`kugou`, `lrclib`, `kizzy`, `lastfm`, `betterlyrics`, `simpmusic`, `youlyplus`, `shazamkit`, `spotify`, ...) are individually-scoped integrations — a lyrics/Discord-RPC/Last.fm provider, etc. Keep changes to one of these scoped to that module.
 
-1.  **🔴 Red**: Write a failing test (JUnit 5 / MockK / Turbine) covering the requirement.
-2.  **🟢 Green**: Implement the *minimal* code to pass the test.
-3.  **🔵 Refactor**: Optimize architecture and clean up code.
+## 🖥️ Building locally
 
-**PRs without tests will be rejected immediately.**
+* **JDK 21**, latest stable **Android Studio**.
+* `compileSdk 37`, `minSdk 26` — install those platforms via the SDK Manager if Android Studio prompts you to.
+* Clone and open the project in Android Studio, let Gradle sync, then run/debug the `app` module as normal (`./gradlew :app:assembleUniversalFossDebug` from the CLI works too). No manual native toolchain, submodules, or codegen scripts are required — Gradle handles everything, including the protobuf codegen used by a couple of modules.
 
-## 📐 Coding Standards & Governance
+## 🌿 Branches & Commits
 
-Please refer to [Governance](../docs/governance.md) for detailed style guides.
+* Branch names: `feature/short-description`, `fix/short-description`.
+* Commit messages: a short type prefix (`feat:`, `fix:`, `refactor:`, `docs:`) followed by an imperative summary — see `git log` for the house style. Explain *why* in the body when it isn't obvious from the diff.
 
-* **Architecture**: Clean Architecture + MVVM (Unidirectional Data Flow).
-* **Components**: Single File Components (SFC) for Jetpack Compose.
-* **Style**: Google Android Style Guide (enforced via `ktlint` and `detekt`).
-* **Language**: Kotlin 2.3 (No Java).
-* **Warnings**: Treat warnings as errors.
+## 🚀 Pull Requests
 
-## 🚀 Pull Request Process
-
-1.  **Fork & Branch**: Use semantic branch names (e.g., `feature/lyrics-sync`, `fix/player-crash`).
-2.  **Commit Messages**: Follow **Conventional Commits**:
-    * `feat: ...` for new features
-    * `fix: ...` for bug fixes
-    * `refactor: ...` for code cleanup
-    * `test: ...` for adding tests
-3.  **Verification**: Run the following commands locally before pushing:
-    ```bash
-    ./gradlew lintDebug       # Must be free of errors
-    ./gradlew testDebugUnitTest # Must pass
-    ```
-4.  **Coverage**: Ensure you meet the **80% coverage goal** for business logic.
+1. Fork the repo and branch off `main`.
+2. Keep the diff scoped to the PR's stated purpose — avoid drive-by reformatting or unrelated refactors, they make review harder.
+3. Actually run the change on a device/emulator before opening the PR; this is a UI-heavy app and most regressions here are visual, not compile-time.
+4. Describe *what* changed and *why* in the PR description; screenshots/recordings are expected for anything UI-visible.
 
 ## 🐞 Reporting Bugs
 
-Please use the [Bug Report Template](ISSUE_TEMPLATE/bug_report.yml). Attach logs (`adb logcat`) and screenshots.
+Open an [issue](https://github.com/cosmictaserdev-creator/Convx/issues) with repro steps, your Android version/device, and `adb logcat` output if it's a crash. For anything real-time (playback glitches, Listen Together sync), a screen recording helps a lot.
 
----
+## 💬 Questions
 
-**Quick Links:**
-* 📖 [Technical Manual](../docs/Technical_Manual.md)
-* ⚖️ [Governance & Style](../docs/governance.md)
-* 🧪 [TDD & Quality Blueprint](../docs/tdd_quality_blueprint.md)
+Ask in the [Discord](https://discord.gg/KC9BE5Vqud) before starting anything large — happy to point you at the right file instead of you reverse-engineering it.

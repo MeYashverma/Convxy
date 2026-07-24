@@ -53,8 +53,8 @@ captures/
 
 # Keystore files
 # Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+*.jks
+*.keystore
 app/persistent-debug.keystore
 # ^^^ think twice before removing this gitignore, it became so FUCKING
 # annoying to unstage this file every time i want to commit stuff
@@ -106,3 +106,21 @@ app/src/main/java/com/vivimusic/music/listentogether/proto/*
 # FFTW third-party library build artifacts
 app/src/main/cpp/vibrafp/third_party/fftw-android/
 app/src/main/cpp/vibrafp/third_party/.build-fftw/
+# Signing material — never commit
+keystore/
+app/keystore/
+*.jks
+*.keystore
+
+# Local-only notes and design references
+*.md
+!README.md
+!.github/CONTRIBUTING.md
+!.github/pull_request_template.md
+app/src/main/kotlin/com/designRefrence/
+
+# Upstream marketing/store assets — not used by the build
+NEW-UI/
+News/
+fastlane/
+merge_strings.py

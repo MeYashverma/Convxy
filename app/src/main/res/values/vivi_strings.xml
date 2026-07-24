@@ -122,11 +122,11 @@
     <string name="vivimusic_canvas_desc">Replaces the static album artwork in the player with a looping animated video when one is available for the current song</string>
     <string name="canvas_source">Canvas source</string>
     <string name="canvas_source_auto">Auto</string>
-    <string name="canvas_source_auto_desc">Tries Apple Music first, then falls back to Cosmos and Tidal. Picks the best match for the current song automatically</string>
+    <string name="canvas_source_auto_desc">Tries Apple Music first, then falls back to Convx and Tidal. Picks the best match for the current song automatically</string>
     <string name="canvas_source_apple_music">Apple Music</string>
     <string name="canvas_source_apple_music_desc">Uses Apple Music&#8217;s animated visuals exclusively. Only shows a canvas if Apple Music has one for the playing song</string>
-    <string name="canvas_source_vivimusic">Cosmos</string>
-    <string name="canvas_source_vivimusic_desc">Uses the Cosmos curated canvas library exclusively. Only shows a canvas if one has been added for the playing song</string>
+    <string name="canvas_source_vivimusic">Convx</string>
+    <string name="canvas_source_vivimusic_desc">Uses the Convx curated canvas library exclusively. Only shows a canvas if one has been added for the playing song</string>
     <string name="canvas_source_tidal">Tidal</string>
     <string name="canvas_source_tidal_desc">Uses Tidal&#8217;s animated visuals exclusively. Only shows a canvas if Tidal has one for the playing song</string>
     <string name="show_album_canvas">Show Album Canvas</string>
@@ -413,7 +413,7 @@
     <string name="enable_scrobbling">Enable scrobbling</string>
     <string name="lastfm_now_playing">Send Now Playing</string>
     <string name="last_fm_send_likes">Send Likes/Unlikes</string>
-    <string name="last_fm_send_likes_description">Love/Unlove songs in Last.fm when they are Liked/Unliked in Cosmos</string>
+    <string name="last_fm_send_likes_description">Love/Unlove songs in Last.fm when they are Liked/Unliked in Convx</string>
     <string name="logging_in">Logging in…</string>
 
     <string name="scrobbling_configuration">Scrobbling Configuration</string>
@@ -454,7 +454,7 @@
     <string name="karaoke">Karaoke</string>
     <string name="apple_music_style">Apple Music</string>
     <string name="apple_music_style_letter">Apple Music V2 (Letter by Letter)</string>
-    <string name="vivimusic_1">Cosmos (Fluid)</string>
+    <string name="vivimusic_1">Convx (Fluid)</string>
     <string name="apple_music_lyrics_blur">Apple Music Lyrics Blur</string>
     <string name="apple_music_lyrics_blur_desc">Apply blur to inactive lyrics lines for a premium focus effect</string>
     <string name="lyrics_v2_fluid">Lyrics V2 (Fluid)</string>
@@ -484,19 +484,19 @@
     <string name="wrapped_total_artists_subtitle">unique artists</string>
     <string name="wrapped_total_songs_title">You listened to</string>
     <string name="wrapped_total_songs_subtitle">unique songs</string>
-    <string name="wrapped_intro_title">Cosmos</string>
+    <string name="wrapped_intro_title">Convx</string>
     <string name="wrapped_intro_subtitle">it\'s time to see what you\'ve been listening to</string>
     <string name="wrapped_intro_button">let\'s go!</string>
-    <string name="wrapped_end_thanks">Thanks for listening with Cosmos!</string>
+    <string name="wrapped_end_thanks">Thanks for listening with Convx!</string>
     <string name="wrapped_end_create_playlist">Create Your Wrapped Playlist</string>
     <string name="wrapped_end_creating_playlist">Creating...</string>
     <string name="wrapped_end_playlist_saved">Playlist Saved</string>
-    <string name="wrapped_logo_content_description">Cosmos Logo</string>
+    <string name="wrapped_logo_content_description">Convx Logo</string>
     <string name="wrapped_year">2025</string>
     <string name="wrapped_ready_title">YOUR WRAPPED IS READY!</string>
     <string name="wrapped_ready_subtitle">Time to see what you loved this year.</string>
     <string name="wrapped_thank_you">Thank you for listening</string>
-    <string name="wrapped_special_thanks">Special thanks to Vividh for creating the app Cosmos is built on</string>
+    <string name="wrapped_special_thanks">Special thanks to Vividh for creating the app Convx is built on</string>
     <string name="wrapped_close">Close wrapped</string>
     <string name="wrapped_playlist_title">Your %s Wrapped</string>
     <string name="wrapped_create_playlist">Create playlist</string>
@@ -572,9 +572,9 @@
     <string name="plays">plays</string>
     <string name="casting_to">Casting to %s</string>
     <string name="progress_percent">Progress %s%%</string>
-    <string name="listening_to_vivimusic">Listening to Cosmos</string>
+    <string name="listening_to_vivimusic">Listening to Convx</string>
     <string name="listen_on_youtube_music">Listen on YouTube Music</string>
-    <string name="visit_vivimusic">Visit Cosmos</string>
+    <string name="visit_vivimusic">Visit Convx</string>
     <string name="open">Open</string>
     <string name="failed_to_create_image">Failed to create image: %s</string>
     <string name="copied_title">Copied Title</string>
@@ -591,18 +591,38 @@
     <!-- Widget strings -->
     <string name="album_art">Album art</string>
     <string name="no_song_playing">No song playing</string>
-    <string name="tap_to_open">Tap to open Cosmos</string>
+    <string name="tap_to_open">Tap to open Convx</string>
     <string name="previous">Previous</string>
     <string name="play_pause">Play/Pause</string>
     <string name="next">Next</string>
     <string name="like">Like</string>
     <string name="not_playing">No song playing</string>
-    <string name="tap_to_play">Tap to open Cosmos</string>
+    <string name="tap_to_play">Tap to open Convx</string>
     <string name="widget_description">Music player widget with playback controls</string>
     <string name="queue_widget_description">Music player with queue preview</string>
     <string name="turntable_widget_description">Circular music widget with play and like controls</string>
+    <string name="widget_now_playing_description">Now playing card tinted to the album artwork</string>
+    <string name="widget_now_playing_label">Now Playing</string>
+    <string name="widget_play">Play</string>
+    <string name="widget_pause">Pause</string>
     <string name="widget_music_player">Music Player</string>
     <string name="widget_turntable">Turntable</string>
+    <string name="widget_now_playing">Now Playing</string>
+    <string name="widget_lyrics">Lyrics</string>
+    <string name="widget_lyrics_description">Current lyric line with playback controls</string>
+    <string name="widget_cfg_background">Background</string>
+    <string name="widget_cfg_bg_album">Album colour</string>
+    <string name="widget_cfg_bg_dark">Dark</string>
+    <string name="widget_cfg_bg_light">Light</string>
+    <string name="widget_cfg_bg_image">Custom image</string>
+    <string name="widget_cfg_choose_image">Choose image</string>
+    <string name="widget_cfg_no_image">No image selected</string>
+    <string name="widget_cfg_content">Content</string>
+    <string name="widget_cfg_show_artwork">Show album artwork</string>
+    <string name="widget_cfg_show_prev_next">Show previous / next</string>
+    <string name="widget_cfg_show_like">Show like button</string>
+    <string name="widget_cfg_done">Done</string>
+    <string name="widget_no_lyrics">No lyrics available</string>
 
     <!-- Player Client Settings -->
     <string name="player_client">Player client</string>
@@ -756,7 +776,7 @@
     <string name="crash_share_logs">Share Logs</string>
     <string name="copy_logs">Copy Logs</string>
     <string name="crash_share_title">Share crash report</string>
-    <string name="crash_report_subject">Cosmos Crash Report</string>
+    <string name="crash_report_subject">Convx Crash Report</string>
     <string name="crash_close">Close</string>
     <string name="crash_no_log">No crash log available</string>
 
@@ -809,7 +829,7 @@
     <string name="delete_from_history">Delete from history</string>
     <string name="re_listen">Re-listen</string>
     <string name="hold_to_recognize">Hold search icon to recognize music</string>
-    <string name="play_on_app">Play on Cosmos</string>
+    <string name="play_on_app">Play on Convx</string>
     <string name="recognized_track">Recognized Track</string>
 
     <!-- CSV Import Strings -->
@@ -848,9 +868,9 @@
     <string name="discord_rpc_preview">Rich Presence Preview</string>
     <string name="discord_presence">Presence</string>
     <string name="discord_connect_description">Sign in with Discord to share what you\'re listening to</string>
-    <string name="discord_playing_vivimusic">Playing Cosmos</string>
-    <string name="discord_watching_vivimusic">Watching Cosmos</string>
-    <string name="discord_competing_vivimusic">Competing in Cosmos</string>
+    <string name="discord_playing_vivimusic">Playing Convx</string>
+    <string name="discord_watching_vivimusic">Watching Convx</string>
+    <string name="discord_competing_vivimusic">Competing in Convx</string>
     <string name="discord_activity_name">Activity name</string>
     <string name="discord_activity_name_description">Custom name for the activity (leave empty for default)</string>
     <string name="discord_advanced_mode">Advanced mode</string>
@@ -908,7 +928,7 @@
 
     <string name="perm_required">Required</string>
     <string name="perm_permissions">Permissions</string>
-    <string name="perm_intro_text">These permissions are required for Cosmos to function correctly. Please grant them to proceed.</string>
+    <string name="perm_intro_text">These permissions are required for Convx to function correctly. Please grant them to proceed.</string>
 
     <string name="perm_notif_title">Notifications</string>
     <string name="perm_notif_desc">Know immediately when your music is playing and control it from the notification bar.</string>
@@ -918,7 +938,7 @@
 
     <string name="feat_discover">Discover</string>
     <string name="feat_features">Features</string>
-    <string name="feat_intro">Explore everything Cosmos has to offer for your music journey.</string>
+    <string name="feat_intro">Explore everything Convx has to offer for your music journey.</string>
 
     <string name="feat_lyrics_title">Smart Lyrics</string>
     <string name="feat_lyrics_desc">Enjoy synchronized, word-by-word lyrics for millions of songs.</string>
@@ -928,6 +948,12 @@
 
     <string name="feat_quality_title">Premium Quality</string>
     <string name="feat_quality_desc">Stream and download.</string>
+
+    <string name="feat_glass_title">Liquid Glass UI</string>
+    <string name="feat_glass_desc">An iOS-inspired frosted glass design across the whole app.</string>
+
+    <string name="feat_discord_title">Discord Rich Presence</string>
+    <string name="feat_discord_desc">Show what you're listening to right on your Discord profile.</string>
 
     <string name="feat_update_title">Dynamic Updates</string>
     <string name="feat_update_desc">Always stay updated with our built-in updater.</string>
@@ -942,7 +968,7 @@
     <string name="welcome_update_status">Updated</string>
     <string name="welcome_update_intro">Ensuring you have the latest features and security improvements.</string>
     <string name="welcome_checking_updates">Checking for updates…</string>
-    <string name="welcome_up_to_date">Cosmos is up to date!</string>
+    <string name="welcome_up_to_date">Convx is up to date!</string>
     <string name="welcome_update_available">New version is available: %s</string>
     <string name="welcome_everything_ready">Everything is now up to date</string>
     <string name="commits_title">Commits</string>
@@ -1022,6 +1048,8 @@
     <string name="playlist_description">Description</string>
     <string name="ios_overscroll">Bouncy scroll</string>
     <string name="ios_overscroll_desc">iOS-style rubber-band overscroll on lists</string>
+    <string name="force_tablet_layout">Tab view</string>
+    <string name="force_tablet_layout_desc">Wide screens use the side bar automatically. Turn this on to force it on a phone too</string>
     <string name="scan_device">Scan device</string>
     <string name="grant_permission">Grant permission</string>
     <string name="home_background">Home background</string>
@@ -1067,4 +1095,23 @@
     <string name="color_white">White</string>
     <string name="color_light_gray">Light Gray</string>
     <string name="color_black">Black</string>
+
+    <!-- 8spine Modules -->
+    <string name="modules">Modules</string>
+    <string name="module_sources">Module Sources</string>
+    <string name="add_source">Add Source</string>
+    <string name="add_module_source">Add Module Source</string>
+    <string name="add_module_source_desc">Enter the URL of an 8spine module index JSON to browse and install modules from that source.</string>
+    <string name="source_url">Source URL</string>
+    <string name="fetch_modules">Fetch Modules</string>
+    <string name="no_modules_found">No modules found from the added sources.</string>
+    <string name="module_detail">Module Detail</string>
+    <string name="enable_module">Enable Module</string>
+    <string name="module_info">Module Info</string>
+    <string name="module_id">Module ID</string>
+    <string name="module_status">Status</string>
+    <string name="module_description">Description</string>
+    <string name="enabled">Enabled</string>
+    <string name="disabled">Disabled</string>
+    <string name="remove">Remove</string>
 </resources>

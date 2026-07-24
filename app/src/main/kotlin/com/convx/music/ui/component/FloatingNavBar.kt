@@ -1,0 +1,197 @@
+/**
+ * Convx Project (C) 2026
+ * Licensed under GPL-3.0 | See git history for contributors
+ */
+
+@file:OptIn(ExperimentalSharedTransitionApi::class)
+
+package com.convx.music.ui.component
+
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import com.convx.music.ui.player.FloatingMiniPlayer
+import com.convx.music.ui.screens.Screens
+import com.convx.music.ui.component.floatingtabbar.FloatingTabBar
+import com.convx.music.ui.component.floatingtabbar.FloatingTabBarDefaults
+import com.convx.music.ui.component.floatingtabbar.FloatingTabBarScrollConnection
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
+
+// Kyant0/Capsule's continuous (superellipse) capsule instead of a circular-arc
+// RoundedCornerShape — smoother corners, and lerp-able for the puck's
+// drag-to-search morph (see FloatingTabBar's ExpandedTabs).
+private val NavBarShape = ContinuousRoundedRectangle(percent = 50)
+
+/**
+ * The iOS 26 style floating navigation bar, an alternative to [AppNavigationBar].
+ *
+ * Collapses to an inline pill while scrolling down (driven by [scrollConnection]) and
+ * expands back on scroll up. The search destination is rendered as the standalone
+ * circular tab. When the liquid glass effect is enabled for the navigation bar, the tab
+ * bar surfaces sample the app backdrop through [Modifier.liquidGlass].
+ *
+ * When [showPlayerAccessory] is true the now playing controls dock into the bar as an
+ * accessory (a pill above the tabs when expanded, inline between the tab pill and the
+ * search tab when collapsed) and [onAccessoryClick] opens the full player.
+ */
+@Composable
+fun AppFloatingNavBar(
+    navigationItems: List<Screens>,
+    currentRoute: String?,
+    onItemClick: (Screens, Boolean) -> Unit,
+    scrollConnection: FloatingTabBarScrollConnection,
+    modifier: Modifier = Modifier,
+    pureBlack: Boolean = false,
+    showPlayerAccessory: Boolean = false,
+    onAccessoryClick: () -> Unit = {},
+    // When set, tapping the search circle calls this instead of onItemClick (the
+    // caller expands an in-place search pill rather than navigating away) and
+    // the circle itself is hidden while searchExpanded so it doesn't double up
+    // with that pill.
+    onSearchTap: (() -> Unit)? = null,
+    searchExpanded: Boolean = false,
+) {
+    val glassConfig = LocalGlassEffectConfig.current
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
+    val appleMusicUi = LocalAppleMusicUi.current
+
+    val backgroundColor = when {
+        useGlass -> Color.Transparent
+        pureBlack -> Color.Black
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    // Selected nav item = the liquid-glass text color; every other item = white.
+    val selectedContentColor = glassConfig.textColor
+    val unselectedContentColor = Color.White
+
+    val tabBarContentModifier = if (useGlass) {
+        Modifier.liquidGlass(
+            config = glassConfig,
+            shape = NavBarShape,
+            highlightAlpha = 0.3f,
+        )
+    } else {
+        Modifier
+    }
+
+    // Puck/indicator: sticky, so a non-tab destination (a drilled-in detail,
+    // settings sub-page) holds the last tab instead of snapping the puck to Home.
+    val selectedTabKey = rememberStickySelectedRoute(currentRoute, navigationItems)
+
+    val searchScreen = navigationItems.firstOrNull { it == Screens.Search }
+    val tabScreens = remember(navigationItems) { navigationItems.filter { it != Screens.Search } }
+
+    val accessoryContentColor = when {
+        useGlass -> glassConfig.textColor
+        pureBlack -> Color.White
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val inlineAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? =
+        if (showPlayerAccessory) {
+            { accessoryModifier, _ ->
+                FloatingMiniPlayer(
+                    isInline = true,
+                    contentColor = accessoryContentColor,
+                    onClick = onAccessoryClick,
+                    modifier = accessoryModifier.then(tabBarContentModifier),
+                )
+            }
+        } else {
+            null
+        }
+    val expandedAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? =
+        if (showPlayerAccessory) {
+            { accessoryModifier, _ ->
+                FloatingMiniPlayer(
+                    isInline = false,
+                    contentColor = accessoryContentColor,
+                    onClick = onAccessoryClick,
+                    modifier = accessoryModifier.fillMaxWidth().then(tabBarContentModifier),
+                )
+            }
+        } else {
+            null
+        }
+
+    FloatingTabBar(
+        selectedTabKey = selectedTabKey,
+        scrollConnection = scrollConnection,
+        modifier = modifier,
+        tabBarContentModifier = tabBarContentModifier,
+        inlineAccessory = inlineAccessory,
+        expandedAccessory = expandedAccessory,
+        colors = FloatingTabBarDefaults.colors(
+            backgroundColor = backgroundColor,
+            accessoryBackgroundColor = backgroundColor,
+        ),
+        // The selection puck's lens/accent-tint effects only make sense when the
+        // bar itself is sampling the app backdrop through liquid glass.
+        backdrop = if (useGlass) LocalAppBackdrop.current else null,
+        accentColor = selectedContentColor,
+        // The tab content lambdas are captured once per contentKey, so anything they
+        // close over (selection, colors) must be part of the key to avoid stale UI.
+        contentKey = listOf(selectedTabKey, currentRoute, navigationItems, selectedContentColor, unselectedContentColor, searchExpanded),
+    ) {
+        tabScreens.forEach { screen ->
+            val isSelected = screen.route == selectedTabKey
+            tab(
+                key = screen.route,
+                title = {
+                    Text(
+                        text = stringResource(screen.titleId),
+                        color = if (isSelected) selectedContentColor else unselectedContentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                icon = {
+                    Icon(
+                        painter = painterResource(
+                            if (isSelected) screen.iconActive(appleMusicUi) else screen.iconInactive(appleMusicUi)
+                        ),
+                        contentDescription = stringResource(screen.titleId),
+                        tint = if (isSelected) selectedContentColor else unselectedContentColor,
+                    )
+                },
+                onClick = { onItemClick(screen, isRouteSelected(currentRoute, screen.route, navigationItems)) },
+            )
+        }
+
+        if (searchScreen != null && !searchExpanded) {
+            val screen = searchScreen
+            val isSelected = screen.route == selectedTabKey
+            standaloneTab(
+                key = screen.route,
+                title = {
+                    Text(
+                        text = stringResource(screen.titleId),
+                        color = if (isSelected) selectedContentColor else unselectedContentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                icon = {
+                    Icon(
+                        painter = painterResource(
+                            if (isSelected) screen.iconActive(appleMusicUi) else screen.iconInactive(appleMusicUi)
+                        ),
+                        contentDescription = stringResource(screen.titleId),
+                        tint = if (isSelected) selectedContentColor else unselectedContentColor,
+                    )
+                },
+                onClick = { onSearchTap?.invoke() ?: onItemClick(screen, isRouteSelected(currentRoute, screen.route, navigationItems)) },
+            )
+        }
+    }
+}

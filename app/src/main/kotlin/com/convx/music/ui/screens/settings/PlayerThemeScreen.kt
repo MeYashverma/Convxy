@@ -1,0 +1,824 @@
+/**
+ * Convx Project (C) 2026
+ * Licensed under GPL-3.0 | See git history for contributors
+ */
+
+package com.convx.music.ui.screens.settings
+
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import android.os.Build
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.Canvas
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.background
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.border
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.clickable
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.horizontalScroll
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.Arrangement
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.Box
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.Column
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.Row
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.Spacer
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.height
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.padding
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.size
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.width
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.rememberScrollState
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.shape.CircleShape
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.verticalScroll
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.ExperimentalMaterial3Api
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.Icon
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.MaterialTheme
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.ModalBottomSheet
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.Slider
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.Text
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.TextButton
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.TopAppBar
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.TopAppBarScrollBehavior
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.Composable
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.collectAsState
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.getValue
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.mutableIntStateOf
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.mutableStateOf
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.remember
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.setValue
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.toMutableStateList
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.Alignment
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.Modifier
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.draw.alpha
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.draw.clip
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.draw.shadow
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.graphics.Brush
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.graphics.Color
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.graphics.toArgb
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.layout.ContentScale
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.res.painterResource
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.res.stringResource
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.text.font.FontWeight
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.unit.Dp
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.ui.unit.dp
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.navigation.NavController
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import coil3.compose.AsyncImage
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.LocalPlayerAwareWindowInsets
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.LocalPlayerConnection
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.R
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.PlayerArtworkStyle
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.PlayerArtworkStyleKey
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.PlayerBackgroundStyle
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.PlayerBackgroundStyleKey
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.PlayerGradientAngleKey
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.PlayerGradientStopsKey
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.PlayerStaticColorKey
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.SliderStyle
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.SliderStyleKey
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.models.MediaMetadata
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.component.ColorPickerDialog
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.component.IconButton as AppIconButton
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.theme.DefaultGradientStops
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.theme.decodeGradientStops
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.theme.encodeGradientStops
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.theme.tiltedGradient
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.utils.backToMain
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.utils.rememberEnumPreference
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.utils.rememberPreference
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import kotlinx.coroutines.flow.MutableStateFlow
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import kotlin.math.roundToInt
+
+private val PresetCardWidth = 148.dp
+
+/**
+ * Player theme picker: preset cards that render a live miniature of the real
+ * player, so the artwork shape, background and seek bar are chosen by looking
+ * at them rather than by reading a list of names.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlayerThemeScreen(
+    navController: NavController,
+    scrollBehavior: TopAppBarScrollBehavior,
+) {
+    val (artworkStyle, onArtworkStyleChange) = rememberEnumPreference(
+        PlayerArtworkStyleKey, defaultValue = PlayerArtworkStyle.CARD
+    )
+    val (background, onBackgroundChange) = rememberEnumPreference(
+        PlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.APPLE_MUSIC
+    )
+    val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
+        SliderStyleKey, defaultValue = SliderStyle.DEFAULT
+    )
+    val (staticColorInt, onStaticColorChange) = rememberPreference(
+        PlayerStaticColorKey, defaultValue = 0xFF1A1A1A.toInt()
+    )
+    val (gradientStopsRaw, onGradientStopsChange) = rememberPreference(
+        PlayerGradientStopsKey, defaultValue = ""
+    )
+    val (gradientAngle, onGradientAngleChange) = rememberPreference(
+        PlayerGradientAngleKey, defaultValue = 90f
+    )
+    val gradientStops = remember(gradientStopsRaw) { decodeGradientStops(gradientStopsRaw) }
+
+    var showStaticPicker by rememberSaveable { mutableStateOf(false) }
+    var showGradientSheet by rememberSaveable { mutableStateOf(false) }
+
+    // Apple Music draws its own square artwork treatment, so the shape presets
+    // have nothing to act on while it is selected.
+    val artworkLocked = background == PlayerBackgroundStyle.APPLE_MUSIC
+
+    // Preview the song that is actually playing; fall back to the app icon.
+    val playerConnection = LocalPlayerConnection.current
+    val mediaMetadata by remember(playerConnection) {
+        playerConnection?.mediaMetadata ?: MutableStateFlow<MediaMetadata?>(null)
+    }.collectAsState()
+    val artworkUrl = mediaMetadata?.thumbnailUrl
+
+    Column(
+        Modifier
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        SectionTitle(stringResource(R.string.player_theme_artwork))
+        if (artworkLocked) {
+            LockedNote(stringResource(R.string.player_theme_artwork_locked))
+        }
+        PresetRow {
+            PlayerArtworkStyle.entries.forEach { style ->
+                PresetCard(
+                    label = when (style) {
+                        PlayerArtworkStyle.CARD -> stringResource(R.string.player_theme_card)
+                        PlayerArtworkStyle.VINYL -> stringResource(R.string.player_theme_vinyl)
+                        PlayerArtworkStyle.CLOVER -> stringResource(R.string.player_theme_clover)
+                    },
+                    selected = artworkStyle == style,
+                    enabled = !artworkLocked,
+                    onClick = { onArtworkStyleChange(style) },
+                ) {
+                    PlayerPreview(
+                        artworkStyle = style,
+                        background = background,
+                        sliderStyle = sliderStyle,
+                        artworkUrl = artworkUrl,
+                        staticColor = Color(staticColorInt),
+                        gradientStops = gradientStops,
+                        gradientAngle = gradientAngle,
+                    )
+                }
+            }
+        }
+
+        SectionTitle(stringResource(R.string.player_background_style))
+        PresetRow {
+            PlayerBackgroundStyle.entries.filter {
+                it != PlayerBackgroundStyle.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            }.forEach { style ->
+                PresetCard(
+                    label = backgroundLabel(style),
+                    selected = background == style,
+                    onClick = { onBackgroundChange(style) },
+                ) {
+                    PlayerPreview(
+                        artworkStyle = artworkStyle,
+                        background = style,
+                        sliderStyle = sliderStyle,
+                        artworkUrl = artworkUrl,
+                        staticColor = Color(staticColorInt),
+                        gradientStops = gradientStops,
+                        gradientAngle = gradientAngle,
+                    )
+                }
+            }
+        }
+
+        if (background == PlayerBackgroundStyle.STATIC) {
+            SettingRow(
+                title = stringResource(R.string.player_theme_static_color),
+                onClick = { showStaticPicker = true },
+            ) {
+                Box(
+                    Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(staticColorInt))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                )
+            }
+        }
+
+        if (background == PlayerBackgroundStyle.CUSTOM_GRADIENT) {
+            SettingRow(
+                title = stringResource(R.string.player_theme_edit_gradient),
+                onClick = { showGradientSheet = true },
+            ) {
+                Box(
+                    Modifier
+                        .width(56.dp)
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .tiltedGradient(gradientStops, gradientAngle)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                )
+            }
+        }
+
+        SectionTitle(stringResource(R.string.slider_style))
+        PresetRow {
+            SliderStyle.entries.forEach { style ->
+                PresetCard(
+                    label = sliderLabel(style),
+                    selected = sliderStyle == style,
+                    onClick = { onSliderStyleChange(style) },
+                ) {
+                    PlayerPreview(
+                        artworkStyle = artworkStyle,
+                        background = background,
+                        sliderStyle = style,
+                        artworkUrl = artworkUrl,
+                        staticColor = Color(staticColorInt),
+                        gradientStops = gradientStops,
+                        gradientAngle = gradientAngle,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+    }
+
+    if (showStaticPicker) {
+        ColorPickerDialog(
+            initialColor = Color(staticColorInt),
+            title = stringResource(R.string.player_theme_static_color),
+            onDismiss = { showStaticPicker = false },
+            onConfirm = { onStaticColorChange(it.toArgb()); showStaticPicker = false },
+            defaultColor = Color(0xFF1A1A1A),
+        )
+    }
+
+    if (showGradientSheet) {
+        GradientSheet(
+            stops = gradientStops,
+            angle = gradientAngle,
+            onDismiss = { showGradientSheet = false },
+            onStopsChange = { onGradientStopsChange(encodeGradientStops(it)) },
+            onAngleChange = onGradientAngleChange,
+        )
+    }
+
+    TopAppBar(
+            windowInsets = appTopBarWindowInsets(),
+        title = { Text(stringResource(R.string.player_theme)) },
+        navigationIcon = {
+            AppIconButton(
+                onClick = navController::navigateUp,
+                onLongClick = navController::backToMain,
+            ) {
+                Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
+            }
+        },
+        scrollBehavior = scrollBehavior,
+    )
+}
+
+/**
+ * Multi-stop gradient editor: tap a stop to recolour it, add or remove stops, and
+ * tilt the whole thing. Every control writes straight through, so the preset card
+ * behind the sheet updates as you drag.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GradientSheet(
+    stops: List<Color>,
+    angle: Float,
+    onDismiss: () -> Unit,
+    onStopsChange: (List<Color>) -> Unit,
+    onAngleChange: (Float) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val working = remember(stops) { stops.toMutableStateList() }
+    var editingIndex by remember { mutableIntStateOf(-1) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding(),
+        ) {
+            Text(
+                text = stringResource(R.string.player_theme_custom_gradient),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Spacer(Modifier.height(16.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .tiltedGradient(working.toList(), angle)
+            )
+
+            Spacer(Modifier.height(20.dp))
+            Text(stringResource(R.string.player_theme_stops), style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                working.forEachIndexed { index, color ->
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable { editingIndex = index }
+                    )
+                }
+                // Cap at five: past that the stops are too close to tell apart.
+                if (working.size < 5) {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable {
+                                working.add(working.lastOrNull() ?: Color.Black)
+                                onStopsChange(working.toList())
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.add),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+
+            if (working.size > 2) {
+                TextButton(
+                    onClick = {
+                        working.removeAt(working.lastIndex)
+                        onStopsChange(working.toList())
+                    }
+                ) { Text(stringResource(R.string.player_theme_remove_stop)) }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.player_theme_tilt, angle.roundToInt()),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Slider(
+                value = angle,
+                onValueChange = onAngleChange,
+                valueRange = 0f..360f,
+            )
+
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GradientPresetChip(stringResource(R.string.player_theme_tilt_vertical)) { onAngleChange(90f) }
+                GradientPresetChip(stringResource(R.string.player_theme_tilt_horizontal)) { onAngleChange(0f) }
+                GradientPresetChip(stringResource(R.string.player_theme_tilt_diagonal)) { onAngleChange(45f) }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            TextButton(
+                onClick = {
+                    working.clear()
+                    working.addAll(DefaultGradientStops)
+                    onStopsChange(DefaultGradientStops)
+                    onAngleChange(90f)
+                }
+            ) { Text(stringResource(R.string.reset)) }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+
+    if (editingIndex in working.indices) {
+        val index = editingIndex
+        ColorPickerDialog(
+            initialColor = working[index],
+            title = stringResource(R.string.player_theme_stops),
+            onDismiss = { editingIndex = -1 },
+            onConfirm = { color ->
+                working[index] = color
+                onStopsChange(working.toList())
+                editingIndex = -1
+            },
+        )
+    }
+}
+
+@Composable
+private fun GradientPresetChip(label: String, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
+}
+
+@Composable
+private fun backgroundLabel(style: PlayerBackgroundStyle) = when (style) {
+    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
+    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
+    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
+    PlayerBackgroundStyle.GLOW_ANIMATED -> stringResource(R.string.glow_animated)
+    PlayerBackgroundStyle.APPLE_MUSIC -> stringResource(R.string.apple_music)
+    PlayerBackgroundStyle.LIVE_MESH -> stringResource(R.string.live_mesh)
+    PlayerBackgroundStyle.STATIC -> stringResource(R.string.player_theme_static)
+    PlayerBackgroundStyle.CUSTOM_GRADIENT -> stringResource(R.string.player_theme_custom_gradient)
+}
+
+@Composable
+private fun sliderLabel(style: SliderStyle) = when (style) {
+    SliderStyle.DEFAULT -> stringResource(R.string.default_style)
+    SliderStyle.WAVY -> stringResource(R.string.wavy)
+    SliderStyle.SLIM -> stringResource(R.string.slim)
+    SliderStyle.WAVEFORM -> stringResource(R.string.waveform)
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun LockedNote(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun PresetRow(content: @Composable () -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+    ) { content() }
+}
+
+@Composable
+private fun PresetCard(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    preview: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(PresetCardWidth)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            // Disabled presets stay readable but visibly out of play.
+            .alpha(if (enabled) 1f else 0.38f)
+            .padding(bottom = 4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.62f)
+                .shadow(if (selected) 10.dp else 5.dp, shape)
+                .clip(shape)
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.outlineVariant,
+                    shape = shape,
+                )
+        ) { preview() }
+
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+        )
+        Spacer(Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(
+                    if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+                )
+                .border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    painterResource(R.drawable.check),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(13.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Miniature of the real player: background wash + artwork shape + seek bar. */
+@Composable
+private fun PlayerPreview(
+    artworkStyle: PlayerArtworkStyle,
+    background: PlayerBackgroundStyle,
+    sliderStyle: SliderStyle,
+    artworkUrl: String?,
+    staticColor: Color,
+    gradientStops: List<Color>,
+    gradientAngle: Float,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val surface = MaterialTheme.colorScheme.surface
+    val backdrop: Brush? = when (background) {
+        PlayerBackgroundStyle.DEFAULT -> Brush.verticalGradient(listOf(surface, surface))
+        PlayerBackgroundStyle.STATIC -> Brush.verticalGradient(listOf(staticColor, staticColor))
+        // Drawn by tiltedGradient below so the tilt shows in the preview too.
+        PlayerBackgroundStyle.CUSTOM_GRADIENT -> null
+        PlayerBackgroundStyle.LIVE_MESH ->
+            Brush.linearGradient(listOf(accent, Color.Black, accent.copy(alpha = 0.4f)))
+        PlayerBackgroundStyle.GLOW_ANIMATED -> Brush.radialGradient(listOf(accent, Color.Black))
+        else -> Brush.verticalGradient(listOf(accent.copy(alpha = 0.55f), Color.Black))
+    }
+    val onBackdrop = if (background == PlayerBackgroundStyle.DEFAULT) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        Color.White
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (backdrop != null) {
+                    Modifier.background(backdrop)
+                } else {
+                    Modifier.tiltedGradient(gradientStops, gradientAngle)
+                }
+            )
+            .padding(12.dp),
+    ) {
+        Spacer(Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(
+                    when (artworkStyle) {
+                        PlayerArtworkStyle.CARD -> ContinuousRoundedRectangle(10.dp)
+                        else -> CircleShape
+                    }
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = artworkUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                fallback = painterResource(R.drawable.vivi_music_icon),
+                error = painterResource(R.drawable.vivi_music_icon),
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (artworkStyle == PlayerArtworkStyle.VINYL) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val r = size.minDimension / 2f
+                    drawCircle(
+                        color = Color.Black.copy(alpha = 0.82f),
+                        radius = r * 0.67f,
+                        style = Stroke(width = r * 0.66f),
+                    )
+                    drawCircle(Color.Black, radius = r * 0.07f)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Bar(onBackdrop.copy(alpha = 0.9f), widthFraction = 0.8f, height = 7.dp)
+        Spacer(Modifier.height(5.dp))
+        Bar(onBackdrop.copy(alpha = 0.45f), widthFraction = 0.55f, height = 5.dp)
+        Spacer(Modifier.height(12.dp))
+        SeekBarPreview(sliderStyle, onBackdrop)
+        Spacer(Modifier.height(12.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Dot(onBackdrop.copy(alpha = 0.6f), 8.dp)
+            Dot(onBackdrop, 20.dp)
+            Dot(onBackdrop.copy(alpha = 0.6f), 8.dp)
+        }
+    }
+}
+
+/** Tiny stand-in for each seek bar style, drawn at roughly a third of playback. */
+@Composable
+private fun SeekBarPreview(style: SliderStyle, color: Color) {
+    when (style) {
+        SliderStyle.DEFAULT -> Canvas(Modifier.fillMaxWidth().height(10.dp)) {
+            val y = size.height / 2f
+            val split = size.width * 0.35f
+            drawLine(color.copy(alpha = 0.3f), androidx.compose.ui.geometry.Offset(0f, y),
+                androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 3f)
+            drawLine(color, androidx.compose.ui.geometry.Offset(0f, y),
+                androidx.compose.ui.geometry.Offset(split, y), strokeWidth = 3f)
+            drawCircle(color, radius = size.height * 0.35f,
+                center = androidx.compose.ui.geometry.Offset(split, y))
+        }
+
+        SliderStyle.WAVY -> Canvas(Modifier.fillMaxWidth().height(10.dp)) {
+            val y = size.height / 2f
+            val split = size.width * 0.35f
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, y)
+                var x = 0f
+                var up = true
+                while (x < split) {
+                    val next = (x + 6f).coerceAtMost(split)
+                    quadraticTo(x + 3f, if (up) y - 5f else y + 5f, next, y)
+                    x = next
+                    up = !up
+                }
+            }
+            drawPath(path, color, style = Stroke(width = 3f))
+            drawLine(color.copy(alpha = 0.3f), androidx.compose.ui.geometry.Offset(split, y),
+                androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 3f)
+        }
+
+        SliderStyle.SLIM -> Row(Modifier.fillMaxWidth()) {
+            Box(
+                Modifier
+                    .weight(0.35f)
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(Modifier.width(2.dp))
+            Box(
+                Modifier
+                    .weight(0.65f)
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.3f))
+            )
+        }
+
+        SliderStyle.WAVEFORM -> Canvas(Modifier.fillMaxWidth().height(16.dp)) {
+            val bars = 14
+            val slot = size.width / bars
+            val barW = slot * 0.5f
+            val mid = size.height / 2f
+            val heights = com.convx.music.ui.component.waveformBars(7, bars)
+            for (i in 0 until bars) {
+                val h = (heights[i] * size.height).coerceAtLeast(size.height * 0.2f)
+                val x = i * slot + slot / 2f
+                drawRoundRect(
+                    color = if (i < bars / 2) color else color.copy(alpha = 0.3f),
+                    topLeft = androidx.compose.ui.geometry.Offset(x - barW / 2f, mid - h / 2f),
+                    size = androidx.compose.ui.geometry.Size(barW, h),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barW / 2f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Bar(color: Color, widthFraction: Float, height: Dp) {
+    Box(
+        Modifier
+            .fillMaxWidth(widthFraction)
+            .height(height)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+@Composable
+private fun Dot(color: Color, size: Dp) {
+    Box(Modifier.size(size).clip(CircleShape).background(color))
+}
+
+@Composable
+private fun SettingRow(title: String, onClick: () -> Unit, trailing: @Composable () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        trailing()
+    }
+}

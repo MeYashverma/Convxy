@@ -74,10 +74,10 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p app/build/outputs/apk/universalGms/release/out
-          cp "${{ steps.sign_app.outputs.signedFile }}" app/build/outputs/apk/universalGms/release/out/vivi-music-gms-nightly.apk
+          cp "${{ steps.sign_app.outputs.signedFile }}" app/build/outputs/apk/universalGms/release/out/convx-gms-nightly.apk
 
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: vivi-music-gms-nightly
-          path: app/build/outputs/apk/universalGms/release/out/vivi-music-gms-nightly.apk
+          name: convx-gms-nightly
+          path: app/build/outputs/apk/universalGms/release/out/convx-gms-nightly.apk

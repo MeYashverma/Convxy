@@ -135,6 +135,8 @@ import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.material3.LocalContentColor
 import com.convx.music.ui.component.GlassCircleButton
+import com.convx.music.ui.component.ChromeScrim
+import com.convx.music.ui.component.rememberChromeScrimProgress
 import java.time.LocalDateTime
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -414,10 +416,16 @@ fun CachePlaylistScreen(
             )
 
             // Top bar logic
-            Row(
+            val chromeScrimProgress = rememberChromeScrimProgress(lazyListState)
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
+            ) {
+            ChromeScrim(progress = chromeScrimProgress)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
                     .windowInsetsPadding(appTopBarWindowInsets())
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -546,6 +554,7 @@ fun CachePlaylistScreen(
                         )
                     }
                 }
+            }
             }
         }
       }

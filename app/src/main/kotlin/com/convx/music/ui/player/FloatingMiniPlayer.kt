@@ -92,7 +92,7 @@ fun FloatingMiniPlayer(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
 
-    val waveformEnabled by rememberPreference(MiniPlayerWaveformKey, false)
+    val waveformEnabled by rememberPreference(MiniPlayerWaveformKey, true)
     val waveFraction = rememberPlaybackFraction(playerConnection.player, isPlaying)
 
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)

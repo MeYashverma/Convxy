@@ -183,11 +183,12 @@ fun AlbumScreen(
     val hideVideoSongs by rememberPreference(key = HideVideoSongsKey, defaultValue = false)
     val albumCanvasEnabled by rememberPreference(key = AlbumCanvasEnabledKey, defaultValue = false)
 
-    val canvasArtwork = rememberAlbumCanvas(
+    val albumCanvas = rememberAlbumCanvas(
         albumTitle = albumWithSongs?.album?.title,
         artistName = albumWithSongs?.artists?.joinToString { it.name }?.takeIf { it.isNotEmpty() },
         firstSongTitle = albumWithSongs?.songs?.firstOrNull()?.song?.title
     )
+    val canvasArtwork = albumCanvas.artwork
 
     val filteredSongs = remember(albumWithSongs, hideExplicit, hideVideoSongs) {
         var songs = albumWithSongs?.songs ?: emptyList()
@@ -257,6 +258,19 @@ fun AlbumScreen(
     val transparentAppBar by remember {
         derivedStateOf {
             lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset < 100
+        }
+    }
+
+    // How far scrolled past the hero art, 0..1 — same progressive dark scrim
+    // treatment as the Artist screen's floating chrome.
+    val chromeScrimAlpha by remember {
+        derivedStateOf {
+            val scrolledPx = if (lazyListState.firstVisibleItemIndex == 0) {
+                lazyListState.firstVisibleItemScrollOffset.toFloat()
+            } else {
+                300f
+            }
+            (scrolledPx / 300f).coerceIn(0f, 1f)
         }
     }
 
@@ -351,6 +365,8 @@ fun AlbumScreen(
                                     primaryUrl = canvasArtwork.animated,
                                     fallbackUrl = canvasArtwork.videoUrl,
                                     isPlaying = true,
+                                    onExhausted = albumCanvas.onError,
+                                    onReady = albumCanvas.onReady,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -877,16 +893,36 @@ fun AlbumScreen(
         // Floating glass back/share buttons over the hero art, replacing the
         // Material TopAppBar — always visible, no title-bar-on-scroll behavior.
         // Selection mode swaps in a close button + centered count + select-all/menu
-        // pill instead, same as the TopAppBar's title/actions used to.
-        Row(
+        // pill instead, same as the TopAppBar's title/actions used to. Backed by a
+        // scrim that ramps from transparent to a dark shade as the list scrolls
+        // past the hero art, same treatment as the Artist screen.
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                .windowInsetsPadding(appTopBarWindowInsets())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(AppBarHeight * 2.5f)
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.55f * chromeScrimAlpha),
+                            0.35f to Color.Black.copy(alpha = 0.4f * chromeScrimAlpha),
+                            0.7f to Color.Black.copy(alpha = 0.12f * chromeScrimAlpha),
+                            1f to Color.Transparent,
+                        )
+                    )
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(appTopBarWindowInsets())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             if (inSelectMode) {
                 GlassCircleButton(onClick = onExitSelectionMode) {
                     Icon(
@@ -1015,6 +1051,7 @@ fun AlbumScreen(
                     }
                 }
             }
+        }
         }
     }
     }

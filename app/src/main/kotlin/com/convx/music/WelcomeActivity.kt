@@ -18,6 +18,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -31,6 +32,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -118,6 +120,7 @@ import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -202,6 +205,7 @@ fun WelcomePagerScreen(onFinished: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val commonAnimSpec = tween<Float>(durationMillis = 200, easing = FastOutSlowInEasing)
+    val commonDpAnimSpec = tween<Dp>(durationMillis = 200, easing = FastOutSlowInEasing)
 
     val topCardShape =
         RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
@@ -789,7 +793,7 @@ fun WelcomePagerScreen(onFinished: () -> Unit) {
                     val selected = index == pagerState.currentPage
                     val dotWidth by animateDpAsState(
                         targetValue = if (selected) 20.dp else 6.dp,
-                        animationSpec = commonAnimSpec,
+                        animationSpec = commonDpAnimSpec,
                         label = "dotWidth"
                     )
                     Box(

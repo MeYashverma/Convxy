@@ -215,6 +215,19 @@ fun CanvasSelection(
                 Material3SettingsItem(
                     leadingContent = {
                         RadioButton(
+                            selected = canvasSource == CanvasSource.ECHO_MUSIC,
+                            onClick = null,
+                            enabled = canvasThumbnailAnimation
+                        )
+                    },
+                    title = { Text(stringResource(R.string.canvas_source_echo_music)) },
+                    description = { Text(stringResource(R.string.canvas_source_echo_music_desc)) },
+                    enabled = canvasThumbnailAnimation,
+                    onClick = { onCanvasSourceChange(CanvasSource.ECHO_MUSIC) }
+                ),
+                Material3SettingsItem(
+                    leadingContent = {
+                        RadioButton(
                             selected = canvasSource == CanvasSource.APPLE_MUSIC,
                             onClick = null,
                             enabled = canvasThumbnailAnimation

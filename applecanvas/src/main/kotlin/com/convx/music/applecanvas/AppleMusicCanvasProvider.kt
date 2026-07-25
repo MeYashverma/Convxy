@@ -8,9 +8,12 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -22,9 +25,12 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private object AppleCanvasLogger {
     fun d(msg: String) = println("AppleMusicCanvas: D: $msg")
@@ -50,7 +56,10 @@ private object AppleCanvasLogger {
  */
 object AppleMusicCanvasProvider {
 
-    // Public read-only JWT used by the Apple Music web player for unauthenticated catalog reads.
+    // Public read-only JWT used by the Apple Music web player for unauthenticated catalog
+    // reads. These rotate every ~3 months (see the "exp" claim) — kept only as the
+    // seed/last-resort fallback for getToken() below, which fetches and caches a live
+    // one instead of relying on this ever staying valid.
     private const val APPLE_MUSIC_TOKEN =
         "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IldlYlBsYXlLaWQifQ" +
         ".eyJpc3MiOiJBTVBXZWJQbGF5IiwiaWF0IjoxNzc0NDU2MzgyLCJleHAiOjE3ODE3" +
@@ -87,6 +96,99 @@ object AppleMusicCanvasProvider {
         }
     }
 
+    // --- Live token refresh -------------------------------------------------
+    // The hardcoded APPLE_MUSIC_TOKEN above expires on its own schedule (its
+    // "exp" claim); when it does, every request here starts failing with 401
+    // until someone notices and hand-updates the constant. Instead, fetch the
+    // web player's own current token from its page and cache it, re-fetching
+    // proactively before it expires (or immediately on an unexpected 401).
+    private var cachedToken: String = APPLE_MUSIC_TOKEN
+    private var cachedTokenExpEpochSec: Long = jwtExpEpochSeconds(APPLE_MUSIC_TOKEN) ?: 0L
+    private val tokenMutex = Mutex()
+    private val jwtPattern = Regex("eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}")
+
+    private fun base64UrlDecode(segment: String): String {
+        val padded = segment + "=".repeat((4 - segment.length % 4) % 4)
+        return String(java.util.Base64.getUrlDecoder().decode(padded))
+    }
+
+    private fun jwtExpEpochSeconds(token: String): Long? = runCatching {
+        val payload = token.split(".").getOrNull(1) ?: return null
+        json.parseToJsonElement(base64UrlDecode(payload)).jsonObject["exp"]?.jsonPrimitive?.long
+    }.getOrNull()
+
+    /** The web player signs its catalog-read JWT with this key id — distinguishes it
+     * from any other JWT (analytics, etc.) that might also appear on the page. */
+    private fun isWebPlayToken(token: String): Boolean = runCatching {
+        val header = token.split(".").getOrNull(0) ?: return false
+        base64UrlDecode(header).contains("WebPlayKid")
+    }.getOrDefault(false)
+
+    private suspend fun getToken(forceRefresh: Boolean = false): String = tokenMutex.withLock {
+        val nowSec = System.currentTimeMillis() / 1000
+        // Refreshes an hour ahead of actual expiry rather than waiting for it to lapse.
+        if (!forceRefresh && cachedTokenExpEpochSec > nowSec + 3600) {
+            return@withLock cachedToken
+        }
+
+        runCatching {
+            val userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            val html = client.get("https://music.apple.com/us/browse") {
+                header("User-Agent", userAgent)
+            }.bodyAsText()
+
+            // The token isn't in the page itself — it's baked into the main JS bundle
+            // the page loads (an /assets/index~<hash>.js asset; the hash changes on
+            // every Apple frontend deploy, hence scraping the tag instead of a
+            // hardcoded URL). The tilde right after "index" excludes the sibling
+            // index-legacy~<hash>.js bundle for older browsers.
+            val bundlePath = Regex("<script[^>]+src=\"(/assets/index~[^\"]*\\.js)\"")
+                .find(html)?.groupValues?.get(1)
+
+            if (bundlePath == null) {
+                AppleCanvasLogger.w("token refresh: couldn't find the main JS bundle's script tag")
+                return@runCatching
+            }
+
+            val bundleJs = client.get("https://music.apple.com$bundlePath") {
+                header("User-Agent", userAgent)
+            }.bodyAsText()
+
+            val fresh = jwtPattern.findAll(bundleJs).map { it.value }.firstOrNull { isWebPlayToken(it) }
+            val freshExp = fresh?.let { jwtExpEpochSeconds(it) }
+
+            if (fresh != null && freshExp != null && freshExp > nowSec) {
+                cachedToken = fresh
+                cachedTokenExpEpochSec = freshExp
+                AppleCanvasLogger.d("refreshed Apple Music web token, valid until epoch $freshExp")
+            } else {
+                AppleCanvasLogger.w("token refresh: no valid WebPlayKid JWT found in bundle $bundlePath (len=${bundleJs.length})")
+            }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppleCanvasLogger.e(it, "token refresh request failed, keeping previous token")
+        }
+
+        cachedToken
+    }
+
+    /** GET with the live token; on a 401 (token rotated ahead of our cached expiry),
+     * forces one refresh and retries once before giving up. */
+    private suspend fun authorizedGet(url: String, block: HttpRequestBuilder.() -> Unit): HttpResponse {
+        suspend fun attempt(token: String): HttpResponse = client.get(url) {
+            header("Authorization", "Bearer $token")
+            header("Origin", "https://music.apple.com")
+            header("Referer", "https://music.apple.com/")
+            header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            block()
+        }
+
+        val first = attempt(getToken())
+        if (first.status != HttpStatusCode.Unauthorized) return first
+        AppleCanvasLogger.w("got 401 with cached token, forcing refresh and retrying once")
+        return attempt(getToken(forceRefresh = true))
+    }
+
     private data class CacheEntry(
         val value: CanvasArtwork?,
         val expiresAtMs: Long,
@@ -94,21 +196,23 @@ object AppleMusicCanvasProvider {
 
     private val cache = ConcurrentHashMap<String, CacheEntry>()
     private const val CACHE_TTL_MS = 1000L * 60 * 60 * 24 // 24 hours
+    // Serializes cache-check-then-fetch so concurrent callers (e.g. full
+    // player + mini player fetching for the same song at once) await one
+    // network call instead of both firing it.
+    private val fetchMutex = Mutex()
 
     suspend fun getByAlbumArtist(
         album: String,
         artist: String,
         storefront: String = "us",
-    ): CanvasArtwork? {
+    ): CanvasArtwork? = fetchMutex.withLock {
         AppleCanvasLogger.d("getByAlbumArtist: album='$album', artist='$artist'")
         val key = cacheKey("sa", album, artist, storefront)
-        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return it.value }
+        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return@withLock it.value }
 
         val result = searchAndFetchMotion(album, artist, album, storefront, "albums")
-        if (result != null) {
-            cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
-        }
-        return result
+        cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
+        result
     }
 
     suspend fun getBySongArtist(
@@ -116,28 +220,26 @@ object AppleMusicCanvasProvider {
         artist: String,
         album: String? = null,
         storefront: String = "us",
-    ): CanvasArtwork? {
+    ): CanvasArtwork? = fetchMutex.withLock {
         val key = cacheKey("song", song, artist, album ?: "", storefront)
-        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return it.value }
+        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return@withLock it.value }
 
         // Use searchAndFetchMotion which can handle song searches by resolving to albums
         val result = searchAndFetchMotion(song, artist, album, storefront, "songs")
-        if (result != null) {
-            cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
-        }
-        return result
+        cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
+        result
     }
 
     suspend fun getByAlbumId(
         albumId: String,
         storefront: String = "us",
-    ): CanvasArtwork? {
+    ): CanvasArtwork? = fetchMutex.withLock {
         val key = cacheKey("id", albumId, storefront)
-        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return it.value }
+        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return@withLock it.value }
 
         val result = fetchMotionArtwork(albumId, storefront, null)
         cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
-        return result
+        result
     }
 
     /**
@@ -158,11 +260,7 @@ object AppleMusicCanvasProvider {
                 query = "$query $album"
             }
             val url = "$AMP_BASE_URL/v1/catalog/$storefront/search"
-            val response = client.get(url) {
-                header("Authorization", "Bearer $APPLE_MUSIC_TOKEN")
-                header("Origin", "https://music.apple.com")
-                header("Referer", "https://music.apple.com/")
-                header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            val response = authorizedGet(url) {
                 parameter("term", query)
                 parameter("types", type)
                 parameter("limit", "10")
@@ -342,11 +440,7 @@ object AppleMusicCanvasProvider {
         return runCatching {
             AppleCanvasLogger.d("fetching album $albumId")
             val url = "$AMP_BASE_URL/v1/catalog/$storefront/albums/$albumId"
-            val response = client.get(url) {
-                header("Authorization", "Bearer $APPLE_MUSIC_TOKEN")
-                header("Origin", "https://music.apple.com")
-                header("Referer", "https://music.apple.com/")
-                header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            val response = authorizedGet(url) {
                 parameter("extend", "editorialVideo")
                 parameter("include", "tracks")
             }

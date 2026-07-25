@@ -117,6 +117,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import com.convx.music.applecanvas.AppleMusicCanvasProvider
 import com.convx.music.vivimusiccanvas.ViviMusicCanvasProvider
+import com.convx.music.vivimusiccanvas.EchoMusicCanvasProvider
 import java.util.Locale
 
 /**
@@ -784,7 +785,11 @@ private fun ThumbnailItem(
                         when (canvasSource) {
                             CanvasSource.AUTO -> {
                                 searchTasks.firstNotNullOfOrNull { (s, a) ->
-                                    AppleMusicCanvasProvider.getBySongArtist(
+                                    EchoMusicCanvasProvider.getBySongArtist(
+                                        song = s,
+                                        artist = a
+                                    )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
+                                        ?: AppleMusicCanvasProvider.getBySongArtist(
                                         song = s,
                                         artist = a,
                                         album = albumName,
@@ -799,6 +804,14 @@ private fun ThumbnailItem(
                                             artist = a,
                                             album = albumName
                                         )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
+                                }
+                            }
+                            CanvasSource.ECHO_MUSIC -> {
+                                searchTasks.firstNotNullOfOrNull { (s, a) ->
+                                    EchoMusicCanvasProvider.getBySongArtist(
+                                        song = s,
+                                        artist = a
+                                    )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
                                 }
                             }
                             CanvasSource.APPLE_MUSIC -> {

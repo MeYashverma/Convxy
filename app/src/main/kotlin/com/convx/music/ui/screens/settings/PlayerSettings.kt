@@ -83,7 +83,6 @@ import com.convx.music.constants.AudioQualityKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableSaavnStreamingKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.EnableTidalStreamingKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.SaavnAudioQuality
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -269,10 +268,6 @@ fun PlayerSettings(
         SaavnAudioQualityKey,
         defaultValue = SaavnAudioQuality.QUALITY_320
     )
-    val (tidalEnabled, _) = rememberPreference(
-        EnableTidalStreamingKey,
-        defaultValue = false
-    )
 
     var showAudioQualityDialog by remember {
         mutableStateOf(false)
@@ -371,21 +366,6 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { navController.navigate("settings/player/jio") }
-                ))
-                // Lossless (TIDAL) streaming navigation
-                add(Material3SettingsItem(
-                    icon = painterResource(R.drawable.graphic_eq),
-                    title = { Text(stringResource(R.string.lossless_settings)) },
-                    description = {
-                        Text(
-                            if (tidalEnabled) {
-                                stringResource(R.string.lossless_streaming_enabled)
-                            } else {
-                                stringResource(R.string.lossless_streaming_disabled)
-                            }
-                        )
-                    },
-                    onClick = { navController.navigate("settings/player/lossless") }
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.linear_scale),

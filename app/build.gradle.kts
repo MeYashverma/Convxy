@@ -24,8 +24,8 @@ android {
         applicationId = "com.convx.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 71
-        versionName = "6.0.2"
+        versionCode = 1
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

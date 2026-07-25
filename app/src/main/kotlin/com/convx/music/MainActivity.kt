@@ -224,6 +224,7 @@ import com.convx.music.ui.theme.BrandName
 import com.convx.music.ui.theme.LocalAccentTextColor
 import com.convx.music.ui.theme.rememberBrandFontFamily
 import com.convx.music.ui.theme.extractThemeColor
+import com.convx.music.ui.theme.extractThemeColorFromVideoFrame
 import com.convx.music.ui.theme.vivimusicTheme
 import com.convx.music.ui.utils.appBarScrollBehavior
 import com.convx.music.ui.utils.resetHeightOffset
@@ -231,6 +232,9 @@ import com.convx.music.utils.SyncUtils
 import com.convx.music.utils.dataStore
 import com.convx.music.utils.get
 import com.convx.music.utils.rememberEnumPreference
+import com.convx.music.constants.CanvasSource
+import com.convx.music.constants.CanvasSourceKey
+import com.convx.music.ui.player.CanvasArtworkPlaybackCache
 import com.convx.music.utils.rememberPreference
 import com.convx.music.constants.IosOverscrollKey
 import com.convx.music.ui.utils.rememberIosOverscrollFactory
@@ -501,6 +505,7 @@ class MainActivity : ComponentActivity() {
 
         val (selectedThemeColorInt) = rememberPreference(SelectedThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
         val selectedThemeColor = Color(selectedThemeColorInt)
+        val (canvasSource) = rememberEnumPreference(CanvasSourceKey, defaultValue = CanvasSource.AUTO)
 
         var themeColor by rememberSaveable(stateSaver = ColorSaver) {
             mutableStateOf(selectedThemeColor)
@@ -526,17 +531,26 @@ class MainActivity : ComponentActivity() {
                         themeColor = cached
                     } else withContext(Dispatchers.IO) {
                         try {
-                            val result = imageLoader.execute(
-                                ImageRequest.Builder(this@MainActivity)
-                                    .data(song.thumbnailUrl)
-                                    .allowHardware(false)
-                                    .memoryCachePolicy(CachePolicy.ENABLED)
-                                    .diskCachePolicy(CachePolicy.ENABLED)
-                                    .networkCachePolicy(CachePolicy.ENABLED)
-                                    .crossfade(false)
-                                    .build()
-                            )
-                            val extracted = result.image?.toBitmap()?.extractThemeColor()
+                            // Prefer a frame from the song's canvas video over the static
+                            // cover art when one's already been fetched/confirmed playing
+                            // (see Player.kt) — canvas videos are often more colorful/
+                            // representative than the plain album art.
+                            val canvasVideoUrl = CanvasArtworkPlaybackCache
+                                .get("${song.id}:${canvasSource.name}")
+                                ?.preferredAnimationUrl
+
+                            val extracted = canvasVideoUrl?.let { extractThemeColorFromVideoFrame(it) }
+                                ?: imageLoader.execute(
+                                    ImageRequest.Builder(this@MainActivity)
+                                        .data(song.thumbnailUrl)
+                                        .allowHardware(false)
+                                        .memoryCachePolicy(CachePolicy.ENABLED)
+                                        .diskCachePolicy(CachePolicy.ENABLED)
+                                        .networkCachePolicy(CachePolicy.ENABLED)
+                                        .crossfade(false)
+                                        .build()
+                                ).image?.toBitmap()?.extractThemeColor()
+
                             if (extracted != null) {
                                 themeColorCache.put(song.id, extracted)
                                 themeColor = extracted

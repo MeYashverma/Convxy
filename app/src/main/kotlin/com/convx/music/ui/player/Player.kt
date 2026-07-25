@@ -94,6 +94,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -253,6 +254,7 @@ import com.convx.music.ui.player.CanvasArtworkPlaybackCache
 import com.convx.music.ui.player.normalizeCanvasArtistName
 import com.convx.music.ui.player.normalizeCanvasSongTitle
 import com.convx.music.vivimusiccanvas.ViviMusicCanvasProvider
+import com.convx.music.vivimusiccanvas.EchoMusicCanvasProvider
 import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -569,81 +571,90 @@ fun BottomSheetPlayer(
         label = "icBackgroundColor"
     )
 
-    var canvasArtwork by remember(mediaMetadata?.id) { mutableStateOf<CanvasArtwork?>(null) }
+    // All valid matches in priority order, not just the first one — a source
+    // can return a real match whose video then fails to actually play (e.g.
+    // dead CDN), and unlike a fetch failure that's only discovered later, at
+    // playback time. canvasCandidateIndex lets BackgroundVideoView's onError
+    // advance to the next candidate instead of the screen just going blank.
+    var canvasCandidates by remember(mediaMetadata?.id) { mutableStateOf<List<CanvasArtwork>>(emptyList()) }
+    var canvasCandidateIndex by remember(mediaMetadata?.id) { mutableIntStateOf(0) }
     var canvasFetchInFlight by remember(mediaMetadata?.id) { mutableStateOf(false) }
+    val canvasArtwork = canvasCandidates.getOrNull(canvasCandidateIndex)
 
     LaunchedEffect(mediaMetadata?.id, playerBackground, canvasSource) {
         if (playerBackground != PlayerBackgroundStyle.APPLE_MUSIC || !enableCanvas) {
-            canvasArtwork = null
+            canvasCandidates = emptyList()
             return@LaunchedEffect
         }
         val item = mediaMetadata ?: return@LaunchedEffect
-        
-        // Use cached artwork if available
+
+        // Use cached artwork if available — it already proved it plays.
         CanvasArtworkPlaybackCache.get("${item.id}:${canvasSource.name}")?.let { cached ->
-            canvasArtwork = cached
+            canvasCandidates = listOf(cached)
+            canvasCandidateIndex = 0
             return@LaunchedEffect
         }
 
         if (canvasFetchInFlight) return@LaunchedEffect
         canvasFetchInFlight = true
-        
+
         withContext(Dispatchers.IO) {
             val storefront = Locale.getDefault().country.lowercase(Locale.ROOT).takeIf { it.length == 2 } ?: "us"
             val requestedTitle = item.title
             val requestedArtist = item.artists.joinToString { it.name }
             val requestedAlbum = item.album?.title ?: ""
-            
+
             val s = normalizeCanvasSongTitle(requestedTitle)
             val a = normalizeCanvasArtistName(requestedArtist)
-            
-            val fetched = when (canvasSource) {
+
+            val candidates = when (canvasSource) {
                 CanvasSource.AUTO -> {
-                    val appleMusicCanvas = if (requestedAlbum.isNotBlank()) {
+                    val echo = EchoMusicCanvasProvider.getBySongArtist(s, a)
+                        ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
+                    val appleAlbum = if (requestedAlbum.isNotBlank()) {
                         AppleMusicCanvasProvider.getByAlbumArtist(
                             album = requestedAlbum,
                             artist = a,
                             storefront = storefront
                         )?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
                     } else null
-
-                    appleMusicCanvas
-                        ?: AppleMusicCanvasProvider.getBySongArtist(s, a, requestedAlbum, storefront)
+                    val appleSong = AppleMusicCanvasProvider.getBySongArtist(s, a, requestedAlbum, storefront)
                         ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                        ?: ViviMusicCanvasProvider.getBySongArtist(s, a)
+                    val vivi = ViviMusicCanvasProvider.getBySongArtist(s, a)
                         ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                        ?: TidalCanvasProvider.getBySongArtist(s, a, requestedAlbum)
+                    val tidal = TidalCanvasProvider.getBySongArtist(s, a, requestedAlbum)
                         ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
+                    listOfNotNull(echo, appleAlbum, appleSong, vivi, tidal)
                 }
-                CanvasSource.APPLE_MUSIC -> {
+                CanvasSource.ECHO_MUSIC -> listOfNotNull(
+                    EchoMusicCanvasProvider.getBySongArtist(s, a)
+                        ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
+                )
+                CanvasSource.APPLE_MUSIC -> listOfNotNull(
                     AppleMusicCanvasProvider.getBySongArtist(s, a, requestedAlbum, storefront)
                         ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                }
-                CanvasSource.VIVIMUSIC -> {
+                )
+                CanvasSource.VIVIMUSIC -> listOfNotNull(
                     ViviMusicCanvasProvider.getBySongArtist(s, a)
                         ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                }
-                CanvasSource.TIDAL -> {
+                )
+                CanvasSource.TIDAL -> listOfNotNull(
                     TidalCanvasProvider.getBySongArtist(s, a, requestedAlbum)
                         ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-                }
+                )
             }
 
-            val validated = fetched?.let { artwork ->
+            val validated = candidates.filter { artwork ->
                 val resultArtist = artwork.artist
-                val artistMatches = if (resultArtist != null && requestedArtist.isNotBlank()) {
+                if (resultArtist != null && requestedArtist.isNotBlank()) {
                     resultArtist.contains(requestedArtist, ignoreCase = true) ||
                     requestedArtist.contains(resultArtist, ignoreCase = true)
                 } else true
-                
-                if (artistMatches) artwork else null
             }
 
             withContext(Dispatchers.Main) {
-                canvasArtwork = validated
-                if (validated != null) {
-                    CanvasArtworkPlaybackCache.put("${item.id}:${canvasSource.name}", validated)
-                }
+                canvasCandidates = validated
+                canvasCandidateIndex = 0
                 canvasFetchInFlight = false
             }
         }
@@ -1221,6 +1232,26 @@ fun BottomSheetPlayer(
                                             BackgroundVideoView(
                                                 videoUrl = canvasArtwork?.animated ?: canvasArtwork?.videoUrl ?: "",
                                                 isPlaying = isPlaying,
+                                                onError = {
+                                                    // This candidate's video doesn't actually play (dead
+                                                    // link, unsupported format, ...) — try the next one
+                                                    // in priority order instead of just going blank.
+                                                    println("CanvasFallback: onError fired at index=$canvasCandidateIndex of ${canvasCandidates.size} candidates")
+                                                    if (canvasCandidateIndex < canvasCandidates.lastIndex) {
+                                                        canvasCandidateIndex++
+                                                    } else {
+                                                        canvasCandidateIndex = canvasCandidates.size
+                                                    }
+                                                    println("CanvasFallback: advanced to index=$canvasCandidateIndex, next url=${canvasCandidates.getOrNull(canvasCandidateIndex)?.preferredAnimationUrl}")
+                                                },
+                                                onReady = {
+                                                    canvasArtwork?.let {
+                                                        CanvasArtworkPlaybackCache.put(
+                                                            "${mediaMetadata?.id}:${canvasSource.name}",
+                                                            it
+                                                        )
+                                                    }
+                                                },
                                                 modifier = Modifier.fillMaxSize()
                                             )
                                         }
@@ -3015,11 +3046,20 @@ private fun PlayerMoreMenuButton(
 private fun BackgroundVideoView(
     videoUrl: String,
     isPlaying: Boolean,
+    onError: () -> Unit = {},
+    onReady: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var isVideoReady by remember(videoUrl) { mutableStateOf(false) }
-    
+    // exoPlayer is remember{}'d without a key (reused across videoUrl changes,
+    // swapped via setMediaItem instead of recreation), so the listener set up
+    // in DisposableEffect(exoPlayer) below is only installed once — these
+    // keep it calling through to the latest onError/onReady instead of the
+    // ones captured at that first install.
+    val currentOnError by rememberUpdatedState(onError)
+    val currentOnReady by rememberUpdatedState(onReady)
+
     val trackSelector = remember {
         DefaultTrackSelector(context).apply {
             parameters = buildUponParameters()
@@ -3061,6 +3101,12 @@ private fun BackgroundVideoView(
             }
             override fun onRenderedFirstFrame() {
                 isVideoReady = true
+                currentOnReady()
+            }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                println("BackgroundVideoView: E: failed to play '$videoUrl': ${error.errorCodeName} ${error.message}")
+                error.printStackTrace()
+                currentOnError()
             }
         }
         exoPlayer.addListener(listener)
@@ -3068,6 +3114,7 @@ private fun BackgroundVideoView(
     }
 
     LaunchedEffect(videoUrl) {
+        println("BackgroundVideoView: D: loading '$videoUrl'")
         isVideoReady = false
         val mediaItem = MediaItem.Builder()
             .setUri(videoUrl)

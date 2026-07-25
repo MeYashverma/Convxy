@@ -115,6 +115,7 @@ app/keystore/
 # Local-only notes and design references
 *.md
 !README.md
+!SECURITY.md
 !.github/CONTRIBUTING.md
 !.github/pull_request_template.md
 app/src/main/kotlin/com/designRefrence/

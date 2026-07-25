@@ -16,6 +16,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 object ArtistVideoCanvasProvider {
     // We will use ArchiveTune API for fetching the canvas
@@ -51,16 +53,20 @@ object ArtistVideoCanvasProvider {
 
     private val cache = ConcurrentHashMap<String, CacheEntry>()
     private val ttlMs = 60_000L
+    // Serializes cache-check-then-fetch so concurrent callers (e.g. full
+    // player + mini player fetching for the same song at once) await one
+    // network call instead of both firing it.
+    private val fetchMutex = Mutex()
 
     suspend fun getBySongArtist(
         song: String,
         artist: String,
         album: String? = null,
         duration: Int? = null,
-    ): ArtistVideoResponse? {
+    ): ArtistVideoResponse? = fetchMutex.withLock {
         val key = cacheKey("sa", song, artist, album.orEmpty(), duration?.toString().orEmpty())
         cache[key]?.let { entry ->
-            if (entry.expiresAtMs > System.currentTimeMillis()) return entry.value
+            if (entry.expiresAtMs > System.currentTimeMillis()) return@withLock entry.value
             cache.remove(key)
         }
 
@@ -86,7 +92,7 @@ object ArtistVideoCanvasProvider {
                 expiresAtMs = System.currentTimeMillis() + ttlMs,
             )
 
-        return value
+        value
     }
 
     private fun cacheKey(prefix: String, vararg parts: String): String {

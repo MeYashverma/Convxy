@@ -22,6 +22,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * A canvas provider that fetches Tidal video covers directly from api.tidal.com
@@ -62,6 +64,10 @@ object TidalCanvasProvider {
     )
 
     private const val CACHE_TTL_MS = 1000L * 60 * 60 * 24 // 24 hours
+    // Serializes cache-check-then-fetch so concurrent callers (e.g. full
+    // player + mini player fetching for the same song at once) await one
+    // network call instead of both firing it.
+    private val fetchMutex = Mutex()
 
     private val countryCode by lazy {
         val country = Locale.getDefault().country
@@ -72,9 +78,9 @@ object TidalCanvasProvider {
         song: String,
         artist: String,
         album: String? = null
-    ): CanvasArtwork? {
+    ): CanvasArtwork? = fetchMutex.withLock {
         val key = cacheKey("search_song", song, artist, album ?: "")
-        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return it.value }
+        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return@withLock it.value }
 
         val query = if (!album.isNullOrBlank()) "$album $artist $song" else "$artist $song"
 
@@ -84,18 +90,16 @@ object TidalCanvasProvider {
             songValidation = song,
             artistValidation = artist
         )
-        if (result != null) {
-            cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
-        }
-        return result
+        cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
+        result
     }
 
     suspend fun getByAlbumArtist(
         album: String,
         artist: String
-    ): CanvasArtwork? {
+    ): CanvasArtwork? = fetchMutex.withLock {
         val key = cacheKey("search_album", album, artist)
-        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return it.value }
+        cache[key]?.takeIf { it.expiresAtMs > System.currentTimeMillis() }?.let { return@withLock it.value }
 
         val result = searchOnTidal(
             query = "$album $artist",
@@ -104,10 +108,8 @@ object TidalCanvasProvider {
             artistValidation = artist,
             albumValidation = album
         )
-        if (result != null) {
-            cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
-        }
-        return result
+        cache[key] = CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS)
+        result
     }
 
     private suspend fun searchOnTidal(

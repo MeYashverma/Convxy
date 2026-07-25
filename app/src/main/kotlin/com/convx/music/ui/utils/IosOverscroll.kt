@@ -5,12 +5,13 @@
 
 package com.convx.music.ui.utils
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.OverscrollFactory
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -27,7 +28,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
@@ -40,17 +40,24 @@ private val MaxPull = 160.dp
  * bounces, including ones in screens nobody remembered to update.
  *
  * Replaces Android's stretch/glow edge effect while it is provided.
+ *
+ * The stretch itself is a plain mutable float mutated synchronously in
+ * [applyToScroll] — not an [androidx.compose.animation.core.Animatable] — because
+ * `applyToScroll` isn't suspend and every scroll delta during a drag used to launch
+ * its own fire-and-forget `snapTo` coroutine. Under a fast drag that's dozens of
+ * coroutines racing each other per second, and the offset could end up stuck on a
+ * stale value from a coroutine that hadn't run yet. A coroutine (and a real spring)
+ * is only needed once, on release, to animate back to rest.
  */
 class IosOverscrollEffect(
     density: Density,
-    private val scope: CoroutineScope,
 ) : OverscrollEffect {
 
     private val maxPull = with(density) { MaxPull.toPx() }
-    private val offset = Animatable(0f)
+    private val offsetState = mutableFloatStateOf(0f)
 
     override val isInProgress: Boolean
-        get() = offset.value != 0f
+        get() = offsetState.floatValue != 0f
 
     override fun applyToScroll(
         delta: Offset,
@@ -58,7 +65,7 @@ class IosOverscrollEffect(
         performScroll: (Offset) -> Offset,
     ): Offset {
         var selfConsumed = 0f
-        val current = offset.value
+        val current = offsetState.floatValue
 
         // Dragging back toward rest pays down the existing stretch before the
         // list itself gets to scroll — otherwise the content jumps.
@@ -66,7 +73,7 @@ class IosOverscrollEffect(
             val target = current + delta.y
             val settled = if (sign(target) != sign(current)) 0f else target
             selfConsumed = settled - current
-            scope.launch { offset.snapTo(settled) }
+            offsetState.floatValue = settled
         }
 
         val remaining = Offset(delta.x, delta.y - selfConsumed)
@@ -78,9 +85,9 @@ class IosOverscrollEffect(
         // near 1:1 with the finger (iOS reads as immediate, not laggy) and
         // eases off as it nears maxPull.
         if (leftover.y != 0f) {
-            val resistance = (1f - abs(offset.value) / maxPull).coerceIn(0f, 1f).let { it * it * 0.85f + 0.15f }
-            val stretched = (offset.value + leftover.y * resistance).coerceIn(-maxPull, maxPull)
-            scope.launch { offset.snapTo(stretched) }
+            val resistance = (1f - abs(offsetState.floatValue) / maxPull).coerceIn(0f, 1f).let { it * it * 0.85f + 0.15f }
+            val stretched = (offsetState.floatValue + leftover.y * resistance).coerceIn(-maxPull, maxPull)
+            offsetState.floatValue = stretched
             selfConsumed += leftover.y
         }
 
@@ -92,18 +99,22 @@ class IosOverscrollEffect(
         performFling: suspend (Velocity) -> Velocity,
     ) {
         performFling(velocity)
-        if (offset.value != 0f) {
-            offset.animateTo(
+        if (offsetState.floatValue != 0f) {
+            // A new drag beats this: the scrollable cancels this suspend fling
+            // (and this animate call with it) as soon as the next pointer-down
+            // starts a fresh drag, so there's no coroutine to race against.
+            animate(
+                initialValue = offsetState.floatValue,
                 targetValue = 0f,
                 animationSpec = spring(
                     dampingRatio = 0.55f,
                     stiffness = Spring.StiffnessMedium,
                 ),
-            )
+            ) { value, _ -> offsetState.floatValue = value }
         }
     }
 
-    override val node: DelegatableNode = IosOverscrollNode { offset.value }
+    override val node: DelegatableNode = IosOverscrollNode { offsetState.floatValue }
 }
 
 private class IosOverscrollNode(
@@ -126,7 +137,7 @@ private class IosOverscrollFactory(
     private val density: Density,
     private val scope: CoroutineScope,
 ) : OverscrollFactory {
-    override fun createOverscrollEffect(): OverscrollEffect = IosOverscrollEffect(density, scope)
+    override fun createOverscrollEffect(): OverscrollEffect = IosOverscrollEffect(density)
 
     override fun equals(other: Any?): Boolean =
         other is IosOverscrollFactory && other.density == density && other.scope === scope

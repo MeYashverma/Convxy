@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -38,6 +39,8 @@ fun CanvasArtworkPlayer(
     fallbackUrl: String?,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
+    onExhausted: () -> Unit = {},
+    onReady: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val primary = primaryUrl?.takeIf { it.isNotBlank() }
@@ -45,6 +48,8 @@ fun CanvasArtworkPlayer(
     val initial = primary ?: fallback ?: return
     var currentUrl by remember(initial) { mutableStateOf(initial) }
     var isVideoReady by remember(initial) { mutableStateOf(false) }
+    val currentOnExhausted by rememberUpdatedState(onExhausted)
+    val currentOnReady by rememberUpdatedState(onReady)
 
     val okHttpClient =
         remember {
@@ -141,14 +146,20 @@ fun CanvasArtworkPlayer(
                             primary -> fallback
                             else -> null
                         }
-                    if (!next.isNullOrBlank()) {
+                    if (!next.isNullOrBlank() && next != currentUrl) {
                         currentUrl = next
-                        isVideoReady = false 
+                        isVideoReady = false
+                    } else {
+                        // Both this artwork's own URLs are dead — let the caller
+                        // try a different candidate (a different provider's match)
+                        // instead of just leaving the screen blank.
+                        currentOnExhausted()
                     }
                 }
 
                 override fun onRenderedFirstFrame() {
                     isVideoReady = true
+                    currentOnReady()
                 }
             }
         exoPlayer.addListener(listener)

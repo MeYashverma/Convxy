@@ -37,6 +37,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -120,6 +121,12 @@ fun AppNavigationRail(
 
             val isSearchItem = screen == Screens.Search && onSearchLongClick != null
             val interactionSource = remember { MutableInteractionSource() }
+            // LaunchedEffect(interactionSource) only launches once (interactionSource's
+            // identity never changes), so its collectLatest closure would otherwise
+            // freeze isSelected at whatever it was on that first launch — every tap
+            // afterward re-reads that stale value instead of the current route.
+            // rememberUpdatedState keeps it live.
+            val currentIsSelected by rememberUpdatedState(isSelected)
 
             if (isSearchItem) {
                 LaunchedEffect(interactionSource) {
@@ -135,7 +142,7 @@ fun AppNavigationRail(
                             }
                             is PressInteraction.Release -> {
                                 if (!isLongClick) {
-                                    onItemClick(screen, isSelected)
+                                    onItemClick(screen, currentIsSelected)
                                 }
                             }
                             is PressInteraction.Cancel -> {
@@ -226,6 +233,12 @@ fun AppNavigationBar(
 
             val isSearchItem = screen == Screens.Search && onSearchLongClick != null
             val interactionSource = remember { MutableInteractionSource() }
+            // LaunchedEffect(interactionSource) only launches once (interactionSource's
+            // identity never changes), so its collectLatest closure would otherwise
+            // freeze isSelected at whatever it was on that first launch — every tap
+            // afterward re-reads that stale value instead of the current route.
+            // rememberUpdatedState keeps it live.
+            val currentIsSelected by rememberUpdatedState(isSelected)
 
             if (isSearchItem) {
                 LaunchedEffect(interactionSource) {
@@ -241,7 +254,7 @@ fun AppNavigationBar(
                             }
                             is PressInteraction.Release -> {
                                 if (!isLongClick) {
-                                    onItemClick(screen, isSelected)
+                                    onItemClick(screen, currentIsSelected)
                                 }
                             }
                             is PressInteraction.Cancel -> {

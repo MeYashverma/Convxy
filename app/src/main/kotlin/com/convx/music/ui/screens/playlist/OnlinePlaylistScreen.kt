@@ -129,6 +129,8 @@ import com.convx.music.playback.ExoDownloadService
 import com.convx.music.playback.queues.YouTubePlaylistQueue
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.GlassCircleButton
+import com.convx.music.ui.component.ChromeScrim
+import com.convx.music.ui.component.rememberChromeScrimProgress
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.backdrop.backdrops.LayerBackdrop
@@ -516,10 +518,16 @@ fun OnlinePlaylistScreen(
         // Material TopAppBar. Select mode and in-place search keep their exact
         // prior behavior, just restyled containers; the title still only fades
         // in once scrolled past the hero, same as before.
-        Row(
+        val chromeScrimProgress = rememberChromeScrimProgress(lazyListState)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
+        ) {
+        ChromeScrim(progress = chromeScrimProgress)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
                 .windowInsetsPadding(appTopBarWindowInsets())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -666,6 +674,7 @@ fun OnlinePlaylistScreen(
                     )
                 }
             }
+        }
         }
 
         SnackbarHost(

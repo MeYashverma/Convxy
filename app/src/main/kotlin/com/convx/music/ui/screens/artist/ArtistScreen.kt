@@ -85,7 +85,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -170,6 +174,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.convx.music.canvas.AppleMusicArtistBackgroundProvider
+import com.convx.music.ui.component.floatingtabbar.gooey
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -327,6 +332,7 @@ fun ArtistScreen(
                                     .fillMaxWidth(0.7f)
                                     .padding(bottom = 16.dp)
                             )
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             // Buttons Row Placeholder
                             Row(
@@ -491,7 +497,10 @@ fun ArtistScreen(
                                 // The name moves into HeroCardHeader in tab view.
                                 if (!tabView) Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(bottom = 16.dp)
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp)
                                 ) {
 
                                     //artist video
@@ -518,9 +527,19 @@ fun ArtistScreen(
 
                                     Spacer(modifier = Modifier.width(5.dp))
 
-                                    // Artist Name
+                                    // Artist Name — drop-cap style, first letter bigger than the rest.
+                                    val displayArtistName = artistName?.lowercase() ?: "unknown"
                                     Text(
-                                        text = artistName?.lowercase() ?: "unknown",
+                                        text = buildAnnotatedString {
+                                            if (displayArtistName.isNotEmpty()) {
+                                                withStyle(SpanStyle(fontSize = 60.sp)) {
+                                                    append(displayArtistName.first().uppercase())
+                                                }
+                                                append(displayArtistName.drop(1))
+                                            } else {
+                                                append(displayArtistName)
+                                            }
+                                        },
                                         style = MaterialTheme.typography.headlineLarge,
                                         fontFamily = rememberBrandFontFamily(),
                                         fontWeight = FontWeight.SemiBold,
@@ -529,7 +548,8 @@ fun ArtistScreen(
                                         color = LocalAccentTextColor.current,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        fontSize = 42.sp,
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 44.sp,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
                                 }
@@ -543,10 +563,13 @@ fun ArtistScreen(
                                     horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    // Info Button (Left)
+                                    // Info Button (Left) — sits a touch lower than the
+                                    // bigger center Play button, not perfectly centered
+                                    // with it, so it reads as "grounded" beside it.
                                     GlassCircleButton(
                                         onClick = { /* Could show description or bio */ },
                                         size = 48.dp,
+                                        modifier = Modifier.offset(y = 8.dp),
                                     ) {
                                         Icon(
                                             painter = painterResource(R.drawable.info),
@@ -623,6 +646,7 @@ fun ArtistScreen(
                                             }
                                         },
                                         size = 48.dp,
+                                        modifier = Modifier.offset(y = 8.dp),
                                     ) {
                                         Icon(
                                             painter = painterResource(
@@ -641,7 +665,7 @@ fun ArtistScreen(
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.padding(bottom = 16.dp)
+                                    modifier = Modifier.padding(top = 12.dp, bottom = 16.dp)
                                 ) {
                                     if (showArtistSubscriberCount) {
                                         artistPage?.subscriberCountText?.let { subscribers ->
@@ -1218,14 +1242,13 @@ fun ArtistScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
-                    .height(AppBarHeight)
+                    .height(AppBarHeight * 2.5f)
                     .background(
                         Brush.verticalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.6f * chromeScrimAlpha),
-                                Color.Black.copy(alpha = 0.15f * chromeScrimAlpha),
-                            )
+                            0f to Color.Black.copy(alpha = 0.55f * chromeScrimAlpha),
+                            0.35f to Color.Black.copy(alpha = 0.4f * chromeScrimAlpha),
+                            0.7f to Color.Black.copy(alpha = 0.12f * chromeScrimAlpha),
+                            1f to Color.Transparent,
                         )
                     )
             )

@@ -340,7 +340,7 @@ fun SearchScreen(
                 }
             },
             bottomBar = {
-                AnimatedVisibility(visible = query.text.isNotEmpty()) {
+                run {
                     // Finger-tracking glow, same as the nav bar puck's
                     // InteractiveHighlight: a soft radial light follows the touch
                     // point across the glass pill. Non-consuming, so the text field

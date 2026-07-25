@@ -224,7 +224,7 @@ private fun NewMiniPlayer(
     }
     
     val miniPlayerBackground by rememberEnumPreference(MiniPlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
-    val miniPlayerWaveform by rememberPreference(MiniPlayerWaveformKey, defaultValue = false)
+    val miniPlayerWaveform by rememberPreference(MiniPlayerWaveformKey, defaultValue = true)
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
     val waveFraction = rememberPlaybackFraction(playerConnection.player, isPlaying)
     

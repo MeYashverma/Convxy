@@ -562,6 +562,7 @@ val CanvasSourceKey = stringPreferencesKey("canvasSource")
 
 enum class CanvasSource {
     AUTO,
+    ECHO_MUSIC,
     APPLE_MUSIC,
     VIVIMUSIC,
     TIDAL,

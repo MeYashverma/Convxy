@@ -9,7 +9,6 @@ import io.ktor.client.plugins.cache.HttpCache
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
-import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -17,19 +16,32 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-data class ViviMusicCanvasManifest(
-    val items: List<ViviMusicCanvasItem> = emptyList()
+data class EchoMusicCanvasManifest(
+    val items: List<EchoMusicCanvasItem> = emptyList()
 )
 
 @Serializable
-data class ViviMusicCanvasItem(
+data class EchoMusicCanvasItem(
     val song: String,
     val artist: String,
     val url: String
 )
 
-object ViviMusicCanvasProvider {
-    private const val BASE_URL = "https://vivimusicanvas.mkmdevilmi.workers.dev/canvas.json" //new link
+private object EchoCanvasLogger {
+    fun d(msg: String) = println("EchoMusicCanvas: D: $msg")
+    fun e(t: Throwable, msg: String) {
+        println("EchoMusicCanvas: E: $msg")
+        t.printStackTrace()
+    }
+}
+
+/**
+ * https://canvas.echomusic.fun/developer — GPL-3.0, community-contributed
+ * song+artist -> looping canvas video map, served off GitHub's raw CDN.
+ * Docs ask for infrequent polling (they suggest ~30 min), hence the long TTL.
+ */
+object EchoMusicCanvasProvider {
+    private const val BASE_URL = "https://canvas.echomusic.fun/canvas.json"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -55,25 +67,27 @@ object ViviMusicCanvasProvider {
     }
 
     private data class CacheEntry(
-        val value: ViviMusicCanvasManifest?,
+        val value: EchoMusicCanvasManifest?,
         val expiresAtMs: Long,
     )
 
     private var manifestCache: CacheEntry? = null
-    // Cache TTL 1 minute (re-fetches json index every minute max for instant updates)
-    private val ttlMs = 60_000L
+    private val ttlMs = 30 * 60_000L
     // Guards the check-then-fetch below so two callers racing on a cold/expired
-    // cache don't both fire the same network call.
+    // cache (e.g. the full player and mini player both fetching for the same
+    // song at once) await the same network call instead of both firing it.
     private val fetchMutex = Mutex()
 
-    private suspend fun fetchManifest(): ViviMusicCanvasManifest? = fetchMutex.withLock {
+    private suspend fun fetchManifest(): EchoMusicCanvasManifest? = fetchMutex.withLock {
         val currentCache = manifestCache
         if (currentCache != null && currentCache.expiresAtMs > System.currentTimeMillis()) {
             return@withLock currentCache.value
         }
 
         try {
-            val manifest: ViviMusicCanvasManifest = client.get(BASE_URL).body()
+            val response = client.get(BASE_URL)
+            val manifest: EchoMusicCanvasManifest = response.body()
+            EchoCanvasLogger.d("fetched manifest: status=${response.status} items=${manifest.items.size}")
 
             manifestCache = CacheEntry(
                 value = manifest,
@@ -81,6 +95,7 @@ object ViviMusicCanvasProvider {
             )
             manifest
         } catch (e: Exception) {
+            EchoCanvasLogger.e(e, "fetchManifest failed")
             null
         }
     }
@@ -90,24 +105,27 @@ object ViviMusicCanvasProvider {
         artist: String,
     ): CanvasArtwork? {
         if (song.isBlank() || artist.isBlank()) return null
-        
-        val manifest = fetchManifest() ?: return null
+
+        val manifest = fetchManifest()
+        if (manifest == null) {
+            EchoCanvasLogger.d("getBySongArtist('$song', '$artist'): no manifest (fetch failed)")
+            return null
+        }
 
         val target = manifest.items.firstOrNull { item ->
             val matchSong = song.contains(item.song, ignoreCase = true) || item.song.contains(song, ignoreCase = true)
             val matchArtist = artist.contains(item.artist, ignoreCase = true) || item.artist.contains(artist, ignoreCase = true)
             matchSong && matchArtist
         }
+        EchoCanvasLogger.d("getBySongArtist('$song', '$artist'): ${manifest.items.size} items, match=${target != null}")
 
-        if (target != null) {
-            return CanvasArtwork(
-                name = target.song,
-                artist = target.artist,
-                videoUrl = target.url,
-                animated = target.url
+        return target?.let {
+            CanvasArtwork(
+                name = it.song,
+                artist = it.artist,
+                videoUrl = it.url,
+                animated = it.url
             )
-        } else {
-            return null
         }
     }
 }

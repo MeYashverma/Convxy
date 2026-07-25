@@ -103,6 +103,8 @@ import com.convx.music.ui.component.DraggableScrollbar
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.GlassCircleButton
+import com.convx.music.ui.component.ChromeScrim
+import com.convx.music.ui.component.rememberChromeScrimProgress
 import com.convx.music.ui.component.HeroBackground
 import com.convx.music.ui.utils.rememberHeroZoom
 import com.convx.music.ui.utils.heroPullZoom
@@ -466,10 +468,16 @@ fun AutoPlaylistScreen(
                 )
 
                 // Top bar
-                Row(
+                val chromeScrimProgress = rememberChromeScrimProgress(lazyListState)
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)
+                ) {
+                ChromeScrim(progress = chromeScrimProgress)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .windowInsetsPadding(appTopBarWindowInsets())
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -619,6 +627,7 @@ fun AutoPlaylistScreen(
                             )
                         }
                     }
+                }
                 }
             }
         }

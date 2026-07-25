@@ -158,6 +158,8 @@ import com.convx.music.ui.component.DefaultDialog
 import com.convx.music.ui.component.DraggableScrollbar
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.GlassCircleButton
+import com.convx.music.ui.component.ChromeScrim
+import com.convx.music.ui.component.rememberChromeScrimProgress
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.LocalAppBackdrop
 import com.convx.music.ui.component.LocalGlassEffectConfig
@@ -848,10 +850,16 @@ fun LocalPlaylistScreen(
         } else {
             Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f), chromeShape)
         }
-        Row(
+        val chromeScrimProgress = rememberChromeScrimProgress(lazyListState)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
+        ) {
+        ChromeScrim(progress = chromeScrimProgress)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
                 .windowInsetsPadding(appTopBarWindowInsets())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1000,6 +1008,7 @@ fun LocalPlaylistScreen(
             }
         }
         }
+    }
     }
 
     SnackbarHost(

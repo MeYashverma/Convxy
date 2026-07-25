@@ -122,7 +122,9 @@
     <string name="vivimusic_canvas_desc">Replaces the static album artwork in the player with a looping animated video when one is available for the current song</string>
     <string name="canvas_source">Canvas source</string>
     <string name="canvas_source_auto">Auto</string>
-    <string name="canvas_source_auto_desc">Tries Apple Music first, then falls back to Convx and Tidal. Picks the best match for the current song automatically</string>
+    <string name="canvas_source_auto_desc">Tries Echo Music first, then falls back to Apple Music, Convx, and Tidal. Picks the best match for the current song automatically</string>
+    <string name="canvas_source_echo_music">Echo Music</string>
+    <string name="canvas_source_echo_music_desc">Uses the community-run Echo Music canvas database exclusively. Only shows a canvas if one has been contributed for the playing song</string>
     <string name="canvas_source_apple_music">Apple Music</string>
     <string name="canvas_source_apple_music_desc">Uses Apple Music&#8217;s animated visuals exclusively. Only shows a canvas if Apple Music has one for the playing song</string>
     <string name="canvas_source_vivimusic">Convx</string>
@@ -953,7 +955,7 @@
     <string name="feat_glass_desc">An iOS-inspired frosted glass design across the whole app.</string>
 
     <string name="feat_discord_title">Discord Rich Presence</string>
-    <string name="feat_discord_desc">Show what you're listening to right on your Discord profile.</string>
+    <string name="feat_discord_desc">Show what you\'re listening to right on your Discord profile.</string>
 
     <string name="feat_update_title">Dynamic Updates</string>
     <string name="feat_update_desc">Always stay updated with our built-in updater.</string>

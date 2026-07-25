@@ -97,6 +97,28 @@ fun Bitmap.extractThemeColor(): Color {
     return Color(rankedColors.first())
 }
 
+/**
+ * Grabs one frame from a canvas video URL and runs the same extraction as
+ * [Bitmap.extractThemeColor] on it — canvas videos are often more colorful/
+ * representative than the still cover art. Best-effort: HLS (.m3u8) frame
+ * extraction isn't reliable on every device/Android version, so callers
+ * should fall back to the static artwork on a null result. Blocking — call
+ * from a background dispatcher.
+ */
+fun extractThemeColorFromVideoFrame(videoUrl: String): Color? {
+    val retriever = android.media.MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(videoUrl, emptyMap())
+        // A second or so in tends to avoid a black/fade-in first frame.
+        val frame = retriever.getFrameAtTime(1_000_000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+        frame?.extractThemeColor()
+    } catch (e: Exception) {
+        null
+    } finally {
+        retriever.release()
+    }
+}
+
 fun Bitmap.extractGradientColors(): List<Color> {
     val extractedColors = Palette.from(this)
         .maximumColorCount(64)

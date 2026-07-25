@@ -141,9 +141,7 @@ import com.convx.music.constants.LyricsTextPositionKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LyricsTextSizeKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerButtonsStyle
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerButtonsStyleKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ShowCachedPlaylistKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -155,7 +153,6 @@ import com.convx.music.constants.ShowTopPlaylistKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ShowUploadedPlaylistKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.ForceTabletLayoutKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.SlimNavBarKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -233,7 +230,7 @@ fun AppearanceSettings(
     )
     val (miniPlayerWaveform, onMiniPlayerWaveformChange) = rememberPreference(
         MiniPlayerWaveformKey,
-        defaultValue = false
+        defaultValue = true
     )
     val (brandFont, onBrandFontChange) = rememberPreference(
         BrandFontEnabledKey,
@@ -246,10 +243,6 @@ fun AppearanceSettings(
     )
     val (iosOverscroll, onIosOverscrollChange) = rememberPreference(
         IosOverscrollKey,
-        defaultValue = false
-    )
-    val (forceTabletLayout, onForceTabletLayoutChange) = rememberPreference(
-        ForceTabletLayoutKey,
         defaultValue = false
     )
     val (enableSettingsPopup, onEnableSettingsPopupChange) = rememberPreference(
@@ -268,10 +261,6 @@ fun AppearanceSettings(
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(
         DefaultOpenTabKey,
         defaultValue = NavigationTab.HOME
-    )
-    val (playerButtonsStyle, onPlayerButtonsStyleChange) = rememberEnumPreference(
-        PlayerButtonsStyleKey,
-        defaultValue = PlayerButtonsStyle.DEFAULT
     )
     val (lyricsPosition, onLyricsPositionChange) = rememberEnumPreference(
         LyricsTextPositionKey,
@@ -381,10 +370,6 @@ fun AppearanceSettings(
         key = ChipSortTypeKey,
         defaultValue = LibraryFilter.LIBRARY
     )
-
-    var showPlayerButtonsStyleDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
 
     var showLyricsPositionDialog by rememberSaveable {
         mutableStateOf(false)
@@ -589,29 +574,6 @@ fun AppearanceSettings(
                 )
                 add(
                     Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.force_tablet_layout)) },
-                        description = { Text(stringResource(R.string.force_tablet_layout_desc)) },
-                        trailingContent = {
-                            Switch(
-                                checked = forceTabletLayout,
-                                onCheckedChange = onForceTabletLayoutChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (forceTabletLayout) R.drawable.check else R.drawable.close
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-                                    )
-                                }
-                            )
-                        },
-                        onClick = { onForceTabletLayoutChange(!forceTabletLayout) }
-                    )
-                )
-                add(
-                    Material3SettingsItem(
                         icon = painterResource(R.drawable.settings),
                         title = { Text(stringResource(R.string.enable_settings_popup)) },
                         description = { Text(stringResource(R.string.enable_settings_popup_desc)) },
@@ -750,20 +712,6 @@ fun AppearanceSettings(
                     onClick = { onMiniPlayerWaveformChange(!miniPlayerWaveform) }
                 ),
                 Material3SettingsItem(
-                    icon = painterResource(R.drawable.palette),
-                    title = { Text(stringResource(R.string.player_buttons_style)) },
-                    description = {
-                        Text(
-                            when (playerButtonsStyle) {
-                                PlayerButtonsStyle.DEFAULT -> stringResource(R.string.default_style)
-                                PlayerButtonsStyle.PRIMARY -> stringResource(R.string.primary_color_style)
-                                PlayerButtonsStyle.TERTIARY -> stringResource(R.string.tertiary_color_style)
-                            }
-                        )
-                    },
-                    onClick = { showPlayerButtonsStyleDialog = true }
-                ),
-                Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),
                     title = { Text(stringResource(R.string.enable_wavy_slider)) },
                     trailingContent = {
@@ -792,6 +740,7 @@ fun AppearanceSettings(
                         } else {
                             when (canvasSource) {
                                 CanvasSource.AUTO -> stringResource(R.string.canvas_source_auto)
+                                CanvasSource.ECHO_MUSIC -> stringResource(R.string.canvas_source_echo_music)
                                 CanvasSource.APPLE_MUSIC -> stringResource(R.string.canvas_source_apple_music)
                                 CanvasSource.VIVIMUSIC -> stringResource(R.string.canvas_source_vivimusic)
                                 CanvasSource.TIDAL -> stringResource(R.string.canvas_source_tidal)

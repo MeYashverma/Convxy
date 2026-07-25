@@ -130,6 +130,8 @@ import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.LocalContentColor
 import com.convx.music.ui.component.GlassCircleButton
+import com.convx.music.ui.component.ChromeScrim
+import com.convx.music.ui.component.rememberChromeScrimProgress
 import androidx.compose.ui.draw.clip
 import java.time.LocalDateTime
 
@@ -471,10 +473,16 @@ fun TopPlaylistScreen(
             )
 
             // Top bar logic
-            Row(
+            val chromeScrimProgress = rememberChromeScrimProgress(state)
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
+            ) {
+            ChromeScrim(progress = chromeScrimProgress)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
                     .windowInsetsPadding(appTopBarWindowInsets())
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -603,6 +611,7 @@ fun TopPlaylistScreen(
                         )
                     }
                 }
+            }
             }
         }
       }

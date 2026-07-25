@@ -54,7 +54,6 @@ import com.convx.music.ui.screens.settings.DarkMode
 import com.convx.music.ui.screens.settings.DiscordLoginScreen
 import com.convx.music.ui.screens.settings.PlayerSettings
 import com.convx.music.ui.screens.settings.JioSettings
-import com.convx.music.ui.screens.settings.LosslessSettings
 import com.convx.music.ui.screens.settings.PrivacySettings
 import com.convx.music.ui.screens.settings.RomanizationSettings
 import com.convx.music.ui.screens.settings.SettingsScreen
@@ -388,10 +387,6 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/player/jio") {
         JioSettings(navController, scrollBehavior)
-    }
-
-    composable("settings/player/lossless") {
-        LosslessSettings(navController, scrollBehavior)
     }
 
     composable("settings/storage") {

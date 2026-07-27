@@ -30,6 +30,7 @@ import com.convx.music.constants.EnableSaavnStreamingKey
 import com.convx.music.constants.EnableTidalStreamingKey
 import com.convx.music.constants.EnabledModulesKey
 import com.convx.music.constants.ModuleSourcesKey
+import com.convx.music.constants.ModuleSettingsKey
 import com.convx.music.constants.SaavnAudioQuality
 import com.convx.music.constants.SaavnAudioQualityKey
 import com.convx.music.constants.TidalInstanceUrlKey
@@ -163,8 +164,13 @@ object YTPlayerUtils {
             // ── 8spine module intercept ─────────────────────────────────────────
             // Try enabled 8spine modules for streaming before other sources.
             // Falls through to TIDAL/Saavn/YouTube on ANY failure.
+            Log.d(TAG, "═══ SPINE INTERCEPT START ═══ videoId=$videoId")
             val enabledModulesJson = context.dataStore.get(EnabledModulesKey, "[]")
             val moduleSourcesJson = context.dataStore.get(ModuleSourcesKey, "[]")
+            val moduleSettingsJson = context.dataStore.get(ModuleSettingsKey, "{}")
+            Log.d(TAG, "  enabledModules: $enabledModulesJson")
+            Log.d(TAG, "  moduleSources: $moduleSourcesJson")
+            Log.d(TAG, "  moduleSettings: $moduleSettingsJson")
             runCatching {
                 val enabledIds = runCatching {
                     val arr = JSONArray(enabledModulesJson)
@@ -176,8 +182,27 @@ object YTPlayerUtils {
                     (0 until arr.length()).map { arr.getString(it) }
                 }.getOrElse { emptyList<String>() }
 
+                val allModuleSettings = runCatching {
+                    val obj = org.json.JSONObject(moduleSettingsJson)
+                    obj.keys().asSequence().associateWith { key ->
+                        val inner = obj.optJSONObject(key)
+                        if (inner != null) {
+                            inner.keys().asSequence().associateWith { k -> inner.optString(k, "") }
+                        } else emptyMap()
+                    }
+                }.getOrElse { emptyMap<String, Map<String, String>>() }
+
+                Log.d(TAG, "  Parsed enabledIds: $enabledIds")
+                Log.d(TAG, "  Parsed sourceUrls: $sourceUrls")
+                Log.d(TAG, "  Parsed allModuleSettings: $allModuleSettings")
+
+                if (enabledIds.isEmpty() || sourceUrls.isEmpty()) {
+                    Log.d(TAG, "  SPINE SKIP: enabledIds=${enabledIds.size} sourceUrls=${sourceUrls.size} — falling through")
+                    Log.d(TAG, "═══ SPINE INTERCEPT END (skipped) ═══")
+                }
+
                 if (enabledIds.isNotEmpty() && sourceUrls.isNotEmpty()) {
-                    Timber.tag(TAG).d("8spine: trying enabled modules for videoId=$videoId")
+                    Log.d(TAG, "  Resolving YouTube metadata for search query...")
 
                     val (currentSong, meta) = coroutineScope {
                         val nextDeferred = async {
@@ -190,6 +215,7 @@ object YTPlayerUtils {
                     }
 
                     val title = currentSong?.title ?: meta?.videoDetails?.title.orEmpty()
+                    Log.d(TAG, "  Resolved title=\"$title\" from ${if (currentSong != null) "YouTube.next" else "videoDetails"}")
                     if (title.isNotBlank()) {
                         val artistNames: List<String> = if (currentSong?.artists?.isNotEmpty() == true) {
                             currentSong.artists.map { it.name }
@@ -209,73 +235,146 @@ object YTPlayerUtils {
                             .replace("&", " ").replace(",", " ")
                             .replace(Regex("\\s+"), " ").trim()
 
+                        Log.d(TAG, "  Search query: \"$query\" (artists=$artistNames)")
+
                         val moduleManager = ModuleManager()
-                        for (sourceUrl in sourceUrls) {
+                        for ((sourceIdx, sourceUrl) in sourceUrls.withIndex()) {
+                            Log.d(TAG, "  ── Source [${sourceIdx + 1}/${sourceUrls.size}]: $sourceUrl")
                             val modules = moduleManager.fetchIndex(sourceUrl).getOrElse { e ->
-                                Timber.tag(TAG).w(e, "8spine: failed to fetch index from $sourceUrl")
+                                Log.e(TAG, "  ✗ Failed to fetch index from $sourceUrl: ${e.message}")
                                 continue
                             }
-                            Timber.tag(TAG).d("8spine: fetched ${modules.size} modules from $sourceUrl")
-                            for (module in modules) {
-                                if (module.id !in enabledIds) continue
-                                Timber.tag(TAG).d("8spine: trying module ${module.id} for query=\"$query\"")
+                            Log.d(TAG, "  ✓ Fetched ${modules.size} modules from $sourceUrl")
+                            for ((modIdx, module) in modules.withIndex()) {
+                                if (module.id !in enabledIds) {
+                                    Log.d(TAG, "    [${modIdx + 1}] SKIP ${module.id} (not enabled)")
+                                    continue
+                                }
+                                Log.d(TAG, "    [${modIdx + 1}/${modules.size}] TRY ${module.id} — isLossless=${module.isLossless} hasHiRes=${module.hasHiRes} isAtmos=${module.isDolbyAtmos}")
                                 val spineResult = runCatching {
                                     val loadBaseUrl = sourceUrl.substringBeforeLast("/")
+                                    Log.d(TAG, "      Loading module JS from baseUrl=$loadBaseUrl")
                                     val loaded = moduleManager.loadModule(module) { loadBaseUrl }.getOrElse { e ->
-                                        Timber.tag(TAG).w(e, "8spine: failed to load module ${module.id}")
+                                        Log.e(TAG, "      ✗ Failed to load module ${module.id}: ${e.message}")
                                         return@runCatching null
                                     }
 
-                                    val searchResult = moduleManager.searchTracks(loaded, query, 5).getOrElse { e ->
-                                        Timber.tag(TAG).w(e, "8spine: search failed for module ${module.id}")
+                                    val moduleSettings = allModuleSettings[module.id] ?: emptyMap()
+                                    Log.d(TAG, "      Module settings: $moduleSettings")
+                                    Log.d(TAG, "      Calling searchTracks(\"$query\", 5, settings)...")
+                                    val searchResult = moduleManager.searchTracks(loaded, query, 5, moduleSettings).getOrElse { e ->
+                                        Log.e(TAG, "      ✗ Search failed for module ${module.id}: ${e.message}")
                                         return@runCatching null
                                     }
-                                    val matchedTrack = searchResult.tracks.firstOrNull()
+                                    val matchedTrack = searchResult.tracks.minByOrNull { track ->
+                                        val t = track.title.lowercase().trim()
+                                        val a = track.artist.lowercase().trim()
+                                        val q = cleanTitle.lowercase().trim()
+                                        val artistsLower = artistNames.map { it.lowercase().trim() }
+                                        var score = 0
+                                        if (q in t || t in q) score -= 10
+                                        if (artistsLower.any { it in a || a in it }) score -= 5
+                                        val trackDur = track.duration
+                                        val songDur = currentSong?.duration
+                                        if (trackDur != null && songDur != null) {
+                                            val diff = Math.abs(trackDur - songDur)
+                                            if (diff < 5) score -= 3
+                                        }
+                                        score
+                                    }
                                     if (matchedTrack == null) {
-                                        Timber.tag(TAG).d("8spine: no tracks found by module ${module.id}")
+                                        Log.d(TAG, "      ✗ No tracks found by module ${module.id}")
                                         return@runCatching null
                                     }
 
-                                    Timber.tag(TAG).d("8spine: module ${module.id} matched \"${matchedTrack.title}\" by ${matchedTrack.artist}")
+                                    Log.d(TAG, "      ✓ Match: \"${matchedTrack.title}\" by \"${matchedTrack.artist}\" id=${matchedTrack.id} quality=${matchedTrack.audioQuality} duration=${matchedTrack.duration}s")
 
-                                    val streamResult = moduleManager.getStreamUrl(loaded, matchedTrack.id).getOrElse { e ->
-                                        Timber.tag(TAG).w(e, "8spine: stream URL fetch failed for module ${module.id} track ${matchedTrack.id}")
+                                    Log.d(TAG, "      Calling getStreamUrl(\"${matchedTrack.id}\", settings)...")
+                                    val streamResult = moduleManager.getStreamUrl(loaded, matchedTrack.id, moduleSettings).getOrElse { e ->
+                                        Log.e(TAG, "      ✗ Stream URL fetch failed for module ${module.id} track ${matchedTrack.id}: ${e.message}")
                                         return@runCatching null
                                     }
                                     val streamUrl = streamResult.streamUrl?.ifBlank { null }
                                     if (streamUrl == null) {
-                                        Timber.tag(TAG).d("8spine: empty stream URL from module ${module.id}")
+                                        Log.d(TAG, "      ✗ Empty stream URL from module ${module.id}")
+                                        Log.d(TAG, "      Full streamResult: streamUrl=${streamResult.streamUrl} track=${streamResult.track}")
                                         return@runCatching null
                                     }
 
-                                    val isLossless = module.isLossless ||
+                                    Log.d(TAG, "      ✓ Stream URL: ${streamUrl.take(150)}...")
+                                    Log.d(TAG, "      Track audioQuality: ${streamResult.track?.audioQuality}")
+                                    Log.d(TAG, "      Track mimeType: ${streamResult.track?.mimeType}")
+                                    Log.d(TAG, "      Track audioModes: ${streamResult.track?.audioModes}")
+                                    Log.d(TAG, "      Track bitDepth: ${streamResult.track?.bitDepth}")
+                                    Log.d(TAG, "      Track sampleRate: ${streamResult.track?.sampleRate}")
+
+                                    val isAtmos = module.isDolbyAtmos ||
+                                        streamResult.track?.audioQuality?.uppercase()?.contains("ATMOS") == true ||
+                                        streamResult.track?.audioModes?.any { it.uppercase().contains("ATMOS") } == true ||
+                                        streamResult.track?.mimeType?.uppercase()?.contains("EAC3") == true
+
+                                    val isLossless = !isAtmos && (
+                                        module.isLossless ||
                                         streamResult.track?.audioQuality?.uppercase()?.contains("LOSSLESS") == true ||
-                                        streamResult.track?.audioQuality?.uppercase()?.contains("HIRES") == true
+                                        streamResult.track?.audioQuality?.uppercase()?.contains("HIRES") == true ||
+                                        streamResult.track?.audioQuality?.uppercase()?.contains("FLAC") == true
+                                    )
 
-                                    val mimeType = if (isLossless) "audio/flac; codecs=\"flac\"" else "audio/mpeg; codecs=mp3"
-                                    val bitrate = if (isLossless) 1_411_000 else 320_000
+                                    Log.d(TAG, "      isAtmos=$isAtmos (module.isDolbyAtmos=${module.isDolbyAtmos} audioQuality=${streamResult.track?.audioQuality} audioModes=${streamResult.track?.audioModes} mimeType=${streamResult.track?.mimeType})")
+                                    Log.d(TAG, "      isLossless=$isLossless (module.isLossless=${module.isLossless})")
 
-                                    Timber.tag(TAG).i("8spine: streaming from module ${module.id} \"${matchedTrack.title}\" (lossless=$isLossless) for videoId=$videoId")
+                                    val mimeType = when {
+                                        isAtmos -> "audio/eac3-joc; codecs=ec-3"
+                                        isLossless -> "audio/flac; codecs=\"flac\""
+                                        else -> "audio/mpeg; codecs=mp3"
+                                    }
+                                    val bitrate = when {
+                                        isAtmos -> 768_000
+                                        isLossless -> 1_411_000
+                                        else -> 320_000
+                                    }
+
+                                    Log.d(TAG, "      ✓ STREAMING from module ${module.id}: mimeType=$mimeType bitrate=$bitrate itag=${if (isAtmos) 9997 else if (isLossless) 9998 else 9996}")
                                     PlaybackData(
                                         audioConfig      = meta?.playerConfig?.audioConfig,
                                         videoDetails     = meta?.videoDetails,
                                         playbackTracking = meta?.playbackTracking,
                                         format           = PlayerResponse.StreamingData.Format(
-                                            itag             = 9998,
+                                            itag             = when {
+                                                isAtmos -> 9997
+                                                isLossless -> 9998
+                                                else -> 9996
+                                            },
                                             url              = streamUrl,
                                             mimeType         = mimeType,
                                             bitrate          = bitrate,
                                             width            = null,
                                             height           = null,
                                             contentLength    = null,
-                                            quality          = "LOSSLESS",
+                                            quality          = when {
+                                                isAtmos -> "DOLBY_ATMOS"
+                                                isLossless -> "LOSSLESS"
+                                                else -> "HIGH"
+                                            },
                                             fps              = null,
                                             qualityLabel     = null,
                                             averageBitrate   = null,
-                                            audioQuality     = "LOSSLESS",
+                                            audioQuality     = when {
+                                                isAtmos -> "DOLBY_ATMOS"
+                                                isLossless -> "LOSSLESS"
+                                                else -> "HIGH"
+                                            },
                                             approxDurationMs = matchedTrack.duration?.let { (it * 1000L).toString() },
-                                            audioSampleRate  = if (isLossless) 44100 else null,
-                                            audioChannels    = if (isLossless) 2 else null,
+                                            audioSampleRate  = when {
+                                                isAtmos -> 48000
+                                                isLossless -> 44100
+                                                else -> null
+                                            },
+                                            audioChannels    = when {
+                                                isAtmos -> 6
+                                                isLossless -> 2
+                                                else -> null
+                                            },
                                             loudnessDb       = null,
                                             lastModified     = null,
                                             signatureCipher  = null,
@@ -294,8 +393,9 @@ object YTPlayerUtils {
                     }
                 }
             }.onFailure { e ->
-                Timber.tag(TAG).e(e, "8spine intercept error")
+                Log.e(TAG, "═══ SPINE INTERCEPT ERROR ═══", e)
             }
+            Log.d(TAG, "═══ SPINE INTERCEPT END ═══")
             // ── End 8spine intercept ───────────────────────────────────────────
 
             // ── Lossless (TIDAL) intercept ───────────────────────────────────────

@@ -183,9 +183,9 @@ constructor(
             }
 
             // For YouTube streams: append the &range= param so the download cache can
-            // handle progressive HTTP range requests. For JioSaavn streams the CDN
-            // doesn't need it and contentLength is null, so skip it.
-            val streamUrl = if (playbackData.isSaavnStream) {
+            // handle progressive HTTP range requests. For JioSaavn/TIDAL/spine streams
+            // the CDN doesn't need it and contentLength is null, so skip it.
+            val streamUrl = if (playbackData.isSaavnStream || playbackData.isTidalStream || playbackData.isSpineStream) {
                 playbackData.streamUrl
             } else {
                 "${playbackData.streamUrl}&range=0-${format.contentLength ?: 10_000_000}"

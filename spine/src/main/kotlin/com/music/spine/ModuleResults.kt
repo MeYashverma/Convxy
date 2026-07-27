@@ -33,4 +33,8 @@ data class ModuleStreamResponse(
 data class ModuleStreamTrack(
     @SerialName("id") val id: String = "",
     @SerialName("audioQuality") val audioQuality: String = "",
+    @SerialName("mimeType") val mimeType: String? = null,
+    @SerialName("bitDepth") val bitDepth: Int? = null,
+    @SerialName("sampleRate") val sampleRate: Double? = null,
+    @SerialName("audioModes") val audioModes: List<String>? = null,
 )

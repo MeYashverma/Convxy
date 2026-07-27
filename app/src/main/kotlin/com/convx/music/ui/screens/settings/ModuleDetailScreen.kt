@@ -20,14 +20,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +45,7 @@ import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
 import com.convx.music.constants.EnabledModulesKey
+import com.convx.music.constants.ModuleSettingsKey
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.ModernSwitch
 import com.convx.music.ui.theme.AppleTokens
@@ -46,6 +53,15 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.backToMain
 import com.convx.music.utils.rememberPreference
 import org.json.JSONArray
+import org.json.JSONObject
+
+private val QUALITY_OPTIONS = listOf(
+    "Lossless (FLAC 16-bit/44.1kHz)" to "LOSSLESS",
+    "Hi-Res (FLAC 24-bit)" to "HIRES",
+    "Dolby Atmos (EAC3-JOC)" to "EAC3_JOC",
+    "High (AAC 320kbps)" to "HIGH",
+    "Low (AAC 96kbps)" to "LOW",
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +71,7 @@ fun ModuleDetailScreen(
     moduleId: String,
 ) {
     val (enabledJson, onEnabledJsonChange) = rememberPreference(EnabledModulesKey, defaultValue = "[]")
+    val (moduleSettingsJson, onModuleSettingsJsonChange) = rememberPreference(ModuleSettingsKey, defaultValue = "{}")
 
     val enabledIds = remember(enabledJson) {
         runCatching {
@@ -72,6 +89,30 @@ fun ModuleDetailScreen(
         current.forEach { arr.put(it) }
         onEnabledJsonChange(arr.toString())
     }
+
+    val moduleSettings = remember(moduleSettingsJson) {
+        runCatching {
+            val obj = JSONObject(moduleSettingsJson)
+            val inner = obj.optJSONObject(moduleId)
+            if (inner != null) {
+                inner.keys().asSequence().associateWith { inner.optString(it, "") }
+            } else emptyMap()
+        }.getOrElse { emptyMap<String, String>() }
+    }
+
+    fun updateModuleSetting(key: String, value: String) {
+        val obj = runCatching { JSONObject(moduleSettingsJson) }.getOrElse { JSONObject() }
+        val inner = obj.optJSONObject(moduleId) ?: JSONObject()
+        inner.put(key, value)
+        obj.put(moduleId, inner)
+        onModuleSettingsJsonChange(obj.toString())
+    }
+
+    var qualityExpanded by remember { mutableStateOf(false) }
+    var tidalQualityExpanded by remember { mutableStateOf(false) }
+
+    val currentQuality = moduleSettings["quality"] ?: ""
+    val currentTidalQuality = moduleSettings["tidalQuality"] ?: ""
 
     Column(
         Modifier
@@ -141,6 +182,109 @@ fun ModuleDetailScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        Spacer(Modifier.height(24.dp))
+
+        Text(
+            text = "QUALITY SETTINGS",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(AppleTokens.CardCorner))
+                .background(AppleTokens.Card)
+                .padding(16.dp),
+        ) {
+            Text(
+                text = "Primary Quality",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            ExposedDropdownMenuBox(
+                expanded = qualityExpanded,
+                onExpandedChange = { qualityExpanded = it },
+            ) {
+                OutlinedTextField(
+                    value = QUALITY_OPTIONS.find { it.second == currentQuality }?.first ?: "Default",
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = qualityExpanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                )
+                ExposedDropdownMenu(
+                    expanded = qualityExpanded,
+                    onDismissRequest = { qualityExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Default") },
+                        onClick = {
+                            updateModuleSetting("quality", "")
+                            qualityExpanded = false
+                        },
+                    )
+                    QUALITY_OPTIONS.forEach { (label, value) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                updateModuleSetting("quality", value)
+                                qualityExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = "Tidal Fallback Quality",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            ExposedDropdownMenuBox(
+                expanded = tidalQualityExpanded,
+                onExpandedChange = { tidalQualityExpanded = it },
+            ) {
+                OutlinedTextField(
+                    value = QUALITY_OPTIONS.find { it.second == currentTidalQuality }?.first ?: "Default",
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tidalQualityExpanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                )
+                ExposedDropdownMenu(
+                    expanded = tidalQualityExpanded,
+                    onDismissRequest = { tidalQualityExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Default") },
+                        onClick = {
+                            updateModuleSetting("tidalQuality", "")
+                            tidalQualityExpanded = false
+                        },
+                    )
+                    QUALITY_OPTIONS.forEach { (label, value) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                updateModuleSetting("tidalQuality", value)
+                                tidalQualityExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
 
         Spacer(Modifier.height(36.dp))
     }

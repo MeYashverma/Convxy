@@ -28,6 +28,7 @@ import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
 import android.os.Binder
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.getSystemService
@@ -86,6 +87,7 @@ import com.convx.music.constants.AudioNormalizationKey
 import com.convx.music.constants.AudioOffload
 import com.convx.music.constants.AudioQualityKey
 import com.convx.music.constants.EnableTidalStreamingKey
+import com.convx.music.constants.EnabledModulesKey
 import com.convx.music.constants.AutoDownloadOnLikeKey
 import com.convx.music.constants.AutoLoadMoreKey
 import com.convx.music.constants.AutoSkipNextOnErrorKey
@@ -2601,8 +2603,10 @@ class MusicService :
         }
     }
 
-    private fun createCacheDataSource(): CacheDataSource.Factory =
-        CacheDataSource
+    private fun createCacheDataSource(): CacheDataSource.Factory {
+        val ytProxy = YouTube.proxy
+        val ytProxyAuth = YouTube.proxyAuth
+        return CacheDataSource
             .Factory()
             .setCache(downloadCache)
             .setUpstreamDataSourceFactory(
@@ -2625,9 +2629,20 @@ class MusicService :
                                             }
                                         }
                                     })
-                                    .proxy(YouTube.proxy)
+                                    .proxySelector(object : java.net.ProxySelector() {
+                                        override fun select(uri: java.net.URI?): List<java.net.Proxy> {
+                                            if (ytProxy == null) return listOf(java.net.Proxy.NO_PROXY)
+                                            val host = uri?.host ?: return listOf(ytProxy)
+                                            return if (host.contains("googlevideo") || host.contains("youtube")) {
+                                                listOf(ytProxy)
+                                            } else {
+                                                listOf(java.net.Proxy.NO_PROXY)
+                                            }
+                                        }
+                                        override fun connectFailed(uri: java.net.URI?, sa: java.net.SocketAddress?, ioe: java.io.IOException?) {}
+                                    })
                                     .proxyAuthenticator { _, response ->
-                                        YouTube.proxyAuth?.let { auth ->
+                                        ytProxyAuth?.let { auth ->
                                             response.request.newBuilder()
                                                 .header("Proxy-Authorization", auth)
                                                 .build()
@@ -2639,6 +2654,7 @@ class MusicService :
                     ),
             ).setCacheWriteDataSinkFactory(null)
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
+    }
 
     // Flag to prevent queue saving during silence skip operations
     private var isSilenceSkipping = false
@@ -2738,8 +2754,14 @@ class MusicService :
             // Lossless namespaces the whole cache chain so FLAC and Opus/AAC bytes
             // for the same video never collide across a toggle. Streaming only:
             // offline downloads live in the plain (Opus) namespace.
+            // Spine streams also use lossless namepacing to avoid cache collisions.
             val losslessOn = dataStore.get(EnableTidalStreamingKey, false)
-            val effKey = if (losslessOn) "$mediaId#flac" else mediaId
+            val spineEnabled = dataStore.get(EnabledModulesKey, "[]") != "[]"
+            val effKey = when {
+                losslessOn || spineEnabled -> "$mediaId#flac"
+                else -> mediaId
+            }
+            Log.d("SpineDebug", "DataSourceResolver: mediaId=$mediaId spineEnabled=$spineEnabled losslessOn=$losslessOn effKey=$effKey")
             val spec = if (effKey == mediaId) dataSpec else dataSpec.buildUpon().setKey(effKey).build()
 
             // Check if we need to bypass cache for quality change
@@ -2838,6 +2860,7 @@ class MusicService :
                 }
 
                 val streamUrl = nonNullPlayback.streamUrl
+                Log.d("SpineDebug", "DataSourceResolver: resolved mediaId=$mediaId isSpineStream=${nonNullPlayback.isSpineStream} isTidalStream=${nonNullPlayback.isTidalStream} streamUrl=${streamUrl?.take(120)}")
 
                 songUrlCache[effKey] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)

@@ -26,6 +26,7 @@ data class SpineModule(
 ) {
     val isLossless: Boolean get() = tags.any { it.uppercase().contains("LOSSLESS") || it.uppercase().contains("HI-RES") || it.uppercase().contains("FLAC") }
     val hasHiRes: Boolean get() = tags.any { it.uppercase().contains("HI-RES") }
+    val isDolbyAtmos: Boolean get() = tags.any { it.uppercase().contains("ATMOS") || it.uppercase().contains("DOLBY") }
 }
 
 @Serializable

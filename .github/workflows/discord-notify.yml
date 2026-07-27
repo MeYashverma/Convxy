@@ -26,25 +26,17 @@ jobs:
             TYPE="Stable Release"
           fi
           
-          # Build the embed
-          PAYLOAD=$(cat <<EOF
-          {
-            "embeds": [{
-              "title": "Convx ${TAG} - ${TYPE}",
-              "description": "${BODY:-No description provided.}",
-              "url": "${URL}",
-              "color": ${COLOR},
-              "fields": [
-                {"name": "Version", "value": "${TAG}", "inline": true},
-                {"name": "Type", "value": "${TYPE}", "inline": true},
-                {"name": "Download", "value": "[GitHub Release](${URL})", "inline": false}
-              ],
-              "footer": {"text": "Convx Music - Open Source"},
-              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            }]
-          }
-          EOF
-          )
+          # Build the embed with jq to safely escape JSON
+          PAYLOAD=$(jq -n \
+            --arg title "Convx $TAG - $TYPE" \
+            --arg desc "${BODY:-No description provided.}" \
+            --arg url "$URL" \
+            --argjson color "$COLOR" \
+            --arg version "$TAG" \
+            --arg type "$TYPE" \
+            --arg time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{embeds: [{title: $title, description: $desc, url: $url, color: $color, fields: [{name: "Version", value: $version, inline: true}, {name: "Type", value: $type, inline: true}, {name: "Download", value: "[GitHub Release](\($url))", inline: false}], footer: {text: "Convx Music - Open Source"}, timestamp: $time}]}')
+
           
           curl -s -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \

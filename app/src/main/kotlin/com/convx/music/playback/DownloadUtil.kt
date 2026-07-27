@@ -15,8 +15,12 @@ import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.database.DatabaseProvider
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
@@ -70,6 +74,7 @@ import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@UnstableApi
 @Singleton
 class DownloadUtil
 @Inject
@@ -219,28 +224,27 @@ constructor(
                     }
 
                     canvas?.let { url ->
-                        val canvasRequest = okhttp3.Request.Builder().url(url).build()
-                        // Use the shared player okHttpClient or just download manually
-                        // We use the downloadCache for the video file
+                        val dataSpec = DataSpec.Builder()
+                            .setUri(url.toUri())
+                            .setKey("$mediaId#canvas")
+                            .setFlags(DataSpec.FLAG_ALLOW_CACHE_FRAGMENTATION)
+                            .build()
+                            
+                        val dataSource = CacheDataSource.Factory()
+                            .setCache(downloadCache)
+                            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context))
+                            .setCacheWriteDataSinkFactory(null)
+                            .createDataSource()
+                        
                         kotlin.runCatching {
-                            val okHttpClient = OkHttpClient.Builder().proxy(YouTube.proxy).build()
-                            val response = okHttpClient.newCall(canvasRequest).execute()
-                            if (response.isSuccessful) {
-                                val body = response.body
-                                if (body != null) {
-                                    val stream = body.byteStream()
-                                    val buffer = ByteArray(1024 * 64)
-                                    var bytesRead: Int
-                                    var totalRead = 0L
-                                    while (stream.read(buffer).also { bytesRead = it } != -1) {
-                                        // Simple manual byte buffer writing to cache isn't standard Media3, 
-                                        // but we can store it as a dedicated resource in downloadCache
-                                        // or just skip for now and use playerCache logic.
-                                        totalRead += bytesRead
-                                    }
-                                    Log.d("CanvasDownload", "Successfully cached canvas for $mediaId: $totalRead bytes")
-                                }
-                            }
+                            val writer = CacheWriter(
+                                dataSource,
+                                dataSpec,
+                                null,
+                                null
+                            )
+                            writer.cache()
+                            Log.d("CanvasDownload", "Successfully cached canvas for $mediaId")
                         }.onFailure { e ->
                             Log.e("CanvasDownload", "Failed to cache canvas for $mediaId", e)
                         }

@@ -935,7 +935,16 @@ fun PlaylistListItem(
     },
     badges = badges,
     thumbnailContent = {
-        if (showIconOnly) {
+        if (thumbnailOverrideUrl != null) {
+            AsyncImage(
+                model = thumbnailOverrideUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(ListThumbnailSize)
+                    .clip(ThumbnailRoundedShape),
+            )
+        } else if (showIconOnly) {
             Box(
                 modifier = Modifier
                     .size(ListThumbnailSize)
@@ -950,15 +959,6 @@ fun PlaylistListItem(
                     tint = LocalContentColor.current.copy(alpha = 0.6f)
                 )
             }
-        } else if (thumbnailOverrideUrl != null) {
-            AsyncImage(
-                model = thumbnailOverrideUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(ListThumbnailSize)
-                    .clip(ThumbnailRoundedShape),
-            )
         } else {
             PlaylistThumbnail(
                 thumbnails = playlist.thumbnails,
@@ -1066,7 +1066,14 @@ fun PlaylistGridItem(
     badges = badges,
     thumbnailContent = {
         val width = maxWidth
-        if (showIconOnly) {
+        if (thumbnailOverrideUrl != null) {
+            AsyncImage(
+                model = thumbnailOverrideUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else if (showIconOnly) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1080,13 +1087,6 @@ fun PlaylistGridItem(
                     tint = LocalContentColor.current.copy(alpha = 0.6f)
                 )
             }
-        } else if (thumbnailOverrideUrl != null) {
-            AsyncImage(
-                model = thumbnailOverrideUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
         } else {
         PlaylistThumbnail(
             thumbnails = playlist.thumbnails,

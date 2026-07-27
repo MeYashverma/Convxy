@@ -1248,6 +1248,7 @@ fun BottomSheetPlayer(
 
                                         if (enableCanvas && canvasArtwork != null && backgroundAlpha > 0.01f) {
                                             BackgroundVideoView(
+                                                mediaId = mediaMetadata?.id ?: "",
                                                 videoUrl = canvasArtwork?.animated ?: canvasArtwork?.videoUrl ?: "",
                                                 isPlaying = isPlaying,
                                                 onError = {
@@ -3078,6 +3079,7 @@ private fun PlayerMoreMenuButton(
 
 @Composable
 private fun BackgroundVideoView(
+    mediaId: String,
     videoUrl: String,
     isPlaying: Boolean,
     onError: () -> Unit = {},
@@ -3085,6 +3087,7 @@ private fun BackgroundVideoView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val downloadUtil = LocalDownloadUtil.current
     var isVideoReady by remember(videoUrl) { mutableStateOf(false) }
     // exoPlayer is remember{}'d without a key (reused across videoUrl changes,
     // swapped via setMediaItem instead of recreation), so the listener set up
@@ -3103,8 +3106,20 @@ private fun BackgroundVideoView(
         }
     }
 
+    val mediaSourceFactory = remember(downloadUtil) {
+        DefaultMediaSourceFactory(
+            CacheDataSource.Factory()
+                .setCache(downloadUtil.downloadCache)
+                .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context))
+                .setCacheWriteDataSinkFactory(null)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR),
+            androidx.media3.extractor.DefaultExtractorsFactory()
+        )
+    }
+
     val exoPlayer = remember {
         ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setTrackSelector(trackSelector)
             .setLoadControl(
                 DefaultLoadControl.Builder()
@@ -3147,11 +3162,12 @@ private fun BackgroundVideoView(
         onDispose { exoPlayer.removeListener(listener) }
     }
 
-    LaunchedEffect(videoUrl) {
+    LaunchedEffect(videoUrl, mediaId) {
         println("BackgroundVideoView: D: loading '$videoUrl'")
         isVideoReady = false
         val mediaItem = MediaItem.Builder()
             .setUri(videoUrl)
+            .setCustomCacheKey("$mediaId#canvas")
             .setMimeType(if (videoUrl.contains("m3u8")) MimeTypes.APPLICATION_M3U8 else MimeTypes.VIDEO_MP4)
             .build()
         exoPlayer.setMediaItem(mediaItem)

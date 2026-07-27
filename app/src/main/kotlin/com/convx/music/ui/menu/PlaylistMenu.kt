@@ -49,6 +49,9 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.ui.Alignment
 import com.convx.music.constants.InnerTubeCookieKey
+import com.convx.music.utils.dataStore
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.convx.music.utils.rememberPreference
 import com.music.innertube.utils.parseCookieString
 import androidx.core.net.toUri
@@ -79,6 +82,7 @@ import com.convx.music.ui.component.PlaylistListItem
 import com.convx.music.ui.component.TextFieldDialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -130,7 +134,18 @@ fun PlaylistMenu(
 
     val editable: Boolean = playlist.playlist.isEditable == true
 
-    val launchCoverPicker = rememberPlaylistCoverPicker(playlist)
+    val launchCoverPicker = rememberPlaylistCoverPicker(
+        playlist = playlist,
+        onCoverSaved = { newUrl ->
+            if (autoPlaylist == true) {
+                coroutineScope.launch {
+                    context.dataStore.edit { settings ->
+                        settings[stringPreferencesKey("thumbnail_${playlist.id}")] = newUrl
+                    }
+                }
+            }
+        }
+    )
 
     val isPinned by database.speedDialDao.isPinned(playlist.id).collectAsState(initial = false)
 
@@ -485,7 +500,7 @@ fun PlaylistMenu(
                     }
                     // Custom cover works for any real playlist (local, or online via a local
                     // override), so it isn't gated by `editable` like rename is.
-                    if (autoPlaylist != true && !isGuest) {
+                    if (!isGuest) {
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.edit_playlist_cover)) },
@@ -500,6 +515,33 @@ fun PlaylistMenu(
                                 onClick = { launchCoverPicker() }
                             )
                         )
+                        
+                        if (autoPlaylist == true) {
+                            val thumbnailKey = remember(playlist.id) { stringPreferencesKey("thumbnail_${playlist.id}") }
+                            val currentThumbnail by remember(thumbnailKey) { context.dataStore.data.map { it[thumbnailKey] } }.collectAsState(initial = null)
+                            
+                            if (!currentThumbnail.isNullOrBlank()) {
+                                add(
+                                    Material3MenuItemData(
+                                        title = { Text(text = stringResource(R.string.remove_custom_image)) },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.close),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                context.dataStore.edit { settings ->
+                                                    settings.remove(thumbnailKey)
+                                                }
+                                            }
+                                            onDismiss()
+                                        }
+                                    )
+                                )
+                            }
+                        }
                     }
                     add(
                         Material3MenuItemData(

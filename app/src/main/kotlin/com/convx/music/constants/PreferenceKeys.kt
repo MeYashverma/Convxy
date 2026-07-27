@@ -276,6 +276,7 @@ val ShowAudioQualityBadgeKey = booleanPreferencesKey("show_audio_quality_badge")
 val ShowCommentButtonKey = booleanPreferencesKey("show_comment_button")
 val MiniPlayerWaveformKey = booleanPreferencesKey("mini_player_waveform")
 val BrandFontEnabledKey = booleanPreferencesKey("brandFontEnabled")
+val LibraryIconsOnlyKey = booleanPreferencesKey("libraryIconsOnly")
 
 enum class LibraryViewType {
     LIST,

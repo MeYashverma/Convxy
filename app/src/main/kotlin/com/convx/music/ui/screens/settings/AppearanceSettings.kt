@@ -236,6 +236,10 @@ fun AppearanceSettings(
         BrandFontEnabledKey,
         defaultValue = true
     )
+    val (libraryIconsOnly, onLibraryIconsOnlyChange) = rememberPreference(
+        LibraryIconsOnlyKey,
+        defaultValue = true
+    )
 
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
         EnableHighRefreshRateKey,

@@ -105,6 +105,7 @@ import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
 import com.convx.music.ui.utils.bounceClick
 import com.convx.music.ui.utils.combinedBounceClick
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.LibraryMixViewModel
@@ -141,6 +142,13 @@ fun LibraryMixScreen(
 
     val topSize by viewModel.topValue.collectAsState(initial = 50)
     
+    val likedThumbnail by rememberPreference(stringPreferencesKey("thumbnail_${PlaylistEntity.LIKED_PLAYLIST_ID}"), "")
+    val downloadThumbnail by rememberPreference(stringPreferencesKey("thumbnail_${PlaylistEntity.DOWNLOADED_PLAYLIST_ID}"), "")
+    val topThumbnail by rememberPreference(stringPreferencesKey("thumbnail_${PlaylistEntity.TOP_PLAYLIST_ID}"), "")
+    val cacheThumbnail by rememberPreference(stringPreferencesKey("thumbnail_${PlaylistEntity.CACHED_PLAYLIST_ID}"), "")
+    val uploadedThumbnail by rememberPreference(stringPreferencesKey("thumbnail_${PlaylistEntity.UPLOADED_PLAYLIST_ID}"), "")
+    val localThumbnail by rememberPreference(stringPreferencesKey("thumbnail_${PlaylistEntity.LOCAL_PLAYLIST_ID}"), "")
+
     val albums by viewModel.albums.collectAsState()
     val artists by viewModel.artists.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
@@ -161,7 +169,7 @@ fun LibraryMixScreen(
     val likedPlaylist =
         Playlist(
             playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
+                id = PlaylistEntity.LIKED_PLAYLIST_ID,
                 name = stringResource(R.string.liked)
             ),
             songCount = 0,
@@ -171,7 +179,7 @@ fun LibraryMixScreen(
     val downloadPlaylist =
         Playlist(
             playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
+                id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID,
                 name = stringResource(R.string.offline)
             ),
             songCount = 0,
@@ -181,7 +189,7 @@ fun LibraryMixScreen(
     val topPlaylist =
         Playlist(
             playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
+                id = PlaylistEntity.TOP_PLAYLIST_ID,
                 name = stringResource(R.string.my_top) + " $topSize"
             ),
             songCount = 0,
@@ -191,7 +199,7 @@ fun LibraryMixScreen(
     val cachePlaylist =
         Playlist(
             playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
+                id = PlaylistEntity.CACHED_PLAYLIST_ID,
                 name = stringResource(R.string.cached_playlist)
             ),
             songCount = 0,
@@ -201,7 +209,7 @@ fun LibraryMixScreen(
     val uploadedPlaylist =
         Playlist(
             playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
+                id = PlaylistEntity.UPLOADED_PLAYLIST_ID,
                 name = stringResource(R.string.uploaded_playlist)
             ),
             songCount = 0,
@@ -211,7 +219,7 @@ fun LibraryMixScreen(
     val localPlaylist =
         Playlist(
             playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
+                id = PlaylistEntity.LOCAL_PLAYLIST_ID,
                 name = stringResource(R.string.filter_local)
             ),
             songCount = 0,
@@ -420,12 +428,26 @@ fun LibraryMixScreen(
                                     autoPlaylist = true,
                                     flat = true,
                                     showIconOnly = true,
+                                    thumbnailOverrideUrl = likedThumbnail.takeIf { it.isNotBlank() },
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .bounceClick {
-                                            navController.navigate("auto_playlist/liked")
-                                        }
+                                        .combinedBounceClick(
+                                            onClick = {
+                                                navController.navigate("auto_playlist/liked")
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    PlaylistMenu(
+                                                        playlist = likedPlaylist,
+                                                        coroutineScope = coroutineScope,
+                                                        onDismiss = menuState::dismiss,
+                                                        autoPlaylist = true
+                                                    )
+                                                }
+                                            }
+                                        )
                                         .animateItem(),
                                 )
                             }
@@ -441,12 +463,26 @@ fun LibraryMixScreen(
                                     autoPlaylist = true,
                                     flat = true,
                                     showIconOnly = true,
+                                    thumbnailOverrideUrl = downloadThumbnail.takeIf { it.isNotBlank() },
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .bounceClick {
-                                            navController.navigate("auto_playlist/downloaded")
-                                        }
+                                        .combinedBounceClick(
+                                            onClick = {
+                                                navController.navigate("auto_playlist/downloaded")
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    PlaylistMenu(
+                                                        playlist = downloadPlaylist,
+                                                        coroutineScope = coroutineScope,
+                                                        onDismiss = menuState::dismiss,
+                                                        autoPlaylist = true
+                                                    )
+                                                }
+                                            }
+                                        )
                                         .animateItem(),
                                 )
                             }
@@ -462,12 +498,26 @@ fun LibraryMixScreen(
                                     autoPlaylist = true,
                                     flat = true,
                                     showIconOnly = true,
+                                    thumbnailOverrideUrl = topThumbnail.takeIf { it.isNotBlank() },
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .bounceClick {
-                                            navController.navigate("top_playlist/$topSize")
-                                        }
+                                        .combinedBounceClick(
+                                            onClick = {
+                                                navController.navigate("top_playlist/$topSize")
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    PlaylistMenu(
+                                                        playlist = topPlaylist,
+                                                        coroutineScope = coroutineScope,
+                                                        onDismiss = menuState::dismiss,
+                                                        autoPlaylist = true
+                                                    )
+                                                }
+                                            }
+                                        )
                                         .animateItem(),
                                 )
                             }
@@ -483,12 +533,26 @@ fun LibraryMixScreen(
                                     autoPlaylist = true,
                                     flat = true,
                                     showIconOnly = true,
+                                    thumbnailOverrideUrl = cacheThumbnail.takeIf { it.isNotBlank() },
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .bounceClick {
-                                            navController.navigate("cache_playlist/cached")
-                                        }
+                                        .combinedBounceClick(
+                                            onClick = {
+                                                navController.navigate("cache_playlist/cached")
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    PlaylistMenu(
+                                                        playlist = cachePlaylist,
+                                                        coroutineScope = coroutineScope,
+                                                        onDismiss = menuState::dismiss,
+                                                        autoPlaylist = true
+                                                    )
+                                                }
+                                            }
+                                        )
                                         .animateItem(),
                             )
                         }
@@ -504,12 +568,26 @@ fun LibraryMixScreen(
                                 autoPlaylist = true,
                                 flat = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = uploadedThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .bounceClick {
-                                            navController.navigate("auto_playlist/uploaded")
-                                        }
+                                        .combinedBounceClick(
+                                            onClick = {
+                                                navController.navigate("auto_playlist/uploaded")
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    PlaylistMenu(
+                                                        playlist = uploadedPlaylist,
+                                                        coroutineScope = coroutineScope,
+                                                        onDismiss = menuState::dismiss,
+                                                        autoPlaylist = true
+                                                    )
+                                                }
+                                            }
+                                        )
                                         .animateItem(),
                             )
                         }
@@ -525,12 +603,26 @@ fun LibraryMixScreen(
                                 autoPlaylist = true,
                                 flat = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = localThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .bounceClick {
-                                            navController.navigate("auto_playlist/local")
-                                        }
+                                        .combinedBounceClick(
+                                            onClick = {
+                                                navController.navigate("auto_playlist/local")
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    PlaylistMenu(
+                                                        playlist = localPlaylist,
+                                                        coroutineScope = coroutineScope,
+                                                        onDismiss = menuState::dismiss,
+                                                        autoPlaylist = true
+                                                    )
+                                                }
+                                            }
+                                        )
                                         .animateItem(),
                             )
                         }
@@ -733,12 +825,26 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = likedThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .bounceClick {
-                                        navController.navigate("auto_playlist/liked")
-                                    }
+                                    .combinedBounceClick(
+                                        onClick = {
+                                            navController.navigate("auto_playlist/liked")
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                PlaylistMenu(
+                                                    playlist = likedPlaylist,
+                                                    coroutineScope = coroutineScope,
+                                                    onDismiss = menuState::dismiss,
+                                                    autoPlaylist = true
+                                                )
+                                            }
+                                        }
+                                    )
                                     .animateItem(),
                             )
                         }
@@ -754,12 +860,26 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = downloadThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .bounceClick {
-                                        navController.navigate("auto_playlist/downloaded")
-                                    }
+                                    .combinedBounceClick(
+                                        onClick = {
+                                            navController.navigate("auto_playlist/downloaded")
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                PlaylistMenu(
+                                                    playlist = downloadPlaylist,
+                                                    coroutineScope = coroutineScope,
+                                                    onDismiss = menuState::dismiss,
+                                                    autoPlaylist = true
+                                                )
+                                            }
+                                        }
+                                    )
                                     .animateItem(),
                             )
                         }
@@ -775,12 +895,26 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = topThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .bounceClick {
-                                        navController.navigate("top_playlist/$topSize")
-                                    }
+                                    .combinedBounceClick(
+                                        onClick = {
+                                            navController.navigate("top_playlist/$topSize")
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                PlaylistMenu(
+                                                    playlist = topPlaylist,
+                                                    coroutineScope = coroutineScope,
+                                                    onDismiss = menuState::dismiss,
+                                                    autoPlaylist = true
+                                                )
+                                            }
+                                        }
+                                    )
                                     .animateItem(),
                             )
                         }
@@ -796,12 +930,26 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = cacheThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .bounceClick {
-                                        navController.navigate("cache_playlist/cached")
-                                    }
+                                    .combinedBounceClick(
+                                        onClick = {
+                                            navController.navigate("cache_playlist/cached")
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                PlaylistMenu(
+                                                    playlist = cachePlaylist,
+                                                    coroutineScope = coroutineScope,
+                                                    onDismiss = menuState::dismiss,
+                                                    autoPlaylist = true
+                                                )
+                                            }
+                                        }
+                                    )
                                     .animateItem(),
                             )
                         }
@@ -817,12 +965,26 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = uploadedThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .bounceClick {
-                                        navController.navigate("auto_playlist/uploaded")
-                                    }
+                                    .combinedBounceClick(
+                                        onClick = {
+                                            navController.navigate("auto_playlist/uploaded")
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                PlaylistMenu(
+                                                    playlist = uploadedPlaylist,
+                                                    coroutineScope = coroutineScope,
+                                                    onDismiss = menuState::dismiss,
+                                                    autoPlaylist = true
+                                                )
+                                            }
+                                        }
+                                    )
                                     .animateItem(),
                             )
                         }
@@ -838,12 +1000,26 @@ fun LibraryMixScreen(
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
                                 showIconOnly = true,
+                                thumbnailOverrideUrl = localThumbnail.takeIf { it.isNotBlank() },
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .bounceClick {
-                                        navController.navigate("auto_playlist/local")
-                                    }
+                                    .combinedBounceClick(
+                                        onClick = {
+                                            navController.navigate("auto_playlist/local")
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                PlaylistMenu(
+                                                    playlist = localPlaylist,
+                                                    coroutineScope = coroutineScope,
+                                                    onDismiss = menuState::dismiss,
+                                                    autoPlaylist = true
+                                                )
+                                            }
+                                        }
+                                    )
                                     .animateItem(),
                             )
                         }

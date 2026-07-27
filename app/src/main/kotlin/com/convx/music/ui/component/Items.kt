@@ -449,6 +449,7 @@ fun SongListItem(
     drawHighlight: Boolean = true,
     shape: Shape = RectangleShape,
     flat: Boolean = false,
+    showIconOnly: Boolean = false,
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
 
@@ -461,15 +462,32 @@ fun SongListItem(
             ),
             badges = badges,
             thumbnailContent = {
-                ItemThumbnail(
-                    thumbnailUrl = song.song.thumbnailUrl,
-                    albumIndex = albumIndex,
-                    isSelected = isSelected,
-                    isActive = isActive,
-                    isPlaying = isPlaying,
-                    shape = ThumbnailRoundedShape,
-                    modifier = Modifier.size(ListThumbnailSize)
-                )
+                if (showIconOnly) {
+                    Box(
+                        modifier = Modifier
+                            .size(ListThumbnailSize)
+                            .clip(ThumbnailRoundedShape)
+                            .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.music_note),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = LocalContentColor.current.copy(alpha = 0.6f)
+                        )
+                    }
+                } else {
+                    ItemThumbnail(
+                        thumbnailUrl = song.song.thumbnailUrl,
+                        albumIndex = albumIndex,
+                        isSelected = isSelected,
+                        isActive = isActive,
+                        isPlaying = isPlaying,
+                        shape = ThumbnailRoundedShape,
+                        modifier = Modifier.size(ListThumbnailSize)
+                    )
+                }
             },
             trailingContent = trailingContent,
             modifier = modifier,
@@ -515,6 +533,7 @@ fun SongGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
+    showIconOnly: Boolean = false,
 ) = GridItem(
     title = {
         Text(
@@ -540,18 +559,34 @@ fun SongGridItem(
     },
     badges = badges,
     thumbnailContent = {
-        val gridHeight = currentGridThumbnailHeight()
-        ItemThumbnail(
-            thumbnailUrl = song.song.thumbnailUrl,
-            isActive = isActive,
-            isPlaying = isPlaying,
-            shape = ThumbnailRoundedShape,
-            modifier = Modifier.size(gridHeight)
-        )
-        if (!isActive) {
-            OverlayPlayButton(
-                visible = true
+        if (showIconOnly) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.music_note),
+                    contentDescription = null,
+                    modifier = Modifier.size(maxWidth / 2.5f),
+                    tint = LocalContentColor.current.copy(alpha = 0.6f)
+                )
+            }
+        } else {
+            val gridHeight = currentGridThumbnailHeight()
+            ItemThumbnail(
+                thumbnailUrl = song.song.thumbnailUrl,
+                isActive = isActive,
+                isPlaying = isPlaying,
+                shape = ThumbnailRoundedShape,
+                modifier = Modifier.size(gridHeight)
             )
+            if (!isActive) {
+                OverlayPlayButton(
+                    visible = true
+                )
+            }
         }
     },
     fillMaxWidth = fillMaxWidth,

@@ -660,7 +660,6 @@ fun LibraryMixScreen(
                                             )
                                         }
                                     },
-                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -706,7 +705,6 @@ fun LibraryMixScreen(
                                             )
                                         }
                                     },
-                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -754,7 +752,6 @@ fun LibraryMixScreen(
                                             )
                                         }
                                     },
-                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()

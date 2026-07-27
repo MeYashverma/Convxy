@@ -161,6 +161,8 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import android.widget.Toast
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size as CoilSize
 import kotlinx.coroutines.coroutineScope
 import kotlin.math.roundToInt
 
@@ -800,7 +802,11 @@ fun Queue(
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     AsyncImage(
-                        model = mediaMetadata?.thumbnailUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(mediaMetadata?.thumbnailUrl)
+                            .size(CoilSize(96, 96))
+                            .crossfade(false)
+                            .build(),
                         contentDescription = null,
                         modifier = Modifier
                             .size(48.dp)

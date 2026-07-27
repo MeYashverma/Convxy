@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size as CoilSize
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.db.entities.Album
@@ -530,7 +532,10 @@ private fun SongListItem(
     ) {
         // Thumbnail
         AsyncImage(
-            model = song.thumbnailUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(song.thumbnailUrl)
+                .size(CoilSize(96, 96))
+                .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -582,7 +587,10 @@ private fun AlbumListItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
-            model = album.thumbnailUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(album.thumbnailUrl)
+                .size(CoilSize(112, 112))
+                .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -624,7 +632,10 @@ private fun ArtistListItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
-            model = artist.thumbnailUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(artist.thumbnailUrl)
+                .size(CoilSize(96, 96))
+                .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier

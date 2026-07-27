@@ -1,0 +1,15 @@
+{
+  "description": "Initial Convx release — fresh start after rebrand from vivi music.",
+  "image": "",
+  "changelog": [
+    {
+      "title": "What's New",
+      "items": [
+        "Rebranded from vivi music to Convx",
+        "Fresh onboarding and branding UX",
+        "Canvas playback fallback and navigation fixes",
+        "iOS motion jank improvements"
+      ]
+    }
+  ]
+}

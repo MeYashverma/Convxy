@@ -94,6 +94,7 @@ import androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
 import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.size.Size as CoilSize
 import com.music.innertube.YouTube
 import com.music.innertube.models.AlbumItem
 import com.music.innertube.models.ArtistItem
@@ -113,6 +114,7 @@ import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.SmallGridThumbnailHeight
 import com.convx.music.constants.SwipeToSongKey
 import com.convx.music.constants.ThumbnailCornerRadius
+import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Playlist
@@ -190,7 +192,7 @@ inline fun ListItem(
                             .align(Alignment.Center)
                             .background(
                                 Color.Black.copy(alpha = 0.25f),
-                                RoundedCornerShape(ThumbnailCornerRadius)
+                                ThumbnailRoundedShape
                             )
                     ) {
                         Icon(
@@ -460,7 +462,7 @@ fun SongListItem(
                     isSelected = isSelected,
                     isActive = isActive,
                     isPlaying = isPlaying,
-                    shape = RoundedCornerShape(ThumbnailCornerRadius),
+                    shape = ThumbnailRoundedShape,
                     modifier = Modifier.size(ListThumbnailSize)
                 )
             },
@@ -538,7 +540,7 @@ fun SongGridItem(
             thumbnailUrl = song.song.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ThumbnailRoundedShape,
             modifier = Modifier.size(gridHeight)
         )
         if (!isActive) {
@@ -681,7 +683,7 @@ fun AlbumListItem(
             thumbnailUrl = album.album.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ThumbnailRoundedShape,
             modifier = Modifier.size(ListThumbnailSize)
         )
     },
@@ -762,7 +764,7 @@ fun AlbumGridItem(
             thumbnailUrl = album.album.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ThumbnailRoundedShape,
         )
 
         AlbumPlayButton(
@@ -862,7 +864,7 @@ fun PlaylistListItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(ListThumbnailSize)
-                    .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+                    .clip(ThumbnailRoundedShape),
             )
         } else {
             PlaylistThumbnail(
@@ -894,7 +896,7 @@ fun PlaylistListItem(
                         )
                     }
                 },
-                shape = RoundedCornerShape(ThumbnailCornerRadius)
+                shape = ThumbnailRoundedShape
             )
         }
     },
@@ -1023,7 +1025,7 @@ fun PlaylistGridItem(
                     }
                 }
             },
-            shape = RoundedCornerShape(ThumbnailCornerRadius)
+            shape = ThumbnailRoundedShape
         )
         }
     },
@@ -1070,7 +1072,7 @@ fun MediaMetadataListItem(
                 isSelected = isSelected,
                 isActive = isActive,
                 isPlaying = isPlaying,
-                shape = RoundedCornerShape(ThumbnailCornerRadius),
+                shape = ThumbnailRoundedShape,
                 modifier = Modifier.size(ListThumbnailSize)
             )
         },
@@ -1136,7 +1138,7 @@ fun YouTubeListItem(
                     isSelected = isSelected,
                     isActive = isActive,
                     isPlaying = isPlaying,
-                    shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+                    shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
                     modifier = Modifier.size(ListThumbnailSize)
                 )
             },
@@ -1231,7 +1233,7 @@ fun YouTubeGridItem(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
         )
 
         if (item is SongItem && !isActive) {
@@ -1284,7 +1286,7 @@ fun LocalSongsGrid(
             thumbnailUrl = thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ThumbnailRoundedShape,
             modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier,
             showCenterPlay = true,
             playButtonVisible = false
@@ -1342,7 +1344,7 @@ fun LocalAlbumsGrid(
             thumbnailUrl = thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ThumbnailRoundedShape,
             modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier,
             showCenterPlay = false,
             playButtonVisible = true
@@ -1364,7 +1366,17 @@ fun ItemThumbnail(
     thumbnailRatio: Float = 1f
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
-    
+    val context = LocalContext.current
+    val imageRequest = remember(thumbnailUrl) {
+        ImageRequest.Builder(context)
+            .data(thumbnailUrl?.resize(544, 544))
+            .size(CoilSize(544, 544))
+            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .build()
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -1374,12 +1386,7 @@ fun ItemThumbnail(
     ) {
         if (albumIndex == null) {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(thumbnailUrl?.resize(544, 544))
-                    .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .build(),
+                model = imageRequest,
                 contentDescription = null,
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
                 modifier = Modifier
@@ -1446,7 +1453,17 @@ fun LocalThumbnail(
     thumbnailRatio: Float = 1f
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
-    
+    val context = LocalContext.current
+    val imageRequest = remember(thumbnailUrl) {
+        ImageRequest.Builder(context)
+            .data(thumbnailUrl?.resize(544, 544))
+            .size(CoilSize(544, 544))
+            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+            .build()
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -1454,12 +1471,7 @@ fun LocalThumbnail(
             .clip(shape)
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(thumbnailUrl)
-                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                .build(),
+            model = imageRequest,
             contentDescription = null,
             contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
             modifier = Modifier.fillMaxSize()

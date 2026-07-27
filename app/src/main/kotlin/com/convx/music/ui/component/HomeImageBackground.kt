@@ -23,9 +23,13 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.size.Size as CoilSize
 import com.convx.music.constants.HomeBackgroundAnimateKey
 import com.convx.music.constants.HomeBackgroundBlurKey
 import com.convx.music.constants.HomeBackgroundDimKey
@@ -79,9 +83,17 @@ fun BoxScope.HomeImageBackground(
         label = "homeBgBlur",
     )
     val effectiveBlur = if (animate) animatedBlur else blur
+    val context = LocalContext.current
+    val imageRequest = remember(path) {
+        ImageRequest.Builder(context)
+            .data(File(path))
+            .size(1080, 1920)
+            .crossfade(false)
+            .build()
+    }
 
     AsyncImage(
-        model = File(path),
+        model = imageRequest,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier

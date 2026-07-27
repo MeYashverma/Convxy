@@ -2248,6 +2248,16 @@ class MusicService :
                 (error.cause as? PlaybackException)?.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED
     }
 
+    /**
+     * Samsung's resource manager reclaims the FLAC hardware decoder mid-playback.
+     * Detect via DECODER_INIT_FAILED + "reclaim" in the cause message.
+     */
+    private fun isDecoderReclaimError(error: PlaybackException): Boolean {
+        if (error.errorCode != PlaybackException.ERROR_CODE_DECODER_INIT_FAILED) return false
+        val msg = error.cause?.message ?: return false
+        return msg.contains("reclaim", ignoreCase = true)
+    }
+
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
 
@@ -2276,6 +2286,11 @@ class MusicService :
 
         // Handle specific error types with strict strategies
         when {
+            isDecoderReclaimError(error) -> {
+                Timber.tag(TAG).d("FLAC decoder reclaim detected, retrying with fresh codec")
+                handleDecoderReclaimError(mediaId)
+                return
+            }
             isAudioRendererError(error) -> {
                 Timber.tag(TAG).d("AudioTrack error detected (${error.errorCode}), performing safe recovery")
                 handleAudioRendererError(mediaId)
@@ -2444,6 +2459,31 @@ class MusicService :
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error during AudioTrack error recovery")
                 handleFinalFailure()
+            }
+        }
+    }
+
+    /**
+     * Handles Samsung FLAC decoder reclaim: pause, wait for codec to free, re-prepare fresh.
+     */
+    private fun handleDecoderReclaimError(mediaId: String?) {
+        if (mediaId == null) { handleFinalFailure(); return }
+        incrementRetryCount(mediaId)
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            Timber.tag(TAG).d("Decoder reclaim: pausing, waiting 2s, re-prepare for $mediaId")
+            player.pause()
+            delay(2000)
+            if (!playerInitialized.value) return@launch
+            val idx = player.currentMediaItemIndex
+            val pos = player.currentPosition
+            player.seekTo(idx, pos)
+            player.prepare()
+            delay(500)
+            if (hasAudioFocus && playerInitialized.value) {
+                if (castConnectionHandler?.isCasting?.value != true) {
+                    player.play()
+                }
             }
         }
     }

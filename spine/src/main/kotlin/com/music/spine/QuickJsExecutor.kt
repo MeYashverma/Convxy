@@ -232,6 +232,18 @@ internal object QuickJsExecutor {
                     return respObj.toString()
                 }
             })
+            asyncFunction("setTimeout", object : AsyncFunctionBinding<String> {
+                override suspend fun invoke(args: Array<Any?>): String {
+                    val ms = args.getOrNull(1)?.toString()?.toLongOrNull() ?: 0L
+                    kotlinx.coroutines.delay(ms)
+                    return "0"
+                }
+            })
+            asyncFunction("clearTimeout", object : AsyncFunctionBinding<String> {
+                override suspend fun invoke(args: Array<Any?>): String {
+                    return "ok"
+                }
+            })
         }
         qjs.evaluate<Unit>(
             """
@@ -251,6 +263,9 @@ internal object QuickJsExecutor {
                     if (options.body !== undefined && options.body !== null) {
                         body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
                     }
+                    if (options.signal && options.signal.aborted) {
+                        throw new Error('Aborted');
+                    }
                 }
                 var raw = JSON.parse(await __spine.fetch(url, method, headers, body));
                 var respBody = raw.body;
@@ -265,6 +280,13 @@ internal object QuickJsExecutor {
                     headers: { get: function(k) { return null; } }
                 };
             };
+
+            var setTimeout = async function(fn, ms) {
+                await __spine.setTimeout(null, ms || 0);
+                if (typeof fn === 'function') fn();
+                return 0;
+            };
+            var clearTimeout = function(id) {};
             """.trimIndent()
         )
     }
@@ -285,19 +307,23 @@ internal object QuickJsExecutor {
         return try {
             val builder = Request.Builder()
                 .url(url)
-                .header(
-                    "User-Agent",
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-                )
 
+            var hasUserAgent = false
             try {
                 val headersObj = JSONObject(headersJson)
                 for (key in headersObj.keys()) {
                     val value = headersObj.optString(key, "")
-                    if (key.equals("user-agent", ignoreCase = true)) continue
                     builder.header(key, value)
+                    if (key.equals("user-agent", ignoreCase = true)) hasUserAgent = true
                 }
             } catch (_: Exception) {}
+
+            if (!hasUserAgent) {
+                builder.header(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+                )
+            }
 
             when (method.uppercase()) {
                 "POST" -> {

@@ -7,6 +7,7 @@ package com.convx.music.constants
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -34,6 +35,7 @@ val GridThumbnailHeight = 164.dp
 val AlbumThumbnailSize = 144.dp
 
 val ThumbnailCornerRadius = 6.dp //from 3 to 6
+val ThumbnailRoundedShape = RoundedCornerShape(ThumbnailCornerRadius)
 
 val PlayerHorizontalPadding = 32.dp
 

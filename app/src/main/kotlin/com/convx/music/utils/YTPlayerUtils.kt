@@ -231,6 +231,13 @@ object YTPlayerUtils {
                         for (artist in artistNames) {
                             cleanTitle = cleanTitle.replace(Regex("(?i)^\\s*${Regex.escape(artist)}\\s*[-–—]\\s*"), "")
                         }
+                        // Strip YouTube noise that confuses search queries
+                        cleanTitle = cleanTitle
+                            .replace(Regex("(?i)\\(\\s*official\\s*(video|music\\s*video|audio)?\\s*\\)"), "")
+                            .replace(Regex("(?i)\\(\\s*lyrics?\\s*\\)"), "")
+                            .replace(Regex("(?i)\\[.*?\\]"), "")
+                            .replace(Regex("[\u266A\u266B]"), "")
+                            .replace(Regex("\\s+"), " ").trim()
                         val query = "$cleanTitle ${artistNames.joinToString(" ")}"
                             .replace("&", " ").replace(",", " ")
                             .replace(Regex("\\s+"), " ").trim()
@@ -262,9 +269,20 @@ object YTPlayerUtils {
                                     val moduleSettings = allModuleSettings[module.id] ?: emptyMap()
                                     Log.d(TAG, "      Module settings: $moduleSettings")
                                     Log.d(TAG, "      Calling searchTracks(\"$query\", 5, settings)...")
-                                    val searchResult = moduleManager.searchTracks(loaded, query, 5, moduleSettings).getOrElse { e ->
+                                    var searchResult = moduleManager.searchTracks(loaded, query, 5, moduleSettings).getOrElse { e ->
                                         Log.e(TAG, "      ✗ Search failed for module ${module.id}: ${e.message}")
                                         return@runCatching null
+                                    }
+                                    // Retry with artist-first query if no matches (helps GEOLIER2/Apple fallback)
+                                    if (searchResult.tracks.isEmpty() && artistNames.isNotEmpty()) {
+                                        val retryQuery = "${artistNames.first()} $cleanTitle"
+                                            .replace("&", " ").replace(",", " ")
+                                            .replace(Regex("\\s+"), " ").trim()
+                                        Log.d(TAG, "      No results, retrying with artist-first: \"$retryQuery\"")
+                                        searchResult = moduleManager.searchTracks(loaded, retryQuery, 5, moduleSettings).getOrElse { e ->
+                                            Log.e(TAG, "      ✗ Retry search failed: ${e.message}")
+                                            return@runCatching null
+                                        }
                                     }
                                     val matchedTrack = searchResult.tracks.minByOrNull { track ->
                                         val t = track.title.lowercase().trim()

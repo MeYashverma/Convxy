@@ -51,6 +51,7 @@ import java.io.File
 fun rememberPlaylistCoverPicker(
     playlist: Playlist,
     onError: (String) -> Unit = {},
+    onCoverSaved: (String) -> Unit = {},
 ): () -> Unit {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -106,6 +107,10 @@ fun rememberPlaylistCoverPicker(
             // whether the playlist can be synced to YouTube.
             val localUri = persistPlaylistCover(context, uri, playlist.playlist.id) ?: uri
             database.query { update(playlist.playlist.copy(thumbnailUrl = localUri.toString())) }
+            
+            withContext(Dispatchers.Main) {
+                onCoverSaved(localUri.toString())
+            }
 
             // Owned/synced playlists: also push the cover to YouTube (best-effort).
             val browseId = playlist.playlist.browseId

@@ -121,12 +121,16 @@ object LocalAudioScanner {
                         continue
                     }
 
+                    val artistId = "local_artist_${artistName.hashCode()}"
+                    val albumIdStr = "local_album_${albumName.hashCode()}"
+
                     // Insert song entity
                     val songEntity = SongEntity(
                         id = songId,
                         title = title,
                         duration = (durationMs / 1000).toInt(),
                         thumbnailUrl = albumArtUri,
+                        albumId = if (albumName.isNotBlank()) albumIdStr else null,
                         albumName = albumName,
                         year = if (year > 0) year else null,
                         dateModified = java.time.Instant.ofEpochSecond(dateModified)
@@ -145,8 +149,6 @@ object LocalAudioScanner {
                     // withTransaction is serial, atomic, and throws HERE where
                     // we can catch it, so one bad row skips instead of killing
                     // the scan.
-                    val artistId = "local_artist_${artistName.hashCode()}"
-                    val albumIdStr = "local_album_${albumName.hashCode()}"
                     try {
                         database.withTransaction {
                             upsert(songEntity)

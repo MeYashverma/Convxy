@@ -112,6 +112,8 @@ import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import coil3.request.crossfade
+import coil3.size.Size as CoilSize
 import coil3.toBitmap
 import com.convx.music.LocalDatabase
 import com.convx.music.LocalListenTogetherManager
@@ -577,7 +579,11 @@ private fun NewMiniPlayerPlayButton(
         ) {
             mediaMetadata?.let { metadata ->
                 AsyncImage(
-                    model = metadata.thumbnailUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(metadata.thumbnailUrl)
+                        .size(CoilSize(96, 96))
+                        .crossfade(false)
+                        .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().clip(CircleShape)
@@ -924,7 +930,11 @@ private fun LegacyMiniMediaInfo(
             )
 
             AsyncImage(
-                model = mediaMetadata.thumbnailUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(mediaMetadata.thumbnailUrl)
+                    .size(CoilSize(96, 96))
+                    .crossfade(false)
+                    .build(),
                 contentDescription = null,
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
                 modifier = Modifier

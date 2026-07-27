@@ -67,6 +67,7 @@ import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.HideExplicitKey
+import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.YtmSyncKey
 import com.convx.music.ui.component.ChipsRow
@@ -103,6 +104,8 @@ fun LibraryAlbumsScreen(
     )
     val (sortDescending, onSortDescendingChange) = rememberPreference(AlbumSortDescendingKey, true)
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
+    
+    val (libraryIconsOnly) = rememberPreference(LibraryIconsOnlyKey, defaultValue = true)
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
@@ -275,6 +278,7 @@ fun LibraryAlbumsScreen(
                                 album = album,
                                 isActive = album.id == mediaMetadata?.album?.id,
                                 isPlaying = isPlaying,
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier
                                     .animateItem()
                             )
@@ -335,6 +339,7 @@ fun LibraryAlbumsScreen(
                                 album = album,
                                 isActive = album.id == mediaMetadata?.album?.id,
                                 isPlaying = isPlaying,
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier
                                     .animateItem()
                             )

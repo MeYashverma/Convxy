@@ -77,6 +77,7 @@ import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.InnerTubeCookieKey
+import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.PlaylistSortDescendingKey
 import com.convx.music.constants.PlaylistSortType
@@ -129,6 +130,8 @@ fun LibraryPlaylistsScreen(
         true
     )
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
+    
+    val (libraryIconsOnly) = rememberPreference(LibraryIconsOnlyKey, defaultValue = true)
 
     val playlists by viewModel.allPlaylists.collectAsState()
 
@@ -328,10 +331,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "liked",
                                 playlist = likedPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("auto_playlist/liked") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -343,10 +346,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "downloaded",
                                 playlist = downloadPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("auto_playlist/downloaded") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -358,10 +361,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "top",
                                 playlist = topPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("top_playlist/$topSize") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -373,10 +376,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "cached",
                                 playlist = cachePlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("cache_playlist/cached") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -388,10 +391,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "uploaded",
                                 playlist = uploadedPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("auto_playlist/uploaded") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -459,10 +462,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "liked",
                                 playlist = likedPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("auto_playlist/liked") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -474,10 +477,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "downloaded",
                                 playlist = downloadPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("auto_playlist/downloaded") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -489,10 +492,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "top",
                                 playlist = topPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("top_playlist/$topSize") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -504,10 +507,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "cached",
                                 playlist = cachePlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("cache_playlist/cached") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -519,10 +522,10 @@ fun LibraryPlaylistsScreen(
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) {
                             AutoPlaylistCard(
-                                cardId = "uploaded",
                                 playlist = uploadedPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("auto_playlist/uploaded") },
+                                showIconOnly = libraryIconsOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -565,33 +568,16 @@ fun LibraryPlaylistsScreen(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AutoPlaylistCard(
-    cardId: String,
     playlist: Playlist,
     grid: Boolean,
     onClick: () -> Unit,
+    showIconOnly: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val database = LocalDatabase.current
-    var useCustom by rememberPreference(booleanPreferencesKey("lib_card_custom_$cardId"), false)
-    var customUri by rememberPreference(stringPreferencesKey("lib_card_img_$cardId"), "")
+    var customUri by rememberPreference(stringPreferencesKey("thumbnail_${playlist.id}"), "")
 
-    // First-song artwork for the auto-playlists whose source is a plain DAO query;
-    // top/cached are computed sets, so they fall back to the default icon.
-    val firstSong by produceState<String?>(null, cardId, useCustom) {
-        value = if (useCustom) null else withContext(Dispatchers.IO) {
-            runCatching {
-                when (cardId) {
-                    "liked" -> database.likedSongs(SongSortType.CREATE_DATE, true).first()
-                    "downloaded" -> database.downloadedSongs(SongSortType.CREATE_DATE, true).first()
-                    "uploaded" -> database.uploadedSongs(SongSortType.CREATE_DATE, true).first()
-                    else -> emptyList()
-                }.firstOrNull()?.song?.thumbnailUrl
-            }.getOrNull()
-        }
-    }
-
-    val override = if (useCustom) customUri.ifEmpty { null } else firstSong
+    val override = customUri.takeIf { it.isNotBlank() }
 
     var menuOpen by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(
@@ -604,7 +590,6 @@ private fun AutoPlaylistCard(
                 )
             }
             customUri = uri.toString()
-            useCustom = true
         }
     }
 
@@ -621,6 +606,7 @@ private fun AutoPlaylistCard(
                 playlist = playlist,
                 fillMaxWidth = true,
                 autoPlaylist = true,
+                showIconOnly = showIconOnly,
                 thumbnailOverrideUrl = override,
                 modifier = clickMod,
             )
@@ -628,6 +614,7 @@ private fun AutoPlaylistCard(
             PlaylistListItem(
                 playlist = playlist,
                 autoPlaylist = true,
+                showIconOnly = showIconOnly,
                 thumbnailOverrideUrl = override,
                 modifier = clickMod,
             )
@@ -642,20 +629,15 @@ private fun AutoPlaylistCard(
                     )
                 },
             )
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(
-                            if (useCustom) R.string.use_first_song_image
-                            else R.string.use_custom_image
-                        )
-                    )
-                },
-                onClick = {
-                    menuOpen = false
-                    useCustom = !useCustom
-                },
-            )
+            if (override != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.remove_custom_image)) },
+                    onClick = {
+                        menuOpen = false
+                        customUri = ""
+                    },
+                )
+            }
         }
     }
 }

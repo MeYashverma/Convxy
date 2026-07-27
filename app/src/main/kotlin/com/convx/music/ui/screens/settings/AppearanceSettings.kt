@@ -128,6 +128,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HidePlayerThumbnailKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LibraryFilter
+import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ListenTogetherInTopBarKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -234,6 +235,10 @@ fun AppearanceSettings(
     )
     val (brandFont, onBrandFontChange) = rememberPreference(
         BrandFontEnabledKey,
+        defaultValue = true
+    )
+    val (libraryIconsOnly, onLibraryIconsOnlyChange) = rememberPreference(
+        LibraryIconsOnlyKey,
         defaultValue = true
     )
 
@@ -593,6 +598,29 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onEnableSettingsPopupChange(!enableSettingsPopup) }
+                    )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.grid_view),
+                        title = { Text(stringResource(R.string.library_icons_only)) },
+                        description = { Text(stringResource(R.string.library_icons_only_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = libraryIconsOnly,
+                                onCheckedChange = onLibraryIconsOnlyChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (libraryIconsOnly) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onLibraryIconsOnlyChange(!libraryIconsOnly) }
                     )
                 )
             }

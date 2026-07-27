@@ -65,6 +65,7 @@ import com.convx.music.constants.CONTENT_TYPE_HEADER
 import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
+import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.YtmSyncKey
 import com.convx.music.ui.component.ChipsRow
@@ -99,6 +100,7 @@ fun LibraryArtistsScreen(
     val (sortDescending, onSortDescendingChange) = rememberPreference(ArtistSortDescendingKey, true)
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
+    val (libraryIconsOnly) = rememberPreference(LibraryIconsOnlyKey, defaultValue = true)
 
     val filterContent = @Composable {
         Row {
@@ -262,7 +264,8 @@ fun LibraryArtistsScreen(
                                 menuState = menuState,
                                 coroutineScope = coroutineScope,
                                 modifier = Modifier.animateItem(),
-                                artist = artist
+                                artist = artist,
+                                showIconOnly = libraryIconsOnly
                             )
                         }
                     }
@@ -314,7 +317,8 @@ fun LibraryArtistsScreen(
                                 menuState = menuState,
                                 coroutineScope = coroutineScope,
                                 modifier = Modifier.animateItem(),
-                                artist = artist
+                                artist = artist,
+                                showIconOnly = libraryIconsOnly
                             )
                         }
                     }

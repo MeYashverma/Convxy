@@ -5,6 +5,7 @@
 
 package com.convx.music.playback
 
+import android.util.Log
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -14,8 +15,12 @@ import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.database.DatabaseProvider
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
@@ -48,6 +53,18 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import com.convx.music.applecanvas.AppleMusicCanvasProvider
+import com.convx.music.canvas.AppleMusicArtistBackgroundProvider
+import com.convx.music.constants.CanvasSource
+import com.convx.music.constants.CanvasSourceKey
+import com.convx.music.ui.player.normalizeCanvasArtistName
+import com.convx.music.ui.player.normalizeCanvasSongTitle
+import com.convx.music.utils.dataStore
+import com.convx.music.vivimusiccanvas.EchoMusicCanvasProvider
+import com.convx.music.vivimusiccanvas.ViviMusicCanvasProvider
+import com.convx.music.canvas.TidalCanvasProvider
+import java.util.Locale
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -57,6 +74,7 @@ import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@UnstableApi
 @Singleton
 class DownloadUtil
 @Inject
@@ -180,12 +198,64 @@ constructor(
                         .build()
                     SingletonImageLoader.get(context).enqueue(request)
                 }
+
+                // --- CANVAS CACHING ---
+                scope.launch {
+                    val canvasSource = context.dataStore.data.map { it[CanvasSourceKey] ?: CanvasSource.AUTO.name }.first().let { name -> CanvasSource.entries.find { it.name == name } ?: CanvasSource.AUTO }
+
+                    val storefront = Locale.getDefault().country.lowercase(Locale.ROOT).takeIf { it.length == 2 } ?: "us"
+                    val requestedTitle = playbackData.videoDetails?.title.orEmpty()
+                    val requestedArtist = playbackData.videoDetails?.author.orEmpty()
+                    
+                    val s = normalizeCanvasSongTitle(requestedTitle)
+                    val a = normalizeCanvasArtistName(requestedArtist)
+
+                    val canvas = when (canvasSource) {
+                        CanvasSource.AUTO -> {
+                            EchoMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                                ?: AppleMusicCanvasProvider.getBySongArtist(s, a, "", storefront)?.preferredAnimationUrl
+                                ?: ViviMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                                ?: TidalCanvasProvider.getBySongArtist(s, a, "")?.preferredAnimationUrl
+                        }
+                        CanvasSource.ECHO_MUSIC -> EchoMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                        CanvasSource.APPLE_MUSIC -> AppleMusicCanvasProvider.getBySongArtist(s, a, "", storefront)?.preferredAnimationUrl
+                        CanvasSource.VIVIMUSIC -> ViviMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                        CanvasSource.TIDAL -> TidalCanvasProvider.getBySongArtist(s, a, "")?.preferredAnimationUrl
+                    }
+
+                    canvas?.let { url ->
+                        val dataSpec = DataSpec.Builder()
+                            .setUri(url.toUri())
+                            .setKey("$mediaId#canvas")
+                            .setFlags(DataSpec.FLAG_ALLOW_CACHE_FRAGMENTATION)
+                            .build()
+                            
+                        val dataSource = CacheDataSource.Factory()
+                            .setCache(downloadCache)
+                            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context))
+                            .setCacheWriteDataSinkFactory(null)
+                            .createDataSource()
+                        
+                        kotlin.runCatching {
+                            val writer = CacheWriter(
+                                dataSource,
+                                dataSpec,
+                                null,
+                                null
+                            )
+                            writer.cache()
+                            Log.d("CanvasDownload", "Successfully cached canvas for $mediaId")
+                        }.onFailure { e ->
+                            Log.e("CanvasDownload", "Failed to cache canvas for $mediaId", e)
+                        }
+                    }
+                }
             }
 
             // For YouTube streams: append the &range= param so the download cache can
-            // handle progressive HTTP range requests. For JioSaavn streams the CDN
-            // doesn't need it and contentLength is null, so skip it.
-            val streamUrl = if (playbackData.isSaavnStream) {
+            // handle progressive HTTP range requests. For JioSaavn/TIDAL/spine streams
+            // the CDN doesn't need it and contentLength is null, so skip it.
+            val streamUrl = if (playbackData.isSaavnStream || playbackData.isTidalStream || playbackData.isSpineStream) {
                 playbackData.streamUrl
             } else {
                 "${playbackData.streamUrl}&range=0-${format.contentLength ?: 10_000_000}"

@@ -1,5 +1,6 @@
 package com.music.spine
 
+import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -42,26 +43,38 @@ class ModuleManager {
     )
 
     suspend fun fetchIndex(sourceUrl: String): Result<List<SpineModule>> = withContext(Dispatchers.IO) {
+        Log.d(TAG, "▶ fetchIndex($sourceUrl)")
         runCatching {
-            Timber.tag(TAG).d("Fetching index from $sourceUrl")
             val resp = client.get(sourceUrl)
+            Log.d(TAG, "  HTTP ${resp.status.value}")
             if (resp.status != HttpStatusCode.OK) {
+                val errBody = resp.bodyAsText().take(500)
+                Log.e(TAG, "  ✗ HTTP ${resp.status.value}: $errBody")
                 throw Exception("HTTP ${resp.status.value} from $sourceUrl")
             }
             val body = resp.bodyAsText()
+            Log.d(TAG, "  Index body: ${body.length} chars")
+            Log.d(TAG, "  First 500: ${body.take(500)}")
             val index = json.decodeFromString<ModuleIndex>(body)
             val modules = index.allModules
-            Timber.tag(TAG).d("Fetched ${modules.size} modules from $sourceUrl")
+            Log.d(TAG, "  Parsed ${modules.size} modules (${index.modules.size} modules + ${index.music.size} music + ${index.debrid.size} debrid)")
+            for (m in modules) {
+                Log.d(TAG, "    • [${m.id}] ${m.name} v${m.version} tags=${m.tags} download=${m.download}")
+            }
             modules
         }.onFailure {
-            Timber.tag(TAG).e(it, "Failed to fetch index from $sourceUrl")
+            Log.e(TAG, "  ✗ fetchIndex FAILED for $sourceUrl: ${it.message}", it)
         }
     }
 
     suspend fun loadModule(module: SpineModule, resolveBaseUrl: suspend (String) -> String = { it }): Result<LoadedModule> = withContext(Dispatchers.IO) {
         val cached = loadedModules[module.id]
-        if (cached != null) return@withContext Result.success(cached)
+        if (cached != null) {
+            Log.d(TAG, "▶ loadModule(${module.id}) — CACHE HIT")
+            return@withContext Result.success(cached)
+        }
 
+        Log.d(TAG, "▶ loadModule(${module.id}) download=${module.download}")
         runCatching {
             val downloadUrl = if (module.download.startsWith("http")) {
                 module.download
@@ -70,9 +83,12 @@ class ModuleManager {
                 "$base/${module.download}"
             }
 
-            Timber.tag(TAG).d("Downloading module ${module.id} from $downloadUrl")
+            Log.d(TAG, "  Resolved download URL: $downloadUrl")
             val resp = client.get(downloadUrl)
+            Log.d(TAG, "  HTTP ${resp.status.value}")
             if (resp.status != HttpStatusCode.OK) {
+                val errBody = resp.bodyAsText().take(500)
+                Log.e(TAG, "  ✗ HTTP ${resp.status.value}: $errBody")
                 throw Exception("HTTP ${resp.status.value} downloading module ${module.id}")
             }
             val jsCode = resp.bodyAsText()
@@ -80,10 +96,11 @@ class ModuleManager {
 
             val loaded = LoadedModule(module = module, jsCode = jsCode, baseUrl = baseUrl)
             loadedModules[module.id] = loaded
-            Timber.tag(TAG).d("Loaded module ${module.id} (${jsCode.length} bytes)")
+            Log.d(TAG, "  ✓ Loaded module ${module.id}: ${jsCode.length} chars, baseUrl=$baseUrl")
+            Log.d(TAG, "  First 300: ${jsCode.take(300)}")
             loaded
         }.onFailure {
-            Timber.tag(TAG).e(it, "Failed to load module ${module.id}")
+            Log.e(TAG, "  ✗ loadModule FAILED for ${module.id}: ${it.message}", it)
         }
     }
 
@@ -93,10 +110,12 @@ class ModuleManager {
         limit: Int = 50,
         settings: Map<String, String> = emptyMap(),
     ): Result<ModuleSearchResponse> = withContext(Dispatchers.IO) {
-        runCatching {
-            val settingsJson = settings.entries.joinToString(",") { "\"${it.key}\":\"${it.value}\"" }
-            val contextArg = "{settings:{value:{$settingsJson}}}"
+        val settingsJson = settings.entries.joinToString(",") { "\"${it.key}\":\"${it.value}\"" }
+        val contextArg = "{settings:{value:{$settingsJson}}}"
+        Log.d(TAG, "▶ searchTracks() module=${loaded.module.id} query=\"$query\" limit=$limit settings=$settings")
+        Log.d(TAG, "  contextArg: $contextArg")
 
+        runCatching {
             val result = QuickJsExecutor.executeModuleExport(
                 jsCode = loaded.jsCode,
                 functionName = "searchTracks",
@@ -104,14 +123,22 @@ class ModuleManager {
                 fetchBase = loaded.baseUrl,
             )
 
+            Log.d(TAG, "  searchTracks result: ${result.length} chars")
+            Log.d(TAG, "  Full result: $result")
+
             try {
-                json.decodeFromString<ModuleSearchResponse>(result)
+                val parsed = json.decodeFromString<ModuleSearchResponse>(result)
+                Log.d(TAG, "  ✓ Parsed ${parsed.tracks.size} tracks (total=${parsed.total})")
+                for ((i, t) in parsed.tracks.withIndex()) {
+                    Log.d(TAG, "    [$i] id=${t.id} title=\"${t.title}\" artist=\"${t.artist}\" quality=${t.audioQuality} duration=${t.duration}s")
+                }
+                parsed
             } catch (e: Exception) {
-                Timber.tag(TAG).w("Module ${loaded.module.id} returned non-JSON search result: ${result.take(300)}")
+                Log.e(TAG, "  ✗ JSON parse FAILED for searchTracks: ${result.take(500)}", e)
                 throw e
             }
         }.onFailure {
-            Timber.tag(TAG).e(it, "Module ${loaded.module.id} search failed for '$query'")
+            Log.e(TAG, "  ✗ searchTracks FAILED for module ${loaded.module.id} query='$query': ${it.message}", it)
         }
     }
 
@@ -120,10 +147,12 @@ class ModuleManager {
         trackId: String,
         settings: Map<String, String> = emptyMap(),
     ): Result<ModuleStreamResponse> = withContext(Dispatchers.IO) {
-        runCatching {
-            val settingsJson = settings.entries.joinToString(",") { "\"${it.key}\":\"${it.value}\"" }
-            val contextArg = "{settings:{value:{$settingsJson}}}"
+        val settingsJson = settings.entries.joinToString(",") { "\"${it.key}\":\"${it.value}\"" }
+        val contextArg = "{settings:{value:{$settingsJson}}}"
+        Log.d(TAG, "▶ getStreamUrl() module=${loaded.module.id} trackId=$trackId settings=$settings")
+        Log.d(TAG, "  contextArg: $contextArg")
 
+        runCatching {
             val result = QuickJsExecutor.executeModuleExport(
                 jsCode = loaded.jsCode,
                 functionName = "getTrackStreamUrl",
@@ -131,26 +160,40 @@ class ModuleManager {
                 fetchBase = loaded.baseUrl,
             )
 
+            Log.d(TAG, "  getStreamUrl result: ${result.length} chars")
+            Log.d(TAG, "  Full result: $result")
+
             try {
-                json.decodeFromString<ModuleStreamResponse>(result)
+                val parsed = json.decodeFromString<ModuleStreamResponse>(result)
+                Log.d(TAG, "  ✓ Parsed stream response:")
+                Log.d(TAG, "    streamUrl: ${parsed.streamUrl?.take(200)}")
+                Log.d(TAG, "    track?.id: ${parsed.track?.id}")
+                Log.d(TAG, "    track?.audioQuality: ${parsed.track?.audioQuality}")
+                Log.d(TAG, "    track?.mimeType: ${parsed.track?.mimeType}")
+                Log.d(TAG, "    track?.bitDepth: ${parsed.track?.bitDepth}")
+                Log.d(TAG, "    track?.sampleRate: ${parsed.track?.sampleRate}")
+                Log.d(TAG, "    track?.audioModes: ${parsed.track?.audioModes}")
+                parsed
             } catch (e: Exception) {
-                Timber.tag(TAG).w("Module ${loaded.module.id} returned non-JSON stream result: ${result.take(300)}")
+                Log.e(TAG, "  ✗ JSON parse FAILED for getStreamUrl: ${result.take(500)}", e)
                 throw e
             }
         }.onFailure {
-            Timber.tag(TAG).e(it, "Module ${loaded.module.id} stream failed for track $trackId")
+            Log.e(TAG, "  ✗ getStreamUrl FAILED for module ${loaded.module.id} trackId=$trackId: ${it.message}", it)
         }
     }
 
     fun unloadModule(moduleId: String) {
         loadedModules.remove(moduleId)
+        Log.d(TAG, "Unloaded module $moduleId")
     }
 
     fun unloadAll() {
         loadedModules.clear()
+        Log.d(TAG, "Unloaded all modules")
     }
 
     companion object {
-        private const val TAG = "ModuleManager"
+        private const val TAG = "SpineDebug"
     }
 }

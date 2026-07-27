@@ -28,6 +28,7 @@ import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
 import android.os.Binder
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.getSystemService
@@ -86,6 +87,7 @@ import com.convx.music.constants.AudioNormalizationKey
 import com.convx.music.constants.AudioOffload
 import com.convx.music.constants.AudioQualityKey
 import com.convx.music.constants.EnableTidalStreamingKey
+import com.convx.music.constants.EnabledModulesKey
 import com.convx.music.constants.AutoDownloadOnLikeKey
 import com.convx.music.constants.AutoLoadMoreKey
 import com.convx.music.constants.AutoSkipNextOnErrorKey
@@ -987,7 +989,11 @@ class MusicService :
         val eqProcessor = CustomEqualizerAudioProcessor()
         equalizerService.addAudioProcessor(eqProcessor)
 
-        val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
+        val silenceProcessor = SilenceDetectorAudioProcessor(
+            minSilenceDurationUs = 3_000_000L, // 3s instead of 2s
+            silenceThreshold = 128,           // 128 instead of 256
+            onLongSilence = { handleLongSilenceDetected() }
+        )
 
         // Set initial state
         runBlocking {
@@ -999,6 +1005,17 @@ class MusicService :
         val player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
             .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor))
+            .setLoadControl(
+                androidx.media3.exoplayer.DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        30_000,   // Min buffer: 30s
+                        120_000,  // Max buffer: 120s
+                        2_500,    // Buffer for playback: 2.5s
+                        5_000     // Buffer for playback after re-buffer: 5s
+                    )
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .build()
+            )
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setAudioAttributes(
@@ -2246,6 +2263,24 @@ class MusicService :
                 (error.cause as? PlaybackException)?.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED
     }
 
+    /**
+     * Checks if the error is a parsing error (container or manifest unsupported).
+     */
+    private fun isParsingError(error: PlaybackException): Boolean {
+        return error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED ||
+                error.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED ||
+                error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED
+    }
+
+    /**
+     * Samsung's resource manager reclaims the FLAC hardware decoder mid-playback.
+     */
+    private fun isDecoderReclaimError(error: PlaybackException): Boolean {
+        if (error.errorCode != PlaybackException.ERROR_CODE_DECODER_INIT_FAILED) return false
+        val msg = error.cause?.message ?: return false
+        return msg.contains("reclaim", ignoreCase = true)
+    }
+
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
 
@@ -2274,6 +2309,11 @@ class MusicService :
 
         // Handle specific error types with strict strategies
         when {
+            isDecoderReclaimError(error) -> {
+                Timber.tag(TAG).d("FLAC decoder reclaim detected, retrying with fresh codec")
+                handleDecoderReclaimError(mediaId)
+                return
+            }
             isAudioRendererError(error) -> {
                 Timber.tag(TAG).d("AudioTrack error detected (${error.errorCode}), performing safe recovery")
                 handleAudioRendererError(mediaId)
@@ -2292,6 +2332,11 @@ class MusicService :
             isExpiredUrlError(error) -> {
                 Timber.tag(TAG).d("Expired URL (403) detected, refreshing stream URL")
                 handleExpiredUrlError(mediaId)
+                return
+            }
+            isParsingError(error) -> {
+                Timber.tag(TAG).d("Parsing error detected (${error.errorCode}), attempting recovery")
+                handleParsingError(mediaId)
                 return
             }
 
@@ -2389,6 +2434,36 @@ class MusicService :
     }
 
     /**
+     * Handles parsing errors by clearing caches and retrying.
+     */
+    private fun handleParsingError(mediaId: String?) {
+        if (mediaId == null) {
+            handleFinalFailure()
+            return
+        }
+
+        incrementRetryCount(mediaId)
+
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            // Clear all caches for this song
+            performAggressiveCacheClear(mediaId)
+            
+            // Mark the song to bypass cache on next resolution
+            bypassCacheForQualityChange.add(mediaId)
+
+            delay(RETRY_DELAY_MS)
+
+            // Re-prepare the player from start to ensure clean container parsing
+            val currentIndex = player.currentMediaItemIndex
+            player.seekTo(currentIndex, 0)
+            player.prepare()
+
+            Timber.tag(TAG).d("Retrying playback for $mediaId after parsing error (from position 0)")
+        }
+    }
+
+    /**
      * Handles AudioTrack errors (write failed, init failed) with safe recovery.
      * These errors indicate the audio renderer is corrupted and needs careful reset.
      */
@@ -2442,6 +2517,31 @@ class MusicService :
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error during AudioTrack error recovery")
                 handleFinalFailure()
+            }
+        }
+    }
+
+    /**
+     * Handles Samsung FLAC decoder reclaim: pause, wait for codec to free, re-prepare fresh.
+     */
+    private fun handleDecoderReclaimError(mediaId: String?) {
+        if (mediaId == null) { handleFinalFailure(); return }
+        incrementRetryCount(mediaId)
+        retryJob?.cancel()
+        retryJob = scope.launch {
+            Timber.tag(TAG).d("Decoder reclaim: pausing, waiting 2s, re-prepare for $mediaId")
+            player.pause()
+            delay(2000)
+            if (!playerInitialized.value) return@launch
+            val idx = player.currentMediaItemIndex
+            val pos = player.currentPosition
+            player.seekTo(idx, pos)
+            player.prepare()
+            delay(500)
+            if (hasAudioFocus && playerInitialized.value) {
+                if (castConnectionHandler?.isCasting?.value != true) {
+                    player.play()
+                }
             }
         }
     }
@@ -2601,8 +2701,10 @@ class MusicService :
         }
     }
 
-    private fun createCacheDataSource(): CacheDataSource.Factory =
-        CacheDataSource
+    private fun createCacheDataSource(): CacheDataSource.Factory {
+        val ytProxy = YouTube.proxy
+        val ytProxyAuth = YouTube.proxyAuth
+        return CacheDataSource
             .Factory()
             .setCache(downloadCache)
             .setUpstreamDataSourceFactory(
@@ -2625,9 +2727,20 @@ class MusicService :
                                             }
                                         }
                                     })
-                                    .proxy(YouTube.proxy)
+                                    .proxySelector(object : java.net.ProxySelector() {
+                                        override fun select(uri: java.net.URI?): List<java.net.Proxy> {
+                                            if (ytProxy == null) return listOf(java.net.Proxy.NO_PROXY)
+                                            val host = uri?.host ?: return listOf(ytProxy)
+                                            return if (host.contains("googlevideo") || host.contains("youtube")) {
+                                                listOf(ytProxy)
+                                            } else {
+                                                listOf(java.net.Proxy.NO_PROXY)
+                                            }
+                                        }
+                                        override fun connectFailed(uri: java.net.URI?, sa: java.net.SocketAddress?, ioe: java.io.IOException?) {}
+                                    })
                                     .proxyAuthenticator { _, response ->
-                                        YouTube.proxyAuth?.let { auth ->
+                                        ytProxyAuth?.let { auth ->
                                             response.request.newBuilder()
                                                 .header("Proxy-Authorization", auth)
                                                 .build()
@@ -2639,6 +2752,7 @@ class MusicService :
                     ),
             ).setCacheWriteDataSinkFactory(null)
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
+    }
 
     // Flag to prevent queue saving during silence skip operations
     private var isSilenceSkipping = false
@@ -2673,7 +2787,7 @@ class MusicService :
                 player.seekTo(target)
                 hops++
 
-                if (hops >= 80 || target >= duration - 500) break
+                if (hops >= 60 || target >= duration - 1000) break
 
                 delay(INSTANT_SILENCE_SKIP_SETTLE_MS)
             }
@@ -2738,8 +2852,14 @@ class MusicService :
             // Lossless namespaces the whole cache chain so FLAC and Opus/AAC bytes
             // for the same video never collide across a toggle. Streaming only:
             // offline downloads live in the plain (Opus) namespace.
+            // Spine streams also use lossless namepacing to avoid cache collisions.
             val losslessOn = dataStore.get(EnableTidalStreamingKey, false)
-            val effKey = if (losslessOn) "$mediaId#flac" else mediaId
+            val spineEnabled = dataStore.get(EnabledModulesKey, "[]") != "[]"
+            val effKey = when {
+                losslessOn || spineEnabled -> "$mediaId#flac"
+                else -> mediaId
+            }
+            Log.d("SpineDebug", "DataSourceResolver: mediaId=$mediaId spineEnabled=$spineEnabled losslessOn=$losslessOn effKey=$effKey")
             val spec = if (effKey == mediaId) dataSpec else dataSpec.buildUpon().setKey(effKey).build()
 
             // Check if we need to bypass cache for quality change
@@ -2838,6 +2958,7 @@ class MusicService :
                 }
 
                 val streamUrl = nonNullPlayback.streamUrl
+                Log.d("SpineDebug", "DataSourceResolver: resolved mediaId=$mediaId isSpineStream=${nonNullPlayback.isSpineStream} isTidalStream=${nonNullPlayback.isTidalStream} streamUrl=${streamUrl?.take(120)}")
 
                 songUrlCache[effKey] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
@@ -2849,7 +2970,9 @@ class MusicService :
     private fun createMediaSourceFactory() =
         DefaultMediaSourceFactory(
             createDataSourceFactory(),
-            androidx.media3.extractor.DefaultExtractorsFactory(),
+            androidx.media3.extractor.DefaultExtractorsFactory()
+                .setConstantBitrateSeekingEnabled(true)
+                .setMp3ExtractorFlags(androidx.media3.extractor.mp3.Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
         )
 
     private fun createRenderersFactory(
@@ -3377,7 +3500,7 @@ class MusicService :
         const val CHANNEL_ID = "music_channel_01"
         const val NOTIFICATION_ID = 888
         const val ERROR_CODE_NO_STREAM = 1000001
-        const val CHUNK_LENGTH = 512 * 1024L
+        private const val CHUNK_LENGTH = 10 * 1024 * 1024L // 10MB chunk instead of 512KB to prevent cutoffs
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"

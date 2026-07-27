@@ -5,9 +5,11 @@
 
 package com.convx.music.db.entities
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(tableName = "format")
 data class FormatEntity(
     @PrimaryKey val id: String,

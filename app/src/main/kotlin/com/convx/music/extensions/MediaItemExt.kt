@@ -16,7 +16,20 @@ import com.convx.music.models.toMediaMetadata
 import com.convx.music.ui.utils.resize
 
 val MediaItem.metadata: MediaMetadata?
-    get() = localConfiguration?.tag as? MediaMetadata
+    get() = (localConfiguration?.tag as? MediaMetadata) ?: run {
+        val mediaMetadata = mediaMetadata
+        if (mediaMetadata.title == null && mediaMetadata.artist == null) return@run null
+        
+        MediaMetadata(
+            id = mediaId,
+            title = mediaMetadata.title?.toString().orEmpty(),
+            artists = listOf(MediaMetadata.Artist(id = null, name = mediaMetadata.artist?.toString().orEmpty())),
+            duration = -1,
+            thumbnailUrl = mediaMetadata.artworkUri?.toString(),
+            album = mediaMetadata.albumTitle?.let { MediaMetadata.Album(id = "", title = it.toString()) },
+            explicit = false,
+        )
+    }
 
 fun Song.toMediaItem() = MediaItem.Builder()
     .setMediaId(song.id)

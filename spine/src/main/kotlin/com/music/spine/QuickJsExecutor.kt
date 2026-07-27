@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 internal object QuickJsExecutor {
 
-    private const val TAG = "SpineJS"
+    private const val TAG = "SpineDebug"
     private val maxConcurrent = 4
     private val activeInstances = AtomicInteger(0)
 
@@ -34,23 +34,33 @@ internal object QuickJsExecutor {
         args: List<String>,
         fetchBase: String = "",
     ): String {
+        Log.d(TAG, "▶ executeModuleExport() functionName=$functionName args=$args fetchBase=$fetchBase jsCodeLength=${jsCode.length}")
+
         if (activeInstances.get() >= maxConcurrent) {
+            Log.e(TAG, "✗ Max concurrent QuickJS instances ($maxConcurrent) reached")
             throw IllegalStateException("Max concurrent QuickJS instances ($maxConcurrent) reached")
         }
 
         activeInstances.incrementAndGet()
+        Log.d(TAG, "  Active QuickJS instances: ${activeInstances.get()}/$maxConcurrent")
         try {
             return withContext(Dispatchers.Default) {
+                Log.d(TAG, "  Creating QuickJS engine...")
                 val qjs = QuickJs.create(Dispatchers.Default)
                 qjs.maxStackSize = 512 * 1024L
                 try {
                     bindConsole(qjs)
                     bindAsyncFetch(qjs, fetchBase)
+
+                    Log.d(TAG, "  Evaluating polyfills...")
                     qjs.evaluate<String>(POLYFILLS)
+                    Log.d(TAG, "  ✓ Polyfills loaded")
 
                     val cleanCode = preprocessModuleCode(jsCode)
-                    Log.d(TAG, "preprocessed code length: ${cleanCode.length}")
+                    Log.d(TAG, "  Preprocessed code: ${jsCode.length} → ${cleanCode.length} chars")
+                    Log.d(TAG, "  First 200 chars: ${cleanCode.take(200)}")
 
+                    Log.d(TAG, "  Evaluating IIFE wrapper...")
                     val iifeResult = qjs.evaluate<String>(
                         """
                         var __spine_iife_error = null;
@@ -72,50 +82,70 @@ internal object QuickJsExecutor {
                         'ok'
                         """.trimIndent()
                     )
+                    Log.d(TAG, "  IIFE result: $iifeResult")
 
                     val iifeError = qjs.evaluate<String>("__spine_iife_error || 'none'")
                     if (iifeError != "none") {
-                        Log.e(TAG, "IIFE error: $iifeError")
+                        Log.e(TAG, "  ✗ IIFE error: $iifeError")
+                    } else {
+                        Log.d(TAG, "  ✓ IIFE no errors")
                     }
 
                     val availableKeys = qjs.evaluate<String>("Object.keys(__spine_mod).join(', ')")
-                    Log.d(TAG, "Module exports: [$availableKeys]")
+                    Log.d(TAG, "  Module exports: [$availableKeys]")
 
                     val hasFn = qjs.evaluate<String>("typeof __spine_mod['$functionName']")
-                    Log.d(TAG, "Has $functionName: $hasFn")
+                    Log.d(TAG, "  typeof $functionName: $hasFn")
+
+                    if (hasFn != "function") {
+                        Log.e(TAG, "  ✗ $functionName is NOT a function! Available exports: $availableKeys")
+                    }
 
                     val argsStr = args.joinToString(",")
+                    Log.d(TAG, "  Calling $functionName($argsStr)")
+
+                    // evaluate() converts the Promise JSValue via toString() instead of
+                    // awaiting it.  Workaround: store the resolved JSON in a global var
+                    // inside the async IIFE, then read it in a second evaluate() call.
+                    Log.d(TAG, "  Running async IIFE (stores result in global)...")
                     qjs.evaluate<String>(
                         """
-                        var __spine_result = null;
-                        var __spine_error = null;
-                        var __fn = __spine_mod['$functionName'];
-                        if (!__fn) {
-                            __spine_error = '$functionName not found. Available: ' + Object.keys(__spine_mod).join(', ');
-                        } else {
-                            __fn($argsStr).then(
-                                function(r) {
-                                    __spine_result = typeof r === 'string' ? r : JSON.stringify(r);
-                                },
-                                function(e) {
-                                    __spine_error = e && e.message ? e.message : String(e);
-                                }
-                            );
-                        }
+                        var __spine_resolved_json = undefined;
+                        (async function() {
+                            var __fn = __spine_mod['$functionName'];
+                            if (!__fn) {
+                                __spine_resolved_json = JSON.stringify({ error: '$functionName not found. Available: ' + Object.keys(__spine_mod).join(', ') });
+                                return;
+                            }
+                            try {
+                                var r = await __fn($argsStr);
+                                __spine_resolved_json = typeof r === 'string' ? r : JSON.stringify(r);
+                            } catch(e) {
+                                __spine_resolved_json = JSON.stringify({ error: e && e.message ? e.message : String(e) });
+                            }
+                        })();
                         """.trimIndent()
                     )
 
-                    val rawResult = qjs.evaluate<String>(
-                        """__spine_result != null ? __spine_result : JSON.stringify({ error: __spine_error || 'unknown error' })"""
-                    )
-                    Log.d(TAG, "Raw result (${rawResult.length} chars): ${rawResult.take(500)}")
+                    Log.d(TAG, "  Reading resolved result from global...")
+                    val rawResult = qjs.evaluate<String>("__spine_resolved_json")
+
+                    Log.d(TAG, "  ═══ RAW RESULT (${rawResult.length} chars) ═══")
+                    Log.d(TAG, "  ${rawResult.take(2000)}")
+                    if (rawResult.length > 2000) {
+                        Log.d(TAG, "  ... (${rawResult.length - 2000} more chars)")
+                    }
+                    Log.d(TAG, "  ═══ END RAW RESULT ═══")
+
                     rawResult
                 } finally {
                     qjs.close()
+                    Log.d(TAG, "  QuickJS engine closed")
                 }
             }
         } finally {
             activeInstances.decrementAndGet()
+            Log.d(TAG, "◀ executeModuleExport() done. Active instances: ${activeInstances.get()}")
         }
     }
 
@@ -125,6 +155,7 @@ internal object QuickJsExecutor {
         val exportPattern = Regex("""^export\s+const\s+\w+\s*=\s*`""")
         val exportMatch = exportPattern.find(code)
         if (exportMatch != null) {
+            Log.d(TAG, "  Detected template literal export, extracting content...")
             val contentStart = exportMatch.range.last + 1
             var i = contentStart
             while (i < code.length) {
@@ -133,10 +164,13 @@ internal object QuickJsExecutor {
                     continue
                 }
                 if (code[i] == '`') {
-                    return code.substring(contentStart, i).trim()
+                    val extracted = code.substring(contentStart, i).trim()
+                    Log.d(TAG, "  ✓ Extracted template literal: ${extracted.length} chars")
+                    return extracted
                 }
                 i++
             }
+            Log.w(TAG, "  Template literal not closed, falling through to regex preprocess")
         }
 
         var result = code
@@ -150,22 +184,22 @@ internal object QuickJsExecutor {
         qjs.define("console") {
             function("log", object : FunctionBinding<Unit> {
                 override fun invoke(args: Array<Any?>) {
-                    Log.d(TAG, args.joinToString(" ") { it?.toString() ?: "null" })
+                    Log.d(TAG, "[JS] ${args.joinToString(" ") { it?.toString() ?: "null" }}")
                 }
             })
             function("error", object : FunctionBinding<Unit> {
                 override fun invoke(args: Array<Any?>) {
-                    Log.e(TAG, args.joinToString(" ") { it?.toString() ?: "null" })
+                    Log.e(TAG, "[JS-ERR] ${args.joinToString(" ") { it?.toString() ?: "null" }}")
                 }
             })
             function("warn", object : FunctionBinding<Unit> {
                 override fun invoke(args: Array<Any?>) {
-                    Log.w(TAG, args.joinToString(" ") { it?.toString() ?: "null" })
+                    Log.w(TAG, "[JS-WARN] ${args.joinToString(" ") { it?.toString() ?: "null" }}")
                 }
             })
             function("info", object : FunctionBinding<Unit> {
                 override fun invoke(args: Array<Any?>) {
-                    Log.i(TAG, args.joinToString(" ") { it?.toString() ?: "null" })
+                    Log.i(TAG, "[JS-INFO] ${args.joinToString(" ") { it?.toString() ?: "null" }}")
                 }
             })
         }
@@ -175,14 +209,39 @@ internal object QuickJsExecutor {
         qjs.define("__spine") {
             asyncFunction("fetch", object : AsyncFunctionBinding<String> {
                 override suspend fun invoke(args: Array<Any?>): String {
-                    val url = resolveUrl(
-                        args[0]?.toString() ?: throw IllegalArgumentException("fetch requires a URL"),
-                        fetchBase
-                    )
+                    val rawUrl = args[0]?.toString() ?: throw IllegalArgumentException("fetch requires a URL")
                     val method = args[1]?.toString() ?: "GET"
                     val headersJson = args[2]?.toString() ?: "{}"
                     val body = args[3]?.toString()
-                    return fetchUrlSync(url, method, headersJson, body)
+                    val url = resolveUrl(rawUrl, fetchBase)
+
+                    Log.d(TAG, "  → fetch $method $url")
+                    if (body != null) Log.d(TAG, "    body: ${body.take(200)}")
+
+                    val (statusCode, responseBody) = fetchUrlSync(url, method, headersJson, body)
+
+                    Log.d(TAG, "    HTTP $statusCode (${responseBody.length} bytes)")
+                    if (statusCode >= 400) {
+                        Log.e(TAG, "    HTTP ERROR $statusCode: ${responseBody.take(500)}")
+                    }
+                    val respObj = org.json.JSONObject().apply {
+                        put("status", statusCode)
+                        put("ok", statusCode in 200..299)
+                        put("body", responseBody)
+                    }
+                    return respObj.toString()
+                }
+            })
+            asyncFunction("setTimeout", object : AsyncFunctionBinding<String> {
+                override suspend fun invoke(args: Array<Any?>): String {
+                    val ms = args.getOrNull(1)?.toString()?.toLongOrNull() ?: 0L
+                    kotlinx.coroutines.delay(ms)
+                    return "0"
+                }
+            })
+            asyncFunction("clearTimeout", object : AsyncFunctionBinding<String> {
+                override suspend fun invoke(args: Array<Any?>): String {
+                    return "ok"
                 }
             })
         }
@@ -204,9 +263,30 @@ internal object QuickJsExecutor {
                     if (options.body !== undefined && options.body !== null) {
                         body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
                     }
+                    if (options.signal && options.signal.aborted) {
+                        throw new Error('Aborted');
+                    }
                 }
-                return await __spine.fetch(url, method, headers, body);
+                var raw = JSON.parse(await __spine.fetch(url, method, headers, body));
+                var respBody = raw.body;
+                return {
+                    ok: raw.ok,
+                    status: raw.status,
+                    statusText: raw.ok ? 'OK' : 'Error',
+                    json: function() { try { return JSON.parse(respBody); } catch(e) { throw new Error('Invalid JSON: ' + respBody.substring(0, 200)); } },
+                    text: function() { return respBody; },
+                    arrayBuffer: function() { throw new Error('Not implemented'); },
+                    clone: function() { return this; },
+                    headers: { get: function(k) { return null; } }
+                };
             };
+
+            var setTimeout = async function(fn, ms) {
+                await __spine.setTimeout(null, ms || 0);
+                if (typeof fn === 'function') fn();
+                return 0;
+            };
+            var clearTimeout = function(id) {};
             """.trimIndent()
         )
     }
@@ -223,23 +303,27 @@ internal object QuickJsExecutor {
         }
     }
 
-    private fun fetchUrlSync(url: String, method: String, headersJson: String, body: String?): String {
+    private fun fetchUrlSync(url: String, method: String, headersJson: String, body: String?): Pair<Int, String> {
         return try {
             val builder = Request.Builder()
                 .url(url)
-                .header(
-                    "User-Agent",
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-                )
 
+            var hasUserAgent = false
             try {
                 val headersObj = JSONObject(headersJson)
                 for (key in headersObj.keys()) {
                     val value = headersObj.optString(key, "")
-                    if (key.equals("user-agent", ignoreCase = true)) continue
                     builder.header(key, value)
+                    if (key.equals("user-agent", ignoreCase = true)) hasUserAgent = true
                 }
             } catch (_: Exception) {}
+
+            if (!hasUserAgent) {
+                builder.header(
+                    "User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+                )
+            }
 
             when (method.uppercase()) {
                 "POST" -> {
@@ -256,10 +340,11 @@ internal object QuickJsExecutor {
             }
 
             syncHttpClient.newCall(builder.build()).execute().use { response ->
-                response.body?.string() ?: ""
+                val responseBody = response.body?.string() ?: ""
+                response.code to responseBody
             }
         } catch (e: Exception) {
-            Log.e(TAG, "fetch failed: $method $url", e)
+            Log.e(TAG, "    fetch FAILED: $method $url — ${e.message}", e)
             throw e
         }
     }
@@ -338,10 +423,21 @@ internal object QuickJsExecutor {
         }
 
         if (typeof setTimeout === 'undefined') {
-            var setTimeout = function(fn, ms) { fn(); return 0; };
+            var __spine_timers = {};
+            var __spine_timer_id = 0;
+            var setTimeout = function(fn, ms) {
+                var id = ++__spine_timer_id;
+                __spine_timers[id] = { fn: fn, ms: ms || 0 };
+                return id;
+            };
+            var clearTimeout = function(id) {
+                if (__spine_timers[id]) delete __spine_timers[id];
+            };
         }
         if (typeof clearTimeout === 'undefined') {
-            var clearTimeout = function(id) {};
+            var clearTimeout = function(id) {
+                if (typeof __spine_timers !== 'undefined' && __spine_timers[id]) delete __spine_timers[id];
+            };
         }
 
         if (typeof URL === 'undefined') {

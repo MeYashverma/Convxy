@@ -126,10 +126,12 @@ class CustomEqualizerAudioProcessor : AudioProcessor {
                 .d("Applied pending profile with ${filters.size} bands and ${profile.preamp} dB preamp")
         }
 
-        // Only support 16-bit PCM stereo/mono
-        if (encoding != C.ENCODING_PCM_16BIT || channelCount > 2) {
-            val exception = AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
-            throw exception // Rethrow, unsupported
+        // Only support 16-bit PCM stereo/mono for now
+        // If not supported, we stay inactive (passthrough)
+        if (encoding != C.ENCODING_PCM_16BIT || channelCount > 2 || channelCount <= 0) {
+            Timber.tag(TAG).w("Unsupported format for EQ: sampleRate=$sampleRate, channels=$channelCount, encoding=$encoding. EQ will be bypassed.")
+            isActive = false
+            return inputAudioFormat
         }
 
         isActive = true

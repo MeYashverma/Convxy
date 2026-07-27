@@ -48,14 +48,17 @@ class SilenceDetectorAudioProcessor(
         channelCount = inputAudioFormat.channelCount
         encoding = inputAudioFormat.encoding
 
+        // Bypass if not 16-bit PCM (e.g. 24-bit, float, or passthrough)
         if (encoding != C.ENCODING_PCM_16BIT) {
-            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+            sampleRate = 0
+            channelCount = 0
+            return inputAudioFormat
         }
 
         return inputAudioFormat
     }
 
-    override fun isActive(): Boolean = true
+    override fun isActive(): Boolean = encoding == C.ENCODING_PCM_16BIT
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!inputBuffer.hasRemaining()) {

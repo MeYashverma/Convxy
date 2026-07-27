@@ -5,8 +5,11 @@
 
 package com.convx.music.models
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import java.io.Serializable
 
+@Immutable
 data class PersistQueue(
     val title: String?,
     val items: List<MediaMetadata>,
@@ -16,6 +19,7 @@ data class PersistQueue(
     val queueData: QueueData? = null,
 ) : Serializable
 
+@Immutable
 sealed class QueueType : Serializable {
     object LIST : QueueType()
     object YOUTUBE : QueueType()
@@ -23,6 +27,7 @@ sealed class QueueType : Serializable {
     object LOCAL_ALBUM_RADIO : QueueType()
 }
 
+@Stable
 sealed class QueueData : Serializable {
     data class YouTubeData(
         val endpoint: String,

@@ -5,8 +5,10 @@
 
 package com.convx.music.models
 
+import androidx.compose.runtime.Immutable
 import java.io.Serializable
 
+@Immutable
 data class PersistPlayerState(
     val playWhenReady: Boolean,
     val repeatMode: Int,

@@ -5,11 +5,13 @@
 
 package com.convx.music.db.entities
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDateTime
 
+@Immutable
 @Entity(
     tableName = "recognition_history",
     indices = [

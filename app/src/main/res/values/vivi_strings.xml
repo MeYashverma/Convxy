@@ -1116,4 +1116,6 @@
     <string name="enabled">Enabled</string>
     <string name="disabled">Disabled</string>
     <string name="remove">Remove</string>
+    <string name="library_icons_only">Library Icons Only</string>
+    <string name="library_icons_only_desc">Show simple icons instead of artwork thumbnails in the library</string>
 </resources>

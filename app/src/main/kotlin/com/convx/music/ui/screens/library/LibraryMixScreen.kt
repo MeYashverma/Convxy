@@ -67,6 +67,7 @@ import com.convx.music.constants.CONTENT_TYPE_PLAYLIST
 import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
+import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.MixSortDescendingKey
 import com.convx.music.constants.MixSortType
@@ -137,6 +138,8 @@ fun LibraryMixScreen(
     )
     val (sortDescending, onSortDescendingChange) = rememberPreference(MixSortDescendingKey, true)
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
+    
+    val (libraryIconsOnly) = rememberPreference(LibraryIconsOnlyKey, defaultValue = true)
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
@@ -427,8 +430,9 @@ fun LibraryMixScreen(
                                     playlist = likedPlaylist,
                                     autoPlaylist = true,
                                     flat = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = likedThumbnail.takeIf { it.isNotBlank() },
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -462,8 +466,9 @@ fun LibraryMixScreen(
                                     playlist = downloadPlaylist,
                                     autoPlaylist = true,
                                     flat = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = downloadThumbnail.takeIf { it.isNotBlank() },
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -497,8 +502,9 @@ fun LibraryMixScreen(
                                     playlist = topPlaylist,
                                     autoPlaylist = true,
                                     flat = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = topThumbnail.takeIf { it.isNotBlank() },
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -532,8 +538,9 @@ fun LibraryMixScreen(
                                     playlist = cachePlaylist,
                                     autoPlaylist = true,
                                     flat = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = cacheThumbnail.takeIf { it.isNotBlank() },
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -638,7 +645,7 @@ fun LibraryMixScreen(
                                 PlaylistListItem(
                                     playlist = item,
                                     flat = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -657,6 +664,7 @@ fun LibraryMixScreen(
                                             )
                                         }
                                     },
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -683,7 +691,7 @@ fun LibraryMixScreen(
                                 ArtistListItem(
                                     artist = item,
                                     flat = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -702,6 +710,7 @@ fun LibraryMixScreen(
                                             )
                                         }
                                     },
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -730,7 +739,7 @@ fun LibraryMixScreen(
                                     isActive = item.id == mediaMetadata?.album?.id,
                                     isPlaying = isPlaying,
                                     flat = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -749,6 +758,7 @@ fun LibraryMixScreen(
                                             )
                                         }
                                     },
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -1035,7 +1045,7 @@ fun LibraryMixScreen(
                                 PlaylistGridItem(
                                     playlist = item,
                                     fillMaxWidth = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -1062,7 +1072,7 @@ fun LibraryMixScreen(
                                 ArtistGridItem(
                                     artist = item,
                                     fillMaxWidth = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -1092,7 +1102,7 @@ fun LibraryMixScreen(
                                     isPlaying = isPlaying,
                                     coroutineScope = coroutineScope,
                                     fillMaxWidth = true,
-                                    showIconOnly = true,
+                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()

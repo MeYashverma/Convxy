@@ -32,9 +32,11 @@ fun LibraryArtistListItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     artist: Artist,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showIconOnly: Boolean = true,
 ) = ArtistListItem(
     artist = artist,
+    showIconOnly = showIconOnly,
     trailingContent = {
         androidx.compose.material3.IconButton(
             onClick = {
@@ -67,10 +69,12 @@ fun LibraryArtistGridItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     artist: Artist,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showIconOnly: Boolean = true,
 ) = ArtistGridItem(
     artist = artist,
     fillMaxWidth = true,
+    showIconOnly = showIconOnly,
     modifier = modifier
         .fillMaxWidth()
         .combinedClickable(
@@ -96,11 +100,13 @@ fun LibraryAlbumListItem(
     menuState: MenuState,
     album: Album,
     isActive: Boolean = false,
-    isPlaying: Boolean = false
+    isPlaying: Boolean = false,
+    showIconOnly: Boolean = true,
 ) = AlbumListItem(
     album = album,
     isActive = isActive,
     isPlaying = isPlaying,
+    showIconOnly = showIconOnly,
     trailingContent = {
         androidx.compose.material3.IconButton(
             onClick = {
@@ -135,13 +141,15 @@ fun LibraryAlbumGridItem(
     coroutineScope: CoroutineScope,
     album: Album,
     isActive: Boolean = false,
-    isPlaying: Boolean = false
+    isPlaying: Boolean = false,
+    showIconOnly: Boolean = true,
 ) = AlbumGridItem(
     album = album,
     isActive = isActive,
     isPlaying = isPlaying,
     coroutineScope = coroutineScope,
     fillMaxWidth = true,
+    showIconOnly = showIconOnly,
     modifier = modifier
         .fillMaxWidth()
         .combinedClickable(
@@ -166,9 +174,11 @@ fun LibraryPlaylistListItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     playlist: Playlist,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showIconOnly: Boolean = true,
 ) = PlaylistListItem(
     playlist = playlist,
+    showIconOnly = showIconOnly,
     trailingContent = {
         androidx.compose.material3.IconButton(
             onClick = {
@@ -233,10 +243,12 @@ fun LibraryPlaylistGridItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     playlist: Playlist,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showIconOnly: Boolean = true,
 ) = PlaylistGridItem(
     playlist = playlist,
     fillMaxWidth = true,
+    showIconOnly = showIconOnly,
     modifier = modifier
         .fillMaxWidth()
         .combinedClickable(

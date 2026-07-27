@@ -234,6 +234,9 @@ import kotlin.math.roundToInt
 import com.convx.music.ui.component.Icon as MIcon
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.DefaultDataSource
 import android.view.TextureView
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -3106,7 +3109,7 @@ private fun BackgroundVideoView(
         }
     }
 
-    val mediaSourceFactory = remember(downloadUtil) {
+    val mediaSourceFactory = remember<DefaultMediaSourceFactory>(downloadUtil) {
         DefaultMediaSourceFactory(
             CacheDataSource.Factory()
                 .setCache(downloadUtil.downloadCache)

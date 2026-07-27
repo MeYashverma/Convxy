@@ -62,6 +62,7 @@ import com.convx.music.R
 import com.convx.music.constants.CONTENT_TYPE_HEADER
 import com.convx.music.constants.CONTENT_TYPE_SONG
 import com.convx.music.constants.HideExplicitKey
+import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.SongFilter
 import com.convx.music.constants.SongFilterKey
 import com.convx.music.constants.SongSortDescendingKey
@@ -102,6 +103,7 @@ fun LibrarySongsScreen(
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
+    val (libraryIconsOnly) = rememberPreference(LibraryIconsOnlyKey, defaultValue = true)
 
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
@@ -367,6 +369,7 @@ fun LibrarySongsScreen(
                     showInLibraryIcon = true,
                     isActive = song.id == mediaMetadata?.id,
                     isPlaying = isPlaying,
+                    showIconOnly = libraryIconsOnly,
                     showLikedIcon = filter != SongFilter.LOCAL,
                     showDownloadIcon = filter != SongFilter.DOWNLOADED && filter != SongFilter.LOCAL,
                     shape = listItemShape(index, filteredSongs.size),

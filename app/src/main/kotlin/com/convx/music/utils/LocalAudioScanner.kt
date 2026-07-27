@@ -127,6 +127,7 @@ object LocalAudioScanner {
                         title = title,
                         duration = (durationMs / 1000).toInt(),
                         thumbnailUrl = albumArtUri,
+                        albumId = if (albumName.isNotBlank()) albumIdStr else null,
                         albumName = albumName,
                         year = if (year > 0) year else null,
                         dateModified = java.time.Instant.ofEpochSecond(dateModified)

@@ -863,15 +863,15 @@ fun AlbumGridItem(
     modifier = modifier
 )
 
-/** Branded full-bleed card art for the library auto-playlist cards (null = none). */
 @Composable
-private fun autoPlaylistArtRes(name: String): Int? = when {
-    name == stringResource(R.string.liked) -> R.drawable.liked_song
-    name == stringResource(R.string.offline) -> R.drawable.downloaded_song
-    name == stringResource(R.string.cached_playlist) -> R.drawable.cache_songs
+private fun getAutoPlaylistIcon(name: String): Int = when {
+    name == stringResource(R.string.liked) -> R.drawable.favorite_border
+    name == stringResource(R.string.offline) -> R.drawable.offline
+    name == stringResource(R.string.cached_playlist) -> R.drawable.cached
+    name == stringResource(R.string.uploaded_playlist) -> R.drawable.backup
     name == stringResource(R.string.filter_local) -> R.drawable.local_songs
-    name.startsWith(stringResource(R.string.my_top)) -> R.drawable.top50
-    else -> null
+    name.startsWith(stringResource(R.string.my_top)) -> R.drawable.trending_up
+    else -> R.drawable.queue_music
 }
 
 @Composable
@@ -936,29 +936,19 @@ fun PlaylistListItem(
     badges = badges,
     thumbnailContent = {
         if (showIconOnly) {
-            val autoArtRes = autoPlaylistArtRes(playlist.playlist.name)
-            if (autoArtRes != null) {
-                Image(
-                    painter = painterResource(autoArtRes),
+            Box(
+                modifier = Modifier
+                    .size(ListThumbnailSize)
+                    .clip(ThumbnailRoundedShape)
+                    .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(getAutoPlaylistIcon(playlist.playlist.name)),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.size(24.dp),
+                    tint = LocalContentColor.current.copy(alpha = 0.6f)
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(ListThumbnailSize)
-                        .clip(ThumbnailRoundedShape)
-                        .background(LocalContentColor.current.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = LocalContentColor.current.copy(alpha = 0.6f)
-                    )
-                }
             }
         } else if (thumbnailOverrideUrl != null) {
             AsyncImage(
@@ -974,27 +964,16 @@ fun PlaylistListItem(
                 thumbnails = playlist.thumbnails,
                 size = ListThumbnailSize,
                 placeHolder = {
-                    val autoArtRes = autoPlaylistArtRes(playlist.playlist.name)
-                    if (autoArtRes != null) {
-                        Image(
-                            painter = painterResource(autoArtRes),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        val painter = when (playlist.playlist.name) {
-                            stringResource(R.string.liked) -> R.drawable.favorite_border
-                            stringResource(R.string.offline) -> R.drawable.offline
-                            stringResource(R.string.cached_playlist) -> R.drawable.cached
-                            // R.drawable.backup as placeholder
-                            stringResource(R.string.uploaded_playlist) -> R.drawable.backup
-                            else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
-                            painter = painterResource(painter),
+                            painter = painterResource(getAutoPlaylistIcon(playlist.playlist.name)),
                             contentDescription = null,
-                            tint = LocalContentColor.current.copy(alpha = 0.8f),
+                            tint = LocalContentColor.current.copy(alpha = 0.6f),
                             modifier = Modifier.size(ListThumbnailSize / 2)
                         )
                     }
@@ -1088,28 +1067,18 @@ fun PlaylistGridItem(
     thumbnailContent = {
         val width = maxWidth
         if (showIconOnly) {
-            val autoArtRes = autoPlaylistArtRes(playlist.playlist.name)
-            if (autoArtRes != null) {
-                Image(
-                    painter = painterResource(autoArtRes),
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(getAutoPlaylistIcon(playlist.playlist.name)),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.size(width / 3),
+                    tint = LocalContentColor.current.copy(alpha = 0.6f)
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(LocalContentColor.current.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
-                        modifier = Modifier.size(width / 3),
-                        tint = LocalContentColor.current.copy(alpha = 0.6f)
-                    )
-                }
             }
         } else if (thumbnailOverrideUrl != null) {
             AsyncImage(
@@ -1123,34 +1092,18 @@ fun PlaylistGridItem(
             thumbnails = playlist.thumbnails,
             size = width,
             placeHolder = {
-                val autoArtRes = autoPlaylistArtRes(playlist.playlist.name)
-                if (autoArtRes != null) {
-                    Image(
-                        painter = painterResource(autoArtRes),
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(getAutoPlaylistIcon(playlist.playlist.name)),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+                        tint = LocalContentColor.current.copy(alpha = 0.6f),
+                        modifier = Modifier.size(width / 2)
                     )
-                } else {
-                    val painter = when (playlist.playlist.name) {
-                        stringResource(R.string.liked) -> R.drawable.favorite_border
-                        stringResource(R.string.offline) -> R.drawable.offline
-                        stringResource(R.string.cached_playlist) -> R.drawable.cached
-                        // R.drawable.backup as placeholder
-                        stringResource(R.string.uploaded_playlist) -> R.drawable.backup
-                        else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
-                    }
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Icon(
-                            painter = painterResource(painter),
-                            contentDescription = null,
-                            tint = LocalContentColor.current.copy(alpha = 0.8f),
-                            modifier = Modifier.size(width / 2)
-                        )
-                    }
                 }
             },
             shape = ThumbnailRoundedShape

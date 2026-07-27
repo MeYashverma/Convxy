@@ -334,7 +334,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = likedPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("auto_playlist/liked") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -349,7 +349,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = downloadPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("auto_playlist/downloaded") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -364,7 +364,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = topPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("top_playlist/$topSize") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -379,7 +379,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = cachePlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("cache_playlist/cached") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -394,7 +394,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = uploadedPlaylist,
                                 grid = false,
                                 onClick = { navController.navigate("auto_playlist/uploaded") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -465,7 +465,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = likedPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("auto_playlist/liked") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -480,7 +480,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = downloadPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("auto_playlist/downloaded") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -495,7 +495,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = topPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("top_playlist/$topSize") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -510,7 +510,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = cachePlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("cache_playlist/cached") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -525,7 +525,7 @@ fun LibraryPlaylistsScreen(
                                 playlist = uploadedPlaylist,
                                 grid = true,
                                 onClick = { navController.navigate("auto_playlist/uploaded") },
-                                showIconOnly = libraryIconsOnly,
+                                showIconOnly = showIconOnly,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -606,7 +606,7 @@ private fun AutoPlaylistCard(
                 playlist = playlist,
                 fillMaxWidth = true,
                 autoPlaylist = true,
-                showIconOnly = libraryIconsOnly,
+                showIconOnly = showIconOnly,
                 thumbnailOverrideUrl = override,
                 modifier = clickMod,
             )
@@ -614,7 +614,7 @@ private fun AutoPlaylistCard(
             PlaylistListItem(
                 playlist = playlist,
                 autoPlaylist = true,
-                showIconOnly = libraryIconsOnly,
+                showIconOnly = showIconOnly,
                 thumbnailOverrideUrl = override,
                 modifier = clickMod,
             )

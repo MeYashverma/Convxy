@@ -467,7 +467,6 @@ fun LibraryMixScreen(
                                     flat = true,
                                     showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = downloadThumbnail.takeIf { it.isNotBlank() },
-                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -503,7 +502,6 @@ fun LibraryMixScreen(
                                     flat = true,
                                     showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = topThumbnail.takeIf { it.isNotBlank() },
-                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -539,7 +537,6 @@ fun LibraryMixScreen(
                                     flat = true,
                                     showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = cacheThumbnail.takeIf { it.isNotBlank() },
-                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()

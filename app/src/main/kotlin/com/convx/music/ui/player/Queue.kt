@@ -162,6 +162,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 import android.widget.Toast
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import coil3.size.Size as CoilSize
 import kotlinx.coroutines.coroutineScope
 import kotlin.math.roundToInt

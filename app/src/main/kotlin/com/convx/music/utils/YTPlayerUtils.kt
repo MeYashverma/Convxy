@@ -326,10 +326,19 @@ object YTPlayerUtils {
                                     Log.d(TAG, "      Track bitDepth: ${streamResult.track?.bitDepth}")
                                     Log.d(TAG, "      Track sampleRate: ${streamResult.track?.sampleRate}")
 
-                                    val isAtmos = module.isDolbyAtmos ||
+                                    val isAtmosSupported = run {
+                                        val list = android.media.MediaCodecList(android.media.MediaCodecList.ALL_CODECS)
+                                        list.codecInfos.any { !it.isEncoder && it.supportedTypes.any { t -> t.contains("eac3", ignoreCase = true) } }
+                                    }
+
+                                    val isAtmos = isAtmosSupported && (module.isDolbyAtmos ||
                                         streamResult.track?.audioQuality?.uppercase()?.contains("ATMOS") == true ||
                                         streamResult.track?.audioModes?.any { it.uppercase().contains("ATMOS") } == true ||
-                                        streamResult.track?.mimeType?.uppercase()?.contains("EAC3") == true
+                                        streamResult.track?.mimeType?.uppercase()?.contains("EAC3") == true)
+
+                                    if (!isAtmosSupported && (streamResult.track?.audioQuality?.uppercase()?.contains("ATMOS") == true)) {
+                                        Log.w(TAG, "      ! Device does not support EAC3/Atmos - will attempt fallback to FLAC/High")
+                                    }
 
                                     val isLossless = !isAtmos && (
                                         module.isLossless ||

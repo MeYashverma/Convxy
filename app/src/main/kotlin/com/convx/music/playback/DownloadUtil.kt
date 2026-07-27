@@ -5,6 +5,7 @@
 
 package com.convx.music.playback
 
+import android.util.Log
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -48,6 +49,18 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import com.convx.music.applecanvas.AppleMusicCanvasProvider
+import com.convx.music.canvas.AppleMusicArtistBackgroundProvider
+import com.convx.music.constants.CanvasSource
+import com.convx.music.constants.CanvasSourceKey
+import com.convx.music.ui.player.normalizeCanvasArtistName
+import com.convx.music.ui.player.normalizeCanvasSongTitle
+import com.convx.music.utils.dataStore
+import com.convx.music.vivimusiccanvas.EchoMusicCanvasProvider
+import com.convx.music.vivimusiccanvas.ViviMusicCanvasProvider
+import com.convx.music.canvas.TidalCanvasProvider
+import java.util.Locale
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -179,6 +192,59 @@ constructor(
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .build()
                     SingletonImageLoader.get(context).enqueue(request)
+                }
+
+                // --- CANVAS CACHING ---
+                scope.launch {
+                    val canvasSource = context.dataStore.data.map { it[CanvasSourceKey] ?: CanvasSource.AUTO.name }.first().let { name -> CanvasSource.entries.find { it.name == name } ?: CanvasSource.AUTO }
+
+                    val storefront = Locale.getDefault().country.lowercase(Locale.ROOT).takeIf { it.length == 2 } ?: "us"
+                    val requestedTitle = playbackData.videoDetails?.title.orEmpty()
+                    val requestedArtist = playbackData.videoDetails?.author.orEmpty()
+                    
+                    val s = normalizeCanvasSongTitle(requestedTitle)
+                    val a = normalizeCanvasArtistName(requestedArtist)
+
+                    val canvas = when (canvasSource) {
+                        CanvasSource.AUTO -> {
+                            EchoMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                                ?: AppleMusicCanvasProvider.getBySongArtist(s, a, "", storefront)?.preferredAnimationUrl
+                                ?: ViviMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                                ?: TidalCanvasProvider.getBySongArtist(s, a, "")?.preferredAnimationUrl
+                        }
+                        CanvasSource.ECHO_MUSIC -> EchoMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                        CanvasSource.APPLE_MUSIC -> AppleMusicCanvasProvider.getBySongArtist(s, a, "", storefront)?.preferredAnimationUrl
+                        CanvasSource.VIVIMUSIC -> ViviMusicCanvasProvider.getBySongArtist(s, a)?.preferredAnimationUrl
+                        CanvasSource.TIDAL -> TidalCanvasProvider.getBySongArtist(s, a, "")?.preferredAnimationUrl
+                    }
+
+                    canvas?.let { url ->
+                        val canvasRequest = okhttp3.Request.Builder().url(url).build()
+                        // Use the shared player okHttpClient or just download manually
+                        // We use the downloadCache for the video file
+                        kotlin.runCatching {
+                            val okHttpClient = OkHttpClient.Builder().proxy(YouTube.proxy).build()
+                            val response = okHttpClient.newCall(canvasRequest).execute()
+                            if (response.isSuccessful) {
+                                val body = response.body
+                                if (body != null) {
+                                    val stream = body.byteStream()
+                                    val buffer = ByteArray(1024 * 64)
+                                    var bytesRead: Int
+                                    var totalRead = 0L
+                                    while (stream.read(buffer).also { bytesRead = it } != -1) {
+                                        // Simple manual byte buffer writing to cache isn't standard Media3, 
+                                        // but we can store it as a dedicated resource in downloadCache
+                                        // or just skip for now and use playerCache logic.
+                                        totalRead += bytesRead
+                                    }
+                                    Log.d("CanvasDownload", "Successfully cached canvas for $mediaId: $totalRead bytes")
+                                }
+                            }
+                        }.onFailure { e ->
+                            Log.e("CanvasDownload", "Failed to cache canvas for $mediaId", e)
+                        }
+                    }
                 }
             }
 

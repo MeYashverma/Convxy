@@ -372,7 +372,23 @@ fun BottomSheetPlayer(
         defaultValue = AudioQuality.AUTO
     )
     val currentFormat by playerConnection.currentFormat.collectAsStateWithLifecycle(initialValue =null)
-    val isLosslessStream = currentFormat?.mimeType?.contains("flac", ignoreCase = true) == true
+    
+    val playerFormat by produceState(initialValue = playerConnection.player.audioFormat) {
+        val listener = object : Player.Listener {
+            override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
+                if (events.contains(androidx.media3.common.Player.EVENT_TRACKS_CHANGED)) {
+                    value = (player as? ExoPlayer)?.audioFormat
+                }
+            }
+        }
+        playerConnection.player.addListener(listener)
+        awaitDispose {
+            playerConnection.player.removeListener(listener)
+        }
+    }
+
+    val isLosslessStream = currentFormat?.mimeType?.contains("flac", ignoreCase = true) == true || 
+                          playerFormat?.sampleMimeType?.contains("flac", ignoreCase = true) == true
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SLIM)
     val squigglySlider by rememberPreference(SquigglySliderKey, defaultValue = false)
     
@@ -952,10 +968,10 @@ fun BottomSheetPlayer(
                         ) { thumbnailUrl ->
                             if (thumbnailUrl != null) {
                                 Box(modifier = Modifier.alpha(backgroundAlpha)) {
-                                    AsyncImage(
+                                        AsyncImage(
                                         model = ImageRequest.Builder(context)
                                             .data(thumbnailUrl)
-                                            .size(100, 100)
+                                            .size(48, 48)
                                             .allowHardware(false)
                                             .build(),
                                         contentDescription = null,
@@ -1179,7 +1195,7 @@ fun BottomSheetPlayer(
                                     AsyncImage(
                                         model = ImageRequest.Builder(context)
                                             .data(thumbnailUrl)
-                                            .size(128, 128) // Downsample significantly for performance
+                                            .size(48, 48) // Downsample significantly for performance
                                             .allowHardware(false)
                                             .build(),
                                         contentDescription = null,
@@ -1338,7 +1354,7 @@ fun BottomSheetPlayer(
                                     AsyncImage(
                                         model = ImageRequest.Builder(context)
                                             .data(thumbnailUrl)
-                                            .size(128, 128) // Downsample significantly for performance
+                                            .size(48, 48) // Downsample significantly for performance
                                             .allowHardware(false)
                                             .build(),
                                         contentDescription = null,
@@ -1354,7 +1370,7 @@ fun BottomSheetPlayer(
                                     AsyncImage(
                                         model = ImageRequest.Builder(context)
                                             .data(thumbnailUrl)
-                                            .size(128, 128) // Downsample significantly for performance
+                                            .size(48, 48) // Downsample significantly for performance
                                             .allowHardware(false)
                                             .build(),
                                         contentDescription = null,
@@ -1374,7 +1390,7 @@ fun BottomSheetPlayer(
                                     AsyncImage(
                                         model = ImageRequest.Builder(context)
                                             .data(thumbnailUrl)
-                                            .size(128, 128) // Downsample significantly for performance
+                                            .size(48, 48) // Downsample significantly for performance
                                             .allowHardware(false)
                                             .build(),
                                         contentDescription = null,
@@ -2249,30 +2265,46 @@ fun BottomSheetPlayer(
                                     )
                                     Text(
                                         text = run {
-                                            val codec = currentFormat?.codecs?.lowercase() ?: ""
-                                            val label = when {
-                                                codec.contains("flac") -> "FLAC"
-                                                codec.contains("opus") -> "OPUS"
-                                                codec.contains("mp4a") || codec.contains("aac") -> "AAC"
-                                                codec.contains("mp3") || codec.contains("mpeg") -> "MP3"
-                                                codec.contains("vorbis") -> "OGG"
-                                                codec.contains("webm") -> "WEBM"
-                                                else -> null
+                                            val format = playerFormat ?: currentFormat?.let {
+                                                // Fallback to DB info if live format not yet available
+                                                androidx.media3.common.Format.Builder()
+                                                    .setSampleMimeType(it.mimeType)
+                                                    .setCodecs(it.codecs)
+                                                    .setAverageBitrate(it.bitrate ?: 0)
+                                                    .setSampleRate(it.sampleRate ?: 0)
+                                                    .build()
                                             }
-                                            label ?: if (isLosslessStream) {
-                                                stringResource(R.string.audio_quality_lossless)
-                                            } else {
-                                                when (audioQuality) {
-                                                    AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
-                                                    AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
-                                                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                                            
+                                            val codecLabel = format?.let { f ->
+                                                val mime = f.sampleMimeType?.lowercase() ?: ""
+                                                val codecs = f.codecs?.lowercase() ?: ""
+                                                when {
+                                                    mime.contains("flac") || codecs.contains("flac") -> "FLAC"
+                                                    mime.contains("opus") || codecs.contains("opus") -> "OPUS"
+                                                    mime.contains("mp4a") || mime.contains("aac") || codecs.contains("mp4a") || codecs.contains("aac") -> "AAC"
+                                                    mime.contains("mp3") || mime.contains("mpeg") || codecs.contains("mp3") || codecs.contains("mpeg") -> "MP3"
+                                                    mime.contains("vorbis") || codecs.contains("vorbis") -> "OGG"
+                                                    mime.contains("webm") || codecs.contains("webm") -> "WEBM"
+                                                    else -> null
                                                 }
+                                            }
+                                            
+                                            val bitrate = format?.bitrate?.takeIf { it > 0 } ?: format?.averageBitrate?.takeIf { it > 0 }
+                                            val bitrateLabel = bitrate?.let { "${it / 1000}kbps" }
+                                            
+                                            val sampleRate = format?.sampleRate?.takeIf { it > 0 }
+                                            val sampleRateLabel = sampleRate?.let { "${it / 1000}.${(it % 1000) / 100}kHz" }
+
+                                            buildString {
+                                                append(codecLabel ?: if (isLosslessStream) "LOSSLESS" else "AUTO")
+                                                if (bitrateLabel != null) append(" • $bitrateLabel")
+                                                if (sampleRateLabel != null) append(" • $sampleRateLabel")
                                             }
                                         },
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            letterSpacing = 1.5.sp
+                                            letterSpacing = 1.0.sp
                                         ),
                                         color = TextBackgroundColor.copy(alpha = 0.8f),
                                         maxLines = 1,

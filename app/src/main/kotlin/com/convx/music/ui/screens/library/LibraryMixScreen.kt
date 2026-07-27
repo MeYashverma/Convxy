@@ -419,6 +419,7 @@ fun LibraryMixScreen(
                                     playlist = likedPlaylist,
                                     autoPlaylist = true,
                                     flat = true,
+                                    showIconOnly = true,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -439,6 +440,7 @@ fun LibraryMixScreen(
                                     playlist = downloadPlaylist,
                                     autoPlaylist = true,
                                     flat = true,
+                                    showIconOnly = true,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -459,6 +461,7 @@ fun LibraryMixScreen(
                                     playlist = topPlaylist,
                                     autoPlaylist = true,
                                     flat = true,
+                                    showIconOnly = true,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -479,6 +482,7 @@ fun LibraryMixScreen(
                                     playlist = cachePlaylist,
                                     autoPlaylist = true,
                                     flat = true,
+                                    showIconOnly = true,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -499,6 +503,7 @@ fun LibraryMixScreen(
                                 playlist = uploadedPlaylist,
                                 autoPlaylist = true,
                                 flat = true,
+                                showIconOnly = true,
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -519,6 +524,7 @@ fun LibraryMixScreen(
                                 playlist = localPlaylist,
                                 autoPlaylist = true,
                                 flat = true,
+                                showIconOnly = true,
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -540,6 +546,7 @@ fun LibraryMixScreen(
                                 PlaylistListItem(
                                     playlist = item,
                                     flat = true,
+                                    showIconOnly = true,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -584,6 +591,7 @@ fun LibraryMixScreen(
                                 ArtistListItem(
                                     artist = item,
                                     flat = true,
+                                    showIconOnly = true,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -630,6 +638,7 @@ fun LibraryMixScreen(
                                     isActive = item.id == mediaMetadata?.album?.id,
                                     isPlaying = isPlaying,
                                     flat = true,
+                                    showIconOnly = true,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
@@ -723,6 +732,7 @@ fun LibraryMixScreen(
                                 playlist = likedPlaylist,
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
+                                showIconOnly = true,
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -743,6 +753,7 @@ fun LibraryMixScreen(
                                 playlist = downloadPlaylist,
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
+                                showIconOnly = true,
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -763,6 +774,7 @@ fun LibraryMixScreen(
                                 playlist = topPlaylist,
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
+                                showIconOnly = true,
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -783,6 +795,7 @@ fun LibraryMixScreen(
                                 playlist = cachePlaylist,
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
+                                showIconOnly = true,
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -803,6 +816,7 @@ fun LibraryMixScreen(
                                 playlist = uploadedPlaylist,
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
+                                showIconOnly = true,
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -823,6 +837,7 @@ fun LibraryMixScreen(
                                 playlist = localPlaylist,
                                 fillMaxWidth = true,
                                 autoPlaylist = true,
+                                showIconOnly = true,
                                 modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -844,6 +859,7 @@ fun LibraryMixScreen(
                                 PlaylistGridItem(
                                     playlist = item,
                                     fillMaxWidth = true,
+                                    showIconOnly = true,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -870,6 +886,7 @@ fun LibraryMixScreen(
                                 ArtistGridItem(
                                     artist = item,
                                     fillMaxWidth = true,
+                                    showIconOnly = true,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()
@@ -899,6 +916,7 @@ fun LibraryMixScreen(
                                     isPlaying = isPlaying,
                                     coroutineScope = coroutineScope,
                                     fillMaxWidth = true,
+                                    showIconOnly = true,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()

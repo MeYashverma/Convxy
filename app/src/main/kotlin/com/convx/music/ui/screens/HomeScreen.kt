@@ -963,7 +963,6 @@ fun HomeScreen(
                 state = lazylistState,
                 modifier = Modifier,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-                beyondBoundsItemCount = 3,
             ) {
                 item {
                     ChipsRow(

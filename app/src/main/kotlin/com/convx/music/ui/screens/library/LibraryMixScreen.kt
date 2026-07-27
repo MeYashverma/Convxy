@@ -432,7 +432,6 @@ fun LibraryMixScreen(
                                     flat = true,
                                     showIconOnly = libraryIconsOnly,
                                     thumbnailOverrideUrl = likedThumbnail.takeIf { it.isNotBlank() },
-                                    showIconOnly = libraryIconsOnly,
                                     modifier =
                                     Modifier
                                         .fillMaxWidth()

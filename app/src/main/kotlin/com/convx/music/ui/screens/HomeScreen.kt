@@ -962,7 +962,8 @@ fun HomeScreen(
             LazyColumn(
                 state = lazylistState,
                 modifier = Modifier,
-                contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
+                contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+                beyondBoundsItemCount = 3,
             ) {
                 item {
                     ChipsRow(
@@ -1342,7 +1343,7 @@ fun HomeScreen(
                                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                                         modifier = Modifier.animateItem().bleedStart(sideInset)
                                     ) {
-                                        items(playlists) { item ->
+                                        items(items = playlists, key = { it.playlist.id }) { item ->
                                             CommunityPlaylistCard(
                                                 item = item,
                                                 onClick = {
@@ -1449,7 +1450,7 @@ fun HomeScreen(
                                             }) * rows)
                                             .animateItem().bleedStart(sideInset)
                                     ) {
-                                        items(keepListening) {
+                                        items(items = keepListening, key = { it.id }) {
                                             localGridItem(it)
                                         }
                                     }
@@ -1650,7 +1651,7 @@ fun HomeScreen(
                                             .asPaddingValues().plusStart(sideInset),
                                         modifier = Modifier.animateItem().bleedStart(sideInset)
                                     ) {
-                                        items(recommendation.items) { item ->
+                                        items(items = recommendation.items, key = { it.id }) { item ->
                                             ytGridItem(item)
                                         }
                                     }
@@ -1790,7 +1791,7 @@ fun HomeScreen(
                                                 .asPaddingValues().plusStart(sideInset),
                                             modifier = Modifier.animateItem().bleedStart(sideInset)
                                         ) {
-                                            items(sectionData.items) { item ->
+                                            items(items = sectionData.items, key = { it.id }) { item ->
                                                 ytGridItem(item)
                                             }
                                         }
@@ -1817,7 +1818,7 @@ fun HomeScreen(
                                             .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp)
                                             .animateItem().bleedStart(sideInset)
                                     ) {
-                                        items(moodAndGenres) {
+                                        items(items = moodAndGenres, key = { it.title }) {
                                             MoodAndGenresButton(
                                                 title = it.title,
                                                 onClick = {

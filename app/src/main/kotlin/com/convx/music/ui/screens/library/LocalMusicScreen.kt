@@ -139,6 +139,7 @@ fun LocalMusicScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        beyondBoundsItemCount = 3,
     ) {
         // Header
         item(key = "header") {

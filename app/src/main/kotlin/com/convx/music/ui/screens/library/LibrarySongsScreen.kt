@@ -168,6 +168,7 @@ fun LibrarySongsScreen(
         LazyColumn(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+            beyondBoundsItemCount = 3,
         ) {
             item(
                 key = "filter",
@@ -404,7 +405,6 @@ fun LibrarySongsScreen(
                                 )
                             }
                         }
-                        .animateItem(),
                 )
             }
         }

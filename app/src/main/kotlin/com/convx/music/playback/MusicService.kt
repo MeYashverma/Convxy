@@ -1031,9 +1031,11 @@ class MusicService :
             onStallDetected = { handleLosslessStallDetected() }
         )
 
+        lateinit var bpmAnalyzerRef: BpmAnalyzerAudioProcessor
         val bpmAnalyzer = BpmAnalyzerAudioProcessor(
-            onEstimateReady = { estimate -> handleBpmEstimateReady(bpmAnalyzer, estimate) }
+            onEstimateReady = { estimate -> handleBpmEstimateReady(bpmAnalyzerRef, estimate) }
         )
+        bpmAnalyzerRef = bpmAnalyzer
 
         // Set initial state
         runBlocking {

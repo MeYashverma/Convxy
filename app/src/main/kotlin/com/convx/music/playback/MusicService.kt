@@ -93,6 +93,7 @@ import com.convx.music.constants.AutoLoadMoreKey
 import com.convx.music.constants.AutoSkipNextOnErrorKey
 import com.convx.music.constants.CrossfadeDurationKey
 import com.convx.music.constants.CrossfadeEnabledKey
+import com.convx.music.constants.AutoDjMixingEnabledKey
 import com.convx.music.constants.CrossfadeGaplessKey
 import com.convx.music.constants.DisableLoadMoreWhenRepeatAllKey
 import android.os.Handler

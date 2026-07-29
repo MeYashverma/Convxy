@@ -174,6 +174,7 @@ import com.convx.music.ui.theme.decodeGradientStops
 import com.convx.music.ui.theme.tiltedGradient
 import com.convx.music.constants.PlayerStaticColorKey
 import com.convx.music.constants.PlayerButtonsStyle
+import com.convx.music.constants.DedicatedFullscreenLyricsKey
 import com.convx.music.constants.PlayerButtonsStyleKey
 import com.convx.music.constants.PlayerHorizontalPadding
 import com.convx.music.constants.QueuePeekHeight
@@ -874,6 +875,10 @@ fun BottomSheetPlayer(
     var isFullScreen by rememberSaveable {
         mutableStateOf(false)
     }
+    // When on, the fullscreen-lyrics button hands off to a dedicated overlay
+    // (mini player slides away, lyrics take the whole screen) instead of the
+    // in-place expand above — rendered at the app root, see MainActivity.
+    val (dedicatedFullscreenLyrics) = rememberPreference(DedicatedFullscreenLyricsKey, defaultValue = false)
 
     // Position update - only for local playback
     // When casting, we use castPosition directly to avoid sync issues
@@ -1709,7 +1714,13 @@ fun BottomSheetPlayer(
                         AnimatedContent(targetState = showInlineLyrics, label = "DownloadButton") { showLyrics ->
                             if (showLyrics) {
                                 FilledIconButton(
-                                    onClick = { isFullScreen = !isFullScreen },
+                                    onClick = {
+                                        if (dedicatedFullscreenLyrics) {
+                                            playerConnection.showDedicatedLyricsOverlay.value = true
+                                        } else {
+                                            isFullScreen = !isFullScreen
+                                        }
+                                    },
                                     shape = shareShape,
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = textButtonColor,
@@ -1853,7 +1864,13 @@ fun BottomSheetPlayer(
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(24.dp))
                                     .background(textButtonColor.copy(alpha = 0.2f))
-                                    .clickable { isFullScreen = !isFullScreen },
+                                    .clickable {
+                                        if (dedicatedFullscreenLyrics) {
+                                            playerConnection.showDedicatedLyricsOverlay.value = true
+                                        } else {
+                                            isFullScreen = !isFullScreen
+                                        }
+                                    },
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.fullscreen),

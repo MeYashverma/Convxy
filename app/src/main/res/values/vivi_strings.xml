@@ -1099,6 +1099,8 @@
     <string name="player_slot_seek_bar">Seek Bar</string>
     <string name="player_slot_controls">Playback Controls</string>
     <string name="player_slot_action_row">Action Row</string>
+    <string name="dedicated_fullscreen_lyrics">Dedicated Full-Screen Lyrics</string>
+    <string name="dedicated_fullscreen_lyrics_desc">The fullscreen lyrics button slides the player away and lyrics take over the whole screen, instead of expanding in place</string>
     <string name="nav_bar_style">Navigation Bar Style</string>
     <string name="floating_nav_bar">Floating navigation bar</string>
     <string name="floating_nav_bar_desc">iOS style floating tab bar that shrinks while scrolling</string>

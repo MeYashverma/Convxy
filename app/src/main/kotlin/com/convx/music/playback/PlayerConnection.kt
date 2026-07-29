@@ -153,6 +153,11 @@ class PlayerConnection(
     val canSkipPrevious = MutableStateFlow(true)
     val canSkipNext = MutableStateFlow(true)
 
+    /** Dedicated full-screen lyrics presentation (mini player slides away,
+     *  lyrics take over the whole screen) — set from the player's fullscreen
+     *  lyrics button, observed and rendered at the app root in MainActivity. */
+    val showDedicatedLyricsOverlay = MutableStateFlow(false)
+
     val error = MutableStateFlow<PlaybackException?>(null)
     val isMuted = service.isMuted
 

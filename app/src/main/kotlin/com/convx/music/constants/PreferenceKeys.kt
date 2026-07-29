@@ -517,6 +517,7 @@ val LiquidGlassSidePanelEnabledKey = booleanPreferencesKey("liquidGlassSidePanel
 val SideBarCollapsedKey = booleanPreferencesKey("sideBarCollapsed")
 val PlayerLayoutOrderKey = stringPreferencesKey("playerLayoutOrder")
 val PlayerLayoutHiddenSlotsKey = stringPreferencesKey("playerLayoutHiddenSlots")
+val DedicatedFullscreenLyricsKey = booleanPreferencesKey("dedicatedFullscreenLyrics")
 val UseFloatingNavBarKey = booleanPreferencesKey("useFloatingNavBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 

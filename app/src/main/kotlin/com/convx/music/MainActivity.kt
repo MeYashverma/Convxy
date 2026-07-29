@@ -22,6 +22,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -201,6 +202,7 @@ import com.convx.music.ui.component.isGlassAllowed
 import com.convx.music.ui.component.AppFloatingNowPlayingPill
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.AppFloatingSideBar
+import com.convx.music.ui.player.LyricsFullScreenOverlay
 import com.convx.music.ui.component.SideBarAccountRow
 import com.convx.music.ui.component.SideBarContentInset
 import com.convx.music.ui.component.SideBarMargin
@@ -1611,6 +1613,15 @@ class MainActivity : ComponentActivity() {
                         state = LocalBottomSheetPageState.current,
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
+
+                    playerConnection?.let { connection ->
+                        val showDedicatedLyricsOverlay by connection.showDedicatedLyricsOverlay.collectAsStateWithLifecycle()
+                        LyricsFullScreenOverlay(
+                            visible = showDedicatedLyricsOverlay,
+                            onDismiss = { connection.showDedicatedLyricsOverlay.value = false },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
 
 
 

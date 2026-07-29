@@ -1101,6 +1101,8 @@
     <string name="player_slot_action_row">Action Row</string>
     <string name="dedicated_fullscreen_lyrics">Dedicated Full-Screen Lyrics</string>
     <string name="dedicated_fullscreen_lyrics_desc">The fullscreen lyrics button slides the player away and lyrics take over the whole screen, instead of expanding in place</string>
+    <string name="auto_dj_mixing">Auto-DJ Mixing</string>
+    <string name="auto_dj_mixing_desc">When both tracks\' tempo is detected and close enough, nudge the incoming track\'s speed to match during the crossfade — falls back to a plain crossfade otherwise</string>
     <string name="nav_bar_style">Navigation Bar Style</string>
     <string name="floating_nav_bar">Floating navigation bar</string>
     <string name="floating_nav_bar_desc">iOS style floating tab bar that shrinks while scrolling</string>

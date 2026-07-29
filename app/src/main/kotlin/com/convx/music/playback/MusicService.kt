@@ -169,6 +169,11 @@ import com.convx.music.lyrics.LyricsHelper
 import com.convx.music.models.PersistPlayerState
 import com.convx.music.models.PersistQueue
 import com.convx.music.models.toMediaMetadata
+import com.convx.music.playback.audio.BpmAnalyzerAudioProcessor
+import com.convx.music.playback.audio.BpmEstimate
+import com.convx.music.playback.audio.DjMixPlan
+import com.convx.music.playback.audio.DjMixPlanner
+import com.convx.music.playback.audio.DjMixTier
 import com.convx.music.playback.audio.LosslessStallWatchdogAudioProcessor
 import com.convx.music.playback.audio.SilenceDetectorAudioProcessor
 import com.convx.music.playback.queues.EmptyQueue
@@ -367,6 +372,12 @@ class MusicService :
 
     private val playerSilenceProcessors = HashMap<Player, SilenceDetectorAudioProcessor>()
     private val playerStallWatchdogs = HashMap<Player, LosslessStallWatchdogAudioProcessor>()
+    private val playerBpmAnalyzers = HashMap<Player, BpmAnalyzerAudioProcessor>()
+
+    // Passive BPM estimates gathered while each track plays, keyed by mediaId —
+    // used to decide the DJ-mix crossfade tier (see DjMixPlanner) once a track
+    // becomes the "outgoing" or "incoming" side of a transition.
+    private val bpmCache = HashMap<String, BpmEstimate>()
 
 
     private val instantSilenceSkipEnabled = MutableStateFlow(false)
@@ -415,6 +426,10 @@ class MusicService :
     // silent-stall recoveries, which never throw an exception.
     private val losslessStallCount = mutableMapOf<String, Int>()
     private val MAX_LOSSLESS_STALLS_BEFORE_FALLBACK = 2
+
+    // Tempo-correction decision for the crossfade in progress, if DJ mixing
+    // decided one — read in cleanupCrossfade() to know whether to revert speed.
+    private var activeDjMixPlan: DjMixPlan? = null
 
     // Track failed songs to prevent infinite retry loops
     private val recentlyFailedSongs = mutableSetOf<String>()
@@ -1016,6 +1031,10 @@ class MusicService :
             onStallDetected = { handleLosslessStallDetected() }
         )
 
+        val bpmAnalyzer = BpmAnalyzerAudioProcessor(
+            onEstimateReady = { estimate -> handleBpmEstimateReady(bpmAnalyzer, estimate) }
+        )
+
         // Set initial state
         runBlocking {
             val skipSilence = dataStore.get(SkipSilenceKey, false)
@@ -1025,7 +1044,7 @@ class MusicService :
 
         val player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
-            .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor, stallWatchdog))
+            .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor, stallWatchdog, bpmAnalyzer))
             .setLoadControl(
                 androidx.media3.exoplayer.DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
@@ -1053,6 +1072,7 @@ class MusicService :
 
         playerSilenceProcessors[player] = silenceProcessor
         playerStallWatchdogs[player] = stallWatchdog
+        playerBpmAnalyzers[player] = bpmAnalyzer
 
         player.apply {
                 runBlocking {
@@ -1926,6 +1946,7 @@ class MusicService :
             watchdog.armed = mediaItem?.mediaId?.let { losslessStreamMediaIds.contains(it) } == true
             watchdog.resetForNewTrack()
         }
+        playerBpmAnalyzers[player]?.resetForTrack()
 
         lastPlaybackSpeed = -1.0f // force update song
 
@@ -2878,6 +2899,20 @@ class MusicService :
         }
     }
 
+    /** Fired from the audio renderer thread once a track has had ~20s to
+     *  analyze — cache it against whichever player owns this analyzer's
+     *  CURRENT media item (looked up at call time, not capture time, since
+     *  the estimate always belongs to whatever's playing when it completes). */
+    private fun handleBpmEstimateReady(analyzer: BpmAnalyzerAudioProcessor, estimate: BpmEstimate) {
+        if (estimate.bpm <= 0f) return
+        scope.launch {
+            val owningPlayer = playerBpmAnalyzers.entries.find { it.value === analyzer }?.key ?: return@launch
+            val mediaId = owningPlayer.currentMediaItem?.mediaId ?: return@launch
+            bpmCache[mediaId] = estimate
+            Timber.tag(TAG).d("BPM estimate for $mediaId: ${estimate.bpm} (confidence ${estimate.confidence})")
+        }
+    }
+
     /** Gives up on lossless for this track: force the plain YouTube stream on
      *  the next resolve, disarm the watchdog, re-prepare from the current
      *  position, and let the user know. */
@@ -3099,6 +3134,7 @@ class MusicService :
         eqProcessor: CustomEqualizerAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
         stallWatchdog: LosslessStallWatchdogAudioProcessor,
+        bpmAnalyzer: BpmAnalyzerAudioProcessor,
     ) =
         object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
@@ -3116,6 +3152,7 @@ class MusicService :
                             eqProcessor,
                             silenceProcessor,
                             stallWatchdog,
+                            bpmAnalyzer,
                         ),
                         SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
                         SonicAudioProcessor(),
@@ -3486,9 +3523,31 @@ class MusicService :
         }
         if (targetIndex == C.INDEX_UNSET) return
 
+        // DJ-mix tempo correction: only the piece proven safe to drive live
+        // this pass (see PLAN_playback_ui_dj_overhaul.md) — a small pitch-
+        // preserving speed nudge on the incoming track via the existing Sonic
+        // processor, same mechanism as the playback-speed setting. EQ sweep/
+        // reverb/delay are built (BpmAnalyzerAudioProcessor, DjMixPlanner,
+        // DelayAudioProcessor) but deliberately not wired into this live path yet.
+        val djMixEnabled = runBlocking { dataStore.get(AutoDjMixingEnabledKey, false) }
+        activeDjMixPlan = if (djMixEnabled) {
+            val outgoingMediaId = player.currentMediaItem?.mediaId
+            val incomingMediaId = player.getMediaItemAt(targetIndex).mediaId
+            DjMixPlanner.plan(bpmCache[outgoingMediaId], bpmCache[incomingMediaId])
+        } else {
+            null
+        }
+
         secondaryPlayer = createExoPlayer()
         val secPlayer = secondaryPlayer!!
         secPlayer.addListener(secondaryPlayerListener)
+
+        activeDjMixPlan?.let { plan ->
+            if (plan.tier != DjMixTier.PLAIN_CROSSFADE) {
+                secPlayer.playbackParameters = PlaybackParameters(plan.incomingSpeedAdjustment, 1f)
+                Timber.tag(TAG).d("DJ mix: ${plan.tier} tempo=${plan.incomingSpeedAdjustment}")
+            }
+        }
 
         val itemCount = player.mediaItemCount
         val items = mutableListOf<MediaItem>()
@@ -3605,6 +3664,17 @@ class MusicService :
         fadingPlayer = null
         isCrossfading = false
         sleepTimer.notifySongTransition()
+
+        // Tempo correction (if any) was only meant for the transition itself —
+        // the now-primary player (former secPlayer) reverts to normal speed
+        // rather than staying pitch/tempo-shifted for the rest of the track.
+        if (activeDjMixPlan != null && activeDjMixPlan?.tier != DjMixTier.PLAIN_CROSSFADE) {
+            try {
+                player.playbackParameters = PlaybackParameters(1f, 1f)
+            } catch (_: Exception) {
+            }
+        }
+        activeDjMixPlan = null
     }
 
     companion object {

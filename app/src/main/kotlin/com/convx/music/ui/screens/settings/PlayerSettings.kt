@@ -92,6 +92,7 @@ import com.convx.music.constants.AutoDownloadOnLikeKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.CrossfadeDurationKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.AutoDjMixingEnabledKey
 import com.convx.music.constants.CrossfadeEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.CrossfadeGaplessKey
@@ -171,6 +172,10 @@ fun PlayerSettings(
     val (crossfadeGapless, onCrossfadeGaplessChange) = rememberPreference(
         CrossfadeGaplessKey,
         defaultValue = true
+    )
+    val (autoDjMixingEnabled, onAutoDjMixingEnabledChange) = rememberPreference(
+        AutoDjMixingEnabledKey,
+        defaultValue = false
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
         PersistentQueueKey,
@@ -437,6 +442,27 @@ fun PlayerSettings(
                             )
                         },
                         onClick = { onCrossfadeGaplessChange(!crossfadeGapless) }
+                    ))
+                    add(Material3SettingsItem(
+                        icon = painterResource(R.drawable.equalizer),
+                        title = { Text(stringResource(R.string.auto_dj_mixing)) },
+                        description = { Text(stringResource(R.string.auto_dj_mixing_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = autoDjMixingEnabled,
+                                onCheckedChange = onAutoDjMixingEnabledChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (autoDjMixingEnabled) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onAutoDjMixingEnabledChange(!autoDjMixingEnabled) }
                     ))
                 }
                 add(Material3SettingsItem(

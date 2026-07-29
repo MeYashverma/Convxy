@@ -1092,6 +1092,13 @@
     <string name="liquid_glass_side_panel_desc">Tablet side panel glass, set independently from the phone navigation bar</string>
     <string name="collapse_side_panel">Collapse side panel</string>
     <string name="expand_side_panel">Expand side panel</string>
+    <string name="player_theme_layout">Layout</string>
+    <string name="player_theme_layout_desc">Drag to reorder, toggle to show or hide. Controls can\'t be hidden.</string>
+    <string name="player_slot_album_art">Album Art</string>
+    <string name="player_slot_track_info">Title &amp; Artist</string>
+    <string name="player_slot_seek_bar">Seek Bar</string>
+    <string name="player_slot_controls">Playback Controls</string>
+    <string name="player_slot_action_row">Action Row</string>
     <string name="nav_bar_style">Navigation Bar Style</string>
     <string name="floating_nav_bar">Floating navigation bar</string>
     <string name="floating_nav_bar_desc">iOS style floating tab bar that shrinks while scrolling</string>

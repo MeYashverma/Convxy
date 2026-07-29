@@ -58,6 +58,8 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.MaterialTheme
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -83,6 +85,7 @@ import androidx.compose.runtime.getValue
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.mutableIntStateOf
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.remember
@@ -94,6 +97,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.toMutableStateList
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Modifier
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -176,6 +180,18 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import kotlin.math.roundToInt
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.runtime.toMutableStateList
+import com.convx.music.constants.PlayerLayoutHiddenSlotsKey
+import com.convx.music.constants.PlayerLayoutOrderKey
+import com.convx.music.ui.player.PlayerLayoutRegistry
+import com.convx.music.ui.player.PlayerSlot
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 private val PresetCardWidth = 148.dp
 
@@ -212,6 +228,15 @@ fun PlayerThemeScreen(
 
     var showStaticPicker by rememberSaveable { mutableStateOf(false) }
     var showGradientSheet by rememberSaveable { mutableStateOf(false) }
+
+    val (layoutOrderRaw, onLayoutOrderChange) = rememberPreference(PlayerLayoutOrderKey, defaultValue = "")
+    val (hiddenSlotsRaw, onHiddenSlotsChange) = rememberPreference(PlayerLayoutHiddenSlotsKey, defaultValue = "")
+    val layoutSlots = remember(layoutOrderRaw) {
+        PlayerLayoutRegistry.deserializeOrder(layoutOrderRaw).toMutableStateList()
+    }
+    val hiddenSlots = remember(hiddenSlotsRaw) {
+        PlayerLayoutRegistry.deserializeHiddenSlots(hiddenSlotsRaw)
+    }
 
     // Apple Music draws its own square artwork treatment, so the shape presets
     // have nothing to act on while it is selected.
@@ -332,6 +357,27 @@ fun PlayerThemeScreen(
                 }
             }
         }
+
+        SectionTitle(stringResource(R.string.player_theme_layout))
+        Text(
+            text = stringResource(R.string.player_theme_layout_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+        PlayerLayoutList(
+            slots = layoutSlots,
+            hiddenSlots = hiddenSlots,
+            onReordered = { onLayoutOrderChange(PlayerLayoutRegistry.serializeOrder(it)) },
+            onVisibilityChange = { slot, hidden ->
+                val updated = if (hidden) hiddenSlots + slot else hiddenSlots - slot
+                onHiddenSlotsChange(PlayerLayoutRegistry.serializeHiddenSlots(updated))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .height(340.dp),
+        )
 
         Spacer(Modifier.height(24.dp))
     }
@@ -553,6 +599,97 @@ private fun LockedNote(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
     )
+}
+
+/**
+ * Drag-to-reorder list of [PlayerSlot]s, each with a visibility switch except
+ * the mandatory [PlayerSlot.CONTROLS] row — reorder-only there, no toggle.
+ * Same reorderable-library pattern as DraggableLyricsProviderList.
+ */
+@Composable
+private fun PlayerLayoutList(
+    slots: MutableList<PlayerSlot>,
+    hiddenSlots: Set<PlayerSlot>,
+    onReordered: (List<PlayerSlot>) -> Unit,
+    onVisibilityChange: (PlayerSlot, Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val lazyListState = rememberLazyListState()
+    var hasDragged by remember { mutableStateOf(false) }
+    val reorderableState = rememberReorderableLazyListState(
+        lazyListState = lazyListState,
+    ) { from, to ->
+        val movedItem = slots.removeAt(from.index)
+        slots.add(to.index, movedItem)
+        hasDragged = true
+    }
+
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging && hasDragged) {
+            onReordered(slots.toList())
+            hasDragged = false
+        }
+    }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = modifier,
+    ) {
+        LazyColumn(state = lazyListState) {
+            itemsIndexed(slots, key = { _, slot -> slot.name }) { _, slot ->
+                ReorderableItem(state = reorderableState, key = slot.name) {
+                    val isHidden = slot in hiddenSlots
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(
+                            onClick = { },
+                            modifier = Modifier.draggableHandle(),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.drag_handle),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        Text(
+                            text = stringResource(slot.labelRes),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isHidden) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+
+                        if (slot.hideable) {
+                            Switch(
+                                checked = !isHidden,
+                                onCheckedChange = { visible -> onVisibilityChange(slot, !visible) },
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (!isHidden) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

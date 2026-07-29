@@ -2962,6 +2962,16 @@ class MusicService :
 
                 songUrlCache[effKey] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
+
+                // Tidal/Spine hand back one direct static file URL, not a segmented
+                // YouTube-style itag CDN, and their proxies can't be trusted to return
+                // correct Content-Range headers on every ranged request. Slicing them
+                // into CHUNK_LENGTH windows risks ExoPlayer reading a short response as
+                // real end-of-file mid-song (auto-advances to the next track with no
+                // error). Fetch the whole remaining file in one open-ended request instead.
+                if (nonNullPlayback.isTidalStream || nonNullPlayback.isSpineStream) {
+                    return@Factory spec.withUri(streamUrl.toUri())
+                }
                 return@Factory spec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }

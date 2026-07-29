@@ -6,6 +6,7 @@
 package com.convx.music.ui.component
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -85,6 +86,9 @@ private val SideRowShape = ContinuousRoundedRectangle(percent = 50)
 /** Width of the whole floating panel. */
 val SideBarWidth: Dp = 260.dp
 
+/** Width when collapsed to an icon-only rail — just enough for the icon + padding. */
+val SideBarCollapsedWidth: Dp = 72.dp
+
 /**
  * Container width at or above which the app lays itself out for tab view on its
  * own. Below it the side bar only appears if the Appearance toggle forces it.
@@ -163,13 +167,20 @@ fun AppFloatingSideBar(
     currentRoute: String?,
     onItemClick: (Screens, Boolean) -> Unit,
     sections: List<SideBarSection>,
-    footer: @Composable () -> Unit,
+    footer: @Composable (collapsed: Boolean) -> Unit,
+    collapsed: Boolean,
+    onToggleCollapsed: () -> Unit,
     modifier: Modifier = Modifier,
     pureBlack: Boolean = false,
 ) {
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.SIDE_PANEL) && isGlassAllowed()
     val animationScope = rememberCoroutineScope()
+    val panelWidth by animateDpAsState(
+        targetValue = if (collapsed) SideBarCollapsedWidth else SideBarWidth,
+        animationSpec = spring(0.9f, 400f),
+        label = "sideBarWidth",
+    )
 
     // Same finger-tracking glow the mini player carries: it follows the touch
     // across the whole panel, so every row lights up under the finger, not just
@@ -195,7 +206,7 @@ fun AppFloatingSideBar(
 
     Column(
         modifier
-            .width(SideBarWidth)
+            .width(panelWidth)
             .shadow(shape = SideBarShape, elevation = 10.dp)
             .background(backgroundColor, SideBarShape)
             .clip(SideBarShape)
@@ -204,15 +215,36 @@ fun AppFloatingSideBar(
             .then(interactiveHighlight.gestureModifier)
             .padding(vertical = 14.dp),
     ) {
-        Text(
-            text = BrandName,
-            fontFamily = rememberBrandFontFamily(),
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 22.sp,
-            letterSpacing = 1.5.sp,
-            color = glassConfig.textColor,
-            modifier = Modifier.padding(start = 22.dp, bottom = 10.dp),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = if (collapsed) 0.dp else 22.dp, bottom = 10.dp),
+            horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.SpaceBetween,
+        ) {
+            if (!collapsed) {
+                Text(
+                    text = BrandName,
+                    fontFamily = rememberBrandFontFamily(),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 22.sp,
+                    letterSpacing = 1.5.sp,
+                    color = glassConfig.textColor,
+                )
+            }
+            Icon(
+                painter = painterResource(if (collapsed) R.drawable.chevron_right_px else R.drawable.chevron_leftpx),
+                contentDescription = stringResource(
+                    if (collapsed) R.string.expand_side_panel else R.string.collapse_side_panel
+                ),
+                tint = glassConfig.textColor.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .padding(end = if (collapsed) 0.dp else 16.dp)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onToggleCollapsed),
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -229,26 +261,32 @@ fun AppFloatingSideBar(
                 onItemClick = onItemClick,
                 useGlass = useGlass,
                 backgroundColor = backgroundColor,
+                collapsed = collapsed,
             )
 
-            sections.forEach { section ->
-                section.title?.let { title ->
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = glassConfig.textColor.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 4.dp),
-                    )
-                }
-                section.links.forEach { link ->
-                    SideBarLinkRow(link = link, contentColor = glassConfig.textColor)
+            // The library sections (playlists, history, ...) need a text label to
+            // mean anything — an icon-only rail collapses to just the primary tabs,
+            // same as NavigationRail never showing arbitrary link lists either.
+            if (!collapsed) {
+                sections.forEach { section ->
+                    section.title?.let { title ->
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = glassConfig.textColor.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 4.dp),
+                        )
+                    }
+                    section.links.forEach { link ->
+                        SideBarLinkRow(link = link, contentColor = glassConfig.textColor)
+                    }
                 }
             }
         }
 
         Spacer(Modifier.height(6.dp))
-        footer()
+        footer(collapsed)
     }
 }
 
@@ -266,6 +304,7 @@ private fun SideNavTabs(
     onItemClick: (Screens, Boolean) -> Unit,
     useGlass: Boolean,
     backgroundColor: Color,
+    collapsed: Boolean,
 ) {
     val glassConfig = LocalGlassEffectConfig.current
     val appleMusicUi = LocalAppleMusicUi.current
@@ -321,6 +360,7 @@ private fun SideNavTabs(
                     appleMusicUi = appleMusicUi,
                     contentColor = if (tab.selected) selectedContentColor else unselectedContentColor,
                     alpha = if (tab.selected) 1f else 0.6f,
+                    collapsed = collapsed,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(SideTabHeight)
@@ -355,6 +395,7 @@ private fun SideNavTabs(
                         appleMusicUi = appleMusicUi,
                         contentColor = unselectedContentColor,
                         alpha = 1f,
+                        collapsed = collapsed,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(SideTabHeight),
@@ -415,6 +456,7 @@ private fun SideNavTabs(
                     appleMusicUi = appleMusicUi,
                     contentColor = selectedContentColor,
                     alpha = 1f,
+                    collapsed = collapsed,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -438,7 +480,7 @@ fun BoxWithConstraintsScope.AppFloatingNowPlayingPill(
     pureBlack: Boolean = false,
 ) {
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.SIDE_PANEL) && isGlassAllowed()
     val pillShape = ContinuousRoundedRectangle(percent = 50)
 
     val width = maxWidth * FloatingMiniPlayerWidthFraction
@@ -478,6 +520,7 @@ fun SideBarAccountRow(
     accountImageUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    collapsed: Boolean = false,
 ) {
     val contentColor = LocalGlassEffectConfig.current.textColor
     Row(
@@ -507,16 +550,18 @@ fun SideBarAccountRow(
                 modifier = Modifier.size(22.dp),
             )
         }
-        Spacer(Modifier.width(14.dp))
-        Text(
-            text = stringResource(
-                if (accountImageUrl != null) R.string.account else R.string.settings
-            ),
-            color = contentColor,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (!collapsed) {
+            Spacer(Modifier.width(14.dp))
+            Text(
+                text = stringResource(
+                    if (accountImageUrl != null) R.string.account else R.string.settings
+                ),
+                color = contentColor,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -527,12 +572,14 @@ private fun SideTabRow(
     contentColor: Color,
     alpha: Float,
     modifier: Modifier = Modifier,
+    collapsed: Boolean = false,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start,
         modifier = modifier
             .graphicsLayer { this.alpha = alpha }
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = if (collapsed) 0.dp else 16.dp),
     ) {
         Icon(
             painter = painterResource(
@@ -543,14 +590,16 @@ private fun SideTabRow(
             tint = contentColor,
             modifier = Modifier.size(22.dp),
         )
-        Spacer(Modifier.width(14.dp))
-        Text(
-            text = stringResource(tab.screen.titleId),
-            color = contentColor,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (!collapsed) {
+            Spacer(Modifier.width(14.dp))
+            Text(
+                text = stringResource(tab.screen.titleId),
+                color = contentColor,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

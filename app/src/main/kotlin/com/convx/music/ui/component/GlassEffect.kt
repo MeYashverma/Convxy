@@ -54,6 +54,9 @@ data class GlassEffectConfig(
     val playerEnabled: Boolean = true,
     val miniPlayerEnabled: Boolean = true,
     val navBarEnabled: Boolean = true,
+    /** Tablet side panel — split from [navBarEnabled] so it can differ from the
+     *  phone bottom bar's glass setting instead of always mirroring it. */
+    val sidePanelEnabled: Boolean = true,
 ) {
     /**
      * Whether the glass effect should be rendered for [component], taking the master
@@ -64,6 +67,7 @@ data class GlassEffectConfig(
             GlassComponent.PLAYER -> playerEnabled
             GlassComponent.MINI_PLAYER -> miniPlayerEnabled
             GlassComponent.NAV_BAR -> navBarEnabled
+            GlassComponent.SIDE_PANEL -> sidePanelEnabled
         }
 }
 
@@ -72,6 +76,7 @@ enum class GlassComponent {
     PLAYER,
     MINI_PLAYER,
     NAV_BAR,
+    SIDE_PANEL,
 }
 
 /**

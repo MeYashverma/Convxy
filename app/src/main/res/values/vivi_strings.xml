@@ -1088,6 +1088,10 @@
     <string name="liquid_glass_player">Glass Player</string>
     <string name="liquid_glass_mini_player">Glass Mini Player</string>
     <string name="liquid_glass_nav_bar">Glass Navigation Bar</string>
+    <string name="liquid_glass_side_panel">Glass Side Panel</string>
+    <string name="liquid_glass_side_panel_desc">Tablet side panel glass, set independently from the phone navigation bar</string>
+    <string name="collapse_side_panel">Collapse side panel</string>
+    <string name="expand_side_panel">Expand side panel</string>
     <string name="nav_bar_style">Navigation Bar Style</string>
     <string name="floating_nav_bar">Floating navigation bar</string>
     <string name="floating_nav_bar_desc">iOS style floating tab bar that shrinks while scrolling</string>

@@ -513,6 +513,8 @@ val LiquidGlassDepthEffectKey = booleanPreferencesKey("liquidGlassDepthEffect")
 val LiquidGlassPlayerEnabledKey = booleanPreferencesKey("liquidGlassPlayerEnabled")
 val LiquidGlassMiniPlayerEnabledKey = booleanPreferencesKey("liquidGlassMiniPlayerEnabled")
 val LiquidGlassNavBarEnabledKey = booleanPreferencesKey("liquidGlassNavBarEnabled")
+val LiquidGlassSidePanelEnabledKey = booleanPreferencesKey("liquidGlassSidePanelEnabled")
+val SideBarCollapsedKey = booleanPreferencesKey("sideBarCollapsed")
 val UseFloatingNavBarKey = booleanPreferencesKey("useFloatingNavBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 

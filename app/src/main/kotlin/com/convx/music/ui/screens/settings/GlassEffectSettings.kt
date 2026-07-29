@@ -166,6 +166,9 @@ fun GlassEffectSettings(
     val (navBarEnabled, onNavBarEnabledChange) = rememberPreference(
         LiquidGlassNavBarEnabledKey, defaultValue = true
     )
+    val (sidePanelEnabled, onSidePanelEnabledChange) = rememberPreference(
+        LiquidGlassSidePanelEnabledKey, defaultValue = true
+    )
 
     var showVibrancyDialog by rememberSaveable { mutableStateOf(false) }
     var showBlurRadiusDialog by rememberSaveable { mutableStateOf(false) }
@@ -319,6 +322,27 @@ fun GlassEffectSettings(
                         )
                     },
                     onClick = { onNavBarEnabledChange(!navBarEnabled) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.nav_bar),
+                    title = { Text(stringResource(R.string.liquid_glass_side_panel)) },
+                    description = { Text(stringResource(R.string.liquid_glass_side_panel_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = sidePanelEnabled,
+                            onCheckedChange = onSidePanelEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (sidePanelEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onSidePanelEnabledChange(!sidePanelEnabled) }
                 ),
             )
         )

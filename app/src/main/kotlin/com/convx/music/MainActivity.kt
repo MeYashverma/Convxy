@@ -22,6 +22,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -158,6 +159,8 @@ import com.convx.music.constants.LiquidGlassGlobalEnabledKey
 import com.convx.music.constants.LiquidGlassPlayerEnabledKey
 import com.convx.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convx.music.constants.LiquidGlassNavBarEnabledKey
+import com.convx.music.constants.LiquidGlassSidePanelEnabledKey
+import com.convx.music.constants.SideBarCollapsedKey
 import com.convx.music.constants.LiquidGlassVibrancyKey
 import com.convx.music.constants.LiquidGlassBlurRadiusKey
 import com.convx.music.constants.LiquidGlassLensHeightKey
@@ -201,6 +204,7 @@ import com.convx.music.ui.component.AppFloatingSideBar
 import com.convx.music.ui.component.SideBarAccountRow
 import com.convx.music.ui.component.SideBarContentInset
 import com.convx.music.ui.component.SideBarMargin
+import com.convx.music.ui.component.SideBarCollapsedWidth
 import com.convx.music.ui.component.SideBarLink
 import com.convx.music.ui.component.SideBarSection
 import com.convx.music.ui.component.TabletWidthThreshold
@@ -629,12 +633,13 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassPlayerEnabled) = rememberPreference(LiquidGlassPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassMiniPlayerEnabled) = rememberPreference(LiquidGlassMiniPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassNavBarEnabled) = rememberPreference(LiquidGlassNavBarEnabledKey, defaultValue = true)
+                val (liquidGlassSidePanelEnabled) = rememberPreference(LiquidGlassSidePanelEnabledKey, defaultValue = true)
                 val glassEffectConfig = remember(
                     liquidGlassGlobalEnabled, useFloatingNavBar, liquidGlassVibrancy, liquidGlassBlurRadius,
                     liquidGlassLensHeight, liquidGlassLensAmount, liquidGlassChromaticAberration,
                     liquidGlassDepthEffect, liquidGlassSurfaceTintColorInt,
                     liquidGlassSurfaceOpacity, liquidGlassTextColorInt, liquidGlassPlayerEnabled,
-                    liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled,
+                    liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSidePanelEnabled,
                 ) {
                     // The sliders in Glass settings are always the source of truth: the
                     // Apple Music UI toggle just writes a starting preset into them once
@@ -659,6 +664,7 @@ class MainActivity : ComponentActivity() {
                         playerEnabled = liquidGlassPlayerEnabled,
                         miniPlayerEnabled = liquidGlassMiniPlayerEnabled,
                         navBarEnabled = liquidGlassNavBarEnabled,
+                        sidePanelEnabled = liquidGlassSidePanelEnabled,
                     )
                 }
                 val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
@@ -749,6 +755,12 @@ class MainActivity : ComponentActivity() {
                 val isWideScreen = configuration.containerDpSize.width >= TabletWidthThreshold
                 val showRail = forceTabletLayout || isWideScreen ||
                     (isLandscape && !useFloatingNavBar && !inSearchInputScreen)
+                val (sideBarCollapsed, onSideBarCollapsedChange) = rememberPreference(SideBarCollapsedKey, defaultValue = false)
+                val sideBarContentInset by animateDpAsState(
+                    targetValue = if (sideBarCollapsed) SideBarCollapsedWidth + SideBarMargin * 2 else SideBarContentInset,
+                    animationSpec = spring(0.9f, 400f),
+                    label = "sideBarContentInset",
+                )
 
                 val navPadding = if (shouldShowNavigationBar && !showRail) {
                     if (slimNav) SlimNavBarHeight else NavigationBarHeight
@@ -809,7 +821,7 @@ class MainActivity : ComponentActivity() {
                         // padding, so rows start clear of the panel but the list
                         // still spans the full width and scrolls under its glass.
                         .add(
-                            WindowInsets(left = if (showRail) SideBarContentInset else 0.dp)
+                            WindowInsets(left = if (showRail) sideBarContentInset else 0.dp)
                         )
                 }
                 appBarScrollBehavior(
@@ -1539,9 +1551,12 @@ class MainActivity : ComponentActivity() {
                                     onItemClick = onRailItemClick,
                                     sections = sidebarSections,
                                     pureBlack = pureBlack,
-                                    footer = {
+                                    collapsed = sideBarCollapsed,
+                                    onToggleCollapsed = { onSideBarCollapsedChange(!sideBarCollapsed) },
+                                    footer = { footerCollapsed ->
                                         SideBarAccountRow(
                                             accountImageUrl = accountImageUrl,
+                                            collapsed = footerCollapsed,
                                             onClick = {
                                                 if (enableSettingsPopup) {
                                                     showSettingDialoge = true
@@ -1569,7 +1584,7 @@ class MainActivity : ComponentActivity() {
                                     BoxWithConstraints(
                                         Modifier
                                             .fillMaxSize()
-                                            .padding(start = SideBarContentInset),
+                                            .padding(start = sideBarContentInset),
                                     ) {
                                         AppFloatingNowPlayingPill(
                                             onClick = { playerBottomSheetState.expandSoft() },

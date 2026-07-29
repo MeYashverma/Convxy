@@ -89,6 +89,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LiquidGlassNavBarEnabledKey
+import com.convx.music.constants.LiquidGlassSidePanelEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LiquidGlassSurfaceOpacityKey
 import com.convx.music.ui.utils.appTopBarWindowInsets

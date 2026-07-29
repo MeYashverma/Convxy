@@ -194,10 +194,14 @@ fun AppFloatingSideBar(
         pureBlack -> Color.Black
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
+    // Collapsed rail is narrow and tall — a full capsule (same shape as the
+    // tab rows/puck) reads as a pill, where the expanded panel's fixed 28dp
+    // corner radius would look like a barely-rounded rectangle instead.
+    val panelShape = if (collapsed) SideRowShape else SideBarShape
     val panelSurface = if (useGlass) {
         Modifier.liquidGlass(
             config = glassConfig,
-            shape = SideBarShape,
+            shape = panelShape,
             highlightAlpha = 0.3f,
         )
     } else {
@@ -207,9 +211,9 @@ fun AppFloatingSideBar(
     Column(
         modifier
             .width(panelWidth)
-            .shadow(shape = SideBarShape, elevation = 10.dp)
-            .background(backgroundColor, SideBarShape)
-            .clip(SideBarShape)
+            .shadow(shape = panelShape, elevation = 10.dp)
+            .background(backgroundColor, panelShape)
+            .clip(panelShape)
             .then(panelSurface)
             .then(interactiveHighlight.modifier)
             .then(interactiveHighlight.gestureModifier)

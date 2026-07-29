@@ -808,6 +808,7 @@ class MainActivity : ComponentActivity() {
                     playerBottomSheetState.isDismissed,
                     showRail,
                     hasDockedPlayerAccessory,
+                    sideBarContentInset,
                 ) {
                     var bottom = bottomInset
                     if (shouldShowNavigationBar && !showRail) {

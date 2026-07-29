@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -116,10 +117,6 @@ fun FloatingMiniPlayer(
         (600 / (1f + exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
     }
 
-    val artSize = if (isInline) 32.dp else 44.dp
-    val artCornerRadius = if (isInline) 8.dp else 10.dp
-    val controlSize = if (isInline) 32.dp else 40.dp
-
     // iOS 26 style press response: the whole glass pill grows slightly while touched.
     val pressInteractionSource = remember { MutableInteractionSource() }
     val isPressed by pressInteractionSource.collectIsPressedAsState()
@@ -136,8 +133,10 @@ fun FloatingMiniPlayer(
 
     // Same structure as MiniPlayer: the drag detector sits on the outermost
     // container so the whole accessory is swipeable, and the entire content row
-    // slides with the drag.
-    Box(
+    // slides with the drag. BoxWithConstraints (not just Box) so the !isInline
+    // tablet pill can size its icons/thumbnail as a fraction of whatever height
+    // the caller actually gave it, instead of a fixed dp regardless of pill size.
+    BoxWithConstraints(
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
             .graphicsLayer {
@@ -213,6 +212,15 @@ fun FloatingMiniPlayer(
                 }
             ),
     ) {
+        // Fixed sizes for the phone accessory strip (isInline) — it's a slim,
+        // constant-height dock, not meant to scale. The tablet pill's own
+        // height varies (FloatingMiniPlayerMinHeight..MaxHeight in
+        // FloatingSideBar), so its icons/thumbnail scale with it instead of
+        // looking tiny in a tall pill or cramped in a short one.
+        val artSize = if (isInline) 32.dp else (maxHeight * 0.6f).coerceIn(32.dp, 56.dp)
+        val artCornerRadius = if (isInline) 8.dp else artSize * 0.22f
+        val controlSize = if (isInline) 32.dp else (maxHeight * 0.55f).coerceIn(32.dp, 48.dp)
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -263,6 +271,11 @@ fun FloatingMiniPlayer(
                 // Tablet floating pill: matches the Apple Music iPad now-playing
                 // bar exactly — shuffle, prev, play/pause, next, repeat, then
                 // artwork+title/artist, then lyrics and queue on the far end.
+                // Icons scale with controlSize — IconButton's own size modifier
+                // only resizes the tap target, the Icon inside stays at a fixed
+                // default unless given an explicit size too.
+                val iconSize = controlSize * 0.5f
+                val playIconSize = controlSize * 0.6f
                 IconButton(
                     onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
                     modifier = Modifier.size(controlSize),
@@ -271,7 +284,7 @@ fun FloatingMiniPlayer(
                         painter = painterResource(if (shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle),
                         contentDescription = null,
                         tint = contentColor,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
                 IconButton(
@@ -283,6 +296,7 @@ fun FloatingMiniPlayer(
                         painter = painterResource(R.drawable.skip_previous),
                         contentDescription = null,
                         tint = if (canSkipPrevious) contentColor else contentColor.copy(alpha = 0.4f),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
                 IconButton(
@@ -292,7 +306,7 @@ fun FloatingMiniPlayer(
                     AnimatedPlayPauseIcon(
                         isPlaying = isPlaying,
                         tint = contentColor,
-                        size = 24.dp,
+                        size = playIconSize,
                     )
                 }
                 IconButton(
@@ -304,6 +318,7 @@ fun FloatingMiniPlayer(
                         painter = painterResource(R.drawable.skip_next),
                         contentDescription = null,
                         tint = if (canSkipNext) contentColor else contentColor.copy(alpha = 0.4f),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
                 IconButton(
@@ -316,6 +331,7 @@ fun FloatingMiniPlayer(
                         ),
                         contentDescription = null,
                         tint = if (repeatMode != Player.REPEAT_MODE_OFF) contentColor else contentColor.copy(alpha = 0.4f),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
 
@@ -359,7 +375,7 @@ fun FloatingMiniPlayer(
                         painter = painterResource(R.drawable.lyrics),
                         contentDescription = stringResource(R.string.lyrics),
                         tint = contentColor,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
                 IconButton(
@@ -370,7 +386,7 @@ fun FloatingMiniPlayer(
                         painter = painterResource(R.drawable.queue_music),
                         contentDescription = stringResource(R.string.queue),
                         tint = contentColor,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
             }

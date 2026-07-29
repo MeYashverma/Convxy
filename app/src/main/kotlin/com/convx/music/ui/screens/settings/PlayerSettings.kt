@@ -93,6 +93,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.CrossfadeDurationKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.AutoDjMixingEnabledKey
+import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.constants.CrossfadeEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.CrossfadeGaplessKey
@@ -175,6 +176,10 @@ fun PlayerSettings(
     )
     val (autoDjMixingEnabled, onAutoDjMixingEnabledChange) = rememberPreference(
         AutoDjMixingEnabledKey,
+        defaultValue = false
+    )
+    val (hideVolumeBar, onHideVolumeBarChange) = rememberPreference(
+        HideVolumeBarKey,
         defaultValue = false
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
@@ -465,6 +470,27 @@ fun PlayerSettings(
                         onClick = { onAutoDjMixingEnabledChange(!autoDjMixingEnabled) }
                     ))
                 }
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.hide_volume_bar)) },
+                    description = { Text(stringResource(R.string.hide_volume_bar_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = hideVolumeBar,
+                            onCheckedChange = onHideVolumeBarChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (hideVolumeBar) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onHideVolumeBarChange(!hideVolumeBar) }
+                ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.history),
                     title = { Text(stringResource(R.string.history_duration)) },

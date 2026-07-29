@@ -523,6 +523,7 @@ val PlayerLayoutOrderKey = stringPreferencesKey("playerLayoutOrder")
 val PlayerLayoutHiddenSlotsKey = stringPreferencesKey("playerLayoutHiddenSlots")
 val DedicatedFullscreenLyricsKey = booleanPreferencesKey("dedicatedFullscreenLyrics")
 val AutoDjMixingEnabledKey = booleanPreferencesKey("autoDjMixingEnabled")
+val HideVolumeBarKey = booleanPreferencesKey("hideVolumeBar")
 val UseFloatingNavBarKey = booleanPreferencesKey("useFloatingNavBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 

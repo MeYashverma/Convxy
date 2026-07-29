@@ -67,6 +67,7 @@ import com.convx.music.ui.component.NewAction
 import com.convx.music.ui.component.NewActionGrid
 import com.convx.music.ui.component.VolumeSlider
 import com.convx.music.constants.EnableSaavnStreamingKey
+import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -109,6 +110,7 @@ fun OldPlayerMenu(
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val (saavnEnabled) = rememberPreference(EnableSaavnStreamingKey, defaultValue = false)
+    val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
 
     val artists = remember(mediaMetadata.artists) {
         mediaMetadata.artists.filter { it.id != null }
@@ -200,18 +202,20 @@ fun OldPlayerMenu(
             }
         }
 
-        VolumeSlider(
-            value = if (isCasting) castVolume else playerVolume.value,
-            onValueChange = { volume ->
-                if (isCasting) {
-                    castHandler?.setVolume(volume)
-                } else {
-                    playerConnection.service.playerVolume.value = volume
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            accentColor = MaterialTheme.colorScheme.primary
-        )
+        if (!hideVolumeBar) {
+            VolumeSlider(
+                value = if (isCasting) castVolume else playerVolume.value,
+                onValueChange = { volume ->
+                    if (isCasting) {
+                        castHandler?.setVolume(volume)
+                    } else {
+                        playerConnection.service.playerVolume.value = volume
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                accentColor = MaterialTheme.colorScheme.primary
+            )
+        }
     }
 
     Spacer(modifier = Modifier.height(20.dp))

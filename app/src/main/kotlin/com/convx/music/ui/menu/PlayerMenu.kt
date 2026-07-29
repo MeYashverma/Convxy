@@ -93,6 +93,7 @@ import com.convx.music.ui.component.NewAction
 import com.convx.music.ui.component.NewActionGrid
 import com.convx.music.ui.component.VolumeSlider
 import com.convx.music.constants.EnableSaavnStreamingKey
+import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -130,6 +131,7 @@ fun PlayerMenu(
     val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
     val (saavnEnabled) = rememberPreference(EnableSaavnStreamingKey, defaultValue = false)
+    val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
 
     val download by LocalDownloadUtil.current.getDownload(mediaMetadata.id)
         .collectAsState(initial = null)
@@ -250,18 +252,20 @@ fun PlayerMenu(
                 }
             }
             
-            VolumeSlider(
-                value = if (isCasting) castVolume else playerVolume.value,
-                onValueChange = { volume ->
-                    if (isCasting) {
-                        castHandler?.setVolume(volume)
-                    } else {
-                        playerConnection.service.playerVolume.value = volume
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                accentColor = MaterialTheme.colorScheme.primary
-            )
+            if (!hideVolumeBar) {
+                VolumeSlider(
+                    value = if (isCasting) castVolume else playerVolume.value,
+                    onValueChange = { volume ->
+                        if (isCasting) {
+                            castHandler?.setVolume(volume)
+                        } else {
+                            playerConnection.service.playerVolume.value = volume
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    accentColor = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 

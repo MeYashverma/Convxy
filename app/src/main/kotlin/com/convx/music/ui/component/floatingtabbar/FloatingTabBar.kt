@@ -102,6 +102,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
+import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.glassResolutionScale
 import com.convx.music.ui.component.backdrop.Backdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
@@ -869,6 +870,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     val layoutDirection = LocalLayoutDirection.current
     val isLtr = layoutDirection == LayoutDirection.Ltr
     val animationScope = rememberCoroutineScope()
+    val glassConfig = LocalGlassEffectConfig.current
 
     val tabWidthPx = with(density) { sizes.tabWidth.toPx() }
     // The row's own content padding insets the tabs from the pill's edges, so
@@ -1087,11 +1089,13 @@ private fun SharedTransitionScope.ExpandedTabs(
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
                             vibrancy()
-                            // Kyant's source uses 8dp here, but that's what the
-                            // puck displays as "the icon" for the selected tab —
-                            // stacked with the puck's own blur it read as too
-                            // soft to stay legible, so this is tuned down.
-//                            blur(1f.dp.toPx() * tabsBackdropScale)
+                            // Without any blur here, this hidden row's lens()
+                            // distortion (below) samples the raw, sharp backdrop —
+                            // that's what made the puck look like undistorted,
+                            // "blur gone" background while dragging. Kyant's source
+                            // uses a fixed 8dp; we drive it from the user's own
+                            // glass blur-intensity setting instead of hardcoding.
+                            blur(glassConfig.blurRadius.dp.toPx() * tabsBackdropScale)
                             lens(
                                 15f.dp.toPx() * progress * tabsBackdropScale,
                                 18f.dp.toPx() * progress * tabsBackdropScale

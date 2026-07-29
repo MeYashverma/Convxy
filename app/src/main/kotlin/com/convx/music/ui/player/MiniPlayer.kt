@@ -7,7 +7,6 @@
 
 package com.convx.music.ui.player
 
-import android.content.res.Configuration
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -264,8 +263,11 @@ private fun NewMiniPlayer(
     val coroutineScope = rememberCoroutineScope()
     
     val configuration = LocalConfiguration.current
-    val isTabletLandscape = remember(configuration.screenWidthDp, configuration.orientation) {
-        configuration.screenWidthDp >= 600 && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // Cap regardless of orientation — portrait tablets used to get a
+    // full-width stretched bar with unchanged small fixed-dp icons, which
+    // read as broken rather than intentional.
+    val isTablet = remember(configuration.screenWidthDp) {
+        configuration.screenWidthDp >= 600
     }
 
     // Swipe animation state
@@ -380,7 +382,7 @@ private fun NewMiniPlayer(
     ) {
         Box(
             modifier = Modifier
-                .then(if (isTabletLandscape) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
+                .then(if (isTablet) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
                 .height(64.dp)
                 .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                 .clip(RoundedCornerShape(32.dp))
@@ -706,8 +708,8 @@ private fun LegacyMiniPlayer(
     val coroutineScope = rememberCoroutineScope()
     
     val configuration = LocalConfiguration.current
-    val isTabletLandscape = remember(configuration.screenWidthDp, configuration.orientation) {
-        configuration.screenWidthDp >= 600 && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = remember(configuration.screenWidthDp) {
+        configuration.screenWidthDp >= 600
     }
 
     val offsetXAnimatable = remember { Animatable(0f) }
@@ -721,13 +723,13 @@ private fun LegacyMiniPlayer(
     val autoSwipeThreshold = remember(swipeSensitivity) {
         (600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
     }
-    
+
     val primaryColor = MaterialTheme.colorScheme.primary
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
 
     Box(
         modifier = modifier
-            .then(if (isTabletLandscape) Modifier.width(500.dp) else Modifier.fillMaxWidth())
+            .then(if (isTablet) Modifier.width(500.dp) else Modifier.fillMaxWidth())
             .height(MiniPlayerHeight)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))

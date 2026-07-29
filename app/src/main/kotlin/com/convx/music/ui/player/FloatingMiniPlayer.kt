@@ -38,10 +38,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.height
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import com.convx.music.ui.component.LocalGlassEffectConfig
-import com.convx.music.constants.MiniPlayerWaveformKey
-import com.convx.music.ui.component.ScrollingWaveformSeekBar
-import com.convx.music.ui.component.rememberPlaybackFraction
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +48,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
@@ -63,7 +60,9 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.SwipeSensitivityKey
 import com.convx.music.constants.SwipeThumbnailKey
+import androidx.media3.common.Player
 import com.convx.music.extensions.togglePlayPause
+import com.convx.music.extensions.toggleRepeatMode
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
 import com.convx.music.utils.rememberPreference
@@ -87,13 +86,16 @@ fun FloatingMiniPlayer(
     contentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLyricsClick: (() -> Unit)? = null,
+    onQueueClick: (() -> Unit)? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
-
-    val waveformEnabled by rememberPreference(MiniPlayerWaveformKey, true)
-    val waveFraction = rememberPlaybackFraction(playerConnection.player, isPlaying)
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
+    val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
+    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
+    val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
 
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
@@ -226,18 +228,18 @@ fun FloatingMiniPlayer(
                     vertical = if (isInline) 4.dp else 8.dp,
                 ),
         ) {
-            AsyncImage(
-                model = mediaMetadata?.thumbnailUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(artSize)
-                    .clip(RoundedCornerShape(artCornerRadius)),
-            )
-
-            Spacer(Modifier.width(if (isInline) 8.dp else 12.dp))
-
             if (isInline) {
+                AsyncImage(
+                    model = mediaMetadata?.thumbnailUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(artSize)
+                        .clip(RoundedCornerShape(artCornerRadius)),
+                )
+
+                Spacer(Modifier.width(8.dp))
+
                 Text(
                     text = mediaMetadata?.title.orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
@@ -246,7 +248,90 @@ fun FloatingMiniPlayer(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+
+                IconButton(
+                    onClick = { playerConnection.player.togglePlayPause() },
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    AnimatedPlayPauseIcon(
+                        isPlaying = isPlaying,
+                        tint = contentColor,
+                        size = 24.dp,
+                    )
+                }
             } else {
+                // Tablet floating pill: matches the Apple Music iPad now-playing
+                // bar exactly — shuffle, prev, play/pause, next, repeat, then
+                // artwork+title/artist, then lyrics and queue on the far end.
+                IconButton(
+                    onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    Icon(
+                        painter = painterResource(if (shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle),
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                IconButton(
+                    onClick = { playerConnection.player.seekToPreviousMediaItem() },
+                    enabled = canSkipPrevious,
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.skip_previous),
+                        contentDescription = null,
+                        tint = if (canSkipPrevious) contentColor else contentColor.copy(alpha = 0.4f),
+                    )
+                }
+                IconButton(
+                    onClick = { playerConnection.player.togglePlayPause() },
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    AnimatedPlayPauseIcon(
+                        isPlaying = isPlaying,
+                        tint = contentColor,
+                        size = 24.dp,
+                    )
+                }
+                IconButton(
+                    onClick = { playerConnection.player.seekToNext() },
+                    enabled = canSkipNext,
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.skip_next),
+                        contentDescription = null,
+                        tint = if (canSkipNext) contentColor else contentColor.copy(alpha = 0.4f),
+                    )
+                }
+                IconButton(
+                    onClick = { playerConnection.player.toggleRepeatMode() },
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat
+                        ),
+                        contentDescription = null,
+                        tint = if (repeatMode != Player.REPEAT_MODE_OFF) contentColor else contentColor.copy(alpha = 0.4f),
+                    )
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                AsyncImage(
+                    model = mediaMetadata?.thumbnailUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(artSize)
+                        .clip(RoundedCornerShape(artCornerRadius)),
+                )
+
+                Spacer(Modifier.width(12.dp))
+
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = mediaMetadata?.title.orEmpty(),
@@ -263,47 +348,29 @@ fun FloatingMiniPlayer(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-            }
 
-            if (!isInline && waveformEnabled) {
-                val waveColor = LocalGlassEffectConfig.current.textColor
-                ScrollingWaveformSeekBar(
-                    progress = { waveFraction.value },
-                    onSeek = { f ->
-                        val duration = playerConnection.player.duration
-                        if (duration > 0L) playerConnection.player.seekTo((f * duration).toLong())
-                    },
-                    playedColor = waveColor,
-                    trackColor = waveColor.copy(alpha = 0.25f),
-                    seed = mediaMetadata?.id?.hashCode() ?: 0,
-                    visibleBars = 12,
-                    modifier = Modifier
-                        .width(72.dp)
-                        .height(24.dp),
-                )
                 Spacer(Modifier.width(8.dp))
-            }
 
-            IconButton(
-                onClick = { playerConnection.player.togglePlayPause() },
-                modifier = Modifier.size(controlSize),
-            ) {
-                AnimatedPlayPauseIcon(
-                    isPlaying = isPlaying,
-                    tint = contentColor,
-                    size = 24.dp,
-                )
-            }
-
-            if (!isInline) {
                 IconButton(
-                    onClick = { playerConnection.player.seekToNext() },
+                    onClick = onLyricsClick ?: onClick,
                     modifier = Modifier.size(controlSize),
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.skip_next),
-                        contentDescription = null,
+                        painter = painterResource(R.drawable.lyrics),
+                        contentDescription = stringResource(R.string.lyrics),
                         tint = contentColor,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                IconButton(
+                    onClick = onQueueClick ?: onClick,
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.queue_music),
+                        contentDescription = stringResource(R.string.queue),
+                        tint = contentColor,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }

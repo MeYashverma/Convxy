@@ -1090,6 +1090,7 @@
     <string name="liquid_glass_nav_bar">Glass Navigation Bar</string>
     <string name="liquid_glass_side_panel">Glass Side Panel</string>
     <string name="liquid_glass_side_panel_desc">Tablet side panel glass, set independently from the phone navigation bar</string>
+    <string name="liquid_glass_side_panel_overrides">Side Panel Effect (overrides above)</string>
     <string name="collapse_side_panel">Collapse side panel</string>
     <string name="expand_side_panel">Expand side panel</string>
     <string name="player_theme_layout">Layout</string>

@@ -90,6 +90,10 @@ import com.convx.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LiquidGlassNavBarEnabledKey
 import com.convx.music.constants.LiquidGlassSidePanelEnabledKey
+import com.convx.music.constants.LiquidGlassSidePanelVibrancyKey
+import com.convx.music.constants.LiquidGlassSidePanelBlurRadiusKey
+import com.convx.music.constants.LiquidGlassSidePanelLensHeightKey
+import com.convx.music.constants.LiquidGlassSidePanelLensAmountKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LiquidGlassSurfaceOpacityKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -170,6 +174,18 @@ fun GlassEffectSettings(
     val (sidePanelEnabled, onSidePanelEnabledChange) = rememberPreference(
         LiquidGlassSidePanelEnabledKey, defaultValue = true
     )
+    val (sidePanelVibrancy, onSidePanelVibrancyChange) = rememberPreference(
+        LiquidGlassSidePanelVibrancyKey, defaultValue = 1.2f
+    )
+    val (sidePanelBlurRadius, onSidePanelBlurRadiusChange) = rememberPreference(
+        LiquidGlassSidePanelBlurRadiusKey, defaultValue = 2f
+    )
+    val (sidePanelLensHeight, onSidePanelLensHeightChange) = rememberPreference(
+        LiquidGlassSidePanelLensHeightKey, defaultValue = 0.4f
+    )
+    val (sidePanelLensAmount, onSidePanelLensAmountChange) = rememberPreference(
+        LiquidGlassSidePanelLensAmountKey, defaultValue = 0.6f
+    )
 
     var showVibrancyDialog by rememberSaveable { mutableStateOf(false) }
     var showBlurRadiusDialog by rememberSaveable { mutableStateOf(false) }
@@ -177,6 +193,10 @@ fun GlassEffectSettings(
     var showLensAmountDialog by rememberSaveable { mutableStateOf(false) }
     var showSurfaceOpacityDialog by rememberSaveable { mutableStateOf(false) }
     var showSurfaceTintDialog by rememberSaveable { mutableStateOf(false) }
+    var showSidePanelVibrancyDialog by rememberSaveable { mutableStateOf(false) }
+    var showSidePanelBlurRadiusDialog by rememberSaveable { mutableStateOf(false) }
+    var showSidePanelLensHeightDialog by rememberSaveable { mutableStateOf(false) }
+    var showSidePanelLensAmountDialog by rememberSaveable { mutableStateOf(false) }
     var showTextColorDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(
@@ -348,6 +368,36 @@ fun GlassEffectSettings(
             )
         )
 
+        if (sidePanelEnabled) {
+            Spacer(modifier = Modifier.height(27.dp))
+
+            Material3SettingsGroup(
+                title = stringResource(R.string.liquid_glass_side_panel_overrides),
+                items = listOf(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.tune),
+                        title = { Text(stringResource(R.string.liquid_glass_vibrancy)) },
+                        onClick = { showSidePanelVibrancyDialog = true }
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.sliders),
+                        title = { Text(stringResource(R.string.liquid_glass_blur_radius)) },
+                        onClick = { showSidePanelBlurRadiusDialog = true }
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.tune),
+                        title = { Text(stringResource(R.string.liquid_glass_lens_height)) },
+                        onClick = { showSidePanelLensHeightDialog = true }
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.tune),
+                        title = { Text(stringResource(R.string.liquid_glass_lens_amount)) },
+                        onClick = { showSidePanelLensAmountDialog = true }
+                    ),
+                )
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
     }
 
@@ -417,6 +467,82 @@ fun GlassEffectSettings(
                 Spacer(modifier = Modifier.weight(1f))
                 TextButton(onClick = { tempValue = lensAmount; showLensAmountDialog = false }) { Text(stringResource(android.R.string.cancel)) }
                 TextButton(onClick = { onLensAmountChange(tempValue); showLensAmountDialog = false }) { Text(stringResource(android.R.string.ok)) }
+            }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                Text(text = stringResource(R.string.liquid_glass_lens_amount), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
+                Text(text = "%.2f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
+                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+
+    if (showSidePanelVibrancyDialog) {
+        var tempValue by remember { mutableFloatStateOf(sidePanelVibrancy) }
+        DefaultDialog(
+            onDismiss = { tempValue = sidePanelVibrancy; showSidePanelVibrancyDialog = false },
+            buttons = {
+                TextButton(onClick = { tempValue = 1.2f }) { Text(stringResource(R.string.reset)) }
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { tempValue = sidePanelVibrancy; showSidePanelVibrancyDialog = false }) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(onClick = { onSidePanelVibrancyChange(tempValue); showSidePanelVibrancyDialog = false }) { Text(stringResource(android.R.string.ok)) }
+            }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                Text(text = stringResource(R.string.liquid_glass_vibrancy), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
+                Text(text = "%.2f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
+                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..2f, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+
+    if (showSidePanelBlurRadiusDialog) {
+        var tempValue by remember { mutableFloatStateOf(sidePanelBlurRadius) }
+        DefaultDialog(
+            onDismiss = { tempValue = sidePanelBlurRadius; showSidePanelBlurRadiusDialog = false },
+            buttons = {
+                TextButton(onClick = { tempValue = 2f }) { Text(stringResource(R.string.reset)) }
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { tempValue = sidePanelBlurRadius; showSidePanelBlurRadiusDialog = false }) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(onClick = { onSidePanelBlurRadiusChange(tempValue); showSidePanelBlurRadiusDialog = false }) { Text(stringResource(android.R.string.ok)) }
+            }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                Text(text = stringResource(R.string.liquid_glass_blur_radius), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
+                Text(text = "%.0f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
+                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..100f, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+
+    if (showSidePanelLensHeightDialog) {
+        var tempValue by remember { mutableFloatStateOf(sidePanelLensHeight) }
+        DefaultDialog(
+            onDismiss = { tempValue = sidePanelLensHeight; showSidePanelLensHeightDialog = false },
+            buttons = {
+                TextButton(onClick = { tempValue = 0.4f }) { Text(stringResource(R.string.reset)) }
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { tempValue = sidePanelLensHeight; showSidePanelLensHeightDialog = false }) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(onClick = { onSidePanelLensHeightChange(tempValue); showSidePanelLensHeightDialog = false }) { Text(stringResource(android.R.string.ok)) }
+            }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                Text(text = stringResource(R.string.liquid_glass_lens_height), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
+                Text(text = "%.2f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
+                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+
+    if (showSidePanelLensAmountDialog) {
+        var tempValue by remember { mutableFloatStateOf(sidePanelLensAmount) }
+        DefaultDialog(
+            onDismiss = { tempValue = sidePanelLensAmount; showSidePanelLensAmountDialog = false },
+            buttons = {
+                TextButton(onClick = { tempValue = 0.6f }) { Text(stringResource(R.string.reset)) }
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { tempValue = sidePanelLensAmount; showSidePanelLensAmountDialog = false }) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(onClick = { onSidePanelLensAmountChange(tempValue); showSidePanelLensAmountDialog = false }) { Text(stringResource(android.R.string.ok)) }
             }
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {

@@ -200,7 +200,7 @@ fun AppFloatingSideBar(
     val panelShape = if (collapsed) SideRowShape else SideBarShape
     val panelSurface = if (useGlass) {
         Modifier.liquidGlass(
-            config = glassConfig,
+            config = glassConfig.forSidePanel(),
             shape = panelShape,
             highlightAlpha = 0.3f,
         )
@@ -497,7 +497,7 @@ fun BoxWithConstraintsScope.AppFloatingNowPlayingPill(
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val surface = if (useGlass) {
-        Modifier.liquidGlass(config = glassConfig, shape = pillShape, highlightAlpha = 0.3f)
+        Modifier.liquidGlass(config = glassConfig.forSidePanel(), shape = pillShape, highlightAlpha = 0.3f)
     } else {
         Modifier.background(background, pillShape)
     }

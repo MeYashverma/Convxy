@@ -57,7 +57,25 @@ data class GlassEffectConfig(
     /** Tablet side panel — split from [navBarEnabled] so it can differ from the
      *  phone bottom bar's glass setting instead of always mirroring it. */
     val sidePanelEnabled: Boolean = true,
+    /** Side panel gets its own effect tuning (unlike the other components,
+     *  which all share [vibrancy]/[blurRadius]/[lensHeight]/[lensAmount]) —
+     *  defaults match those shared values so it looks identical until
+     *  explicitly customized. */
+    val sidePanelVibrancy: Float = 1.2f,
+    val sidePanelBlurRadius: Float = 2f,
+    val sidePanelLensHeight: Float = 0.4f,
+    val sidePanelLensAmount: Float = 0.6f,
 ) {
+    /** A copy of this config with the shared effect fields swapped for the
+     *  side panel's own — pass this to Modifier.liquidGlass for the side
+     *  panel instead of the raw config, since liquidGlass always reads the
+     *  shared fields generically. */
+    fun forSidePanel(): GlassEffectConfig = copy(
+        vibrancy = sidePanelVibrancy,
+        blurRadius = sidePanelBlurRadius,
+        lensHeight = sidePanelLensHeight,
+        lensAmount = sidePanelLensAmount,
+    )
     /**
      * Whether the glass effect should be rendered for [component], taking the master
      * switch and the per-component switch into account.

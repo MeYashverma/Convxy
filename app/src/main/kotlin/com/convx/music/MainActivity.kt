@@ -161,6 +161,10 @@ import com.convx.music.constants.LiquidGlassPlayerEnabledKey
 import com.convx.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convx.music.constants.LiquidGlassNavBarEnabledKey
 import com.convx.music.constants.LiquidGlassSidePanelEnabledKey
+import com.convx.music.constants.LiquidGlassSidePanelVibrancyKey
+import com.convx.music.constants.LiquidGlassSidePanelBlurRadiusKey
+import com.convx.music.constants.LiquidGlassSidePanelLensHeightKey
+import com.convx.music.constants.LiquidGlassSidePanelLensAmountKey
 import com.convx.music.constants.SideBarCollapsedKey
 import com.convx.music.constants.LiquidGlassVibrancyKey
 import com.convx.music.constants.LiquidGlassBlurRadiusKey
@@ -636,12 +640,18 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassMiniPlayerEnabled) = rememberPreference(LiquidGlassMiniPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassNavBarEnabled) = rememberPreference(LiquidGlassNavBarEnabledKey, defaultValue = true)
                 val (liquidGlassSidePanelEnabled) = rememberPreference(LiquidGlassSidePanelEnabledKey, defaultValue = true)
+                val (liquidGlassSidePanelVibrancy) = rememberPreference(LiquidGlassSidePanelVibrancyKey, defaultValue = 1.2f)
+                val (liquidGlassSidePanelBlurRadius) = rememberPreference(LiquidGlassSidePanelBlurRadiusKey, defaultValue = 2f)
+                val (liquidGlassSidePanelLensHeight) = rememberPreference(LiquidGlassSidePanelLensHeightKey, defaultValue = 0.4f)
+                val (liquidGlassSidePanelLensAmount) = rememberPreference(LiquidGlassSidePanelLensAmountKey, defaultValue = 0.6f)
                 val glassEffectConfig = remember(
                     liquidGlassGlobalEnabled, useFloatingNavBar, liquidGlassVibrancy, liquidGlassBlurRadius,
                     liquidGlassLensHeight, liquidGlassLensAmount, liquidGlassChromaticAberration,
                     liquidGlassDepthEffect, liquidGlassSurfaceTintColorInt,
                     liquidGlassSurfaceOpacity, liquidGlassTextColorInt, liquidGlassPlayerEnabled,
                     liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSidePanelEnabled,
+                    liquidGlassSidePanelVibrancy, liquidGlassSidePanelBlurRadius,
+                    liquidGlassSidePanelLensHeight, liquidGlassSidePanelLensAmount,
                 ) {
                     // The sliders in Glass settings are always the source of truth: the
                     // Apple Music UI toggle just writes a starting preset into them once
@@ -667,6 +677,10 @@ class MainActivity : ComponentActivity() {
                         miniPlayerEnabled = liquidGlassMiniPlayerEnabled,
                         navBarEnabled = liquidGlassNavBarEnabled,
                         sidePanelEnabled = liquidGlassSidePanelEnabled,
+                        sidePanelVibrancy = liquidGlassSidePanelVibrancy,
+                        sidePanelBlurRadius = liquidGlassSidePanelBlurRadius,
+                        sidePanelLensHeight = liquidGlassSidePanelLensHeight,
+                        sidePanelLensAmount = liquidGlassSidePanelLensAmount,
                     )
                 }
                 val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)

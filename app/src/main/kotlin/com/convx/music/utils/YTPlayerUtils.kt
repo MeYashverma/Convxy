@@ -155,6 +155,10 @@ object YTPlayerUtils {
         context: android.content.Context? = null,
         /** Downloads pass false so the offline copy stays YouTube; playback allows lossless. */
         allowLossless: Boolean = true,
+        /** Set when a specific track has already failed lossless playback too many
+         *  times (stall/parsing errors) — skips the Spine and Tidal intercepts
+         *  entirely and resolves the plain YouTube stream for this call only. */
+        forceStandardAudio: Boolean = false,
     ): Result<PlaybackData> {
         // ── JioSaavn intercept ───────────────────────────────────────────────
         // If the user has enabled JioSaavn streaming, try to resolve the stream
@@ -164,6 +168,7 @@ object YTPlayerUtils {
             // ── 8spine module intercept ─────────────────────────────────────────
             // Try enabled 8spine modules for streaming before other sources.
             // Falls through to TIDAL/Saavn/YouTube on ANY failure.
+            if (!forceStandardAudio) {
             Log.d(TAG, "═══ SPINE INTERCEPT START ═══ videoId=$videoId")
             val enabledModulesJson = context.dataStore.get(EnabledModulesKey, "[]")
             val moduleSourcesJson = context.dataStore.get(ModuleSourcesKey, "[]")
@@ -423,12 +428,13 @@ object YTPlayerUtils {
                 Log.e(TAG, "═══ SPINE INTERCEPT ERROR ═══", e)
             }
             Log.d(TAG, "═══ SPINE INTERCEPT END ═══")
+            } // !forceStandardAudio
             // ── End 8spine intercept ───────────────────────────────────────────
 
             // ── Lossless (TIDAL) intercept ───────────────────────────────────────
             // Opt-in FLAC from a public hifi-api instance. Tried BEFORE JioSaavn so
             // lossless wins. Falls through to Saavn/YouTube on ANY failure.
-            if (allowLossless && context.dataStore.get(EnableTidalStreamingKey, false)) {
+            if (!forceStandardAudio && allowLossless && context.dataStore.get(EnableTidalStreamingKey, false)) {
                 Timber.tag(TAG).d("Lossless enabled — trying TIDAL for videoId=$videoId")
                 val tidalResult = runCatching {
                     val (currentSong, meta) = coroutineScope {

@@ -233,6 +233,7 @@
     <string name="error_no_internet">No network connection</string>
     <string name="error_timeout">Timeout</string>
     <string name="error_unknown">Unknown error</string>
+    <string name="lossless_fallback_to_standard_audio">Lossless unavailable, switched to standard audio</string>
 
     <!-- Player action -->
     <string name="action_like">Like</string>

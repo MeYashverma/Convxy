@@ -169,6 +169,7 @@ import com.convx.music.lyrics.LyricsHelper
 import com.convx.music.models.PersistPlayerState
 import com.convx.music.models.PersistQueue
 import com.convx.music.models.toMediaMetadata
+import com.convx.music.playback.audio.LosslessStallWatchdogAudioProcessor
 import com.convx.music.playback.audio.SilenceDetectorAudioProcessor
 import com.convx.music.playback.queues.EmptyQueue
 import com.convx.music.playback.queues.Queue
@@ -365,6 +366,7 @@ class MusicService :
     val playerFlow = _playerFlow.asStateFlow()
 
     private val playerSilenceProcessors = HashMap<Player, SilenceDetectorAudioProcessor>()
+    private val playerStallWatchdogs = HashMap<Player, LosslessStallWatchdogAudioProcessor>()
 
 
     private val instantSilenceSkipEnabled = MutableStateFlow(false)
@@ -398,6 +400,21 @@ class MusicService :
     private var currentMediaIdRetryCount = mutableMapOf<String, Int>()
     private val MAX_RETRY_PER_SONG = 3
     private val RETRY_DELAY_MS = 1000L
+
+    // Tracks which mediaIds resolved to a Tidal/Spine lossless stream, so the
+    // stall watchdog only acts on lossless playback (the dropout bug is
+    // lossless-only — confirmed, never happens on plain YouTube audio).
+    private val losslessStreamMediaIds = mutableSetOf<String>()
+
+    // Set once a track has stalled/parsing-errored too many times on lossless —
+    // the next resolve for this mediaId skips Spine/Tidal and goes straight to
+    // the plain YouTube stream (see forceStandardAudio in YTPlayerUtils).
+    private val forceStandardAudioMediaIds = mutableSetOf<String>()
+
+    // Separate from currentMediaIdRetryCount (real PlaybackExceptions): counts
+    // silent-stall recoveries, which never throw an exception.
+    private val losslessStallCount = mutableMapOf<String, Int>()
+    private val MAX_LOSSLESS_STALLS_BEFORE_FALLBACK = 2
 
     // Track failed songs to prevent infinite retry loops
     private val recentlyFailedSongs = mutableSetOf<String>()
@@ -995,6 +1012,10 @@ class MusicService :
             onLongSilence = { handleLongSilenceDetected() }
         )
 
+        val stallWatchdog = LosslessStallWatchdogAudioProcessor(
+            onStallDetected = { handleLosslessStallDetected() }
+        )
+
         // Set initial state
         runBlocking {
             val skipSilence = dataStore.get(SkipSilenceKey, false)
@@ -1004,7 +1025,7 @@ class MusicService :
 
         val player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
-            .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor))
+            .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor, stallWatchdog))
             .setLoadControl(
                 androidx.media3.exoplayer.DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
@@ -1031,6 +1052,7 @@ class MusicService :
             .build()
 
         playerSilenceProcessors[player] = silenceProcessor
+        playerStallWatchdogs[player] = stallWatchdog
 
         player.apply {
                 runBlocking {
@@ -1900,6 +1922,11 @@ class MusicService :
         }
         previousMediaItemIndex = player.currentMediaItemIndex
 
+        playerStallWatchdogs[player]?.let { watchdog ->
+            watchdog.armed = mediaItem?.mediaId?.let { losslessStreamMediaIds.contains(it) } == true
+            watchdog.resetForNewTrack()
+        }
+
         lastPlaybackSpeed = -1.0f // force update song
 
         setupLoudnessEnhancer()
@@ -1960,6 +1987,16 @@ class MusicService :
     override fun onPlaybackStateChanged(
         @Player.State playbackState: Int,
     ) {
+        // Self-healing re-arm: the DataSourceResolver may populate
+        // losslessStreamMediaIds slightly after onMediaItemTransition already
+        // checked it (first play with no preload buffer). By STATE_READY the
+        // resolver has definitely run for the current item.
+        if (playbackState == Player.STATE_READY) {
+            player.currentMediaItem?.mediaId?.let { mediaId ->
+                playerStallWatchdogs[player]?.armed = losslessStreamMediaIds.contains(mediaId)
+            }
+        }
+
         // Force Repeat All if the player ignored it and ended playback
         if (playbackState == Player.STATE_ENDED) {
             val repeatMode = runBlocking { dataStore.get(RepeatModeKey, REPEAT_MODE_OFF) }
@@ -2442,6 +2479,15 @@ class MusicService :
             return
         }
 
+        // A parsing-unsupported error on a lossless stream is a permanent format
+        // issue, not a transient one — retrying the same Tidal/Spine URL will
+        // never succeed. Skip straight to the standard-audio fallback instead
+        // of looping retries against the same broken source.
+        if (losslessStreamMediaIds.contains(mediaId)) {
+            triggerLosslessFallback(mediaId)
+            return
+        }
+
         incrementRetryCount(mediaId)
 
         retryJob?.cancel()
@@ -2799,6 +2845,63 @@ class MusicService :
         }
     }
 
+    private var stallRecoveryJob: Job? = null
+
+    /** Lossless/Atmos stream stopped producing audio while position kept
+     *  advancing — no PlaybackException, so onPlayerError never fires for this.
+     *  Fired from the audio renderer thread; hop to [scope] (Main) before
+     *  touching the player. */
+    private fun handleLosslessStallDetected() {
+        if (stallRecoveryJob?.isActive == true) return
+        stallRecoveryJob = scope.launch {
+            val mediaId = player.currentMediaItem?.mediaId ?: return@launch
+            val count = (losslessStallCount[mediaId] ?: 0) + 1
+            losslessStallCount[mediaId] = count
+            Timber.tag(TAG).w("Lossless stall detected for $mediaId (attempt $count)")
+
+            if (count > MAX_LOSSLESS_STALLS_BEFORE_FALLBACK) {
+                triggerLosslessFallback(mediaId)
+                return@launch
+            }
+
+            player.pause()
+            delay(150)
+            if (!playerInitialized.value) return@launch
+            val idx = player.currentMediaItemIndex
+            val pos = (player.currentPosition - 1500L).coerceAtLeast(0L)
+            player.seekTo(idx, pos)
+            player.prepare()
+            delay(300)
+            if (hasAudioFocus && playerInitialized.value) {
+                if (castConnectionHandler?.isCasting?.value != true) player.play()
+            }
+        }
+    }
+
+    /** Gives up on lossless for this track: force the plain YouTube stream on
+     *  the next resolve, disarm the watchdog, re-prepare from the current
+     *  position, and let the user know. */
+    private fun triggerLosslessFallback(mediaId: String) {
+        Timber.tag(TAG).w("Falling back to standard audio for $mediaId after repeated lossless failures")
+
+        forceStandardAudioMediaIds.add(mediaId)
+        bypassCacheForQualityChange.add(mediaId)
+        losslessStreamMediaIds.remove(mediaId)
+        losslessStallCount.remove(mediaId)
+        playerStallWatchdogs[player]?.armed = false
+
+        val idx = player.currentMediaItemIndex
+        val pos = player.currentPosition
+        player.seekTo(idx, pos)
+        player.prepare()
+
+        Toast.makeText(
+            this@MusicService,
+            getString(R.string.lossless_fallback_to_standard_audio),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
     private fun updateDiscordRPC(song: Song, showFeedback: Boolean = false) {
         val useDetails = dataStore.get(DiscordUseDetailsKey, false)
         val advancedMode = dataStore.get(DiscordAdvancedModeKey, false)
@@ -2892,6 +2995,7 @@ class MusicService :
                     audioQuality = audioQuality,
                     connectivityManager = connectivityManager,
                     context = this@MusicService,
+                    forceStandardAudio = forceStandardAudioMediaIds.contains(mediaId),
                 )
             }.getOrElse { throwable ->
                 when (throwable) {
@@ -2960,6 +3064,12 @@ class MusicService :
                 val streamUrl = nonNullPlayback.streamUrl
                 Log.d("SpineDebug", "DataSourceResolver: resolved mediaId=$mediaId isSpineStream=${nonNullPlayback.isSpineStream} isTidalStream=${nonNullPlayback.isTidalStream} streamUrl=${streamUrl?.take(120)}")
 
+                if (nonNullPlayback.isTidalStream || nonNullPlayback.isSpineStream) {
+                    losslessStreamMediaIds.add(mediaId)
+                } else {
+                    losslessStreamMediaIds.remove(mediaId)
+                }
+
                 songUrlCache[effKey] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
 
@@ -2987,7 +3097,8 @@ class MusicService :
 
     private fun createRenderersFactory(
         eqProcessor: CustomEqualizerAudioProcessor,
-        silenceProcessor: SilenceDetectorAudioProcessor
+        silenceProcessor: SilenceDetectorAudioProcessor,
+        stallWatchdog: LosslessStallWatchdogAudioProcessor,
     ) =
         object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
@@ -3004,6 +3115,7 @@ class MusicService :
                         arrayOf(
                             eqProcessor,
                             silenceProcessor,
+                            stallWatchdog,
                         ),
                         SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
                         SonicAudioProcessor(),

@@ -40,10 +40,12 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.constants.LyricsOverlayControlsAtTopKey
 import com.convx.music.extensions.togglePlayPause
 import com.convx.music.extensions.toggleRepeatMode
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.Lyrics
+import com.convx.music.utils.rememberPreference
 
 /**
  * ArchiveTune-style dedicated full-screen lyrics presentation: the mini
@@ -84,6 +86,7 @@ private fun LyricsFullScreenOverlayContent(onDismiss: () -> Unit) {
     val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
+    val (controlsAtTop) = rememberPreference(LyricsOverlayControlsAtTopKey, defaultValue = false)
 
     BackHandler(onBack = onDismiss)
 
@@ -129,63 +132,69 @@ private fun LyricsFullScreenOverlayContent(onDismiss: () -> Unit) {
                 }
             }
 
+            val controlsRow: @Composable () -> Unit = {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled }) {
+                        Icon(
+                            painter = painterResource(if (shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle),
+                            contentDescription = null,
+                            tint = Color.White,
+                        )
+                    }
+                    IconButton(
+                        onClick = { playerConnection.player.seekToPreviousMediaItem() },
+                        enabled = canSkipPrevious,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.skip_previous),
+                            contentDescription = null,
+                            tint = if (canSkipPrevious) Color.White else Color.White.copy(alpha = 0.4f),
+                        )
+                    }
+                    IconButton(
+                        onClick = { playerConnection.player.togglePlayPause() },
+                        modifier = Modifier.size(56.dp),
+                    ) {
+                        AnimatedPlayPauseIcon(isPlaying = isPlaying, tint = Color.White, size = 32.dp)
+                    }
+                    IconButton(
+                        onClick = { playerConnection.player.seekToNext() },
+                        enabled = canSkipNext,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.skip_next),
+                            contentDescription = null,
+                            tint = if (canSkipNext) Color.White else Color.White.copy(alpha = 0.4f),
+                        )
+                    }
+                    IconButton(onClick = { playerConnection.player.toggleRepeatMode() }) {
+                        Icon(
+                            painter = painterResource(
+                                if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat
+                            ),
+                            contentDescription = null,
+                            tint = if (repeatMode != Player.REPEAT_MODE_OFF) Color.White else Color.White.copy(alpha = 0.4f),
+                        )
+                    }
+                }
+            }
+
+            if (controlsAtTop) controlsRow()
+
             Lyrics(
                 sliderPositionProvider = { null },
                 showLyrics = true,
                 modifier = Modifier.weight(1f),
             )
 
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled }) {
-                    Icon(
-                        painter = painterResource(if (shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle),
-                        contentDescription = null,
-                        tint = Color.White,
-                    )
-                }
-                IconButton(
-                    onClick = { playerConnection.player.seekToPreviousMediaItem() },
-                    enabled = canSkipPrevious,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.skip_previous),
-                        contentDescription = null,
-                        tint = if (canSkipPrevious) Color.White else Color.White.copy(alpha = 0.4f),
-                    )
-                }
-                IconButton(
-                    onClick = { playerConnection.player.togglePlayPause() },
-                    modifier = Modifier.size(56.dp),
-                ) {
-                    AnimatedPlayPauseIcon(isPlaying = isPlaying, tint = Color.White, size = 32.dp)
-                }
-                IconButton(
-                    onClick = { playerConnection.player.seekToNext() },
-                    enabled = canSkipNext,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.skip_next),
-                        contentDescription = null,
-                        tint = if (canSkipNext) Color.White else Color.White.copy(alpha = 0.4f),
-                    )
-                }
-                IconButton(onClick = { playerConnection.player.toggleRepeatMode() }) {
-                    Icon(
-                        painter = painterResource(
-                            if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat
-                        ),
-                        contentDescription = null,
-                        tint = if (repeatMode != Player.REPEAT_MODE_OFF) Color.White else Color.White.copy(alpha = 0.4f),
-                    )
-                }
-            }
+            if (!controlsAtTop) controlsRow()
         }
     }
 }

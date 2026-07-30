@@ -118,6 +118,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableHighRefreshRateKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.DedicatedFullscreenLyricsKey
+import com.convx.music.constants.LyricsOverlayControlsAtTopKey
 import com.convx.music.constants.EnableLyricsThumbnailPlayPauseKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.IosOverscrollKey
@@ -289,6 +290,7 @@ fun AppearanceSettings(
     val (swipeLyrics, onSwipeLyricsChange) = rememberPreference(SwipeLyricsKey, defaultValue = false)
     val (enableLyricsThumbnailPlayPause, onEnableLyricsThumbnailPlayPauseChange) = rememberPreference(EnableLyricsThumbnailPlayPauseKey, defaultValue = false)
     val (dedicatedFullscreenLyrics, onDedicatedFullscreenLyricsChange) = rememberPreference(DedicatedFullscreenLyricsKey, defaultValue = false)
+    val (lyricsOverlayControlsAtTop, onLyricsOverlayControlsAtTopChange) = rememberPreference(LyricsOverlayControlsAtTopKey, defaultValue = false)
 
     val (squigglySlider, onSquigglySliderChange) = rememberPreference(
         SquigglySliderKey,
@@ -1026,7 +1028,29 @@ fun AppearanceSettings(
                     },
                     onClick = { onDedicatedFullscreenLyricsChange(!dedicatedFullscreenLyrics) }
                 )
-            )
+            ) + if (dedicatedFullscreenLyrics) listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.expand_more),
+                    title = { Text(stringResource(R.string.lyrics_overlay_controls_at_top)) },
+                    description = { Text(stringResource(R.string.lyrics_overlay_controls_at_top_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = lyricsOverlayControlsAtTop,
+                            onCheckedChange = onLyricsOverlayControlsAtTopChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (lyricsOverlayControlsAtTop) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLyricsOverlayControlsAtTopChange(!lyricsOverlayControlsAtTop) }
+                )
+            ) else emptyList()
         )
 
         Spacer(modifier = Modifier.height(27.dp))

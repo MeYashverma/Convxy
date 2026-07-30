@@ -534,6 +534,8 @@ val PlayerLayoutHiddenSlotsKey = stringPreferencesKey("playerLayoutHiddenSlots")
 val AutoDjMixingEnabledKey = booleanPreferencesKey("autoDjMixingEnabled")
 /** Off (default) = classic two-tap (open inline lyrics, then a separate tap to go fullscreen). On = one tap opens/closes fullscreen lyrics directly. */
 val OneTapFullscreenLyricsKey = booleanPreferencesKey("oneTapFullscreenLyrics")
+/** true (default) = player controls collapse upward (shrink toward the top) when entering full-screen lyrics; false = collapse downward. */
+val FullscreenLyricsCollapseTopKey = booleanPreferencesKey("fullscreenLyricsCollapseTop")
 val HideVolumeBarKey = booleanPreferencesKey("hideVolumeBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 /** false (default) = simple iOS-style mini bar (thumbnail/title/seek bar/play/forward); true = multi-icon tab-style row. */

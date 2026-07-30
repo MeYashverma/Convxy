@@ -119,6 +119,7 @@ import com.convx.music.constants.EnableHighRefreshRateKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableLyricsThumbnailPlayPauseKey
 import com.convx.music.constants.OneTapFullscreenLyricsKey
+import com.convx.music.constants.FullscreenLyricsCollapseTopKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.IosOverscrollKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -291,6 +292,7 @@ fun AppearanceSettings(
     val (swipeLyrics, onSwipeLyricsChange) = rememberPreference(SwipeLyricsKey, defaultValue = false)
     val (enableLyricsThumbnailPlayPause, onEnableLyricsThumbnailPlayPauseChange) = rememberPreference(EnableLyricsThumbnailPlayPauseKey, defaultValue = false)
     val (oneTapFullscreenLyrics, onOneTapFullscreenLyricsChange) = rememberPreference(OneTapFullscreenLyricsKey, defaultValue = false)
+    val (fullscreenLyricsCollapseTop, onFullscreenLyricsCollapseTopChange) = rememberPreference(FullscreenLyricsCollapseTopKey, defaultValue = true)
 
     val (squigglySlider, onSquigglySliderChange) = rememberPreference(
         SquigglySliderKey,
@@ -1048,6 +1050,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onOneTapFullscreenLyricsChange(!oneTapFullscreenLyrics) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.expand_more),
+                    title = { Text(stringResource(R.string.fullscreen_lyrics_collapse_top)) },
+                    description = { Text(stringResource(R.string.fullscreen_lyrics_collapse_top_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = fullscreenLyricsCollapseTop,
+                            onCheckedChange = onFullscreenLyricsCollapseTopChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (fullscreenLyricsCollapseTop) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onFullscreenLyricsCollapseTopChange(!fullscreenLyricsCollapseTop) }
                 )
             )
         )

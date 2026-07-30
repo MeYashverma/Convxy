@@ -176,6 +176,7 @@ import com.convx.music.constants.PlayerStaticColorKey
 import com.convx.music.constants.PlayerButtonsStyle
 import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.constants.OneTapFullscreenLyricsKey
+import com.convx.music.constants.FullscreenLyricsCollapseTopKey
 import com.convx.music.constants.PlayerButtonsStyleKey
 import com.convx.music.constants.PlayerHorizontalPadding
 import com.convx.music.constants.QueuePeekHeight
@@ -878,6 +879,7 @@ fun BottomSheetPlayer(
     }
     val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
     val (oneTapFullscreenLyrics) = rememberPreference(OneTapFullscreenLyricsKey, defaultValue = false)
+    val (fullscreenLyricsCollapseTop) = rememberPreference(FullscreenLyricsCollapseTopKey, defaultValue = true)
     // Position update - only for local playback
     // When casting, we use castPosition directly to avoid sync issues
     // Use isPlaying instead of playbackState to ensure continuous updates during playback
@@ -2358,7 +2360,7 @@ fun BottomSheetPlayer(
             AnimatedVisibility(
                 visible = !isFullScreen,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                exit = shrinkVertically(shrinkTowards = if (fullscreenLyricsCollapseTop) Alignment.Top else Alignment.Bottom) + slideOutVertically(targetOffsetY = { it }) + fadeOut()
             ) {
                 Column {
                     if (useNewPlayerDesign) {

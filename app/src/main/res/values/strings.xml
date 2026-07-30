@@ -158,6 +158,8 @@
     <string name="lyrics_thumbnail_play_pause_desc">Show a play/pause button overlay on the song thumbnail in full-screen lyrics</string>
     <string name="one_tap_fullscreen_lyrics">One-tap full-screen lyrics</string>
     <string name="one_tap_fullscreen_lyrics_desc">The lyrics button opens and closes full-screen lyrics directly in one tap. Off uses the classic two-tap flow (open lyrics, then a separate tap to go fullscreen)</string>
+    <string name="fullscreen_lyrics_collapse_top">Collapse controls upward</string>
+    <string name="fullscreen_lyrics_collapse_top_desc">When entering full-screen lyrics, the player controls collapse toward the top. Turn off to collapse toward the bottom instead</string>
 
     <string name="edit_song">Edit song</string>
     <string name="song_title">Song title</string>

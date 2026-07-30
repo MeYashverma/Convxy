@@ -65,6 +65,19 @@ data class GlassEffectConfig(
     val sidePanelBlurRadius: Float = 2f,
     val sidePanelLensHeight: Float = 0.4f,
     val sidePanelLensAmount: Float = 0.6f,
+    val sidePanelColor: Color = Color.Unspecified,
+    val sidePanelSurfaceOpacity: Float = 0.5f,
+    val sidePanelTextColor: Color = Color.White,
+    /** Nav bar / mini bar gets the same independent tuning as the side panel
+     *  — defaults match the shared values so it looks identical until
+     *  explicitly customized. */
+    val navBarVibrancy: Float = 1.2f,
+    val navBarBlurRadius: Float = 2f,
+    val navBarLensHeight: Float = 0.4f,
+    val navBarLensAmount: Float = 0.6f,
+    val navBarColor: Color = Color.Unspecified,
+    val navBarSurfaceOpacity: Float = 0.5f,
+    val navBarTextColor: Color = Color.White,
 ) {
     /** A copy of this config with the shared effect fields swapped for the
      *  side panel's own — pass this to Modifier.liquidGlass for the side
@@ -75,6 +88,19 @@ data class GlassEffectConfig(
         blurRadius = sidePanelBlurRadius,
         lensHeight = sidePanelLensHeight,
         lensAmount = sidePanelLensAmount,
+        surfaceTintColor = sidePanelColor,
+        surfaceOpacity = sidePanelSurfaceOpacity,
+        textColor = sidePanelTextColor,
+    )
+    /** Same idea as [forSidePanel], for the bottom nav bar / docked mini bar. */
+    fun forNavBar(): GlassEffectConfig = copy(
+        vibrancy = navBarVibrancy,
+        blurRadius = navBarBlurRadius,
+        lensHeight = navBarLensHeight,
+        lensAmount = navBarLensAmount,
+        surfaceTintColor = navBarColor,
+        surfaceOpacity = navBarSurfaceOpacity,
+        textColor = navBarTextColor,
     )
     /**
      * Whether the glass effect should be rendered for [component], taking the master

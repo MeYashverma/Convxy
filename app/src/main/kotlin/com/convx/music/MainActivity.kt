@@ -166,6 +166,16 @@ import com.convx.music.constants.LiquidGlassSidePanelVibrancyKey
 import com.convx.music.constants.LiquidGlassSidePanelBlurRadiusKey
 import com.convx.music.constants.LiquidGlassSidePanelLensHeightKey
 import com.convx.music.constants.LiquidGlassSidePanelLensAmountKey
+import com.convx.music.constants.LiquidGlassSidePanelColorKey
+import com.convx.music.constants.LiquidGlassSidePanelSurfaceOpacityKey
+import com.convx.music.constants.LiquidGlassSidePanelTextColorKey
+import com.convx.music.constants.LiquidGlassNavBarVibrancyKey
+import com.convx.music.constants.LiquidGlassNavBarBlurRadiusKey
+import com.convx.music.constants.LiquidGlassNavBarLensHeightKey
+import com.convx.music.constants.LiquidGlassNavBarLensAmountKey
+import com.convx.music.constants.LiquidGlassNavBarColorKey
+import com.convx.music.constants.LiquidGlassNavBarSurfaceOpacityKey
+import com.convx.music.constants.LiquidGlassNavBarTextColorKey
 import com.convx.music.constants.SideBarCollapsedKey
 import com.convx.music.constants.LiquidGlassVibrancyKey
 import com.convx.music.constants.LiquidGlassBlurRadiusKey
@@ -644,6 +654,16 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassSidePanelBlurRadius) = rememberPreference(LiquidGlassSidePanelBlurRadiusKey, defaultValue = 2f)
                 val (liquidGlassSidePanelLensHeight) = rememberPreference(LiquidGlassSidePanelLensHeightKey, defaultValue = 0.4f)
                 val (liquidGlassSidePanelLensAmount) = rememberPreference(LiquidGlassSidePanelLensAmountKey, defaultValue = 0.6f)
+                val (liquidGlassSidePanelColorInt) = rememberPreference(LiquidGlassSidePanelColorKey, defaultValue = 0)
+                val (liquidGlassSidePanelSurfaceOpacity) = rememberPreference(LiquidGlassSidePanelSurfaceOpacityKey, defaultValue = 0.5f)
+                val (liquidGlassSidePanelTextColorInt) = rememberPreference(LiquidGlassSidePanelTextColorKey, defaultValue = Color.White.toArgb())
+                val (liquidGlassNavBarVibrancy) = rememberPreference(LiquidGlassNavBarVibrancyKey, defaultValue = 1.2f)
+                val (liquidGlassNavBarBlurRadius) = rememberPreference(LiquidGlassNavBarBlurRadiusKey, defaultValue = 2f)
+                val (liquidGlassNavBarLensHeight) = rememberPreference(LiquidGlassNavBarLensHeightKey, defaultValue = 0.4f)
+                val (liquidGlassNavBarLensAmount) = rememberPreference(LiquidGlassNavBarLensAmountKey, defaultValue = 0.6f)
+                val (liquidGlassNavBarColorInt) = rememberPreference(LiquidGlassNavBarColorKey, defaultValue = 0)
+                val (liquidGlassNavBarSurfaceOpacity) = rememberPreference(LiquidGlassNavBarSurfaceOpacityKey, defaultValue = 0.5f)
+                val (liquidGlassNavBarTextColorInt) = rememberPreference(LiquidGlassNavBarTextColorKey, defaultValue = Color.White.toArgb())
                 val glassEffectConfig = remember(
                     liquidGlassGlobalEnabled, useFloatingNavBar, liquidGlassVibrancy, liquidGlassBlurRadius,
                     liquidGlassLensHeight, liquidGlassLensAmount, liquidGlassChromaticAberration,
@@ -652,6 +672,10 @@ class MainActivity : ComponentActivity() {
                     liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSidePanelEnabled,
                     liquidGlassSidePanelVibrancy, liquidGlassSidePanelBlurRadius,
                     liquidGlassSidePanelLensHeight, liquidGlassSidePanelLensAmount,
+                    liquidGlassSidePanelColorInt, liquidGlassSidePanelSurfaceOpacity, liquidGlassSidePanelTextColorInt,
+                    liquidGlassNavBarVibrancy, liquidGlassNavBarBlurRadius,
+                    liquidGlassNavBarLensHeight, liquidGlassNavBarLensAmount,
+                    liquidGlassNavBarColorInt, liquidGlassNavBarSurfaceOpacity, liquidGlassNavBarTextColorInt,
                 ) {
                     // The sliders in Glass settings are always the source of truth: the
                     // Apple Music UI toggle just writes a starting preset into them once
@@ -681,6 +705,16 @@ class MainActivity : ComponentActivity() {
                         sidePanelBlurRadius = liquidGlassSidePanelBlurRadius,
                         sidePanelLensHeight = liquidGlassSidePanelLensHeight,
                         sidePanelLensAmount = liquidGlassSidePanelLensAmount,
+                        sidePanelColor = if (liquidGlassSidePanelColorInt == 0) Color.Unspecified else Color(liquidGlassSidePanelColorInt),
+                        sidePanelSurfaceOpacity = liquidGlassSidePanelSurfaceOpacity,
+                        sidePanelTextColor = Color(liquidGlassSidePanelTextColorInt),
+                        navBarVibrancy = liquidGlassNavBarVibrancy,
+                        navBarBlurRadius = liquidGlassNavBarBlurRadius,
+                        navBarLensHeight = liquidGlassNavBarLensHeight,
+                        navBarLensAmount = liquidGlassNavBarLensAmount,
+                        navBarColor = if (liquidGlassNavBarColorInt == 0) Color.Unspecified else Color(liquidGlassNavBarColorInt),
+                        navBarSurfaceOpacity = liquidGlassNavBarSurfaceOpacity,
+                        navBarTextColor = Color(liquidGlassNavBarTextColorInt),
                     )
                 }
                 val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)

@@ -297,6 +297,8 @@
     <string name="login">Login</string>
     <string name="show_audio_quality_badge">Show audio quality badge</string>
     <string name="mini_player_waveform">Mini player waveform seek bar</string>
+    <string name="use_floating_nav_bar">Floating pill mini player</string>
+    <string name="use_floating_nav_bar_desc">Use the Apple Music-style floating pill nav bar and mini player. Turn off for the classic bottom bar with waveform seek bar</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
 

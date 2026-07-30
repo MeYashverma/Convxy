@@ -174,6 +174,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ThumbnailCornerRadiusKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.UseNewMiniPlayerDesignKey
+import com.convx.music.constants.UseFloatingNavBarKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.UseNewPlayerDesignKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -224,6 +225,7 @@ fun AppearanceSettings(
     snackbarHostState: SnackbarHostState,
 ) {
     val (_, _) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
+    val (useFloatingNavBar, onUseFloatingNavBarChange) = rememberPreference(UseFloatingNavBarKey, defaultValue = true)
     val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
     val (_, _) = rememberPreference(EnableDynamicIconKey, defaultValue = true)
     val (useNewPlayerDesign, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = false)
@@ -742,6 +744,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onMiniPlayerWaveformChange(!miniPlayerWaveform) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.nav_bar),
+                    title = { Text(stringResource(R.string.use_floating_nav_bar)) },
+                    description = { Text(stringResource(R.string.use_floating_nav_bar_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = useFloatingNavBar,
+                            onCheckedChange = onUseFloatingNavBarChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (useFloatingNavBar) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onUseFloatingNavBarChange(!useFloatingNavBar) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),

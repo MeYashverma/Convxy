@@ -48,8 +48,8 @@ sealed class Screens(
         iconIdInactive = R.drawable.accord_groups,
         iconIdActive = R.drawable.accord_groups,
         route = "listen_together",
-        iconIdInactiveIos = R.drawable.cosmos_group_outlined,
-        iconIdActiveIos = R.drawable.cosmos_group_filled,
+        iconIdInactiveIos = R.drawable.accord_groups,
+        iconIdActiveIos = R.drawable.accord_groups,
     )
 
     object Library : Screens(
@@ -57,8 +57,8 @@ sealed class Screens(
         iconIdInactive = R.drawable.accord_library,
         iconIdActive = R.drawable.accord_library,
         route = "library",
-        iconIdInactiveIos = R.drawable.cosmos_library_outlined,
-        iconIdActiveIos = R.drawable.cosmos_library_filled,
+        iconIdInactiveIos = R.drawable.accord_library,
+        iconIdActiveIos = R.drawable.accord_library,
     )
 
     object Settings : Screens(

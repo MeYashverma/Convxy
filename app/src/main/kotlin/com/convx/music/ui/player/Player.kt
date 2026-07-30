@@ -2360,7 +2360,12 @@ fun BottomSheetPlayer(
             AnimatedVisibility(
                 visible = !isFullScreen,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = shrinkVertically(shrinkTowards = if (fullscreenLyricsCollapseTop) Alignment.Top else Alignment.Bottom) + slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                // slideOutVertically's direction has to match shrinkTowards, or the
+                // slide (which visually dominates) masks the shrink direction and
+                // it always looks like it's collapsing downward regardless of the
+                // setting.
+                exit = shrinkVertically(shrinkTowards = if (fullscreenLyricsCollapseTop) Alignment.Top else Alignment.Bottom) +
+                    slideOutVertically(targetOffsetY = { if (fullscreenLyricsCollapseTop) -it else it }) + fadeOut()
             ) {
                 Column {
                     if (useNewPlayerDesign) {

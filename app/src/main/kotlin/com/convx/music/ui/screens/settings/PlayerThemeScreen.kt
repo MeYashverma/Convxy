@@ -5,191 +5,105 @@
 
 package com.convx.music.ui.screens.settings
 
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import android.os.Build
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.Canvas
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.background
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.border
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.clickable
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.horizontalScroll
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Arrangement
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Box
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Column
-import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Spacer
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.aspectRatio
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.height
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.padding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.size
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.width
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.foundation.rememberScrollState
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.foundation.shape.CircleShape
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.foundation.verticalScroll
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.ExperimentalMaterial3Api
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.MaterialTheme
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.ModalBottomSheet
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.Slider
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.Text
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.TextButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.TopAppBar
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.TopAppBarScrollBehavior
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.rememberModalBottomSheetState
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.Composable
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.collectAsState
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.getValue
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.mutableIntStateOf
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.remember
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.saveable.rememberSaveable
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.setValue
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.toMutableStateList
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.style.TextOverflow
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.Modifier
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.draw.alpha
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.draw.clip
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.draw.shadow
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.graphics.Brush
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.graphics.Color
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.graphics.drawscope.Stroke
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.graphics.toArgb
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.layout.ContentScale
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.res.painterResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.res.stringResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.text.font.FontWeight
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.unit.Dp
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.ui.unit.dp
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.navigation.NavController
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import coil3.compose.AsyncImage
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.LocalPlayerAwareWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.LocalPlayerConnection
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.R
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerArtworkStyle
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerArtworkStyleKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerBackgroundStyle
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerBackgroundStyleKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerGradientAngleKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerGradientStopsKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.PlayerStaticColorKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.SliderStyle
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.SliderStyleKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.models.MediaMetadata
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.component.ColorPickerDialog
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.component.IconButton as AppIconButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.theme.DefaultGradientStops
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.theme.decodeGradientStops
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.theme.encodeGradientStops
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.theme.tiltedGradient
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.utils.backToMain
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.utils.rememberEnumPreference
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.utils.rememberPreference
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import kotlinx.coroutines.flow.MutableStateFlow
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import kotlin.math.roundToInt
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import coil3.compose.AsyncImage
+import com.convx.music.LocalPlayerAwareWindowInsets
+import com.convx.music.LocalPlayerConnection
+import com.convx.music.R
+import com.convx.music.constants.PlayerArtworkStyle
+import com.convx.music.constants.PlayerArtworkStyleKey
+import com.convx.music.constants.PlayerBackgroundStyle
+import com.convx.music.constants.PlayerBackgroundStyleKey
+import com.convx.music.constants.PlayerGradientAngleKey
+import com.convx.music.constants.PlayerGradientStopsKey
 import com.convx.music.constants.PlayerLayoutHiddenSlotsKey
 import com.convx.music.constants.PlayerLayoutOrderKey
+import com.convx.music.constants.PlayerStaticColorKey
+import com.convx.music.constants.SliderStyle
+import com.convx.music.constants.SliderStyleKey
+import com.convx.music.models.MediaMetadata
+import com.convx.music.ui.component.ColorPickerDialog
+import com.convx.music.ui.component.IconButton as AppIconButton
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.player.PlayerLayoutRegistry
 import com.convx.music.ui.player.PlayerSlot
+import com.convx.music.ui.theme.DefaultGradientStops
+import com.convx.music.ui.theme.decodeGradientStops
+import com.convx.music.ui.theme.encodeGradientStops
+import com.convx.music.ui.theme.tiltedGradient
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.utils.backToMain
+import com.convx.music.utils.rememberEnumPreference
+import com.convx.music.utils.rememberPreference
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.math.roundToInt
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -368,6 +282,7 @@ fun PlayerThemeScreen(
         PlayerLayoutList(
             slots = layoutSlots,
             hiddenSlots = hiddenSlots,
+            artworkUrl = artworkUrl,
             onReordered = { onLayoutOrderChange(PlayerLayoutRegistry.serializeOrder(it)) },
             onVisibilityChange = { slot, hidden ->
                 val updated = if (hidden) hiddenSlots + slot else hiddenSlots - slot
@@ -376,7 +291,7 @@ fun PlayerThemeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .height(340.dp),
+                .height(480.dp),
         )
 
         Spacer(Modifier.height(24.dp))
@@ -602,14 +517,18 @@ private fun LockedNote(text: String) {
 }
 
 /**
- * Drag-to-reorder list of [PlayerSlot]s, each with a visibility switch except
- * the mandatory [PlayerSlot.CONTROLS] row — reorder-only there, no toggle.
- * Same reorderable-library pattern as DraggableLyricsProviderList.
+ * Drag-to-reorder list of [PlayerSlot]s, rendered as a miniature of the real
+ * Now Playing screen — each slot is its actual visual shape (artwork square,
+ * title/artist bars, seek bar, transport row, action row) rather than a
+ * settings-style text row, so the builder shows what the layout will look
+ * like instead of naming it. A switch on each hideable block toggles it off;
+ * [PlayerSlot.CONTROLS] is reorder-only, no toggle, since playback needs it.
  */
 @Composable
 private fun PlayerLayoutList(
     slots: MutableList<PlayerSlot>,
     hiddenSlots: Set<PlayerSlot>,
+    artworkUrl: String?,
     onReordered: (List<PlayerSlot>) -> Unit,
     onVisibilityChange: (PlayerSlot, Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -632,48 +551,36 @@ private fun PlayerLayoutList(
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier,
     ) {
-        LazyColumn(state = lazyListState) {
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             itemsIndexed(slots, key = { _, slot -> slot.name }) { _, slot ->
                 ReorderableItem(state = reorderableState, key = slot.name) {
                     val isHidden = slot in hiddenSlots
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .alpha(if (isHidden) 0.4f else 1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                            .draggableHandle()
+                            .padding(10.dp),
                     ) {
-                        IconButton(
-                            onClick = { },
-                            modifier = Modifier.draggableHandle(),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.drag_handle),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-
-                        Text(
-                            text = stringResource(slot.labelRes),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (isHidden) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
+                        SlotPreviewBlock(slot = slot, artworkUrl = artworkUrl)
 
                         if (slot.hideable) {
                             Switch(
                                 checked = !isHidden,
                                 onCheckedChange = { visible -> onVisibilityChange(slot, !visible) },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .scale(0.7f),
                                 thumbContent = {
                                     Icon(
                                         painter = painterResource(
@@ -688,6 +595,65 @@ private fun PlayerLayoutList(
                     }
                 }
             }
+        }
+    }
+}
+
+/** One slot's actual visual shape, at reduced scale, standing in for its real Now Playing section. */
+@Composable
+private fun SlotPreviewBlock(slot: PlayerSlot, artworkUrl: String?) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    when (slot) {
+        PlayerSlot.ALBUM_ART -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(ContinuousRoundedRectangle(10.dp))
+            ) {
+                AsyncImage(
+                    model = artworkUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    fallback = painterResource(R.drawable.vivi_music_icon),
+                    error = painterResource(R.drawable.vivi_music_icon),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = stringResource(slot.labelRes),
+                style = MaterialTheme.typography.labelMedium,
+                color = onSurface.copy(alpha = 0.6f),
+            )
+        }
+
+        PlayerSlot.TRACK_INFO -> Column(modifier = Modifier.padding(end = 40.dp)) {
+            Bar(onSurface.copy(alpha = 0.85f), widthFraction = 0.55f, height = 9.dp)
+            Spacer(Modifier.height(6.dp))
+            Bar(onSurface.copy(alpha = 0.45f), widthFraction = 0.35f, height = 7.dp)
+        }
+
+        PlayerSlot.SEEK_BAR -> Box(modifier = Modifier.padding(end = 40.dp)) {
+            SeekBarPreview(SliderStyle.DEFAULT, onSurface.copy(alpha = 0.85f))
+        }
+
+        PlayerSlot.CONTROLS -> Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Dot(onSurface.copy(alpha = 0.5f), 14.dp)
+            Spacer(Modifier.width(16.dp))
+            Dot(onSurface, 26.dp)
+            Spacer(Modifier.width(16.dp))
+            Dot(onSurface.copy(alpha = 0.5f), 14.dp)
+        }
+
+        PlayerSlot.ACTION_ROW -> Row(
+            modifier = Modifier.padding(end = 40.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            repeat(3) { Dot(onSurface.copy(alpha = 0.35f), 16.dp) }
         }
     }
 }

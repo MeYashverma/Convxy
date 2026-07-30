@@ -57,6 +57,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -540,7 +541,13 @@ private fun SharedTransitionScope.InlineBar(
                 elevations = elevations,
                 animatedVisibilityScope = animatedVisibilityScope,
                 tabBarContentModifier = tabBarContentModifier,
+                // fillMaxHeight() + the row's IntrinsicSize.Max is supposed to
+                // match this to the docked mini player's height, but intrinsic
+                // measurement can under-report the mini player's actual
+                // (dynamically-measured) content height — floor it explicitly
+                // so the standalone tab pill can't end up shorter.
                 modifier = Modifier
+                    .defaultMinSize(minHeight = 48.dp)
                     .fillMaxHeight()
                     .aspectRatio(1f)
             )
@@ -1197,7 +1204,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // while pressed.
                                 val progress = dampedDragAnimation.pressProgress
 
-                                drawRect(Color.Black.copy(alpha = 0.6f - 0.4f * progress))
+                                drawRect(Color.Black.copy(alpha = 0.4f - 0.2f * progress))
                             }
                         )
                     } else {

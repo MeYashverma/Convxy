@@ -499,11 +499,11 @@ fun BoxWithConstraintsScope.AppFloatingNowPlayingPill(
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val surface = if (useGlass) {
-        // This is the mini player pill, not the side panel itself — it reads
-        // the nav bar/mini bar independent settings, same as the phone's
-        // docked accessory. forSidePanel() here was the bug: dialing the
-        // side panel rail's glass was leaking into this pill too.
-        Modifier.liquidGlass(config = glassConfig.forNavBar(), shape = pillShape, highlightAlpha = 0.3f)
+        // This is the mini player pill, not the side panel — it uses the
+        // global glass settings directly, same as the phone's docked
+        // accessory. (forSidePanel() here was a bug: dialing the side panel
+        // rail's glass was leaking into this pill too.)
+        Modifier.liquidGlass(config = glassConfig, shape = pillShape, highlightAlpha = 0.3f)
     } else {
         Modifier.background(background, pillShape)
     }

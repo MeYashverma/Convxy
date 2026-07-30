@@ -300,35 +300,38 @@ fun FloatingMiniPlayer(
                 Spacer(Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = mediaMetadata?.title.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = contentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = mediaMetadata?.title.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        ScrollingWaveformSeekBar(
+                            progress = { playbackFraction },
+                            onSeek = { frac ->
+                                val duration = playerConnection.player.duration
+                                if (duration > 0) {
+                                    playerConnection.player.seekTo((frac * duration).toLong())
+                                }
+                            },
+                            playedColor = contentColor,
+                            trackColor = contentColor.copy(alpha = 0.3f),
+                            seed = waveformSeed,
+                            modifier = Modifier
+                                .width(56.dp)
+                                .height(18.dp),
+                        )
+                    }
                     Text(
                         text = mediaMetadata?.artists?.joinToString { it.name }.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = contentColor.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    ScrollingWaveformSeekBar(
-                        progress = { playbackFraction },
-                        onSeek = { frac ->
-                            val duration = playerConnection.player.duration
-                            if (duration > 0) {
-                                playerConnection.player.seekTo((frac * duration).toLong())
-                            }
-                        },
-                        playedColor = contentColor,
-                        trackColor = contentColor.copy(alpha = 0.3f),
-                        seed = waveformSeed,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(18.dp),
                     )
                 }
 

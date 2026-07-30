@@ -44,13 +44,6 @@ import com.convx.music.constants.LiquidGlassLensAmountKey
 import com.convx.music.constants.LiquidGlassLensHeightKey
 import com.convx.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convx.music.constants.LiquidGlassNavBarEnabledKey
-import com.convx.music.constants.LiquidGlassNavBarBlurRadiusKey
-import com.convx.music.constants.LiquidGlassNavBarColorKey
-import com.convx.music.constants.LiquidGlassNavBarLensAmountKey
-import com.convx.music.constants.LiquidGlassNavBarLensHeightKey
-import com.convx.music.constants.LiquidGlassNavBarSurfaceOpacityKey
-import com.convx.music.constants.LiquidGlassNavBarTextColorKey
-import com.convx.music.constants.LiquidGlassNavBarVibrancyKey
 import com.convx.music.constants.LiquidGlassSidePanelEnabledKey
 import com.convx.music.constants.LiquidGlassSidePanelVibrancyKey
 import com.convx.music.constants.LiquidGlassSidePanelBlurRadiusKey
@@ -152,34 +145,11 @@ fun GlassEffectSettings(
     val sidePanelTextColor = remember(sidePanelTextColorInt) { Color(sidePanelTextColorInt) }
     val sidePanelTintColor = if (sidePanelColorInt == 0) adaptiveTintColor else Color(sidePanelColorInt)
 
-    val (navBarVibrancy, onNavBarVibrancyChange) = rememberPreference(
-        LiquidGlassNavBarVibrancyKey, defaultValue = 1.2f
-    )
-    val (navBarBlurRadius, onNavBarBlurRadiusChange) = rememberPreference(
-        LiquidGlassNavBarBlurRadiusKey, defaultValue = 2f
-    )
-    val (navBarLensHeight, onNavBarLensHeightChange) = rememberPreference(
-        LiquidGlassNavBarLensHeightKey, defaultValue = 0.4f
-    )
-    val (navBarLensAmount, onNavBarLensAmountChange) = rememberPreference(
-        LiquidGlassNavBarLensAmountKey, defaultValue = 0.6f
-    )
-    val (navBarColorInt, onNavBarColorChange) = rememberPreference(
-        LiquidGlassNavBarColorKey, defaultValue = 0
-    )
-    val (navBarSurfaceOpacity, onNavBarSurfaceOpacityChange) = rememberPreference(
-        LiquidGlassNavBarSurfaceOpacityKey, defaultValue = 0.5f
-    )
-    val (navBarTextColorInt, onNavBarTextColorChange) = rememberPreference(
-        LiquidGlassNavBarTextColorKey, defaultValue = Color.White.toArgb()
-    )
-    val navBarTextColor = remember(navBarTextColorInt) { Color(navBarTextColorInt) }
-    val navBarTintColor = if (navBarColorInt == 0) adaptiveTintColor else Color(navBarColorInt)
-
-    // Enabling a per-component override starts it as a copy of the current
+    // Enabling the side panel override starts it as a copy of the current
     // global values (rather than fixed defaults that may already differ from
     // global), so the look doesn't jump and there's an actual starting point
-    // to dial independently from.
+    // to dial independently from. Nav bar / mini bar has no override — it
+    // always mirrors the global settings directly.
     val toggleSidePanel: (Boolean) -> Unit = { enabling ->
         if (enabling) {
             onSidePanelVibrancyChange(vibrancy)
@@ -191,18 +161,6 @@ fun GlassEffectSettings(
             onSidePanelTextColorChange(textColorInt)
         }
         onSidePanelEnabledChange(enabling)
-    }
-    val toggleNavBar: (Boolean) -> Unit = { enabling ->
-        if (enabling) {
-            onNavBarVibrancyChange(vibrancy)
-            onNavBarBlurRadiusChange(blurRadius)
-            onNavBarLensHeightChange(lensHeight)
-            onNavBarLensAmountChange(lensAmount)
-            onNavBarColorChange(surfaceTintColorInt)
-            onNavBarSurfaceOpacityChange(surfaceOpacity)
-            onNavBarTextColorChange(textColorInt)
-        }
-        onNavBarEnabledChange(enabling)
     }
 
     var showVibrancyDialog by rememberSaveable { mutableStateOf(false) }
@@ -218,13 +176,6 @@ fun GlassEffectSettings(
     var showSidePanelColorDialog by rememberSaveable { mutableStateOf(false) }
     var showSidePanelSurfaceOpacityDialog by rememberSaveable { mutableStateOf(false) }
     var showSidePanelTextColorDialog by rememberSaveable { mutableStateOf(false) }
-    var showNavBarVibrancyDialog by rememberSaveable { mutableStateOf(false) }
-    var showNavBarBlurRadiusDialog by rememberSaveable { mutableStateOf(false) }
-    var showNavBarLensHeightDialog by rememberSaveable { mutableStateOf(false) }
-    var showNavBarLensAmountDialog by rememberSaveable { mutableStateOf(false) }
-    var showNavBarColorDialog by rememberSaveable { mutableStateOf(false) }
-    var showNavBarSurfaceOpacityDialog by rememberSaveable { mutableStateOf(false) }
-    var showNavBarTextColorDialog by rememberSaveable { mutableStateOf(false) }
     var showTextColorDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(
@@ -358,7 +309,7 @@ fun GlassEffectSettings(
                     trailingContent = {
                         Switch(
                             checked = navBarEnabled,
-                            onCheckedChange = toggleNavBar,
+                            onCheckedChange = onNavBarEnabledChange,
                             thumbContent = {
                                 Icon(
                                     painter = painterResource(
@@ -370,7 +321,7 @@ fun GlassEffectSettings(
                             }
                         )
                     },
-                    onClick = { toggleNavBar(!navBarEnabled) }
+                    onClick = { onNavBarEnabledChange(!navBarEnabled) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.nav_bar),
@@ -441,50 +392,6 @@ fun GlassEffectSettings(
             )
         }
 
-        if (navBarEnabled) {
-            Spacer(modifier = Modifier.height(27.dp))
-
-            Material3SettingsGroup(
-                title = stringResource(R.string.liquid_glass_nav_bar_overrides),
-                items = listOf(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.liquid_glass_vibrancy)) },
-                        onClick = { showNavBarVibrancyDialog = true }
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.sliders),
-                        title = { Text(stringResource(R.string.liquid_glass_blur_radius)) },
-                        onClick = { showNavBarBlurRadiusDialog = true }
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.liquid_glass_lens_height)) },
-                        onClick = { showNavBarLensHeightDialog = true }
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.liquid_glass_lens_amount)) },
-                        onClick = { showNavBarLensAmountDialog = true }
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.liquid_glass_surface_tint)) },
-                        onClick = { showNavBarColorDialog = true }
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.tune),
-                        title = { Text(stringResource(R.string.liquid_glass_surface_opacity)) },
-                        onClick = { showNavBarSurfaceOpacityDialog = true }
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.liquid_glass_text_color)) },
-                        onClick = { showNavBarTextColorDialog = true }
-                    ),
-                )
-            )
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
     }
@@ -684,130 +591,6 @@ fun GlassEffectSettings(
             onConfirm = { color ->
                 onSidePanelTextColorChange(color.toArgb())
                 showSidePanelTextColorDialog = false
-            },
-            defaultColor = Color.White,
-        )
-    }
-
-    if (showNavBarVibrancyDialog) {
-        var tempValue by remember { mutableFloatStateOf(navBarVibrancy) }
-        DefaultDialog(
-            onDismiss = { tempValue = navBarVibrancy; showNavBarVibrancyDialog = false },
-            buttons = {
-                TextButton(onClick = { tempValue = 1.2f }) { Text(stringResource(R.string.reset)) }
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = { tempValue = navBarVibrancy; showNavBarVibrancyDialog = false }) { Text(stringResource(android.R.string.cancel)) }
-                TextButton(onClick = { onNavBarVibrancyChange(tempValue); showNavBarVibrancyDialog = false }) { Text(stringResource(android.R.string.ok)) }
-            }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                Text(text = stringResource(R.string.liquid_glass_vibrancy), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-                Text(text = "%.2f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
-                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..2f, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-
-    if (showNavBarBlurRadiusDialog) {
-        var tempValue by remember { mutableFloatStateOf(navBarBlurRadius) }
-        DefaultDialog(
-            onDismiss = { tempValue = navBarBlurRadius; showNavBarBlurRadiusDialog = false },
-            buttons = {
-                TextButton(onClick = { tempValue = 2f }) { Text(stringResource(R.string.reset)) }
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = { tempValue = navBarBlurRadius; showNavBarBlurRadiusDialog = false }) { Text(stringResource(android.R.string.cancel)) }
-                TextButton(onClick = { onNavBarBlurRadiusChange(tempValue); showNavBarBlurRadiusDialog = false }) { Text(stringResource(android.R.string.ok)) }
-            }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                Text(text = stringResource(R.string.liquid_glass_blur_radius), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-                Text(text = "%.0f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
-                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..100f, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-
-    if (showNavBarLensHeightDialog) {
-        var tempValue by remember { mutableFloatStateOf(navBarLensHeight) }
-        DefaultDialog(
-            onDismiss = { tempValue = navBarLensHeight; showNavBarLensHeightDialog = false },
-            buttons = {
-                TextButton(onClick = { tempValue = 0.4f }) { Text(stringResource(R.string.reset)) }
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = { tempValue = navBarLensHeight; showNavBarLensHeightDialog = false }) { Text(stringResource(android.R.string.cancel)) }
-                TextButton(onClick = { onNavBarLensHeightChange(tempValue); showNavBarLensHeightDialog = false }) { Text(stringResource(android.R.string.ok)) }
-            }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                Text(text = stringResource(R.string.liquid_glass_lens_height), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-                Text(text = "%.2f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
-                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-
-    if (showNavBarLensAmountDialog) {
-        var tempValue by remember { mutableFloatStateOf(navBarLensAmount) }
-        DefaultDialog(
-            onDismiss = { tempValue = navBarLensAmount; showNavBarLensAmountDialog = false },
-            buttons = {
-                TextButton(onClick = { tempValue = 0.6f }) { Text(stringResource(R.string.reset)) }
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = { tempValue = navBarLensAmount; showNavBarLensAmountDialog = false }) { Text(stringResource(android.R.string.cancel)) }
-                TextButton(onClick = { onNavBarLensAmountChange(tempValue); showNavBarLensAmountDialog = false }) { Text(stringResource(android.R.string.ok)) }
-            }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                Text(text = stringResource(R.string.liquid_glass_lens_amount), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-                Text(text = "%.2f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
-                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-
-    if (showNavBarSurfaceOpacityDialog) {
-        var tempValue by remember { mutableFloatStateOf(navBarSurfaceOpacity) }
-        DefaultDialog(
-            onDismiss = { tempValue = navBarSurfaceOpacity; showNavBarSurfaceOpacityDialog = false },
-            buttons = {
-                TextButton(onClick = { tempValue = 0.5f }) { Text(stringResource(R.string.reset)) }
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = { tempValue = navBarSurfaceOpacity; showNavBarSurfaceOpacityDialog = false }) { Text(stringResource(android.R.string.cancel)) }
-                TextButton(onClick = { onNavBarSurfaceOpacityChange(tempValue); showNavBarSurfaceOpacityDialog = false }) { Text(stringResource(android.R.string.ok)) }
-            }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                Text(text = stringResource(R.string.liquid_glass_surface_opacity), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-                Text(text = "%.2f".format(tempValue), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
-                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-
-    if (showNavBarColorDialog) {
-        ColorPickerDialog(
-            initialColor = navBarTintColor,
-            title = stringResource(R.string.liquid_glass_surface_tint),
-            onDismiss = { showNavBarColorDialog = false },
-            onConfirm = { color ->
-                onNavBarColorChange(color.toArgb())
-                showNavBarColorDialog = false
-            },
-            onReset = {
-                onNavBarColorChange(0)
-                showNavBarColorDialog = false
-            },
-        )
-    }
-
-    if (showNavBarTextColorDialog) {
-        ColorPickerDialog(
-            initialColor = navBarTextColor,
-            title = stringResource(R.string.liquid_glass_text_color),
-            onDismiss = { showNavBarTextColorDialog = false },
-            onConfirm = { color ->
-                onNavBarTextColorChange(color.toArgb())
-                showNavBarTextColorDialog = false
             },
             defaultColor = Color.White,
         )

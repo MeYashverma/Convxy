@@ -2650,12 +2650,14 @@ fun BottomSheetPlayer(
 
                         Spacer(modifier = Modifier.height(8.dp)) //space between play and audio
 
-                        if (!hideVolumeBar) {
+                        // Hidden via alpha, not omitted — keeps this row's
+                        // space reserved so the layout below doesn't shift up.
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = PlayerHorizontalPadding)
+                                .alpha(if (hideVolumeBar) 0f else 1f)
                         ) {
                             val volumeInteractionSource = remember { MutableInteractionSource() }
                             val isVolumeDragged by volumeInteractionSource.collectIsDraggedAsState()
@@ -2751,7 +2753,6 @@ fun BottomSheetPlayer(
                                     .size(20.dp)
                                     .graphicsLayer(scaleX = volumeIconScale, scaleY = volumeIconScale)
                             )
-                        }
                         }
 
                         val displayBluetoothName = remember(bluetoothDeviceName) {

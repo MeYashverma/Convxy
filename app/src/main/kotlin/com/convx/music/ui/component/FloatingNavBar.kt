@@ -79,7 +79,7 @@ fun AppFloatingNavBar(
 
     val tabBarContentModifier = if (useGlass) {
         Modifier.liquidGlass(
-            config = glassConfig.forNavBar(),
+            config = glassConfig,
             shape = NavBarShape,
             highlightAlpha = 0.3f,
         )

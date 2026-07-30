@@ -27,12 +27,11 @@ sealed class Screens(
 
     object Home : Screens(
         titleId = R.string.home,
-        iconIdInactive = R.drawable.home_outlined,
-        iconIdActive = R.drawable.home_filled,
+        iconIdInactive = R.drawable.accord_home,
+        iconIdActive = R.drawable.accord_home,
         route = "home",
-        // Heroicons' home glyph, same as the classic icon set.
-        iconIdInactiveIos = R.drawable.home_outlined,
-        iconIdActiveIos = R.drawable.home_filled,
+        iconIdInactiveIos = R.drawable.accord_home,
+        iconIdActiveIos = R.drawable.accord_home,
     )
 
     object Search : Screens(
@@ -46,8 +45,8 @@ sealed class Screens(
 
     object ListenTogether : Screens(
         titleId = R.string.together,
-        iconIdInactive = R.drawable.group_outlined,
-        iconIdActive = R.drawable.group_filled,
+        iconIdInactive = R.drawable.accord_groups,
+        iconIdActive = R.drawable.accord_groups,
         route = "listen_together",
         iconIdInactiveIos = R.drawable.cosmos_group_outlined,
         iconIdActiveIos = R.drawable.cosmos_group_filled,
@@ -55,8 +54,8 @@ sealed class Screens(
 
     object Library : Screens(
         titleId = R.string.filter_library,
-        iconIdInactive = R.drawable.library_music_outlined,
-        iconIdActive = R.drawable.library_music_filled,
+        iconIdInactive = R.drawable.accord_library,
+        iconIdActive = R.drawable.accord_library,
         route = "library",
         iconIdInactiveIos = R.drawable.cosmos_library_outlined,
         iconIdActiveIos = R.drawable.cosmos_library_filled,

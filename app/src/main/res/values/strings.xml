@@ -297,6 +297,8 @@
     <string name="login">Login</string>
     <string name="show_audio_quality_badge">Show audio quality badge</string>
     <string name="mini_player_waveform">Mini player waveform seek bar</string>
+    <string name="mini_bar_tab_style">Multi-icon mini bar</string>
+    <string name="mini_bar_tab_style_desc">Show the full transport row (shuffle, prev, play, next, repeat, lyrics, queue) instead of the simple thumbnail/seek bar/play/forward look</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
 

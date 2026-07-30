@@ -205,7 +205,6 @@ import com.convx.music.ui.component.isGlassAllowed
 import com.convx.music.ui.component.AppFloatingNowPlayingPill
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.AppFloatingSideBar
-import com.convx.music.ui.player.LyricsFullScreenOverlay
 import com.convx.music.ui.component.SideBarAccountRow
 import com.convx.music.ui.component.SideBarContentInset
 import com.convx.music.ui.component.SideBarMargin
@@ -1270,6 +1269,14 @@ class MainActivity : ComponentActivity() {
                                             pureBlack = pureBlack,
                                             showPlayerAccessory = hasDockedPlayerAccessory,
                                             onAccessoryClick = { playerBottomSheetState.expandSoft() },
+                                            onAccessoryLyricsClick = {
+                                                playerBottomSheetState.expandSoft()
+                                                playerConnection?.requestShowLyrics?.value = true
+                                            },
+                                            onAccessoryQueueClick = {
+                                                playerBottomSheetState.expandSoft()
+                                                playerConnection?.requestShowQueue?.value = true
+                                            },
                                             // Hide the standalone search circle while on the search
                                             // screen so the morphing pill visually replaces it.
                                             searchExpanded = inSearchInputScreen,
@@ -1605,6 +1612,14 @@ class MainActivity : ComponentActivity() {
                                     ) {
                                         AppFloatingNowPlayingPill(
                                             onClick = { playerBottomSheetState.expandSoft() },
+                                            onLyricsClick = {
+                                                playerBottomSheetState.expandSoft()
+                                                playerConnection?.requestShowLyrics?.value = true
+                                            },
+                                            onQueueClick = {
+                                                playerBottomSheetState.expandSoft()
+                                                playerConnection?.requestShowQueue?.value = true
+                                            },
                                             pureBlack = pureBlack,
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
@@ -1628,15 +1643,6 @@ class MainActivity : ComponentActivity() {
                         state = LocalBottomSheetPageState.current,
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
-
-                    playerConnection?.let { connection ->
-                        val showDedicatedLyricsOverlay by connection.showDedicatedLyricsOverlay.collectAsStateWithLifecycle()
-                        LyricsFullScreenOverlay(
-                            visible = showDedicatedLyricsOverlay,
-                            onDismiss = { connection.showDedicatedLyricsOverlay.value = false },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
 
 
 

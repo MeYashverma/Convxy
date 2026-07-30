@@ -55,6 +55,8 @@ fun AppFloatingNavBar(
     pureBlack: Boolean = false,
     showPlayerAccessory: Boolean = false,
     onAccessoryClick: () -> Unit = {},
+    onAccessoryLyricsClick: (() -> Unit)? = null,
+    onAccessoryQueueClick: (() -> Unit)? = null,
     // When set, tapping the search circle calls this instead of onItemClick (the
     // caller expands an in-place search pill rather than navigating away) and
     // the circle itself is hidden while searchExpanded so it doesn't double up
@@ -117,6 +119,8 @@ fun AppFloatingNavBar(
                     isInline = false,
                     contentColor = accessoryContentColor,
                     onClick = onAccessoryClick,
+                    onLyricsClick = onAccessoryLyricsClick,
+                    onQueueClick = onAccessoryQueueClick,
                     modifier = accessoryModifier.fillMaxWidth().then(tabBarContentModifier),
                 )
             }

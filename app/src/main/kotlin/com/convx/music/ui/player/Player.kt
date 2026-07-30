@@ -174,7 +174,6 @@ import com.convx.music.ui.theme.decodeGradientStops
 import com.convx.music.ui.theme.tiltedGradient
 import com.convx.music.constants.PlayerStaticColorKey
 import com.convx.music.constants.PlayerButtonsStyle
-import com.convx.music.constants.DedicatedFullscreenLyricsKey
 import com.convx.music.constants.PlayerButtonsStyleKey
 import com.convx.music.constants.PlayerHorizontalPadding
 import com.convx.music.constants.QueuePeekHeight
@@ -875,11 +874,6 @@ fun BottomSheetPlayer(
     var isFullScreen by rememberSaveable {
         mutableStateOf(false)
     }
-    // When on, the fullscreen-lyrics button hands off to a dedicated overlay
-    // (mini player slides away, lyrics take the whole screen) instead of the
-    // in-place expand above — rendered at the app root, see MainActivity.
-    val (dedicatedFullscreenLyrics) = rememberPreference(DedicatedFullscreenLyricsKey, defaultValue = false)
-
     // Position update - only for local playback
     // When casting, we use castPosition directly to avoid sync issues
     // Use isPlaying instead of playbackState to ensure continuous updates during playback
@@ -924,6 +918,28 @@ fun BottomSheetPlayer(
         collapsedBound = dismissedBound + 1.dp,
         initialAnchor = 1
     )
+
+    // The floating mini bar's lyrics/queue icons live outside this composable
+    // (FloatingSideBar/FloatingNavBar), so they signal here through
+    // PlayerConnection instead of calling local state directly.
+    LaunchedEffect(Unit) {
+        playerConnection.requestShowLyrics.collect { requested ->
+            if (requested) {
+                showInlineLyrics = true
+                isFullScreen = true
+                playerConnection.requestShowLyrics.value = false
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        playerConnection.requestShowQueue.collect { requested ->
+            if (requested) {
+                showInlineLyrics = false
+                queueSheetState.expandSoft()
+                playerConnection.requestShowQueue.value = false
+            }
+        }
+    }
 
     val bottomSheetBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC ->
@@ -1714,13 +1730,7 @@ fun BottomSheetPlayer(
                         AnimatedContent(targetState = showInlineLyrics, label = "DownloadButton") { showLyrics ->
                             if (showLyrics) {
                                 FilledIconButton(
-                                    onClick = {
-                                        if (dedicatedFullscreenLyrics) {
-                                            playerConnection.showDedicatedLyricsOverlay.value = true
-                                        } else {
-                                            isFullScreen = !isFullScreen
-                                        }
-                                    },
+                                    onClick = { isFullScreen = !isFullScreen },
                                     shape = shareShape,
                                     colors = IconButtonDefaults.filledIconButtonColors(
                                         containerColor = textButtonColor,
@@ -1864,13 +1874,7 @@ fun BottomSheetPlayer(
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(24.dp))
                                     .background(textButtonColor.copy(alpha = 0.2f))
-                                    .clickable {
-                                        if (dedicatedFullscreenLyrics) {
-                                            playerConnection.showDedicatedLyricsOverlay.value = true
-                                        } else {
-                                            isFullScreen = !isFullScreen
-                                        }
-                                    },
+                                    .clickable { isFullScreen = !isFullScreen },
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.fullscreen),
@@ -2930,6 +2934,10 @@ fun BottomSheetPlayer(
             playerBackground = playerBackground,
             onToggleLyrics = {
                 showInlineLyrics = !showInlineLyrics
+                // Previously needed a second tap on the fullscreen button that
+                // only appears once lyrics are already showing — one tap now
+                // goes straight to full-screen lyrics.
+                if (showInlineLyrics) isFullScreen = true
             },
             )
         }

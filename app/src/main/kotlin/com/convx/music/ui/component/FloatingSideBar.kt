@@ -118,9 +118,9 @@ private val SideBarContentPadding = PaddingValues(6.dp)
 const val FloatingMiniPlayerWidthFraction = 0.8f
 
 /** Height as a share of the pill's own width, clamped to stay a bar. */
-private const val FloatingMiniPlayerAspect = 0.14f
+private const val FloatingMiniPlayerAspect = 0.11f
 private val FloatingMiniPlayerMinHeight = 64.dp
-private val FloatingMiniPlayerMaxHeight = 96.dp
+private val FloatingMiniPlayerMaxHeight = 78.dp
 
 /** A non-tab destination in the side bar: history, stats, a playlist, and so on. */
 @Immutable
@@ -482,6 +482,8 @@ fun BoxWithConstraintsScope.AppFloatingNowPlayingPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     pureBlack: Boolean = false,
+    onLyricsClick: (() -> Unit)? = null,
+    onQueueClick: (() -> Unit)? = null,
 ) {
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass = glassConfig.isEnabledFor(GlassComponent.SIDE_PANEL) && isGlassAllowed()
@@ -506,6 +508,8 @@ fun BoxWithConstraintsScope.AppFloatingNowPlayingPill(
         isInline = false,
         contentColor = if (useGlass) glassConfig.textColor else Color.White,
         onClick = onClick,
+        onLyricsClick = onLyricsClick,
+        onQueueClick = onQueueClick,
         modifier = modifier
             .width(width)
             .height(height)

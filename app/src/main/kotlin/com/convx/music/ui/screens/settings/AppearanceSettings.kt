@@ -117,8 +117,6 @@ import com.convx.music.constants.EnableSettingsPopupKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableHighRefreshRateKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.DedicatedFullscreenLyricsKey
-import com.convx.music.constants.LyricsOverlayControlsAtTopKey
 import com.convx.music.constants.EnableLyricsThumbnailPlayPauseKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.IosOverscrollKey
@@ -174,6 +172,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ThumbnailCornerRadiusKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.UseNewMiniPlayerDesignKey
+import com.convx.music.constants.MiniBarTabStyleKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.UseNewPlayerDesignKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -224,6 +223,7 @@ fun AppearanceSettings(
     snackbarHostState: SnackbarHostState,
 ) {
     val (_, _) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
+    val (miniBarTabStyle, onMiniBarTabStyleChange) = rememberPreference(MiniBarTabStyleKey, defaultValue = false)
     val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
     val (_, _) = rememberPreference(EnableDynamicIconKey, defaultValue = true)
     val (useNewPlayerDesign, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = false)
@@ -289,8 +289,6 @@ fun AppearanceSettings(
     val (lyricsStandardBlur, onLyricsStandardBlurChange) = rememberPreference(LyricsStandardBlurKey, defaultValue = false)
     val (swipeLyrics, onSwipeLyricsChange) = rememberPreference(SwipeLyricsKey, defaultValue = false)
     val (enableLyricsThumbnailPlayPause, onEnableLyricsThumbnailPlayPauseChange) = rememberPreference(EnableLyricsThumbnailPlayPauseKey, defaultValue = false)
-    val (dedicatedFullscreenLyrics, onDedicatedFullscreenLyricsChange) = rememberPreference(DedicatedFullscreenLyricsKey, defaultValue = false)
-    val (lyricsOverlayControlsAtTop, onLyricsOverlayControlsAtTopChange) = rememberPreference(LyricsOverlayControlsAtTopKey, defaultValue = false)
 
     val (squigglySlider, onSquigglySliderChange) = rememberPreference(
         SquigglySliderKey,
@@ -744,6 +742,27 @@ fun AppearanceSettings(
                     onClick = { onMiniPlayerWaveformChange(!miniPlayerWaveform) }
                 ),
                 Material3SettingsItem(
+                    icon = painterResource(R.drawable.nav_bar),
+                    title = { Text(stringResource(R.string.mini_bar_tab_style)) },
+                    description = { Text(stringResource(R.string.mini_bar_tab_style_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = miniBarTabStyle,
+                            onCheckedChange = onMiniBarTabStyleChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (miniBarTabStyle) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onMiniBarTabStyleChange(!miniBarTabStyle) }
+                ),
+                Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),
                     title = { Text(stringResource(R.string.enable_wavy_slider)) },
                     trailingContent = {
@@ -1006,51 +1025,8 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onEnableLyricsThumbnailPlayPauseChange(!enableLyricsThumbnailPlayPause) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.fullscreen),
-                    title = { Text(stringResource(R.string.dedicated_fullscreen_lyrics)) },
-                    description = { Text(stringResource(R.string.dedicated_fullscreen_lyrics_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = dedicatedFullscreenLyrics,
-                            onCheckedChange = onDedicatedFullscreenLyricsChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (dedicatedFullscreenLyrics) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onDedicatedFullscreenLyricsChange(!dedicatedFullscreenLyrics) }
                 )
-            ) + if (dedicatedFullscreenLyrics) listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.expand_more),
-                    title = { Text(stringResource(R.string.lyrics_overlay_controls_at_top)) },
-                    description = { Text(stringResource(R.string.lyrics_overlay_controls_at_top_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = lyricsOverlayControlsAtTop,
-                            onCheckedChange = onLyricsOverlayControlsAtTopChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (lyricsOverlayControlsAtTop) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onLyricsOverlayControlsAtTopChange(!lyricsOverlayControlsAtTop) }
-                )
-            ) else emptyList()
+            )
         )
 
         Spacer(modifier = Modifier.height(27.dp))

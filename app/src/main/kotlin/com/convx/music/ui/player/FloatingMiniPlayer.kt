@@ -9,6 +9,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -61,6 +63,7 @@ import coil3.compose.AsyncImage
 import com.convx.music.LocalListenTogetherManager
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.constants.MiniBarTabStyleKey
 import com.convx.music.constants.SwipeSensitivityKey
 import com.convx.music.constants.SwipeThumbnailKey
 import androidx.media3.common.Player
@@ -68,6 +71,7 @@ import com.convx.music.extensions.togglePlayPause
 import com.convx.music.extensions.toggleRepeatMode
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
+import com.convx.music.ui.component.rememberPlaybackFraction
 import com.convx.music.utils.rememberPreference
 import kotlin.math.abs
 import kotlin.math.exp
@@ -102,6 +106,7 @@ fun FloatingMiniPlayer(
 
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
+    val (tabStyle) = rememberPreference(MiniBarTabStyleKey, defaultValue = false)
     val listenTogetherManager = LocalListenTogetherManager.current
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
     val swipeEnabled = swipeThumbnailPref && !isListenTogetherGuest
@@ -226,9 +231,9 @@ fun FloatingMiniPlayer(
         // FloatingSideBar), so its icons/thumbnail scale with it instead of
         // looking tiny in a tall pill or cramped in a short one.
         val measuredHeight = with(density) { measuredHeightPx.toDp() }
-        val artSize = if (isInline) 32.dp else (measuredHeight * 0.6f).coerceIn(32.dp, 56.dp)
-        val artCornerRadius = if (isInline) 8.dp else artSize * 0.22f
-        val controlSize = if (isInline) 32.dp else (measuredHeight * 0.55f).coerceIn(32.dp, 48.dp)
+        val artSize = if (isInline) 36.dp else (measuredHeight * 0.6f).coerceIn(36.dp, 60.dp)
+        val artCornerRadius = if (isInline) 9.dp else artSize * 0.22f
+        val controlSize = if (isInline) 36.dp else (measuredHeight * 0.55f).coerceIn(36.dp, 52.dp)
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -241,8 +246,8 @@ fun FloatingMiniPlayer(
                     onClick = onClick,
                 )
                 .padding(
-                    horizontal = if (isInline) 8.dp else 12.dp,
-                    vertical = if (isInline) 4.dp else 8.dp,
+                    horizontal = if (isInline) 10.dp else 12.dp,
+                    vertical = if (isInline) 6.dp else 8.dp,
                 ),
         ) {
             if (isInline) {
@@ -274,6 +279,81 @@ fun FloatingMiniPlayer(
                         isPlaying = isPlaying,
                         tint = contentColor,
                         size = 24.dp,
+                    )
+                }
+            } else if (!tabStyle) {
+                // iOS-style mini bar (default): thumbnail, title/artist, a thin
+                // playback progress bar, play/pause, and forward (skip next).
+                val iconSize = controlSize * 0.5f
+                val playIconSize = controlSize * 0.6f
+                val playbackFraction by rememberPlaybackFraction(playerConnection.player, isPlaying)
+
+                AsyncImage(
+                    model = mediaMetadata?.thumbnailUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(artSize)
+                        .clip(RoundedCornerShape(artCornerRadius)),
+                )
+
+                Spacer(Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = mediaMetadata?.title.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = mediaMetadata?.artists?.joinToString { it.name }.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(contentColor.copy(alpha = 0.25f)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(playbackFraction)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(50))
+                                .background(contentColor),
+                        )
+                    }
+                }
+
+                Spacer(Modifier.width(10.dp))
+
+                IconButton(
+                    onClick = { playerConnection.player.togglePlayPause() },
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    AnimatedPlayPauseIcon(
+                        isPlaying = isPlaying,
+                        tint = contentColor,
+                        size = playIconSize,
+                    )
+                }
+                IconButton(
+                    onClick = { playerConnection.player.seekToNext() },
+                    enabled = canSkipNext,
+                    modifier = Modifier.size(controlSize),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.skip_next),
+                        contentDescription = null,
+                        tint = if (canSkipNext) contentColor else contentColor.copy(alpha = 0.4f),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
             } else {

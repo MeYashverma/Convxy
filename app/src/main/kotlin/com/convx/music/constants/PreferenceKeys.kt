@@ -521,11 +521,11 @@ val LiquidGlassSidePanelLensAmountKey = floatPreferencesKey("liquidGlassSidePane
 val SideBarCollapsedKey = booleanPreferencesKey("sideBarCollapsed")
 val PlayerLayoutOrderKey = stringPreferencesKey("playerLayoutOrder")
 val PlayerLayoutHiddenSlotsKey = stringPreferencesKey("playerLayoutHiddenSlots")
-val DedicatedFullscreenLyricsKey = booleanPreferencesKey("dedicatedFullscreenLyrics")
-val LyricsOverlayControlsAtTopKey = booleanPreferencesKey("lyricsOverlayControlsAtTop")
 val AutoDjMixingEnabledKey = booleanPreferencesKey("autoDjMixingEnabled")
 val HideVolumeBarKey = booleanPreferencesKey("hideVolumeBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
+/** false (default) = simple iOS-style mini bar (thumbnail/title/seek bar/play/forward); true = multi-icon tab-style row. */
+val MiniBarTabStyleKey = booleanPreferencesKey("miniBarTabStyle")
 
 /**
  * Forces the tablet sidebar layout on a device that would otherwise get the

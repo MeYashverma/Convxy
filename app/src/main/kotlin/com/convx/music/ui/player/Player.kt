@@ -174,6 +174,8 @@ import com.convx.music.ui.theme.decodeGradientStops
 import com.convx.music.ui.theme.tiltedGradient
 import com.convx.music.constants.PlayerStaticColorKey
 import com.convx.music.constants.PlayerButtonsStyle
+import com.convx.music.constants.HideVolumeBarKey
+import com.convx.music.constants.OneTapFullscreenLyricsKey
 import com.convx.music.constants.PlayerButtonsStyleKey
 import com.convx.music.constants.PlayerHorizontalPadding
 import com.convx.music.constants.QueuePeekHeight
@@ -874,6 +876,8 @@ fun BottomSheetPlayer(
     var isFullScreen by rememberSaveable {
         mutableStateOf(false)
     }
+    val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
+    val (oneTapFullscreenLyrics) = rememberPreference(OneTapFullscreenLyricsKey, defaultValue = false)
     // Position update - only for local playback
     // When casting, we use castPosition directly to avoid sync issues
     // Use isPlaying instead of playbackState to ensure continuous updates during playback
@@ -2629,6 +2633,7 @@ fun BottomSheetPlayer(
 
                         Spacer(modifier = Modifier.height(8.dp)) //space between play and audio
 
+                        if (!hideVolumeBar) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -2729,6 +2734,7 @@ fun BottomSheetPlayer(
                                     .size(20.dp)
                                     .graphicsLayer(scaleX = volumeIconScale, scaleY = volumeIconScale)
                             )
+                        }
                         }
 
                         val displayBluetoothName = remember(bluetoothDeviceName) {
@@ -2934,10 +2940,11 @@ fun BottomSheetPlayer(
             playerBackground = playerBackground,
             onToggleLyrics = {
                 showInlineLyrics = !showInlineLyrics
-                // Previously needed a second tap on the fullscreen button that
-                // only appears once lyrics are already showing — one tap now
-                // goes straight to full-screen lyrics.
-                if (showInlineLyrics) isFullScreen = true
+                // Off (default): classic two-tap — this only opens/closes inline
+                // lyrics, a separate tap on the fullscreen button is still needed.
+                // On: this same tap opens AND fullscreens lyrics together, and
+                // closing lyrics here also exits fullscreen in the same tap.
+                if (oneTapFullscreenLyrics) isFullScreen = showInlineLyrics
             },
             )
         }

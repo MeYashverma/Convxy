@@ -9,7 +9,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -71,7 +69,6 @@ import com.convx.music.extensions.togglePlayPause
 import com.convx.music.extensions.toggleRepeatMode
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
-import com.convx.music.ui.component.rememberPlaybackFraction
 import com.convx.music.utils.rememberPreference
 import kotlin.math.abs
 import kotlin.math.exp
@@ -282,11 +279,10 @@ fun FloatingMiniPlayer(
                     )
                 }
             } else if (!tabStyle) {
-                // iOS-style mini bar (default): thumbnail, title/artist, a thin
-                // playback progress bar, play/pause, and forward (skip next).
+                // iOS-style mini bar (default): thumbnail, title/artist, play/pause,
+                // and forward (skip next). No seek bar.
                 val iconSize = controlSize * 0.5f
                 val playIconSize = controlSize * 0.6f
-                val playbackFraction by rememberPlaybackFraction(playerConnection.player, isPlaying)
 
                 AsyncImage(
                     model = mediaMetadata?.thumbnailUrl,
@@ -314,22 +310,6 @@ fun FloatingMiniPlayer(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(contentColor.copy(alpha = 0.25f)),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(playbackFraction)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(50))
-                                .background(contentColor),
-                        )
-                    }
                 }
 
                 Spacer(Modifier.width(10.dp))

@@ -118,6 +118,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableHighRefreshRateKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableLyricsThumbnailPlayPauseKey
+import com.convx.music.constants.OneTapFullscreenLyricsKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.IosOverscrollKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -289,6 +290,7 @@ fun AppearanceSettings(
     val (lyricsStandardBlur, onLyricsStandardBlurChange) = rememberPreference(LyricsStandardBlurKey, defaultValue = false)
     val (swipeLyrics, onSwipeLyricsChange) = rememberPreference(SwipeLyricsKey, defaultValue = false)
     val (enableLyricsThumbnailPlayPause, onEnableLyricsThumbnailPlayPauseChange) = rememberPreference(EnableLyricsThumbnailPlayPauseKey, defaultValue = false)
+    val (oneTapFullscreenLyrics, onOneTapFullscreenLyricsChange) = rememberPreference(OneTapFullscreenLyricsKey, defaultValue = false)
 
     val (squigglySlider, onSquigglySliderChange) = rememberPreference(
         SquigglySliderKey,
@@ -1025,6 +1027,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onEnableLyricsThumbnailPlayPauseChange(!enableLyricsThumbnailPlayPause) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.fullscreen),
+                    title = { Text(stringResource(R.string.one_tap_fullscreen_lyrics)) },
+                    description = { Text(stringResource(R.string.one_tap_fullscreen_lyrics_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = oneTapFullscreenLyrics,
+                            onCheckedChange = onOneTapFullscreenLyricsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (oneTapFullscreenLyrics) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onOneTapFullscreenLyricsChange(!oneTapFullscreenLyrics) }
                 )
             )
         )

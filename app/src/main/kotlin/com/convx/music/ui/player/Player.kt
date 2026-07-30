@@ -2368,14 +2368,13 @@ fun BottomSheetPlayer(
             Spacer(Modifier.height(if (useNewPlayerDesign) 24.dp else 8.dp))
 
             AnimatedVisibility(
-                visible = !isFullScreen,
+                // fullscreenLyricsCollapseTop repurposed: on, the controls stay
+                // visible (and get reordered above the lyrics — see the two
+                // controlsContent call sites below) instead of hiding entirely.
+                visible = !isFullScreen || fullscreenLyricsCollapseTop,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                // slideOutVertically's direction has to match shrinkTowards, or the
-                // slide (which visually dominates) masks the shrink direction and
-                // it always looks like it's collapsing downward regardless of the
-                // setting.
-                exit = shrinkVertically(shrinkTowards = if (fullscreenLyricsCollapseTop) Alignment.Top else Alignment.Bottom) +
-                    slideOutVertically(targetOffsetY = { if (fullscreenLyricsCollapseTop) -it else it }) + fadeOut()
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) +
+                    slideOutVertically(targetOffsetY = { -it }) + fadeOut()
             ) {
                 Column {
                     if (useNewPlayerDesign) {
@@ -2895,6 +2894,16 @@ fun BottomSheetPlayer(
                         .padding(bottom = bottomPadding)
                         .animateContentSize(),
                 ) {
+                    // Controls normally render below the lyrics/thumbnail area.
+                    // While fullscreen lyrics are showing with the "collapse
+                    // top" setting on, they move above it instead of hiding.
+                    val controlsAtTop = isFullScreen && fullscreenLyricsCollapseTop
+                    if (controlsAtTop) {
+                        mediaMetadata?.let {
+                            controlsContent(it)
+                        }
+                    }
+
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
@@ -2925,8 +2934,10 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    mediaMetadata?.let {
-                        controlsContent(it)
+                    if (!controlsAtTop) {
+                        mediaMetadata?.let {
+                            controlsContent(it)
+                        }
                     }
 
                     Spacer(Modifier.height(if (useNewPlayerDesign) 30.dp else 8.dp))

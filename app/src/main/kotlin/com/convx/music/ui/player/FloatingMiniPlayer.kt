@@ -14,7 +14,6 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,6 +47,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -133,10 +135,15 @@ fun FloatingMiniPlayer(
 
     // Same structure as MiniPlayer: the drag detector sits on the outermost
     // container so the whole accessory is swipeable, and the entire content row
-    // slides with the drag. BoxWithConstraints (not just Box) so the !isInline
-    // tablet pill can size its icons/thumbnail as a fraction of whatever height
-    // the caller actually gave it, instead of a fixed dp regardless of pill size.
-    BoxWithConstraints(
+    // slides with the drag. A plain Box (not BoxWithConstraints) — this sits
+    // inside FloatingTabBar's Row, which sizes itself via
+    // .height(IntrinsicSize.Max); BoxWithConstraints is a SubcomposeLayout,
+    // and SubcomposeLayout can't answer intrinsic-measurement queries, which
+    // crashes the whole bar. onSizeChanged gets the same measured height for
+    // the !isInline tablet pill's icon/thumbnail scaling without that problem.
+    val density = LocalDensity.current
+    var measuredHeightPx by remember { mutableIntStateOf(0) }
+    Box(
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
             .graphicsLayer {
@@ -144,6 +151,7 @@ fun FloatingMiniPlayer(
                 scaleY = pressScale
             }
             .then(modifier)
+            .onSizeChanged { measuredHeightPx = it.height }
             .then(interactiveHighlight.modifier)
             .clipToBounds()
             .then(interactiveHighlight.gestureModifier)
@@ -217,9 +225,10 @@ fun FloatingMiniPlayer(
         // height varies (FloatingMiniPlayerMinHeight..MaxHeight in
         // FloatingSideBar), so its icons/thumbnail scale with it instead of
         // looking tiny in a tall pill or cramped in a short one.
-        val artSize = if (isInline) 32.dp else (maxHeight * 0.6f).coerceIn(32.dp, 56.dp)
+        val measuredHeight = with(density) { measuredHeightPx.toDp() }
+        val artSize = if (isInline) 32.dp else (measuredHeight * 0.6f).coerceIn(32.dp, 56.dp)
         val artCornerRadius = if (isInline) 8.dp else artSize * 0.22f
-        val controlSize = if (isInline) 32.dp else (maxHeight * 0.55f).coerceIn(32.dp, 48.dp)
+        val controlSize = if (isInline) 32.dp else (measuredHeight * 0.55f).coerceIn(32.dp, 48.dp)
 
         Row(
             verticalAlignment = Alignment.CenterVertically,

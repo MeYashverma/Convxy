@@ -143,14 +143,15 @@ fun PlayerThemeScreen(
     var showStaticPicker by rememberSaveable { mutableStateOf(false) }
     var showGradientSheet by rememberSaveable { mutableStateOf(false) }
 
-    val (layoutOrderRaw, onLayoutOrderChange) = rememberPreference(PlayerLayoutOrderKey, defaultValue = "")
-    val (hiddenSlotsRaw, onHiddenSlotsChange) = rememberPreference(PlayerLayoutHiddenSlotsKey, defaultValue = "")
-    val layoutSlots = remember(layoutOrderRaw) {
-        PlayerLayoutRegistry.deserializeOrder(layoutOrderRaw).toMutableStateList()
-    }
-    val hiddenSlots = remember(hiddenSlotsRaw) {
-        PlayerLayoutRegistry.deserializeHiddenSlots(hiddenSlotsRaw)
-    }
+    // Layout builder disabled for now — see the commented-out section below.
+    // val (layoutOrderRaw, onLayoutOrderChange) = rememberPreference(PlayerLayoutOrderKey, defaultValue = "")
+    // val (hiddenSlotsRaw, onHiddenSlotsChange) = rememberPreference(PlayerLayoutHiddenSlotsKey, defaultValue = "")
+    // val layoutSlots = remember(layoutOrderRaw) {
+    //     PlayerLayoutRegistry.deserializeOrder(layoutOrderRaw).toMutableStateList()
+    // }
+    // val hiddenSlots = remember(hiddenSlotsRaw) {
+    //     PlayerLayoutRegistry.deserializeHiddenSlots(hiddenSlotsRaw)
+    // }
 
     // Apple Music draws its own square artwork treatment, so the shape presets
     // have nothing to act on while it is selected.
@@ -272,27 +273,28 @@ fun PlayerThemeScreen(
             }
         }
 
-        SectionTitle(stringResource(R.string.player_theme_layout))
-        Text(
-            text = stringResource(R.string.player_theme_layout_desc),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-        )
-        PlayerLayoutList(
-            slots = layoutSlots,
-            hiddenSlots = hiddenSlots,
-            artworkUrl = artworkUrl,
-            onReordered = { onLayoutOrderChange(PlayerLayoutRegistry.serializeOrder(it)) },
-            onVisibilityChange = { slot, hidden ->
-                val updated = if (hidden) hiddenSlots + slot else hiddenSlots - slot
-                onHiddenSlotsChange(PlayerLayoutRegistry.serializeHiddenSlots(updated))
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .height(480.dp),
-        )
+        // Layout builder disabled for now.
+        // SectionTitle(stringResource(R.string.player_theme_layout))
+        // Text(
+        //     text = stringResource(R.string.player_theme_layout_desc),
+        //     style = MaterialTheme.typography.bodySmall,
+        //     color = MaterialTheme.colorScheme.onSurfaceVariant,
+        //     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        // )
+        // PlayerLayoutList(
+        //     slots = layoutSlots,
+        //     hiddenSlots = hiddenSlots,
+        //     artworkUrl = artworkUrl,
+        //     onReordered = { onLayoutOrderChange(PlayerLayoutRegistry.serializeOrder(it)) },
+        //     onVisibilityChange = { slot, hidden ->
+        //         val updated = if (hidden) hiddenSlots + slot else hiddenSlots - slot
+        //         onHiddenSlotsChange(PlayerLayoutRegistry.serializeHiddenSlots(updated))
+        //     },
+        //     modifier = Modifier
+        //         .fillMaxWidth()
+        //         .padding(horizontal = 16.dp)
+        //         .height(480.dp),
+        // )
 
         Spacer(Modifier.height(24.dp))
     }

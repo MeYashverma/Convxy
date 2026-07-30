@@ -21,6 +21,11 @@ const val CONTENT_TYPE_PLAYLIST = 5
 val NavigationBarHeight = 80.dp
 val SlimNavBarHeight = 64.dp
 val MiniPlayerHeight = 64.dp
+// The docked floating accessory (iOS-style row: thumbnail + 2 lines + progress
+// bar, or the multi-icon tab-style row) runs taller than the classic mini
+// player MiniPlayerHeight was sized for — under-reserving this clips content
+// behind it.
+val DockedAccessoryHeight = 84.dp
 val MinMiniPlayerHeight = 16.dp
 val MiniPlayerBottomSpacing = 8.dp // Space between MiniPlayer and NavigationBar
 val QueuePeekHeight = 64.dp

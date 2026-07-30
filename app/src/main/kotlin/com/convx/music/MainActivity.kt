@@ -153,6 +153,7 @@ import com.convx.music.constants.ListenTogetherInTopBarKey
 import com.convx.music.constants.ListenTogetherUsernameKey
 import com.convx.music.constants.MiniPlayerBottomSpacing
 import com.convx.music.constants.MiniPlayerHeight
+import com.convx.music.constants.DockedAccessoryHeight
 import com.convx.music.constants.NavigationBarAnimationSpec
 import com.convx.music.constants.NavigationBarHeight
 import com.convx.music.constants.PauseListenHistoryKey
@@ -828,7 +829,7 @@ class MainActivity : ComponentActivity() {
                         bottom += NavigationBarHeight
                     }
                     if (!playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
-                    if (hasDockedPlayerAccessory) bottom += MiniPlayerHeight
+                    if (hasDockedPlayerAccessory) bottom += DockedAccessoryHeight
                     windowsInsets
                         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                         .add(WindowInsets(top = AppBarHeight, bottom = bottom))

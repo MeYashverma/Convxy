@@ -175,7 +175,6 @@ import com.convx.music.constants.LiquidGlassDepthEffectKey
 import com.convx.music.constants.LiquidGlassSurfaceTintColorKey
 import com.convx.music.constants.LiquidGlassSurfaceOpacityKey
 import com.convx.music.constants.LiquidGlassTextColorKey
-import com.convx.music.constants.UseFloatingNavBarKey
 import com.convx.music.constants.AppleMusicUiKey
 import com.convx.music.constants.PauseSearchHistoryKey
 import com.convx.music.constants.PureBlackKey
@@ -614,7 +613,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
-                val (useFloatingNavBar) = rememberPreference(UseFloatingNavBarKey, defaultValue = true)
+                // Legacy classic nav bar/mini player removed — floating pill system always on.
+                val useFloatingNavBar = true
                 val (appleMusicUi) = rememberPreference(AppleMusicUiKey, defaultValue = true)
                 // The Settings tab is exclusive to the floating (iOS-style) tab bar —
                 // the classic nav bar keeps settings behind the top bar icon.

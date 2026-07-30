@@ -525,7 +525,6 @@ val DedicatedFullscreenLyricsKey = booleanPreferencesKey("dedicatedFullscreenLyr
 val LyricsOverlayControlsAtTopKey = booleanPreferencesKey("lyricsOverlayControlsAtTop")
 val AutoDjMixingEnabledKey = booleanPreferencesKey("autoDjMixingEnabled")
 val HideVolumeBarKey = booleanPreferencesKey("hideVolumeBar")
-val UseFloatingNavBarKey = booleanPreferencesKey("useFloatingNavBar")
 val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 
 /**

@@ -379,7 +379,17 @@ fun BottomSheetPlayer(
     )
     val currentFormat by playerConnection.currentFormat.collectAsStateWithLifecycle(initialValue =null)
     
-    val playerFormat by produceState(initialValue = playerConnection.player.audioFormat) {
+    // Crossfade swaps playerConnection.player to a different ExoPlayer instance
+    // mid-session — collecting the underlying flow (rather than reading
+    // playerConnection.player once) is what makes this re-subscribe the
+    // listener to the new instance instead of silently tracking the old,
+    // fading-out one forever.
+    val activePlayer by playerConnection.service.playerFlow.collectAsStateWithLifecycle(
+        initialValue = playerConnection.player
+    )
+    val playerFormat by produceState(initialValue = activePlayer?.audioFormat, activePlayer) {
+        val target = activePlayer ?: return@produceState
+        value = target.audioFormat
         val listener = object : Player.Listener {
             override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
                 if (events.contains(androidx.media3.common.Player.EVENT_TRACKS_CHANGED)) {
@@ -387,9 +397,9 @@ fun BottomSheetPlayer(
                 }
             }
         }
-        playerConnection.player.addListener(listener)
+        target.addListener(listener)
         awaitDispose {
-            playerConnection.player.removeListener(listener)
+            target.removeListener(listener)
         }
     }
 

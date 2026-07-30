@@ -68,6 +68,8 @@ import androidx.media3.common.Player
 import com.convx.music.extensions.togglePlayPause
 import com.convx.music.extensions.toggleRepeatMode
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
+import com.convx.music.ui.component.ScrollingWaveformSeekBar
+import com.convx.music.ui.component.rememberPlaybackFraction
 import com.convx.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
 import com.convx.music.utils.rememberPreference
 import kotlin.math.abs
@@ -279,10 +281,12 @@ fun FloatingMiniPlayer(
                     )
                 }
             } else if (!tabStyle) {
-                // iOS-style mini bar (default): thumbnail, title/artist, play/pause,
-                // and forward (skip next). No seek bar.
+                // iOS-style mini bar (default): thumbnail, title/artist, a wave
+                // seek bar, play/pause, and forward (skip next).
                 val iconSize = controlSize * 0.5f
                 val playIconSize = controlSize * 0.6f
+                val playbackFraction by rememberPlaybackFraction(playerConnection.player, isPlaying)
+                val waveformSeed = remember(mediaMetadata?.id) { mediaMetadata?.id?.hashCode() ?: 0 }
 
                 AsyncImage(
                     model = mediaMetadata?.thumbnailUrl,
@@ -309,6 +313,22 @@ fun FloatingMiniPlayer(
                         color = contentColor.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    ScrollingWaveformSeekBar(
+                        progress = { playbackFraction },
+                        onSeek = { frac ->
+                            val duration = playerConnection.player.duration
+                            if (duration > 0) {
+                                playerConnection.player.seekTo((frac * duration).toLong())
+                            }
+                        },
+                        playedColor = contentColor,
+                        trackColor = contentColor.copy(alpha = 0.3f),
+                        seed = waveformSeed,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(18.dp),
                     )
                 }
 

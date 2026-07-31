@@ -195,6 +195,18 @@ fun FloatingTabBar(
 private val GooeyPeakBlur = 12.dp
 private const val GooeyDurationMs = 300
 
+// Vendored addition: the three shapes the bar can render. INLINE is the
+// scroll-collapsed row (unchanged by search mode); EXPANDED is the normal
+// all-tabs pill; SEARCH_EXPANDED replaces EXPANDED while search mode is
+// active (see SearchExpandedBar).
+private enum class FloatingTabBarVisual { INLINE, EXPANDED, SEARCH_EXPANDED }
+
+// Matches the established inline-row height (InlineStandaloneTab's own
+// defaultMinSize floor at the FloatingNavBar call site, and the inline mini
+// player's own ~48dp content height) so the search-expanded row doesn't read
+// shorter than the bar's own shrunk state.
+private val SearchBarRowHeight = 48.dp
+
 /**
  * A floating tab bar that transitions between inline and expanded states based on scroll behavior.
  *
@@ -230,16 +242,30 @@ fun FloatingTabBar(
     // selected tab's icon. Null falls back to a flat colored puck.
     backdrop: Backdrop? = null,
     accentColor: Color? = null,
+    // Vendored addition: when true (and searchBarContent non-null), the
+    // expanded state renders SearchExpandedBar instead of ExpandedBar — the
+    // tab group shrinks to the current screen's own icon and the standalone
+    // slot expands to fill the rest of the row with searchBarContent. The
+    // inline (scrolled) state is unaffected — it stays the normal collapsed
+    // icon+accessory+standalone row regardless of searchMode.
+    searchMode: Boolean = false,
+    searchBarContent: (@Composable (Modifier) -> Unit)? = null,
     content: FloatingTabBarScope.() -> Unit
 ) {
     val scope = remember(contentKey) { FloatingTabBarScopeImpl().apply { content() } }
 
     val isAccessoryShared = inlineAccessory != null && expandedAccessory != null
 
+    val visual = when {
+        scrollConnection.isInline -> FloatingTabBarVisual.INLINE
+        searchMode && searchBarContent != null -> FloatingTabBarVisual.SEARCH_EXPANDED
+        else -> FloatingTabBarVisual.EXPANDED
+    }
+
     // updateTransition (rather than the sugared top-level AnimatedContent) so
     // the transition object is available here to drive the gooey blur pulse,
     // not just inside the content lambda.
-    val transition = updateTransition(targetState = scrollConnection.isInline, label = "floatingTabBarInline")
+    val transition = updateTransition(targetState = visual, label = "floatingTabBarVisual")
     val gooeyBlurPx = with(LocalDensity.current) { GooeyPeakBlur.toPx() }
     // Liquid "gooey" merge/split (see GooeyTransition.kt): peaks mid-crossfade
     // and returns to 0 at rest, on every transition regardless of direction —
@@ -269,9 +295,9 @@ fun FloatingTabBar(
             transition.AnimatedContent(
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 contentAlignment = Alignment.BottomCenter
-            ) { isInline ->
-            if (isInline) {
-                InlineBar(
+            ) { targetVisual ->
+            when (targetVisual) {
+                FloatingTabBarVisual.INLINE -> InlineBar(
                     scope = scope,
                     selectedTabKey = selectedTabKey,
                     accessory = inlineAccessory,
@@ -284,8 +310,7 @@ fun FloatingTabBar(
                     tabBarContentModifier = tabBarContentModifier,
                     animatedVisibilityScope = this@AnimatedContent
                 )
-            } else {
-                ExpandedBar(
+                FloatingTabBarVisual.EXPANDED -> ExpandedBar(
                     scope = scope,
                     selectedTabKey = selectedTabKey,
                     accessory = expandedAccessory,
@@ -298,6 +323,19 @@ fun FloatingTabBar(
                     animatedVisibilityScope = this@AnimatedContent,
                     backdrop = backdrop,
                     accentColor = accentColor
+                )
+                FloatingTabBarVisual.SEARCH_EXPANDED -> SearchExpandedBar(
+                    scope = scope,
+                    selectedTabKey = selectedTabKey,
+                    accessory = expandedAccessory,
+                    isAccessoryShared = isAccessoryShared,
+                    colors = colors,
+                    shapes = shapes,
+                    sizes = sizes,
+                    elevations = elevations,
+                    tabBarContentModifier = tabBarContentModifier,
+                    animatedVisibilityScope = this@AnimatedContent,
+                    searchBarContent = searchBarContent ?: {}
                 )
             }
             }
@@ -786,6 +824,84 @@ private fun SharedTransitionScope.ExpandedBar(
                         .aspectRatio(1f)
                 )
             }
+        }
+    }
+}
+
+/**
+ * Vendored addition: the search-active expanded shape. Same accessory-above
+ * treatment as [ExpandedBar], but the row below it is the collapsed-style
+ * single current-screen icon ([InlineTab], reused as-is) next to
+ * [searchBarContent] filling the rest of the row — instead of the full
+ * tab-group pill + circular standalone tab.
+ */
+@Composable
+private fun SharedTransitionScope.SearchExpandedBar(
+    scope: FloatingTabBarScopeImpl,
+    selectedTabKey: Any?,
+    accessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)?,
+    isAccessoryShared: Boolean,
+    colors: FloatingTabBarColors,
+    shapes: FloatingTabBarShapes,
+    sizes: FloatingTabBarSizes,
+    elevations: FloatingTabBarElevations,
+    tabBarContentModifier: Modifier,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    searchBarContent: @Composable (Modifier) -> Unit,
+) {
+    val inlineTab = scope.getInlineTab(selectedTabKey)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (accessory != null) {
+            ExpandedAccessory(
+                accessory = accessory,
+                isAccessoryShared = isAccessoryShared,
+                shapes = shapes,
+                colors = colors,
+                elevations = elevations,
+                animatedVisibilityScope = animatedVisibilityScope,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
+            verticalAlignment = Alignment.CenterVertically,
+            // Fixed rather than IntrinsicSize.Max: matches the mini player's own
+            // inline (shrunk) height exactly instead of letting a short
+            // searchBarContent under-report its intrinsic height and shrink the row.
+            modifier = Modifier.height(SearchBarRowHeight)
+        ) {
+            if (inlineTab != null) {
+                InlineTab(
+                    inlineTab = inlineTab,
+                    // Already expanded — a tap here should just navigate
+                    // (inlineTab.onClick, fired inside InlineTab itself), not
+                    // trigger the inline scroll-connection's expand().
+                    onInlineTabClick = {},
+                    shapes = shapes,
+                    sizes = sizes,
+                    colors = colors,
+                    elevations = elevations,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    tabBarContentModifier = tabBarContentModifier,
+                    modifier = Modifier.fillMaxHeight()
+                )
+            }
+
+            searchBarContent(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .shadow(shape = shapes.tabBarShape, elevation = elevations.expandedElevation)
+                    .background(color = colors.backgroundColor, shape = shapes.tabBarShape)
+                    .clip(shapes.tabBarShape)
+                    .then(tabBarContentModifier)
+            )
         }
     }
 }

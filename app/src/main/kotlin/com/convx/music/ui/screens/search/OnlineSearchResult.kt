@@ -6,7 +6,6 @@
 package com.convx.music.ui.screens.search
 
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 
@@ -27,43 +26,31 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -83,7 +70,6 @@ import com.music.innertube.models.YTItem
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
-import com.convx.music.LocalDatabase
 import com.convx.music.ui.utils.bounceClick
 import com.convx.music.ui.utils.combinedBounceClick
 import com.convx.music.LocalPlayerConnection
@@ -91,13 +77,12 @@ import com.convx.music.R
 import com.convx.music.constants.MiniPlayerBottomSpacing
 import com.convx.music.constants.MiniPlayerHeight
 import com.convx.music.constants.NavigationBarHeight
-import com.convx.music.constants.PauseSearchHistoryKey
-import com.convx.music.db.entities.SearchHistory
 import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.LocalMenuState
+import com.convx.music.ui.component.LocalNavSearchState
 import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.YouTubeListItem
 import com.convx.music.ui.component.rememberHeroTint
@@ -112,12 +97,9 @@ import com.convx.music.ui.menu.YouTubeArtistMenu
 import com.convx.music.ui.menu.YouTubePlaylistMenu
 import com.convx.music.ui.menu.YouTubeSongMenu
 import com.convx.music.utils.listItemShape
-import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.OnlineSearchViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
-import java.net.URLEncoder
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -126,7 +108,6 @@ fun OnlineSearchResult(
     viewModel: OnlineSearchViewModel = hiltViewModel(),
     pureBlack: Boolean = false
 ) {
-    val database = LocalDatabase.current
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
@@ -135,19 +116,15 @@ fun OnlineSearchResult(
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
-    val focusManager = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
 
-    var isSearchFocused by remember { mutableStateOf(false) }
+    // The nav bar owns the actual search text field/keyboard now (see
+    // NavBarSearchInputBar in FloatingNavBar.kt) — this screen just reads the
+    // live query to filter/display results.
+    val navSearch = LocalNavSearchState.current
 
-    val pauseSearchHistory by rememberPreference(PauseSearchHistoryKey, defaultValue = false)
-
-    BackHandler(enabled = isSearchFocused) {
-        isSearchFocused = false
-        focusManager.clearFocus()
-    }
-
-    // Extract query from navigation arguments
+    // Deep-link safety net: if this screen was reached without going through
+    // the nav bar's own field first (e.g. a direct navigate to search/{query}
+    // from search history elsewhere), seed the shared query from the nav arg.
     val encodedQuery = navController.currentBackStackEntry?.arguments?.getString("query") ?: ""
     val decodedQuery = remember(encodedQuery) {
         try {
@@ -156,37 +133,10 @@ fun OnlineSearchResult(
             encodedQuery
         }
     }
-
-    var query by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(TextFieldValue(decodedQuery, TextRange(decodedQuery.length)))
-    }
- 
-    val onSearch: (String) -> Unit = remember {
-        { searchQuery ->
-            if (searchQuery.isNotEmpty()) {
-                isSearchFocused = false
-                focusManager.clearFocus()
-
-                navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}") {
-                    popUpTo("search/${URLEncoder.encode(decodedQuery, "UTF-8")}") {
-                        inclusive = true
-                    }
-
-                    if (!pauseSearchHistory) {
-                        coroutineScope.launch(Dispatchers.IO) {
-                            database.query {
-                                insert(SearchHistory(query = searchQuery))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Update query when decodedQuery changes
     LaunchedEffect(decodedQuery) {
-        query = TextFieldValue(decodedQuery, TextRange(decodedQuery.length))
+        if (navSearch.query.text != decodedQuery) {
+            navSearch.onQueryChange(TextFieldValue(decodedQuery, TextRange(decodedQuery.length)))
+        }
     }
 
     val searchFilter by viewModel.filter.collectAsState()
@@ -353,76 +303,11 @@ fun OnlineSearchResult(
                 .fillMaxSize()
                 .windowInsetsPadding(appTopBarWindowInsets())
         ) {
-            // Google-style SearchBar with Material 3 design
-            OutlinedTextField(
-                value = query,
-                onValueChange = { newQuery ->
-                    query = newQuery
-                },
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.search_yt_music),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = onTint.copy(alpha = 0.6f)
-                    )
-                },
-                leadingIcon = {
-                    IconButton(
-                        onClick = { navController.navigateUp() }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = stringResource(R.string.dismiss),
-                            tint = onTint
-                        )
-                    }
-                },
-                trailingIcon = {
-                    if (query.text.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                query = TextFieldValue("")
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = null,
-                                tint = onTint
-                            )
-                        }
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Search
-                ),
-                keyboardActions = KeyboardActions(
-                    onSearch = { 
-                        onSearch(query.text)
-                    }
-                ),
-                singleLine = true,
-                shape = RoundedCornerShape(28.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = onTint.copy(alpha = 0.15f),
-                    unfocusedContainerColor = onTint.copy(alpha = 0.15f),
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = onTint,
-                    unfocusedTextColor = onTint,
-                    cursorColor = onTint
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
-                            isSearchFocused = true
-                        }
-                    }
-            )
+            // The search bar used to live here — now it's part of the floating nav
+            // bar itself (NavBarSearchInputBar in FloatingNavBar.kt), which stays
+            // mounted across this whole screen. See PLAN_search_navbar.md.
 
-            // Main content area below search bar
+            // Main content area
             Box(modifier = Modifier.weight(1f)) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
@@ -529,16 +414,13 @@ fun OnlineSearchResult(
                         }
                     }
                 }
-                if (isSearchFocused) {
+                if (navSearch.keyboardActive) {
                     OnlineSearchScreen(
-                        query = query.text,
-                        onQueryChange = { query = it },
+                        query = navSearch.query.text,
+                        onQueryChange = navSearch.onQueryChange,
                         navController = navController,
-                        onSearch = onSearch,
-                        onDismiss = {
-                            isSearchFocused = false
-                            focusManager.clearFocus()
-                        },
+                        onSearch = navSearch.onSubmit,
+                        onDismiss = navSearch.onCloseKeyboard,
                         pureBlack = pureBlack
                     )
                 }

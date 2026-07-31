@@ -15,17 +15,12 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -60,25 +55,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -93,7 +79,6 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.PauseSearchHistoryKey
 import com.convx.music.constants.SearchSource
-import com.convx.music.constants.SearchSourceKey
 import com.convx.music.db.entities.SearchHistory
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.NavigationTitle
@@ -133,13 +118,10 @@ import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
 
-import com.convx.music.ui.component.LocalGlassEffectConfig
-import com.convx.music.ui.component.isGlassAllowed
-import com.convx.music.ui.component.liquidGlass
+import com.convx.music.ui.component.LocalNavSearchState
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
-import com.convx.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
 import androidx.compose.ui.text.font.FontWeight
 import com.convx.music.ui.component.GlassCircleButton
 import androidx.compose.ui.text.style.TextAlign
@@ -155,62 +137,19 @@ fun SearchScreen(
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val isPlayerExpanded = LocalIsPlayerExpanded.current
     val playerConnection = LocalPlayerConnection.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
-    var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
-    var query by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(TextFieldValue())
-    }
+    // The nav bar owns the actual search text field now (see NavBarSearchInputBar
+    // in FloatingNavBar.kt) — this screen just reads the live query to filter results.
+    val navSearch = LocalNavSearchState.current
     val pauseSearchHistory by rememberPreference(PauseSearchHistoryKey, defaultValue = false)
-    var isFirstLaunch by rememberSaveable { mutableStateOf(true) }
-    
+
     var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var showSearchContent by remember { mutableStateOf(false) }
-
-    // Search pill entrance animation
-    val pillEntranceProgress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        pillEntranceProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
-        )
-    }
-
-    val onSearch: (String) -> Unit = remember {
-        { searchQuery ->
-            if (searchQuery.isNotEmpty()) {
-                focusManager.clearFocus()
-                when (val parsedUrl = YouTubeUrlParser.parse(searchQuery)) {
-                    is YouTubeUrlParser.ParsedUrl.Video -> {
-                        playerConnection?.playQueue(
-                            YouTubeQueue(WatchEndpoint(videoId = parsedUrl.id)),
-                        )
-                    }
-                    is YouTubeUrlParser.ParsedUrl.Artist -> {
-                        navController.navigate("artist/${parsedUrl.id}")
-                    }
-                    null -> {
-                        navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
-                    }
-                }
-                if (!pauseSearchHistory) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        database.query {
-                            insert(SearchHistory(query = searchQuery))
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     val onSearchFromSuggestion: (String) -> Unit = remember {
         { searchQuery ->
@@ -257,9 +196,6 @@ fun SearchScreen(
       HomeImageBackground()
       HeroTintedContent(tint = tint, backdrop = heroBackdrop) {
         val chromeShape = ContinuousRoundedRectangle(percent = 50)
-        val glassConfig = LocalGlassEffectConfig.current
-        val useGlass = glassConfig.globalEnabled && isGlassAllowed()
-        val pillShape = ContinuousRoundedRectangle(percent = 50)
         val accent = com.convx.music.ui.theme.LocalAccentColor.current
 
         // Space for the floating side bar in tab view (0 otherwise). The hero
@@ -287,7 +223,7 @@ fun SearchScreen(
                     )
 
                     AnimatedVisibility(
-                        visible = query.text.isEmpty(),
+                        visible = navSearch.query.text.isEmpty(),
                         enter = expandVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeIn(),
                         exit = shrinkVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeOut()
                     ) {
@@ -339,126 +275,10 @@ fun SearchScreen(
                 }
                 }
             },
-            bottomBar = {
-                run {
-                    // Finger-tracking glow, same as the nav bar puck's
-                    // InteractiveHighlight: a soft radial light follows the touch
-                    // point across the glass pill. Non-consuming, so the text field
-                    // and pill buttons still receive taps.
-                    val pillGlow = remember(coroutineScope) {
-                        InteractiveHighlight(animationScope = coroutineScope)
-                    }
-                    // Search input pill docked above the keyboard. Morphs up from the
-                    // nav bar search icon position (rise + horizontal grow).
-                    Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding()
-                        .navigationBarsPadding()
-                        .graphicsLayer {
-                            val p = pillEntranceProgress.value
-                            alpha = p
-                            translationY = (1f - p) * 48.dp.toPx()
-                            scaleX = 0.2f + 0.8f * p
-                            scaleY = 0.7f + 0.3f * p
-                        }
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .height(52.dp)
-                        .clip(pillShape)
-                        .then(
-                            if (useGlass) {
-                                // Lower surface opacity than the nav bar so the
-                                // pill reads as clear glass sampling the content
-                                // behind it, not a dark chip.
-                                Modifier.liquidGlass(
-                                    config = glassConfig.copy(surfaceOpacity = 0.12f),
-                                    shape = pillShape,
-                                    highlightAlpha = 0.3f,
-                                )
-                            } else {
-                                Modifier.background(onTint.copy(alpha = 0.15f))
-                            }
-                        )
-                        // Touch glow over the glass, under the pill's content.
-                        .then(pillGlow.gestureModifier)
-                        .then(pillGlow.modifier)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .bounceClick { navController.navigateUp() }
-                            .padding(12.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = stringResource(R.string.dismiss),
-                            tint = onTint,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (query.text.isEmpty()) {
-                            DynamicSearchPlaceholder(
-                                searchSource = searchSource,
-                                style = TextStyle(
-                                    color = onTint.copy(alpha = 0.6f),
-                                    fontSize = 16.sp
-                                )
-                            )
-                        }
-                        BasicTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            singleLine = true,
-                            textStyle = TextStyle(color = onTint, fontSize = 16.sp),
-                            cursorBrush = SolidColor(onTint),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = { onSearch(query.text) }),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester)
-                        )
-                    }
-                    if (query.text.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .bounceClick { query = TextFieldValue("") }
-                                .padding(12.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = null,
-                                tint = onTint,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .bounceClick {
-                                searchSource = if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
-                            }
-                            .padding(12.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(
-                                when (searchSource) {
-                                    SearchSource.LOCAL -> R.drawable.library_music
-                                    SearchSource.ONLINE -> R.drawable.globe_search
-                                }
-                            ),
-                            contentDescription = null,
-                            tint = onTint,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-                }
-            },
+            // The bottom search pill used to live here — now it's part of the
+            // floating nav bar itself (NavBarSearchInputBar in FloatingNavBar.kt),
+            // which stays mounted across this whole screen instead of being owned
+            // by it. See PLAN_search_navbar.md.
             containerColor = Color.Transparent
         ) { paddingValues ->
             val bottomPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
@@ -471,7 +291,7 @@ fun SearchScreen(
                     )
                     .fillMaxSize()
             ) {
-                if (query.text.isEmpty()) {
+                if (navSearch.query.text.isEmpty()) {
                     val tabPadding = PaddingValues(bottom = bottomPadding + 50.dp)
                     when (selectedTabIndex) {
                         0 -> ExploreTabContent(navController = navController, contentPadding = tabPadding)
@@ -479,16 +299,16 @@ fun SearchScreen(
                         2 -> AlbumsTabContent(navController = navController, contentPadding = tabPadding)
                     }
                 } else {
-                    when (searchSource) {
+                    when (navSearch.searchSource) {
                         SearchSource.LOCAL -> LocalSearchScreen(
-                            query = query.text,
+                            query = navSearch.query.text,
                             navController = navController,
                             onDismiss = { },
                             pureBlack = pureBlack
                         )
                         SearchSource.ONLINE -> OnlineSearchScreen(
-                            query = query.text,
-                            onQueryChange = { query = it },
+                            query = navSearch.query.text,
+                            onQueryChange = navSearch.onQueryChange,
                             navController = navController,
                             onSearch = { onSearchFromSuggestion(it) },
                             onDismiss = { },
@@ -501,7 +321,9 @@ fun SearchScreen(
       }
     }
 
-    // Handle lifecycle events to manage keyboard visibility
+    // Handle lifecycle events to manage keyboard visibility. No auto-focus on
+    // launch anymore — the nav bar's search bar starts unfocused (first tap
+    // navigates here; a second tap on the bar opens the keyboard).
     DisposableEffect(lifecycleOwner, isPlayerExpanded) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -509,16 +331,13 @@ fun SearchScreen(
                     if (isPlayerExpanded) {
                         keyboardController?.hide()
                         focusManager.clearFocus()
-                    } else if (isFirstLaunch) {
-                        try {
-                            focusRequester.requestFocus()
-                        } catch (e: Exception) {}
-                        isFirstLaunch = false
+                        navSearch.onCloseKeyboard()
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     focusManager.clearFocus()
                     keyboardController?.hide()
+                    navSearch.onCloseKeyboard()
                 }
                 else -> {}
             }
@@ -527,6 +346,7 @@ fun SearchScreen(
         if (isPlayerExpanded) {
             keyboardController?.hide()
             focusManager.clearFocus()
+            navSearch.onCloseKeyboard()
         }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)

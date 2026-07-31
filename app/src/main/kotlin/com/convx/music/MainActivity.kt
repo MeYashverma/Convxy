@@ -101,6 +101,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -147,6 +148,8 @@ import com.convx.music.constants.DarkModeKey
 import com.convx.music.constants.DefaultOpenTabKey
 import com.convx.music.constants.DisableScreenshotKey
 import com.convx.music.constants.DynamicThemeKey
+import com.convx.music.constants.SearchSource
+import com.convx.music.constants.SearchSourceKey
 import com.convx.music.constants.EnableHighRefreshRateKey
 import com.convx.music.constants.EnableSettingsPopupKey
 import com.convx.music.constants.ListenTogetherInTopBarKey
@@ -200,6 +203,8 @@ import com.convx.music.playback.MusicService.MusicBinder
 import com.convx.music.playback.PlayerConnection
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.AppFloatingNavBar
+import com.convx.music.ui.component.LocalNavSearchState
+import com.convx.music.ui.component.NavSearchState
 import com.convx.music.ui.component.AppNavigationBar
 import com.convx.music.ui.component.GlassEffectConfig
 import com.convx.music.ui.component.LocalGlassEffectConfig
@@ -295,6 +300,11 @@ class MainActivity : ComponentActivity() {
         // window, so the floating tab bar's predictive (press/drag) fire can't
         // double-navigate against its own release-fire.
         private const val NavDebounceMs = 250L
+
+        // How long the nav bar's shrink/expand-to-pill animation takes before the
+        // actual navigate()/navigateUp() call for entering/exiting search — keeps
+        // the animation and the route's own screen transition from overlapping.
+        private const val SearchNavTransitionDelayMs = 260L
     }
 
     @Inject
@@ -603,7 +613,7 @@ class MainActivity : ComponentActivity() {
                 // Pre-warm HistoryViewModel at Activity scope so history data loads
                 // in background immediately — zero lag when user taps the history icon
                 hiltViewModel<HistoryViewModel>()
-                val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
+                val accountImageUrl by homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
 
@@ -717,11 +727,29 @@ class MainActivity : ComponentActivity() {
                 val (query, onQueryChange) = rememberSaveable(stateSaver = TextFieldValue.Saver) {
                     mutableStateOf(TextFieldValue())
                 }
+                // Whether the nav bar's search field currently owns the keyboard — the
+                // one thing that isn't route-derived (search_input/search/{query} don't
+                // change across the first-tap/second-tap boundary). Reset below whenever
+                // navigation leaves both search routes.
+                var searchKeyboardActive by rememberSaveable { mutableStateOf(false) }
+                var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
+                val searchFocusRequester = remember { FocusRequester() }
+                // Non-null while entering/exiting search overrides the route-derived
+                // visual state, so the shrink/expand animation plays out before the
+                // actual navigation call lands (see enterSearch/exitSearch below).
+                var searchVisualOverride by remember { mutableStateOf<Boolean?>(null) }
 
                 val onSearch: (String) -> Unit = remember {
                     { searchQuery ->
                         if (searchQuery.isNotEmpty()) {
-                            navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
+                            navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}") {
+                                launchSingleTop = true
+                                // Refining the query from an existing results screen replaces
+                                // it on the back stack instead of stacking one entry per edit
+                                // (a no-op if there's no prior search/{query} entry yet, e.g.
+                                // the very first submit from search_input).
+                                popUpTo("search/{query}") { inclusive = true }
+                            }
 
                             if (dataStore[PauseSearchHistoryKey] != true) {
                                 lifecycleScope.launch(Dispatchers.IO) {
@@ -748,6 +776,9 @@ class MainActivity : ComponentActivity() {
                 val inSearchInputScreen by remember {
                     derivedStateOf { currentRoute == Screens.Search.route }
                 }
+                LaunchedEffect(inSearchScreen) {
+                    if (!inSearchScreen) searchKeyboardActive = false
+                }
                 // The floating nav bar keeps Settings as one of its own tabs (see
                 // floatingNavigationItems above), so it should stay visible there too —
                 // only the classic nav bar treats Settings as a top-bar-only destination.
@@ -757,9 +788,12 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val isKeyboardOpen = WindowInsets.isImeVisible
-                val shouldShowNavigationBar = remember(currentRoute, inSearchInputScreen) {
+                val shouldShowNavigationBar = remember(currentRoute, inSearchInputScreen, useFloatingNavBar) {
                     when {
-                        inSearchInputScreen -> false
+                        // The floating nav bar renders its own search-mode chrome on
+                        // search_input instead of hiding — only the classic bar still
+                        // hides there.
+                        inSearchInputScreen && !useFloatingNavBar -> false
                         currentRoute?.startsWith("settings/") == true -> false
                         currentRoute in setOf("login", "equalizer", "wrapped", "update", "listen_together/chat") -> false
                         else -> true
@@ -800,7 +834,7 @@ class MainActivity : ComponentActivity() {
                     label = "navBarHeight",
                 )
 
-                val playerMediaMetadata by playerConnection?.mediaMetadata?.collectAsState()
+                val playerMediaMetadata by playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()
                     ?: remember { mutableStateOf(null) }
                 // With the floating nav bar the mini player docks into the tab bar as an
                 // accessory, and in tab view it docks into the sidebar footer, so in both
@@ -823,9 +857,12 @@ class MainActivity : ComponentActivity() {
 
                 // Only reserve space for the docked player accessory on screens where the
                 // floating tab bar is actually visible; other screens (e.g. settings) get
-                // the full height.
+                // the full height. In search mode the mini player still docks (now part of
+                // the search-expanded/search-inline chrome) — it only drops out once the
+                // keyboard takes over the bar entirely.
                 val hasDockedPlayerAccessory =
-                    useFloatingNavBar && playerMediaMetadata != null && !showRail && shouldShowNavigationBar && !inSearchScreen
+                    useFloatingNavBar && playerMediaMetadata != null && !showRail && shouldShowNavigationBar &&
+                        (!inSearchScreen || !searchKeyboardActive)
                 val playerAwareWindowInsets = remember(
                     bottomInset,
                     shouldShowNavigationBar,
@@ -990,27 +1027,82 @@ class MainActivity : ComponentActivity() {
 
 
                 val pauseListenHistory by rememberPreference(PauseListenHistoryKey, defaultValue = false)
-                val eventCount by database.eventCount().collectAsState(initial = 0)
+                val eventCount by database.eventCount().collectAsStateWithLifecycle(initialValue = 0)
                 val showHistoryButton = remember(pauseListenHistory, eventCount) {
                     !(pauseListenHistory && eventCount == 0)
                 }
 
                 val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
 
-                val appBackdrop = rememberLayerBackdrop {
-                    drawRect(baseBg)
-                    drawContent()
-                }
+                // Remember the draw lambda so rememberLayerBackdrop (which keys on it)
+                // isn't recreated on every app recomposition, forcing a full backdrop
+                // re-record.
+                val appBackdrop = rememberLayerBackdrop(
+                    onDraw = remember(baseBg) {
+                        val bg = baseBg
+                        {
+                            drawRect(bg)
+                            drawContent()
+                        }
+                    }
+                )
 
                 // One provider replaces Android's stretch/glow edge effect with the
                 // iOS rubber-band for every scroll container in the app.
                 val iosOverscroll by rememberPreference(IosOverscrollKey, defaultValue = false)
                 val iosOverscrollFactory = rememberIosOverscrollFactory()
 
+                // Entering/exiting search: hold the nav bar's visual state at the
+                // target (search-expanded / normal) for one animation beat before the
+                // actual navigation call, so the shrink/expand-to-pill animation plays
+                // out first instead of racing the route's own screen transition.
+                val enterSearch: () -> Unit = remember(navController, coroutineScope) {
+                    {
+                        searchVisualOverride = true
+                        coroutineScope.launch {
+                            delay(SearchNavTransitionDelayMs)
+                            navController.navigate(Screens.Search.route) { launchSingleTop = true }
+                            searchVisualOverride = null
+                        }
+                    }
+                }
+                val exitSearch: () -> Unit = remember(navController, coroutineScope) {
+                    {
+                        searchKeyboardActive = false
+                        searchVisualOverride = false
+                        coroutineScope.launch {
+                            delay(SearchNavTransitionDelayMs)
+                            navController.navigateUp()
+                            searchVisualOverride = null
+                        }
+                    }
+                }
+
+                // The nav bar (rendered outside/above search_input and search/{query} in
+                // the tree below) owns the actual search text field now — both screens
+                // just read this to filter/display results.
+                val navSearchState = NavSearchState(
+                    visualActive = searchVisualOverride ?: inSearchScreen,
+                    keyboardActive = searchKeyboardActive,
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    onSubmit = onSearch,
+                    searchSource = searchSource,
+                    onToggleSource = {
+                        searchSource = if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
+                    },
+                    onTapSearchIcon = enterSearch,
+                    onTapBar = { searchKeyboardActive = true },
+                    onExit = exitSearch,
+                    onCloseKeyboard = { searchKeyboardActive = false },
+                    focusRequester = searchFocusRequester,
+                )
+
                 CompositionLocalProvider(
                     LocalOverscrollFactory provides
                         if (iosOverscroll) iosOverscrollFactory else LocalOverscrollFactory.current,
                     LocalDatabase provides database,
+                    LocalNavSearchState provides navSearchState,
                     // onSurface already carries the accent-contrast treatment (see
                     // ColorScheme.accentText), so pure black must not force plain white
                     // back over it.
@@ -1289,9 +1381,6 @@ class MainActivity : ComponentActivity() {
                                                 playerBottomSheetState.expandSoft()
                                                 playerConnection?.requestShowQueue?.value = true
                                             },
-                                            // Hide the standalone search circle while on the search
-                                            // screen so the morphing pill visually replaces it.
-                                            searchExpanded = inSearchInputScreen,
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 // Keep the bar compact/portrait-width in landscape
@@ -1522,7 +1611,7 @@ class MainActivity : ComponentActivity() {
                                 // is the pinned set, not every local playlist.
                                 val sidebarPlaylists by database
                                     .playlists(PlaylistSortType.NAME, descending = false)
-                                    .collectAsState(initial = emptyList())
+                                    .collectAsStateWithLifecycle(initialValue = emptyList())
                                 val sidebarSections = remember(
                                     showHistoryButton,
                                     listenTogetherInTopBar,

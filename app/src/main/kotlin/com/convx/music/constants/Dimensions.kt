@@ -45,7 +45,7 @@ val ThumbnailRoundedShape = RoundedCornerShape(ThumbnailCornerRadius)
 val PlayerHorizontalPadding = 32.dp
 
 val NavigationBarAnimationSpec = spring<Dp>(
-    dampingRatio = Spring.DampingRatioNoBouncy,
+    dampingRatio = Spring.DampingRatioMediumBouncy,
     stiffness = Spring.StiffnessLow
 )
 

@@ -113,7 +113,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 35,
+    version = 36,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -169,6 +169,7 @@ abstract class InternalDatabase : RoomDatabase() {
                         MIGRATION_21_24,
                         MIGRATION_22_24,
                         MIGRATION_24_25,
+                        MIGRATION_35_36,
                     )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
@@ -677,6 +678,16 @@ val MIGRATION_24_25 =
                 // Add the column allowing NULL values (since existing rows won't have this data)
                 db.execSQL("ALTER TABLE format ADD COLUMN perceptualLoudnessDb REAL DEFAULT NULL")
             }
+        }
+    }
+
+// Adds the @ColumnInfo(index = true) on event.timestamp (stats/history queries filter
+// on timestamp ranges). Manual migration so existing installs keep their data —
+// the fallback would otherwise destroy the library.
+val MIGRATION_35_36 =
+    object : Migration(35, 36) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_timestamp` ON `event` (`timestamp`)")
         }
     }
 

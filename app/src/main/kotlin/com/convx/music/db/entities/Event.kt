@@ -27,6 +27,6 @@ import java.time.LocalDateTime
 data class Event(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(index = true) val songId: String,
-    val timestamp: LocalDateTime,
+    @ColumnInfo(index = true) val timestamp: LocalDateTime,
     val playTime: Long,
 )

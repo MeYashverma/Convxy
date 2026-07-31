@@ -1071,7 +1071,8 @@ private fun FavoriteButton(
 ) {
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val librarySong by database.song(songId).collectAsStateWithLifecycle(initialValue =null)
+    val librarySongFlow = remember(songId) { database.song(songId) }
+    val librarySong by librarySongFlow.collectAsStateWithLifecycle(initialValue =null)
     val isLiked = librarySong?.song?.liked == true
     
     Box(

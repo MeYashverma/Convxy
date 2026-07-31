@@ -206,7 +206,8 @@ fun CommunityPlaylistCard(
     val containerColor = Color.Transparent
     val onSurface = LocalContentColor.current
 
-    val dbPlaylist by database.playlistByBrowseId(item.playlist.id).collectAsStateWithLifecycle(initialValue =null)
+    val dbPlaylistFlow = remember(item.playlist.id) { database.playlistByBrowseId(item.playlist.id) }
+    val dbPlaylist by dbPlaylistFlow.collectAsStateWithLifecycle(initialValue =null)
     val isBookmarked = dbPlaylist?.playlist?.bookmarkedAt != null
 
     Card(
@@ -450,7 +451,8 @@ fun DailyDiscoverCard(
     modifier: Modifier = Modifier
 ) {
     val database = LocalDatabase.current
-    val playCount by database.getLifetimePlayCount(dailyDiscover.recommendation.id).collectAsStateWithLifecycle(initialValue =0)
+    val playCountFlow = remember(dailyDiscover.recommendation.id) { database.getLifetimePlayCount(dailyDiscover.recommendation.id) }
+    val playCount by playCountFlow.collectAsStateWithLifecycle(initialValue =0)
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
 

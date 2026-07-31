@@ -231,7 +231,7 @@ interface DatabaseDao {
         return songsFlow.map { songs ->
             val limitedSongs = if (limit > 0) songs.take(limit) else songs
             limitedSongs.reversed(descending)
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     @Transaction
@@ -716,7 +716,7 @@ interface DatabaseDao {
             artists
                 .filter { it.artist.isYouTubeArtist || it.artist.isLocal } // TODO: add ui to filter by local or remote or something idk
                 .reversed(descending)
-        }
+        }.flowOn(Dispatchers.Default)
 
     fun artistsBookmarked(sortType: ArtistSortType, descending: Boolean) =
         when (sortType) {
@@ -728,7 +728,7 @@ interface DatabaseDao {
             artists
                 .filter { it.artist.isYouTubeArtist || it.artist.isLocal } // TODO: add ui to filter by local or remote or something idk
                 .reversed(descending)
-        }
+        }.flowOn(Dispatchers.Default)
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
@@ -880,7 +880,7 @@ interface DatabaseDao {
             ArtistSortType.NAME -> artistsLocalByNameAsc()
             ArtistSortType.SONG_COUNT -> artistsLocalBySongCountAsc()
             ArtistSortType.PLAY_TIME -> artistsLocalByPlayTimeAsc()
-        }.map { it.reversed(descending) }
+        }.map { it.reversed(descending) }.flowOn(Dispatchers.Default)
 
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query("SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE id = :id")

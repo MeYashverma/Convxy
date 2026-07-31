@@ -181,7 +181,6 @@ fun AutoPlaylistScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasAudioPermission = granted
-        if (granted) viewModel.scanLocal(context)
     }
     LaunchedEffect(isLocal) {
         if (isLocal) {
@@ -189,12 +188,6 @@ fun AutoPlaylistScreen(
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         }
     }
-    LaunchedEffect(isLocal, hasAudioPermission) {
-        if (isLocal && hasAudioPermission && songs.isEmpty() && !isScanning) {
-            viewModel.scanLocal(context)
-        }
-    }
-
     val (titleRes, iconRes) = when (viewModel.playlist) {
         "liked" -> R.string.liked to R.drawable.favorite
         "downloaded" -> R.string.downloaded to R.drawable.download
@@ -265,12 +258,14 @@ fun AutoPlaylistScreen(
 
     val heroBackdrop = rememberLayerBackdrop()
 
-    val heroTopBlur by remember {
-        derivedStateOf {
-            if (lazyListState.firstVisibleItemIndex > 0) 1f
-            else (lazyListState.firstVisibleItemScrollOffset / 700f).coerceIn(0f, 1f)
-        }
-    }
+    // Scroll-linked sharp-top/blurred-bottom split, replaced by a constant full
+    // blur (fullBlur = true below) — kept commented instead of deleted.
+    // val heroTopBlur by remember {
+    //     derivedStateOf {
+    //         if (lazyListState.firstVisibleItemIndex > 0) 1f
+    //         else (lazyListState.firstVisibleItemScrollOffset / 700f).coerceIn(0f, 1f)
+    //     }
+    // }
 
     val heroZoom = rememberHeroZoom()
 
@@ -278,8 +273,9 @@ fun AutoPlaylistScreen(
         tint = tint,
         heroSource = heroSource,
         blurArtwork = true,
+        fullBlur = true,
         bottomGradient = true,
-        topBlurProgress = heroTopBlur,
+        // topBlurProgress = heroTopBlur,
         heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {

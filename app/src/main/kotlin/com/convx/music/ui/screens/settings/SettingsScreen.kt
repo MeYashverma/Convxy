@@ -245,7 +245,10 @@ private fun SettingsSection(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(AppleTokens.CardCorner))
-            .background(AppleTokens.Card),
+            // Row content (title/icon) already reads MaterialTheme.colorScheme —
+            // a fixed-dark AppleTokens.Card background went black-on-black in
+            // light theme (same root cause as Material3SettingsGroup).
+            .background(MaterialTheme.colorScheme.surfaceContainer),
         content = content,
     )
 }
@@ -314,7 +317,7 @@ private fun SettingsNavItem(
 private fun SettingsDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(start = 64.dp),
-        color = AppleTokens.Divider,
+        color = MaterialTheme.colorScheme.outlineVariant,
         thickness = 0.5.dp,
     )
 }

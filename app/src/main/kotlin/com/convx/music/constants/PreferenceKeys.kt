@@ -545,6 +545,7 @@ val HomeBackgroundPathKey = stringPreferencesKey("homeBackgroundPath")
 val HomeBackgroundBlurKey = floatPreferencesKey("homeBackgroundBlur")
 val HomeBackgroundDimKey = floatPreferencesKey("homeBackgroundDim")
 val HomeBackgroundAnimateKey = booleanPreferencesKey("homeBackgroundAnimate")
+val LibraryBackgroundModeKey = stringPreferencesKey("libraryBackgroundMode")
 val IosOverscrollKey = booleanPreferencesKey("iosOverscroll")
 
 // 8spine Modules

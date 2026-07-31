@@ -117,9 +117,6 @@ fun LibrarySongsScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasStoragePermission = granted
-        if (granted) {
-            viewModel.scanLocalFiles()
-        }
     }
 
     LaunchedEffect(Unit) {

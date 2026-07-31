@@ -1,140 +1,68 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
 package com.convx.music.ui.screens.settings
 
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import android.net.Uri
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.activity.compose.rememberLauncherForActivityResult
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.activity.result.PickVisualMediaRequest
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.activity.result.contract.ActivityResultContracts
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.background
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Box
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Column
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Spacer
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.aspectRatio
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.height
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.padding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.size
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.draw.blur
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.draw.clip
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.graphics.Color
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.layout.ContentScale
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import coil3.compose.AsyncImage
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.foundation.rememberScrollState
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.foundation.verticalScroll
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Icon
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.MaterialTheme
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Slider
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Switch
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.SwitchDefaults
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Text
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.TextButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.TopAppBar
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.TopAppBarScrollBehavior
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.Composable
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.getValue
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.mutableFloatStateOf
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.mutableStateOf
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.remember
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.rememberCoroutineScope
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.saveable.rememberSaveable
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.setValue
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Alignment
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Modifier
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.platform.LocalContext
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.res.painterResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.res.stringResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.unit.dp
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.navigation.NavController
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.LocalPlayerAwareWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.R
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HomeBackgroundAnimateKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HomeBackgroundBlurKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HomeBackgroundDimKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HomeBackgroundEnabledKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HomeBackgroundPathKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.LibraryBackgroundMode
+import com.convx.music.constants.LibraryBackgroundModeKey
 import com.convx.music.ui.component.DefaultDialog
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.component.IconButton as AppIconButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.Material3SettingsGroup
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.Material3SettingsItem
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.utils.backToMain
-import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.utils.rememberPreference
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import kotlinx.coroutines.Dispatchers
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import kotlinx.coroutines.launch
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import kotlinx.coroutines.withContext
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import java.io.File
 
 /** Copies a picked image into app storage so the background survives without a
@@ -148,12 +76,15 @@ private fun copyBackgroundImage(context: android.content.Context, source: Uri): 
     dest.absolutePath
 }.getOrNull()
 
+/**
+ * Background-image controls (preview + enable/pick/blur/dim/animate/remove) —
+ * embedded inside [ThemeScreen] rather than its own settings screen, since it's
+ * just another facet of the app's theme. See PLAN notes: moved out of
+ * AppearanceSettings' standalone "settings/appearance/homebackground" route.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeBackgroundSettings(
-    navController: NavController,
-    scrollBehavior: TopAppBarScrollBehavior,
-) {
+fun HomeBackgroundControls() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -182,10 +113,7 @@ fun HomeBackgroundSettings(
     }
 
     Column(
-        Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
+        Modifier.padding(horizontal = 16.dp),
     ) {
         // Live preview: image with the same blur + dim the home screen applies.
         Box(
@@ -303,6 +231,47 @@ fun HomeBackgroundSettings(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // What the Library screen falls back to when the custom image above is
+        // off/unset — plain, a flat theme-color wash, or a blurred thumbnail
+        // pulled from the library's own content.
+        val (libraryBackgroundMode, onLibraryBackgroundModeChange) = rememberEnumPreference(
+            LibraryBackgroundModeKey,
+            LibraryBackgroundMode.THUMBNAIL_BLUR,
+        )
+        Material3SettingsGroup(
+            title = stringResource(R.string.library_background),
+            items = LibraryBackgroundMode.entries.map { mode ->
+                Material3SettingsItem(
+                    icon = painterResource(
+                        when (mode) {
+                            LibraryBackgroundMode.PLAIN -> R.drawable.close
+                            LibraryBackgroundMode.THEME -> R.drawable.palette
+                            LibraryBackgroundMode.THUMBNAIL_BLUR -> R.drawable.image
+                        }
+                    ),
+                    title = {
+                        Text(
+                            stringResource(
+                                when (mode) {
+                                    LibraryBackgroundMode.PLAIN -> R.string.library_background_plain
+                                    LibraryBackgroundMode.THEME -> R.string.library_background_theme
+                                    LibraryBackgroundMode.THUMBNAIL_BLUR -> R.string.library_background_thumbnail_blur
+                                }
+                            )
+                        )
+                    },
+                    trailingContent = {
+                        if (mode == libraryBackgroundMode) {
+                            Icon(painter = painterResource(R.drawable.check), contentDescription = null)
+                        }
+                    },
+                    onClick = { onLibraryBackgroundModeChange(mode) }
+                )
+            }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 
     if (showBlurDialog) {
@@ -342,20 +311,4 @@ fun HomeBackgroundSettings(
             }
         }
     }
-
-    TopAppBar(
-            windowInsets = appTopBarWindowInsets(),
-        title = { Text(stringResource(R.string.home_background)) },
-        navigationIcon = {
-            AppIconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                )
-            }
-        }
-    )
 }

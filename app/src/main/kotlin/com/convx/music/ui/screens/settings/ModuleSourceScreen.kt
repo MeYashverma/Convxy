@@ -167,13 +167,13 @@ fun ModuleSourceScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .clip(RoundedCornerShape(AppleTokens.CardCorner))
-                        .background(AppleTokens.Card)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
                 ) {
                     sourceUrls.forEachIndexed { index, url ->
                         if (index > 0) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 64.dp),
-                                color = AppleTokens.Divider,
+                                color = MaterialTheme.colorScheme.outlineVariant,
                                 thickness = 0.5.dp,
                             )
                         }
@@ -391,7 +391,7 @@ private fun ModuleItem(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(AppleTokens.CardCorner))
-            .background(AppleTokens.Card)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

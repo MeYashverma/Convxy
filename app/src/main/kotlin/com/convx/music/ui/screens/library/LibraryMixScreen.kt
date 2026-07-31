@@ -6,7 +6,9 @@
 package com.convx.music.ui.screens.library
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -40,11 +42,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -67,6 +71,8 @@ import com.convx.music.constants.CONTENT_TYPE_PLAYLIST
 import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
+import com.convx.music.constants.LibraryBackgroundMode
+import com.convx.music.constants.LibraryBackgroundModeKey
 import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.MixSortDescendingKey
@@ -78,7 +84,6 @@ import com.convx.music.constants.ShowLikedPlaylistKey
 import com.convx.music.constants.ShowLocalPlaylistKey
 import com.convx.music.constants.ShowTopPlaylistKey
 import com.convx.music.constants.ShowUploadedPlaylistKey
-import com.convx.music.constants.YtmSyncKey
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Playlist
@@ -110,8 +115,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.LibraryMixViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.text.Collator
 import java.time.LocalDateTime
 import java.util.Locale
@@ -141,8 +144,6 @@ fun LibraryMixScreen(
     
     val (libraryIconsOnly) = rememberPreference(LibraryIconsOnlyKey, defaultValue = true)
 
-    val (ytmSync) = rememberPreference(YtmSyncKey, true)
-
     val topSize by viewModel.topValue.collectAsState(initial = 50)
     
     val likedThumbnail by rememberPreference(stringPreferencesKey("thumbnail_${PlaylistEntity.LIKED_PLAYLIST_ID}"), "")
@@ -156,16 +157,26 @@ fun LibraryMixScreen(
     val artists by viewModel.artists.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
 
-    val heroUrl = (albums + artists + playlists).firstOrNull()?.let {
-        when (it) {
-            is Album -> it.album.thumbnailUrl
-            is Artist -> it.artist.thumbnailUrl
-            is Playlist -> it.thumbnails.firstOrNull()
-            else -> null
+    val libraryBackgroundMode by rememberEnumPreference(LibraryBackgroundModeKey, LibraryBackgroundMode.THUMBNAIL_BLUR)
+
+    val heroUrl = if (libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR) {
+        (albums + artists + playlists).firstOrNull()?.let {
+            when (it) {
+                is Album -> it.album.thumbnailUrl
+                is Artist -> it.artist.thumbnailUrl
+                is Playlist -> it.thumbnails.firstOrNull()
+                else -> null
+            }
         }
+    } else {
+        null
     }
     val heroSource = rememberHeroSource(staticArt = heroUrl)
-    val tint = rememberHeroTint(heroUrl)
+    val tint = if (libraryBackgroundMode == LibraryBackgroundMode.THEME) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        rememberHeroTint(heroUrl)
+    }
     val onTint = AppleTokens.onColor(tint)
     val heroBackdrop = rememberLayerBackdrop()
 
@@ -236,43 +247,48 @@ fun LibraryMixScreen(
     val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, true)
     val (showLocal) = rememberPreference(ShowLocalPlaylistKey, true)
 
-    var allItems = albums + artists + playlists
-    val collator = Collator.getInstance(LocalLocale.current.platformLocale)
-    collator.strength = Collator.PRIMARY
-    allItems =
-        when (sortType) {
-            MixSortType.CREATE_DATE ->
-                allItems.sortedBy { item ->
-                    when (item) {
-                        is Album -> item.album.bookmarkedAt
-                        is Artist -> item.artist.bookmarkedAt
-                        is Playlist -> item.playlist.createdAt
-                        else -> LocalDateTime.now()
-                    }
-                }
-
-            MixSortType.NAME ->
-                allItems.sortedWith(
-                    compareBy(collator) { item ->
-                        when (item) {
-                            is Album -> item.album.title
-                            is Artist -> item.artist.name
-                            is Playlist -> item.playlist.name
-                            else -> ""
+    val platformLocale = LocalLocale.current.platformLocale
+    val allItems =
+        remember(albums, artists, playlists, sortType, sortDescending, platformLocale) {
+            var items = albums + artists + playlists
+            val collator = Collator.getInstance(platformLocale)
+            collator.strength = Collator.PRIMARY
+            items =
+                when (sortType) {
+                    MixSortType.CREATE_DATE ->
+                        items.sortedBy { item ->
+                            when (item) {
+                                is Album -> item.album.bookmarkedAt
+                                is Artist -> item.artist.bookmarkedAt
+                                is Playlist -> item.playlist.createdAt
+                                else -> LocalDateTime.now()
+                            }
                         }
-                    },
-                )
 
-            MixSortType.LAST_UPDATED ->
-                allItems.sortedBy { item ->
-                    when (item) {
-                        is Album -> item.album.lastUpdateTime
-                        is Artist -> item.artist.lastUpdateTime
-                        is Playlist -> item.playlist.lastUpdateTime
-                        else -> LocalDateTime.now()
-                    }
-                }
-        }.reversed(sortDescending)
+                    MixSortType.NAME ->
+                        items.sortedWith(
+                            compareBy(collator) { item ->
+                                when (item) {
+                                    is Album -> item.album.title
+                                    is Artist -> item.artist.name
+                                    is Playlist -> item.playlist.name
+                                    else -> ""
+                                }
+                            },
+                        )
+
+                    MixSortType.LAST_UPDATED ->
+                        items.sortedBy { item ->
+                            when (item) {
+                                is Album -> item.album.lastUpdateTime
+                                is Artist -> item.artist.lastUpdateTime
+                                is Playlist -> item.playlist.lastUpdateTime
+                                else -> LocalDateTime.now()
+                            }
+                        }
+                }.reversed(sortDescending)
+            items
+        }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -301,14 +317,6 @@ fun LibraryMixScreen(
             }
             backStackEntry?.savedStateHandle?.set("scrollToTop", false)
         }
-    }
-
-    LaunchedEffect(Unit) {
-         if (ytmSync) {
-             withContext(Dispatchers.IO) {
-                 viewModel.syncAllLibrary()
-             }
-         }
     }
 
     val headerContent = @Composable {
@@ -369,8 +377,20 @@ fun LibraryMixScreen(
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
+        showDefaultIcon = libraryBackgroundMode != LibraryBackgroundMode.PLAIN,
+        blurArtwork = libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR,
+        fullBlur = true,
         modifier = Modifier.fillMaxSize(),
     ) {
+      if (libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR) {
+          // Blurred thumbnail alone isn't dark/flat enough for text on top to
+          // stay readable — a uniform scrim, not just the bottom gradient.
+          Box(
+              modifier = Modifier
+                  .matchParentSize()
+                  .background(Color.Black.copy(alpha = 0.35f))
+          )
+      }
       HeroTintedContent(tint = tint, backdrop = heroBackdrop) {
         PullToRefreshBox(
             state = pullRefreshState,

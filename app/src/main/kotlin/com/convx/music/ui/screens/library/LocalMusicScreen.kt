@@ -112,7 +112,6 @@ fun LocalMusicScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasStoragePermission = granted
-        if (granted) viewModel.scanDevice(context)
     }
 
     LaunchedEffect(Unit) {
@@ -127,13 +126,6 @@ fun LocalMusicScreen(
                 context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
             else ->
                 context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    // If we have permission and no songs, auto-scan
-    LaunchedEffect(hasStoragePermission) {
-        if (hasStoragePermission && songs.isEmpty() && !isScanning) {
-            viewModel.scanDevice(context)
         }
     }
 

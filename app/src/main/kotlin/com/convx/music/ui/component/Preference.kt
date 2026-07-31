@@ -107,7 +107,7 @@ fun PreferenceEntry(
         // Flat-list hairline divider, matching the shared list-row style.
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 16.dp),
-            color = com.convx.music.ui.theme.AppleTokens.Divider,
+            color = MaterialTheme.colorScheme.outlineVariant,
             thickness = 0.5.dp,
         )
     }

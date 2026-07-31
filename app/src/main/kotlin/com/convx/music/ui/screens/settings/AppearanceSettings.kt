@@ -516,18 +516,25 @@ fun AppearanceSettings(
             .padding(horizontal = 16.dp),
     ) {
         Material3SettingsGroup(
+            title = stringResource(R.string.theme_colors),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.palette),
+                    title = { Text(stringResource(R.string.theme_colors)) },
+                    onClick = { navController.navigate("settings/appearance/theme") }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
             title = stringResource(R.string.liquid_glass),
             items = listOf(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),
                     title = { Text(stringResource(R.string.liquid_glass)) },
                     onClick = { navController.navigate("settings/appearance/liquidglass") }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.image),
-                    title = { Text(stringResource(R.string.home_background)) },
-                    description = { Text(stringResource(R.string.home_background_desc)) },
-                    onClick = { navController.navigate("settings/appearance/homebackground") }
                 )
             )
         )

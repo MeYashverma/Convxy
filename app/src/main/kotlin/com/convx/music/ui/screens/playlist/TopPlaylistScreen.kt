@@ -292,8 +292,10 @@ fun TopPlaylistScreen(
         tint = tint,
         heroSource = heroSource,
         blurArtwork = true,
+        fullBlur = true,
         bottomGradient = true,
-        topBlurProgress = rememberHeroTopBlur(state),
+        // Scroll-linked sharp-top/blurred-bottom split, replaced by fullBlur above.
+        // topBlurProgress = rememberHeroTopBlur(state),
         heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {

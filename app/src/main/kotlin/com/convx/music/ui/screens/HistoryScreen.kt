@@ -224,8 +224,10 @@ fun HistoryScreen(
         tint = tint,
         heroSource = heroSource,
         blurArtwork = true,
+        fullBlur = true,
         bottomGradient = true,
-        topBlurProgress = rememberHeroTopBlur(lazyListState),
+        // Scroll-linked sharp-top/blurred-bottom split, replaced by fullBlur above.
+        // topBlurProgress = rememberHeroTopBlur(lazyListState),
         heroScale = heroZoom.scale,
         modifier = Modifier.fillMaxSize(),
     ) {

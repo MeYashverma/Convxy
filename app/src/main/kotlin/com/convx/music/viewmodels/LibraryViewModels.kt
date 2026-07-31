@@ -322,12 +322,6 @@ constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
 
-    val syncAllLibrary = {
-         viewModelScope.launch(Dispatchers.IO) {
-             syncUtils.tryAutoSync()
-         }
-    }
-
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
             _isRefreshing.value = true

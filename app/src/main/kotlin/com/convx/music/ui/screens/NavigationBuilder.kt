@@ -44,7 +44,6 @@ import com.convx.music.ui.screens.settings.AppearanceSettings
 import com.convx.music.ui.screens.settings.CanvasSelection
 import com.convx.music.ui.screens.settings.GlassEffectSettings
 import com.convx.music.ui.screens.settings.PlayerThemeScreen
-import com.convx.music.ui.screens.settings.HomeBackgroundSettings
 import com.convx.music.ui.screens.settings.BackupAndRestore
 import com.convx.music.ui.screens.settings.SpotifyScreen
 import com.convx.music.viewmodels.SpotifyImportViewModel
@@ -363,10 +362,6 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/appearance/liquidglass") {
         GlassEffectSettings(navController, scrollBehavior)
-    }
-
-    composable("settings/appearance/homebackground") {
-        HomeBackgroundSettings(navController, scrollBehavior)
     }
 
     composable("settings/content") {

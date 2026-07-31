@@ -1065,6 +1065,10 @@
     <string name="home_background_remove">Remove image</string>
     <string name="home_background_animate">Blur on load</string>
     <string name="home_background_animate_desc">Start sharp, then ease into blur once the image loads</string>
+    <string name="library_background">Library background</string>
+    <string name="library_background_plain">Plain</string>
+    <string name="library_background_theme">Follow theme</string>
+    <string name="library_background_thumbnail_blur">Thumbnail blur</string>
     <string name="player_background_liquid_glass">Liquid Glass</string>
     <string name="liquid_glass_settings">Liquid Glass</string>
     <string name="liquid_glass_global_enabled">Enable Liquid Glass</string>

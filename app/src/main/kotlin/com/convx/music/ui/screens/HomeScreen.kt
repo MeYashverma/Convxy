@@ -142,6 +142,7 @@ import com.convx.music.ui.component.ArtistGridItem
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.HomeImageBackground
+import com.convx.music.ui.component.rememberAppBackgroundTint
 import com.convx.music.ui.component.LocalBottomSheetPageState
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.NavigationTitle
@@ -932,6 +933,14 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart
         ) {
+            // Flat fill behind everything — a no-op (matches the default
+            // Scaffold background) unless the user picked a specific custom
+            // theme color, in which case that becomes Home's actual background.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(rememberAppBackgroundTint(MaterialTheme.colorScheme.background))
+            )
             HomeImageBackground(contentLoaded = homePage != null)
 
             val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f

@@ -165,7 +165,7 @@ fun ModuleDetailScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(AppleTokens.CardCorner))
-                .background(AppleTokens.Card)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .padding(16.dp),
         ) {
             ModuleInfoRow(stringResource(R.string.module_id), moduleId)
@@ -196,7 +196,7 @@ fun ModuleDetailScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(AppleTokens.CardCorner))
-                .background(AppleTokens.Card)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .padding(16.dp),
         ) {
             Text(

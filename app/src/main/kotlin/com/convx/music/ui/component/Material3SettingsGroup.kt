@@ -60,20 +60,22 @@ fun Material3SettingsGroup(
             )
         }
 
-        // One solid grouped card with hairline dividers (AppleTokens flat-dark
-        // look), instead of per-item floating M3 cards — keeps the settings
-        // sub-screens visually consistent with the main SettingsScreen.
+        // One solid grouped card with hairline dividers, instead of per-item
+        // floating M3 cards. Theme-adaptive surface/outline instead of
+        // AppleTokens' fixed dark tokens — the row content below (title/
+        // description/icon tint) already reads MaterialTheme.colorScheme, so a
+        // fixed-dark card went black-on-black in light theme.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(AppleTokens.CardCorner))
-                .background(AppleTokens.Card)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
         ) {
             items.forEachIndexed { index, item ->
                 if (index > 0) {
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 20.dp),
-                        color = AppleTokens.Divider,
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp,
                     )
                 }

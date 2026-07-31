@@ -53,9 +53,13 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.convx.music.R
+import com.convx.music.constants.DynamicThemeKey
+import com.convx.music.constants.SelectedThemeColorKey
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
+import com.convx.music.ui.theme.DefaultThemeColor
 import com.convx.music.ui.theme.extractThemeColor
+import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -190,6 +194,20 @@ fun rememberHeroTint(url: String?): Color {
         label = "heroTint"
     )
     return animatedTint
+}
+
+/**
+ * The screen background tint actually used — [contentTint] (per-screen, derived
+ * from artwork/thumbnails) when the user is on system/dynamic color, or their
+ * own picked color (Theme settings) as a flat override when they're not. Ties
+ * "custom theme color" directly to what screens paint behind their content,
+ * not just Material's accent colors.
+ */
+@Composable
+fun rememberAppBackgroundTint(contentTint: Color): Color {
+    val (isDynamic) = rememberPreference(DynamicThemeKey, defaultValue = true)
+    val (selectedColorInt) = rememberPreference(SelectedThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
+    return if (isDynamic) contentTint else Color(selectedColorInt)
 }
 
 /**

@@ -98,6 +98,8 @@ import androidx.compose.material3.MaterialTheme
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Text
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.TextButton
+import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.TopAppBar
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -110,7 +112,13 @@ import androidx.compose.runtime.Composable
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.getValue
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.mutableStateOf
+import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.remember
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.setValue
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.component.ColorPickerDialog
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Alignment
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -175,28 +183,31 @@ data class ThemePalette(
     val seedColor: Color
 )
 
+// Fixed hue presets removed — the custom color picker (see ThemeControls'
+// palette row) covers any color directly, the presets were redundant middle
+// ground between "system" and "pick exactly what you want."
 val PaletteColors = listOf(
     ThemePalette(R.string.palette_dynamic, Color.Transparent), // Sentinel for System/Dynamic colors
-    ThemePalette(R.string.palette_apple_red, AppleTokens.AccentRed),
-    ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)),
-    ThemePalette(R.string.palette_rose, Color(0xFFD81B60)),
-    ThemePalette(R.string.palette_purple, Color(0xFF8E24AA)),
-    ThemePalette(R.string.palette_deep_purple, Color(0xFF5E35B1)),
-    ThemePalette(R.string.palette_indigo, Color(0xFF3949AB)),
-    ThemePalette(R.string.palette_blue, Color(0xFF1E88E5)),
-    ThemePalette(R.string.palette_sky_blue, Color(0xFF039BE5)),
-    ThemePalette(R.string.palette_cyan, Color(0xFF00ACC1)),
-    ThemePalette(R.string.palette_teal, Color(0xFF00897B)),
-    ThemePalette(R.string.palette_green, Color(0xFF43A047)),
-    ThemePalette(R.string.palette_light_green, Color(0xFF7CB342)),
-    ThemePalette(R.string.palette_lime, Color(0xFFC0CA33)),
-    ThemePalette(R.string.palette_yellow, Color(0xFFFDD835)),
-    ThemePalette(R.string.palette_amber, Color(0xFFFFB300)),
-    ThemePalette(R.string.palette_orange, Color(0xFFFB8C00)),
-    ThemePalette(R.string.palette_deep_orange, Color(0xFFF4511E)),
-    ThemePalette(R.string.palette_brown, Color(0xFF6D4C41)),
-    ThemePalette(R.string.palette_grey, Color(0xFF757575)),
-    ThemePalette(R.string.palette_blue_grey, Color(0xFF546E7A)),
+    // ThemePalette(R.string.palette_apple_red, AppleTokens.AccentRed),
+    // ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)),
+    // ThemePalette(R.string.palette_rose, Color(0xFFD81B60)),
+    // ThemePalette(R.string.palette_purple, Color(0xFF8E24AA)),
+    // ThemePalette(R.string.palette_deep_purple, Color(0xFF5E35B1)),
+    // ThemePalette(R.string.palette_indigo, Color(0xFF3949AB)),
+    // ThemePalette(R.string.palette_blue, Color(0xFF1E88E5)),
+    // ThemePalette(R.string.palette_sky_blue, Color(0xFF039BE5)),
+    // ThemePalette(R.string.palette_cyan, Color(0xFF00ACC1)),
+    // ThemePalette(R.string.palette_teal, Color(0xFF00897B)),
+    // ThemePalette(R.string.palette_green, Color(0xFF43A047)),
+    // ThemePalette(R.string.palette_light_green, Color(0xFF7CB342)),
+    // ThemePalette(R.string.palette_lime, Color(0xFFC0CA33)),
+    // ThemePalette(R.string.palette_yellow, Color(0xFFFDD835)),
+    // ThemePalette(R.string.palette_amber, Color(0xFFFFB300)),
+    // ThemePalette(R.string.palette_orange, Color(0xFFFB8C00)),
+    // ThemePalette(R.string.palette_deep_orange, Color(0xFFF4511E)),
+    // ThemePalette(R.string.palette_brown, Color(0xFF6D4C41)),
+    // ThemePalette(R.string.palette_grey, Color(0xFF757575)),
+    // ThemePalette(R.string.palette_blue_grey, Color(0xFF546E7A)),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -234,6 +245,16 @@ fun ThemeScreen(
         onDynamicThemeChange(isDynamicColor)
     }
 
+    // Mode + color back to their defaults. Doesn't touch the home background
+    // image below — that already has its own "Remove image" action, and
+    // clearing it here would silently delete a file the user picked.
+    val onReset: () -> Unit = {
+        onDarkModeChange(DarkMode.AUTO)
+        onPureBlackChange(false)
+        onSelectedThemeColorChange(DefaultThemeColor.toArgb())
+        onDynamicThemeChange(true)
+    }
+
     if (isLandscape) {
         LandscapeThemeLayout(
             innerPadding = PaddingValues(0.dp),
@@ -242,7 +263,8 @@ fun ThemeScreen(
             pureBlack = pureBlack,
             onPureBlackChange = onPureBlackChange,
             selectedThemeColor = selectedThemeColor,
-            onSelectedThemeColorChange = handleColorSelection
+            onSelectedThemeColorChange = handleColorSelection,
+            onReset = onReset,
         )
     } else {
         PortraitThemeLayout(
@@ -252,7 +274,8 @@ fun ThemeScreen(
             pureBlack = pureBlack,
             onPureBlackChange = onPureBlackChange,
             selectedThemeColor = selectedThemeColor,
-            onSelectedThemeColorChange = handleColorSelection
+            onSelectedThemeColorChange = handleColorSelection,
+            onReset = onReset,
         )
     }
 
@@ -278,15 +301,17 @@ fun PortraitThemeLayout(
     pureBlack: Boolean,
     onPureBlackChange: (Boolean) -> Unit,
     selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit
+    onSelectedThemeColorChange: (Color) -> Unit,
+    onReset: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding),
+            .padding(innerPadding)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Box(
             modifier = Modifier
@@ -301,7 +326,7 @@ fun PortraitThemeLayout(
             )
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         ThemeControls(
             darkMode = darkMode,
@@ -309,8 +334,13 @@ fun PortraitThemeLayout(
             pureBlack = pureBlack,
             onPureBlackChange = onPureBlackChange,
             selectedThemeColor = selectedThemeColor,
-            onSelectedThemeColorChange = onSelectedThemeColorChange
+            onSelectedThemeColorChange = onSelectedThemeColorChange,
+            onReset = onReset,
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        HomeBackgroundControls()
 
         Spacer(modifier = Modifier.height(120.dp))
     }
@@ -324,7 +354,8 @@ fun LandscapeThemeLayout(
     pureBlack: Boolean,
     onPureBlackChange: (Boolean) -> Unit,
     selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit
+    onSelectedThemeColorChange: (Color) -> Unit,
+    onReset: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -366,8 +397,13 @@ fun LandscapeThemeLayout(
                 pureBlack = pureBlack,
                 onPureBlackChange = onPureBlackChange,
                 selectedThemeColor = selectedThemeColor,
-                onSelectedThemeColorChange = onSelectedThemeColorChange
+                onSelectedThemeColorChange = onSelectedThemeColorChange,
+                onReset = onReset,
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            HomeBackgroundControls()
 
             Spacer(modifier = Modifier.height(80.dp))
         }
@@ -381,7 +417,8 @@ fun ThemeControls(
     pureBlack: Boolean,
     onPureBlackChange: (Boolean) -> Unit,
     selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit
+    onSelectedThemeColorChange: (Color) -> Unit,
+    onReset: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -474,7 +511,15 @@ fun ThemeControls(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                
+
+                // Selected iff it isn't a preset or the dynamic sentinel — i.e. a
+                // color someone actually picked, not one of the swatches below.
+                val isCustomSelected = PaletteColors.none {
+                    if (it.seedColor == Color.Transparent) selectedThemeColor == DefaultThemeColor
+                    else selectedThemeColor == it.seedColor
+                }
+                var showColorPicker by remember { mutableStateOf(false) }
+
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                     contentPadding = PaddingValues(horizontal = 4.dp)
@@ -486,17 +531,46 @@ fun ThemeControls(
                         } else {
                             selectedThemeColor == palette.seedColor
                         }
-                        
+
                         PaletteItem(
                             palette = palette,
                             isSelected = isSelected,
-                            onClick = { 
+                            onClick = {
                                 val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
-                                onSelectedThemeColorChange(colorToSave) 
+                                onSelectedThemeColorChange(colorToSave)
                             }
                         )
                     }
+                    item {
+                        PaletteItem(
+                            palette = ThemePalette(
+                                nameRes = R.string.theme_custom_color,
+                                seedColor = if (isCustomSelected) selectedThemeColor else DefaultThemeColor,
+                            ),
+                            isSelected = isCustomSelected,
+                            onClick = { showColorPicker = true },
+                        )
+                    }
                 }
+
+                if (showColorPicker) {
+                    ColorPickerDialog(
+                        initialColor = selectedThemeColor,
+                        title = stringResource(R.string.theme_custom_color),
+                        onDismiss = { showColorPicker = false },
+                        onConfirm = {
+                            onSelectedThemeColorChange(it)
+                            showColorPicker = false
+                        },
+                    )
+                }
+            }
+
+            TextButton(
+                onClick = onReset,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(stringResource(R.string.reset))
             }
         }
     }

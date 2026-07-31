@@ -56,12 +56,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.convx.music.LocalListenTogetherManager
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.MiniBarTabStyleKey
+import com.convx.music.constants.MiniPlayerWaveformKey
 import com.convx.music.constants.SwipeSensitivityKey
 import com.convx.music.constants.SwipeThumbnailKey
 import androidx.media3.common.Player
@@ -106,6 +108,7 @@ fun FloatingMiniPlayer(
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
     val (tabStyle) = rememberPreference(MiniBarTabStyleKey, defaultValue = false)
+    val miniPlayerWaveform by rememberPreference(MiniPlayerWaveformKey, defaultValue = true)
     val listenTogetherManager = LocalListenTogetherManager.current
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
     val swipeEnabled = swipeThumbnailPref && !isListenTogetherGuest
@@ -261,14 +264,22 @@ fun FloatingMiniPlayer(
 
                 Spacer(Modifier.width(8.dp))
 
-                Text(
-                    text = mediaMetadata?.title.orEmpty(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = mediaMetadata?.title.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = mediaMetadata?.artists?.joinToString { it.name }.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                        color = contentColor.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
 
                 IconButton(
                     onClick = { playerConnection.player.togglePlayPause() },
@@ -277,7 +288,7 @@ fun FloatingMiniPlayer(
                     AnimatedPlayPauseIcon(
                         isPlaying = isPlaying,
                         tint = contentColor,
-                        size = 24.dp,
+                        size = 20.dp,
                     )
                 }
             } else if (!tabStyle) {
@@ -300,38 +311,39 @@ fun FloatingMiniPlayer(
                 Spacer(Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = mediaMetadata?.title.orEmpty(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = contentColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        ScrollingWaveformSeekBar(
-                            progress = { playbackFraction },
-                            onSeek = { frac ->
-                                val duration = playerConnection.player.duration
-                                if (duration > 0) {
-                                    playerConnection.player.seekTo((frac * duration).toLong())
-                                }
-                            },
-                            playedColor = contentColor,
-                            trackColor = contentColor.copy(alpha = 0.3f),
-                            seed = waveformSeed,
-                            modifier = Modifier
-                                .width(56.dp)
-                                .height(18.dp),
-                        )
-                    }
+                    Text(
+                        text = mediaMetadata?.title.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         text = mediaMetadata?.artists?.joinToString { it.name }.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = contentColor.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                if (miniPlayerWaveform) {
+                    Spacer(Modifier.width(8.dp))
+                    ScrollingWaveformSeekBar(
+                        progress = { playbackFraction },
+                        onSeek = { frac ->
+                            val duration = playerConnection.player.duration
+                            if (duration > 0) {
+                                playerConnection.player.seekTo((frac * duration).toLong())
+                            }
+                        },
+                        playedColor = contentColor,
+                        trackColor = contentColor.copy(alpha = 0.3f),
+                        seed = waveformSeed,
+                        visibleBars = 14,
+                        modifier = Modifier
+                            .width(64.dp)
+                            .height(22.dp),
                     )
                 }
 
@@ -353,10 +365,10 @@ fun FloatingMiniPlayer(
                     modifier = Modifier.size(controlSize),
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.skip_next),
+                        painter = painterResource(R.drawable.fast_forward),
                         contentDescription = null,
                         tint = if (canSkipNext) contentColor else contentColor.copy(alpha = 0.4f),
-                        modifier = Modifier.size(iconSize),
+                        modifier = Modifier.size(playIconSize),
                     )
                 }
             } else {
@@ -385,7 +397,7 @@ fun FloatingMiniPlayer(
                     modifier = Modifier.size(controlSize),
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.skip_previous),
+                        painter = painterResource(R.drawable.skip_previous_legacy),
                         contentDescription = null,
                         tint = if (canSkipPrevious) contentColor else contentColor.copy(alpha = 0.4f),
                         modifier = Modifier.size(iconSize),
@@ -407,7 +419,7 @@ fun FloatingMiniPlayer(
                     modifier = Modifier.size(controlSize),
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.skip_next),
+                        painter = painterResource(R.drawable.fast_forward),
                         contentDescription = null,
                         tint = if (canSkipNext) contentColor else contentColor.copy(alpha = 0.4f),
                         modifier = Modifier.size(iconSize),

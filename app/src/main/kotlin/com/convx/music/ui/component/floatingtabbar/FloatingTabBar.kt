@@ -94,6 +94,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -537,6 +538,7 @@ private fun SharedTransitionScope.InlineBar(
             InlineStandaloneTab(
                 standaloneTab = standaloneTab,
                 shapes = shapes,
+                sizes = sizes,
                 colors = colors,
                 elevations = elevations,
                 animatedVisibilityScope = animatedVisibilityScope,
@@ -615,6 +617,7 @@ private fun SharedTransitionScope.InlineTab(
 private fun SharedTransitionScope.InlineStandaloneTab(
     standaloneTab: FloatingTabBarTab,
     shapes: FloatingTabBarShapes,
+    sizes: FloatingTabBarSizes,
     colors: FloatingTabBarColors,
     elevations: FloatingTabBarElevations,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -646,6 +649,9 @@ private fun SharedTransitionScope.InlineStandaloneTab(
                 indication = standaloneTab.indication?.invoke(),
                 onClick = standaloneTab.onClick
             )
+            // Unlike the regular tab pill (InlineTab, ExpandedTabs), this circle had
+            // no inset at all — the icon sat flush against its edge.
+            .padding(sizes.tabInlineContentPadding)
     )
 }
 
@@ -709,12 +715,19 @@ private fun SharedTransitionScope.ExpandedBar(
     val hasTabGroup = scope.tabs.isNotEmpty()
     val standaloneTab = scope.standaloneTab
 
-    // The accessory spans the full width above the tab row. The standalone tab
-    // (search) is always its own floating circle — same as the inline
-    // (collapsed) state — never merged into the tab group pill, so it reads as
-    // one consistent circular element through both inline and expanded states
-    // (see ExpandedStandaloneTab / InlineStandaloneTab, tied together by the
-    // shared "standaloneTab" element).
+    // The accessory matches the tab row's own (content-sized, not full-bleed)
+    // width, so both pills line up edge to edge. The tab row is measured first
+    // (onSizeChanged below); the accessory falls back to fillMaxWidth until
+    // that first measurement lands — a one-frame lag, same pattern as
+    // FloatingMiniPlayer's measuredHeightPx.
+    val density = LocalDensity.current
+    var tabRowWidthPx by remember { mutableIntStateOf(0) }
+
+    // The standalone tab (search) is always its own floating circle — same as
+    // the inline (collapsed) state — never merged into the tab group pill, so
+    // it reads as one consistent circular element through both inline and
+    // expanded states (see ExpandedStandaloneTab / InlineStandaloneTab, tied
+    // together by the shared "standaloneTab" element).
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
@@ -728,14 +741,20 @@ private fun SharedTransitionScope.ExpandedBar(
                 colors = colors,
                 elevations = elevations,
                 animatedVisibilityScope = animatedVisibilityScope,
-                modifier = Modifier.fillMaxWidth()
+                modifier = if (tabRowWidthPx > 0) {
+                    Modifier.width(with(density) { tabRowWidthPx.toDp() })
+                } else {
+                    Modifier.fillMaxWidth()
+                }
             )
         }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(IntrinsicSize.Max)
+            modifier = Modifier
+                .height(IntrinsicSize.Max)
+                .onSizeChanged { tabRowWidthPx = it.width }
         ) {
             if (hasTabGroup) {
                 ExpandedTabs(
@@ -757,6 +776,7 @@ private fun SharedTransitionScope.ExpandedBar(
                 ExpandedStandaloneTab(
                     standaloneTab = standaloneTab,
                     shapes = shapes,
+                    sizes = sizes,
                     colors = colors,
                     elevations = elevations,
                     animatedVisibilityScope = animatedVisibilityScope,
@@ -774,6 +794,7 @@ private fun SharedTransitionScope.ExpandedBar(
 private fun SharedTransitionScope.ExpandedStandaloneTab(
     standaloneTab: FloatingTabBarTab,
     shapes: FloatingTabBarShapes,
+    sizes: FloatingTabBarSizes,
     colors: FloatingTabBarColors,
     elevations: FloatingTabBarElevations,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -805,6 +826,9 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
                 indication = standaloneTab.indication?.invoke(),
                 onClick = standaloneTab.onClick
             )
+            // Unlike the regular tab pill (ExpandedTabs), this circle had no inset
+            // at all — the icon sat flush against its edge.
+            .padding(sizes.tabExpandedContentPadding)
     )
 }
 
@@ -957,14 +981,16 @@ private fun SharedTransitionScope.ExpandedTabs(
             // Re-pin on EVERY selection change, not only when currentIndex differs:
             // the puck's animated value can drift out from under a matching currentIndex
             // (a cancelled drag, an interrupted settle) and strand the indicator on the
-            // wrong tab — the "selected icon doesn't update" bug. Forcing updateValue
-            // here always snaps it back to the actually-selected route.
+            // wrong tab — the "selected icon doesn't update" bug. Forcing this here
+            // always snaps it back to the actually-selected route.
             //
-            // updateValue, not animateToValue: a tap/external nav must snap the puck to
-            // the new tab fast and reliably. animateToValue added a press-grow (slow, made
-            // the selected icon briefly double up with the puck's glass copy) and ran under
-            // mutatorMutex where it could be cancelled, leaving the puck lagging.
-            dampedDragAnimation.updateValue(index.toFloat())
+            // animateToValue (not updateValue): a tap should feel like a drag-release —
+            // the same press/grow-then-settle the puck does when you actually drag it,
+            // not just a bare position slide. This used to fall back to updateValue
+            // because animateToValue's press-grow visibly doubled the selected icon
+            // against the puck's glass copy — that's fixed now (the hidden backdrop row's
+            // contentScale and padding are kept in sync with the visible row, see above).
+            dampedDragAnimation.animateToValue(index.toFloat())
         }
     }
 
@@ -1120,19 +1146,40 @@ private fun SharedTransitionScope.ExpandedTabs(
                         backdropScale = tabsBackdropScale
                     )
                     .then(interactiveHighlight.modifier)
-                    .padding(sizes.tabBarContentPadding)
+                    // NOT a second .padding(sizes.tabBarContentPadding) here — the one
+                    // above (before drawBackdrop) already insets this row's measured
+                    // bounds. A second one compounded the inset only on this hidden
+                    // row (the visible row above applies it exactly once), shifting
+                    // its tabs right of their real counterparts — the puck's sampled
+                    // icon then visibly drifted from the real icon under it.
                     .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
                 horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
             ) {
-                allTabs.forEach { tab ->
+                allTabs.forEachIndexed { index, tab ->
                     Tab(
                         icon = tab.icon,
                         title = tab.title,
                         isInline = false,
                         isStandalone = false,
+                        // Must match the visible row's per-tab contentScale (see
+                        // above) — this hidden row is what the puck's glass samples,
+                        // so if it doesn't zoom in sync with the real icon during a
+                        // press/drag, the accent-tinted copy visibly drifts from the
+                        // real icon on top, reading as a ghosted double image.
+                        contentScale = if (index == currentIndex) {
+                            lerp(1f, 1.12f, dampedDragAnimation.pressProgress)
+                        } else {
+                            1f
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
+                            // Must match the visible row's skipToLookaheadSize() too
+                            // (see below) — without it this hidden row can measure a
+                            // hair differently under the shared-transition lookahead
+                            // pass, leaving the puck's sampled icon slightly off from
+                            // the real one even at rest.
+                            .skipToLookaheadSize()
                             .padding(sizes.tabExpandedContentPadding)
                     )
                 }
@@ -1163,15 +1210,20 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 val progress = dampedDragAnimation.pressProgress
                                 // Soft frosted puck at rest (constant blur), deepening
                                 //
-                                blur(5f.dp.toPx() * (1f - progress))
+                                blur(3f.dp.toPx() * (1f - progress))
 
                                 // Refraction is strongest at REST: that is when the
                                 // puck is static glass and can afford to bend what is
                                 // under it. Pressing eases it back to the previous
                                 // values so the moving puck stays legible.
+                                // Toned down from the source lib's 16/22dp — the real
+                                // icon underneath stays at full alpha (see the icon
+                                // Box above), so that much bend visibly split the
+                                // sharp real icon from its lensed glass copy, reading
+                                // as a doubled/ghosted icon rather than one warped one.
                                 lens(
-                                    lerp(16f.dp.toPx(), 10f.dp.toPx(), progress),
-                                    lerp(22f.dp.toPx(), 14f.dp.toPx(), progress),
+                                    lerp(6f.dp.toPx(), 4f.dp.toPx(), progress),
+                                    lerp(8f.dp.toPx(), 6f.dp.toPx(), progress),
                                     chromaticAberration = true
                                 )
                             },
@@ -1303,8 +1355,17 @@ private fun Tab(
     // drag puck's press progress (Kyant's LocalLiquidBottomTabScale trick).
     contentScale: Float = 1f
 ) {
+    val showTitle = !isStandalone && !isInline
     Column(
-        verticalArrangement = Arrangement.Center,
+        // A real gap between icon and title, centered as a group — rather than
+        // nudging the icon down with a raw offset(), which shifts its drawn
+        // position without growing the Column's measured height and gets it
+        // clipped by the tab bar's own bounds.
+        verticalArrangement = if (showTitle) {
+            Arrangement.spacedBy((-2).dp, Alignment.CenterVertically)
+        } else {
+            Arrangement.Center
+        },
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .then(
@@ -1319,7 +1380,7 @@ private fun Tab(
             )
     ) {
         icon()
-        if (!isStandalone && !isInline) {
+        if (showTitle) {
             title()
         }
     }

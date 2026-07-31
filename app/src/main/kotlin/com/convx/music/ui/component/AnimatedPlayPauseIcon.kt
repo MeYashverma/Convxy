@@ -54,13 +54,17 @@ fun AnimatedPlayPauseIcon(
         ) { playing ->
             val res = if (playing) R.drawable.pause else R.drawable.play
             val blur = blurAnim.value
+            // Same bounding box, but the pause glyph's two solid bars read
+            // visually heavier/bigger than the play triangle at an identical
+            // dp size — shrink it slightly to match play's optical weight.
+            val iconSize = if (playing) size * 0.88f else size
 
             Icon(
                 painter = painterResource(res),
                 contentDescription = null,
                 tint = tint,
                 modifier = Modifier
-                    .size(size)
+                    .size(iconSize)
                     .graphicsLayer {
                         scaleX = 1f - blur * 0.008f
                         scaleY = 1f - blur * 0.008f

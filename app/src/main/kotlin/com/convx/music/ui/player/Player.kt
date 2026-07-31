@@ -1533,7 +1533,7 @@ fun BottomSheetPlayer(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.vivi_music_icon),
+                                        painter = painterResource(R.drawable.music_note),
                                         contentDescription = null,
                                         modifier = Modifier
                                             .size(32.dp),
@@ -1557,7 +1557,7 @@ fun BottomSheetPlayer(
                                         modifier = Modifier.fillMaxSize()
                                     )
 
-                                    if (isFullScreen && enableLyricsThumbnailPlayPause) {
+                                    if (isFullScreen && enableLyricsThumbnailPlayPause && !showInlineLyrics) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
@@ -1572,7 +1572,7 @@ fun BottomSheetPlayer(
                                             Icon(
                                                 painter = painterResource(
                                                     if (playbackState == Player.STATE_ENDED) R.drawable.replay
-                                                    else R.drawable.play
+                                                    else R.drawable.play_applemusic
                                                 ),
                                                 contentDescription = null,
                                                 tint = Color.White,
@@ -2248,7 +2248,7 @@ fun BottomSheetPlayer(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.sleep_timer),
+                                        painter = painterResource(R.drawable.timer),
                                         contentDescription = null,
                                         tint = TextBackgroundColor.copy(alpha = 0.8f),
                                         modifier = Modifier.size(12.dp)
@@ -2371,7 +2371,7 @@ fun BottomSheetPlayer(
                 // fullscreenLyricsCollapseTop repurposed: on, the controls stay
                 // visible (and get reordered above the lyrics — see the two
                 // controlsContent call sites below) instead of hiding entirely.
-                visible = !isFullScreen || fullscreenLyricsCollapseTop,
+                visible = !isFullScreen || (fullscreenLyricsCollapseTop && !showInlineLyrics),
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) +
                     slideOutVertically(targetOffsetY = { -it }) + fadeOut()
@@ -2434,7 +2434,7 @@ fun BottomSheetPlayer(
                                     .weight(backButtonWeight)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.skip_previous),
+                                    painter = painterResource(R.drawable.skip_previous_legacy),
                                     contentDescription = null,
                                     modifier = Modifier.size(32.dp)
                                 )
@@ -2478,9 +2478,9 @@ fun BottomSheetPlayer(
                                     Icon(
                                         painter = painterResource(
                                             if (isListenTogetherGuest) {
-                                                if (isMuted) R.drawable.volume_off else R.drawable.volume_up
+                                                if (isMuted) R.drawable.volume_off else R.drawable.volume_down
                                             } else {
-                                                if (effectiveIsPlaying) R.drawable.pause else R.drawable.play
+                                                if (effectiveIsPlaying) R.drawable.pause_applemusic else R.drawable.play_applemusic
                                             }
                                         ),
                                         contentDescription = if (isListenTogetherGuest) {
@@ -2519,9 +2519,9 @@ fun BottomSheetPlayer(
                                     )
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.skip_next),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp)
+                                painter = painterResource(R.drawable.fast_forward),
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp)
                                 )
                             }
                         }
@@ -2555,7 +2555,7 @@ fun BottomSheetPlayer(
 
                             Box(modifier = Modifier.weight(1f)) {
                                 ResizableIconButton(
-                                    icon = R.drawable.apple_skip_previous,
+                                    icon = R.drawable.skip_previous_legacy,
                                     enabled = canSkipPrevious && !isListenTogetherGuest,
                                     color = TextBackgroundColor,
                                     modifier =
@@ -2597,7 +2597,7 @@ fun BottomSheetPlayer(
                                     painter =
                                     painterResource(
                                         if (isListenTogetherGuest) {
-                                            if (isMuted) R.drawable.volume_off else R.drawable.volume_up
+                                            if (isMuted) R.drawable.volume_mute else R.drawable.volume_down
                                         } else if (playbackState ==
                                             STATE_ENDED
                                         ) {
@@ -2621,7 +2621,7 @@ fun BottomSheetPlayer(
 
                             Box(modifier = Modifier.weight(1f)) {
                                 ResizableIconButton(
-                                    icon = R.drawable.apple_skip_next,
+                                    icon = R.drawable.fast_forward,
                                     enabled = canSkipNext && !isListenTogetherGuest,
                                     color = TextBackgroundColor,
                                     modifier =
@@ -2745,7 +2745,7 @@ fun BottomSheetPlayer(
                             Spacer(Modifier.width(12.dp))
 
                             Icon(
-                                painter = painterResource(R.drawable.volume_up),
+                                painter = painterResource(R.drawable.volume_down),
                                 contentDescription = null,
                                 tint = textButtonColor,
                                 modifier = Modifier
@@ -2868,7 +2868,7 @@ fun BottomSheetPlayer(
                         modifier = Modifier
                             .weight(if (showInlineLyrics) 0.65f else 1f, false)
                             .animateContentSize()
-                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
                     ) {
                         Spacer(Modifier.weight(1f))
 
@@ -2890,7 +2890,7 @@ fun BottomSheetPlayer(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
                     Modifier
-                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                         .padding(bottom = bottomPadding)
                         .animateContentSize(),
                 ) {

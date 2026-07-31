@@ -810,7 +810,7 @@ class MainActivity : ComponentActivity() {
                 // which is a different component and reads as a different app.
                 val playerBottomSheetState = rememberBottomSheetState(
                     dismissedBound = 0.dp,
-                    collapsedBound = if (useFloatingNavBar || showRail) {
+                    collapsedBound = if (useFloatingNavBar || showRail || inSearchScreen) {
                         0.dp
                     } else {
                         bottomInset +
@@ -825,7 +825,7 @@ class MainActivity : ComponentActivity() {
                 // floating tab bar is actually visible; other screens (e.g. settings) get
                 // the full height.
                 val hasDockedPlayerAccessory =
-                    useFloatingNavBar && playerMediaMetadata != null && !showRail && shouldShowNavigationBar
+                    useFloatingNavBar && playerMediaMetadata != null && !showRail && shouldShowNavigationBar && !inSearchScreen
                 val playerAwareWindowInsets = remember(
                     bottomInset,
                     shouldShowNavigationBar,
@@ -833,12 +833,13 @@ class MainActivity : ComponentActivity() {
                     showRail,
                     hasDockedPlayerAccessory,
                     sideBarContentInset,
+                    inSearchInputScreen,
                 ) {
                     var bottom = bottomInset
                     if (shouldShowNavigationBar && !showRail) {
                         bottom += NavigationBarHeight
                     }
-                    if (!playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
+                    if (!playerBottomSheetState.isDismissed && !inSearchInputScreen) bottom += MiniPlayerHeight
                     if (hasDockedPlayerAccessory) bottom += DockedAccessoryHeight
                     windowsInsets
                         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)

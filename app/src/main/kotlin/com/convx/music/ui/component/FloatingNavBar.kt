@@ -10,7 +10,9 @@ package com.convx.music.ui.component
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.convx.music.ui.player.FloatingMiniPlayer
 import com.convx.music.ui.screens.Screens
 import com.convx.music.ui.component.floatingtabbar.FloatingTabBar
@@ -139,6 +143,11 @@ fun AppFloatingNavBar(
             backgroundColor = backgroundColor,
             accessoryBackgroundColor = backgroundColor,
         ),
+        sizes = FloatingTabBarDefaults.sizes(
+            tabBarContentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
+            tabExpandedContentPadding = PaddingValues(vertical = 4.dp, horizontal = 6.dp),
+            tabInlineContentPadding = PaddingValues(8.dp),
+        ),
         // The selection puck's lens/accent-tint effects only make sense when the
         // bar itself is sampling the app backdrop through liquid glass.
         backdrop = if (useGlass) LocalAppBackdrop.current else null,
@@ -157,6 +166,7 @@ fun AppFloatingNavBar(
                         color = if (isSelected) selectedContentColor else unselectedContentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        fontSize = 10.sp,
                     )
                 },
                 icon = {
@@ -166,6 +176,7 @@ fun AppFloatingNavBar(
                         ),
                         contentDescription = stringResource(screen.titleId),
                         tint = if (isSelected) selectedContentColor else unselectedContentColor,
+                        modifier = Modifier.size(30.dp),
                     )
                 },
                 onClick = { onItemClick(screen, isRouteSelected(currentRoute, screen.route, navigationItems)) },
@@ -183,6 +194,7 @@ fun AppFloatingNavBar(
                         color = if (isSelected) selectedContentColor else unselectedContentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        fontSize = 10.sp,
                     )
                 },
                 icon = {
@@ -192,6 +204,7 @@ fun AppFloatingNavBar(
                         ),
                         contentDescription = stringResource(screen.titleId),
                         tint = if (isSelected) selectedContentColor else unselectedContentColor,
+                        modifier = Modifier.size(30.dp),
                     )
                 },
                 onClick = { onSearchTap?.invoke() ?: onItemClick(screen, isRouteSelected(currentRoute, screen.route, navigationItems)) },

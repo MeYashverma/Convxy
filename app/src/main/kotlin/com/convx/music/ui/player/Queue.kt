@@ -389,6 +389,7 @@ fun Queue(
 
                     PlayerQueueButton(
                         icon = R.drawable.lyrics,
+                        activeIcon = R.drawable.lyrics_active,
                         onClick = { onToggleLyrics() },
                         isActive = showInlineLyrics,
                         shape = middleShape,
@@ -515,7 +516,7 @@ fun Queue(
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.apple_queue),
+                                painter = painterResource(id = R.drawable.queue_music),
                                 contentDescription = null,
                                 modifier = Modifier.size(40.dp),
                                 tint = TextBackgroundColor
@@ -588,7 +589,7 @@ fun Queue(
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.sleep_timer),
+                                    painter = painterResource(id = R.drawable.timer),
                                     contentDescription = null,
                                     modifier = Modifier.size(30.dp)
                                 )
@@ -616,9 +617,9 @@ fun Queue(
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.apple_music_me),
+                                painter = painterResource(id = R.drawable.lyrics),
                                 contentDescription = null,
-                                modifier = Modifier.size(40.dp),
+                                modifier = Modifier.size(60.dp),
                                 tint = TextBackgroundColor
                             )
 //                            Spacer(modifier = Modifier.width(6.dp))
@@ -1187,6 +1188,7 @@ fun Queue(
                                             message = context.getString(
                                                 R.string.removed_song_from_playlist,
                                                 currentItem.mediaItem.metadata?.title,
+
                                             ),
                                             actionLabel = context.getString(R.string.undo),
                                             duration = SnackbarDuration.Short,
@@ -1446,6 +1448,7 @@ fun Queue(
 @Composable
 private fun PlayerQueueButton(
     icon: Int,
+    activeIcon: Int? = null,
     onClick: () -> Unit,
     isActive: Boolean,
     enabled: Boolean = true,
@@ -1504,8 +1507,9 @@ private fun PlayerQueueButton(
                 }
             }
             val finalTint = if (enabled) baseTint else baseTint.copy(alpha = 0.5f)
+            val resolvedIcon = if (isActive && activeIcon != null) activeIcon else icon
             Icon(
-                painter = painterResource(id = icon),
+                painter = painterResource(id = resolvedIcon),
                 contentDescription = null,
                 modifier = Modifier.size(iconSize),
                 tint = finalTint

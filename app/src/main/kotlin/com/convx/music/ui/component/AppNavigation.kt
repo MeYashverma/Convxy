@@ -354,9 +354,9 @@ fun AppLandscapeRail(
                     tint = if (isSelected) selectedContentColor else unselectedContentColor,
                     modifier = Modifier.size(24.dp)
                 )
-                
+
                 Spacer(Modifier.width(12.dp))
-                
+
                 Text(
                     text = stringResource(screen.titleId),
                     style = MaterialTheme.typography.labelLarge,

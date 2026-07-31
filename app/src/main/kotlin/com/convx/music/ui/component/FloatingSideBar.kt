@@ -120,7 +120,7 @@ const val FloatingMiniPlayerWidthFraction = 0.8f
 /** Height as a share of the pill's own width, clamped to stay a bar. */
 private const val FloatingMiniPlayerAspect = 0.11f
 private val FloatingMiniPlayerMinHeight = 64.dp
-private val FloatingMiniPlayerMaxHeight = 78.dp
+private val FloatingMiniPlayerMaxHeight = 64.dp
 
 /** A non-tab destination in the side bar: history, stats, a playlist, and so on. */
 @Immutable

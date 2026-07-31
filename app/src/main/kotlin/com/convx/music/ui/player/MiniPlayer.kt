@@ -398,11 +398,64 @@ private fun NewMiniPlayer(
                 gradientColors = gradientColors
             )
 
+            val waveColor = LocalGlassEffectConfig.current.textColor
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
             ) {
-                // Play button with progress - isolated composable
+                // Thumbnail album art
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .border(0.5.dp, outlineColor.copy(alpha = 0.3f), CircleShape)
+                ) {
+                    mediaMetadata?.let { metadata ->
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(metadata.thumbnailUrl)
+                                .size(CoilSize(96, 96))
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize().clip(CircleShape)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Center: song info + seek bar below
+                Column(modifier = Modifier.weight(1f)) {
+                    NewMiniPlayerSongInfo(
+                        mediaMetadata = mediaMetadata,
+                        onSurfaceColor = onSurfaceColor,
+                        errorColor = errorColor
+                    )
+                    if (miniPlayerWaveform) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        ScrollingWaveformSeekBar(
+                            progress = { waveFraction.value },
+                            onSeek = { f ->
+                                val d = playerConnection.player.duration
+                                if (d > 0L) playerConnection.player.seekTo((f * d).toLong())
+                            },
+                            playedColor = waveColor,
+                            trackColor = waveColor.copy(alpha = 0.25f),
+                            seed = mediaMetadata?.id?.hashCode() ?: 0,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(28.dp),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Play button (compact - no album art)
                 NewMiniPlayerPlayButton(
                     progressState = progressState,
                     playbackState = playbackState,
@@ -412,41 +465,26 @@ private fun NewMiniPlayer(
                     mediaMetadata = mediaMetadata,
                     primaryColor = primaryColor,
                     outlineColor = outlineColor,
-                    listenTogetherManager = listenTogetherManager
+                    listenTogetherManager = listenTogetherManager,
+                    compact = true
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                // Song info - isolated composable
-                NewMiniPlayerSongInfo(
-                    mediaMetadata = mediaMetadata,
-                    onSurfaceColor = onSurfaceColor,
-                    errorColor = errorColor,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                if (miniPlayerWaveform) {
-                    // Match the glass chrome's text colour, so the waveform reads as
-                    // part of the same material rather than as an accent element.
-                    val waveColor = LocalGlassEffectConfig.current.textColor
-                    ScrollingWaveformSeekBar(
-                        progress = { waveFraction.value },
-                        onSeek = { f ->
-                            val d = playerConnection.player.duration
-                            if (d > 0L) playerConnection.player.seekTo((f * d).toLong())
-                        },
-                        playedColor = waveColor,
-                        trackColor = waveColor.copy(alpha = 0.25f),
-                        seed = mediaMetadata?.id?.hashCode() ?: 0,
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(28.dp),
+                // Skip next (Accord icon)
+                IconButton(
+                    onClick = { if (canSkipNext) playerConnection.player.seekToNext() },
+                    enabled = canSkipNext
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.apple_skip_next),
+                        contentDescription = null,
+                        tint = if (canSkipNext) onSurfaceColor else onSurfaceColor.copy(alpha = 0.4f),
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
-                
+
+                Spacer(modifier = Modifier.width(4.dp))
+
                 // Cast indicator
                 if (isCasting) {
                     Icon(
@@ -455,14 +493,14 @@ private fun NewMiniPlayer(
                         tint = primaryColor,
                         modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                 }
 
-                // Audio Device Button (Replacing SubscribeButton)
+                // Audio Device Button
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
                         .background(color = primaryColor.copy(alpha = 0.1f))
                         .clickable { showAudioDeviceBottomSheet = true }
@@ -471,20 +509,20 @@ private fun NewMiniPlayer(
                         imageVector = if (isBluetoothConnected) Icons.Default.Headphones else Icons.Default.Speaker,
                         contentDescription = stringResource(R.string.audio_devices),
                         tint = primaryColor,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                // Favorite button - isolated composable
-                mediaMetadata?.let { 
+                // Favorite button
+                mediaMetadata?.let {
                     FavoriteButton(
                         songId = it.id,
                         onSurfaceColor = onSurfaceColor,
                         errorColor = errorColor,
                         outlineColor = outlineColor
-                    ) 
+                    )
                 }
             }
         }
@@ -509,7 +547,8 @@ private fun NewMiniPlayerPlayButton(
     mediaMetadata: MediaMetadata?,
     primaryColor: Color,
     outlineColor: Color,
-    listenTogetherManager: ListenTogetherManager?
+    listenTogetherManager: ListenTogetherManager?,
+    compact: Boolean = false
 ) {
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
     val castIsPlaying by castHandler?.castIsPlaying?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
@@ -519,12 +558,15 @@ private fun NewMiniPlayerPlayButton(
 
     
     val trackColor = outlineColor.copy(alpha = 0.2f)
-    val strokeWidth = 3.dp
+    val strokeWidth = if (compact) 2.dp else 3.dp
+    val buttonSize = if (compact) 36.dp else 48.dp
+    val innerSize = if (compact) 36.dp else 40.dp
+    val iconSize = if (compact) 18.dp else 20.dp
 
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(48.dp)
+            .size(buttonSize)
             .drawWithContent {
                 drawContent()
                 // Draw progress arc - this reads progressState.progress during draw phase only
@@ -557,13 +599,15 @@ private fun NewMiniPlayerPlayButton(
                 )
             }
     ) {
-        // Thumbnail with play/pause overlay
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(40.dp)
+                .size(innerSize)
                 .clip(CircleShape)
-                .border(1.dp, outlineColor.copy(alpha = 0.3f), CircleShape)
+                .then(
+                    if (compact) Modifier.background(primaryColor.copy(alpha = 0.1f))
+                    else Modifier.border(1.dp, outlineColor.copy(alpha = 0.3f), CircleShape)
+                )
                 .clickable {
                     if (isListenTogetherGuest) {
                         playerConnection.toggleMute()
@@ -579,36 +623,58 @@ private fun NewMiniPlayerPlayButton(
                     }
                 }
         ) {
-            mediaMetadata?.let { metadata ->
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(metadata.thumbnailUrl)
-                        .size(CoilSize(96, 96))
-                        .crossfade(false)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().clip(CircleShape)
-                )
-            }
+            if (compact) {
+                val iconRes = when {
+                    isListenTogetherGuest -> if (isMuted) R.drawable.volume_off else R.drawable.volume_up
+                    playbackState == Player.STATE_ENDED -> R.drawable.replay
+                    else -> null
+                }
+                if (iconRes != null) {
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(iconSize)
+                    )
+                } else {
+                    AnimatedPlayPauseIcon(
+                        isPlaying = effectiveIsPlaying,
+                        tint = primaryColor,
+                        size = iconSize
+                    )
+                }
+            } else {
+                mediaMetadata?.let { metadata ->
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(metadata.thumbnailUrl)
+                            .size(CoilSize(96, 96))
+                            .crossfade(false)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                    )
+                }
 
-            // Overlay for paused state or muted (guest)
-            if (isListenTogetherGuest && isMuted || (!isListenTogetherGuest && (!effectiveIsPlaying || playbackState == Player.STATE_ENDED))) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                )
-                Icon(
-                    painter = painterResource(
-                        if (isListenTogetherGuest) {
-                            if (isMuted) R.drawable.volume_off else R.drawable.volume_up
-                        } else if (playbackState == Player.STATE_ENDED) R.drawable.replay else R.drawable.play
-                    ),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+                // Overlay for paused state or muted (guest)
+                if (isListenTogetherGuest && isMuted || (!isListenTogetherGuest && (!effectiveIsPlaying || playbackState == Player.STATE_ENDED))) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                    )
+                    Icon(
+                        painter = painterResource(
+                            if (isListenTogetherGuest) {
+                                if (isMuted) R.drawable.volume_off else R.drawable.volume_up
+                            } else if (playbackState == Player.STATE_ENDED) R.drawable.replay else R.drawable.play
+                        ),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -835,7 +901,7 @@ private fun LegacyMiniPlayer(
                     enabled = canSkipNext && !isListenTogetherGuest,
                     onClick = if (isListenTogetherGuest) ({}) else ({ playerConnection.seekToNext() }),
             ) {
-                Icon(painter = painterResource(R.drawable.skip_next), contentDescription = null)
+                Icon(painter = painterResource(R.drawable.apple_skip_next), contentDescription = null)
             }
         }
 
@@ -848,7 +914,7 @@ private fun LegacyMiniPlayer(
             ) {
                 Icon(
                     painter = painterResource(
-                        if (offsetXAnimatable.value > 0) R.drawable.skip_previous else R.drawable.skip_next
+                        if (offsetXAnimatable.value > 0) R.drawable.apple_skip_previous else R.drawable.apple_skip_next
                     ),
                     contentDescription = null,
                     tint = primaryColor.copy(

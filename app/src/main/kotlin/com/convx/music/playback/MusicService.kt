@@ -3022,13 +3022,23 @@ class MusicService :
             val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
 
             if (!shouldBypassCache) {
+                // Downloads are always cached under the plain mediaId (see
+                // DownloadRequest.setCustomCacheKey(song.id) at every download call
+                // site) regardless of the lossless/Spine toggles, so they must be
+                // looked up under mediaId — not effKey — or a downloaded song becomes
+                // unplayable the moment either toggle is on, since the lookup misses
+                // and falls through to a network re-fetch.
                 if (downloadCache.isCached(
-                        effKey,
+                        mediaId,
                         dataSpec.position,
                         if (dataSpec.length >= 0) dataSpec.length else 1
-                    ) ||
-                    playerCache.isCached(effKey, dataSpec.position, CHUNK_LENGTH)
+                    )
                 ) {
+                    scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                    return@Factory dataSpec
+                }
+
+                if (playerCache.isCached(effKey, dataSpec.position, CHUNK_LENGTH)) {
                     scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                     return@Factory spec
                 }

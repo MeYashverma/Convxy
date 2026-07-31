@@ -197,6 +197,7 @@ import com.convx.music.viewmodels.LocalPlaylistViewModel
 import com.yalantis.ucrop.UCrop
 import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
@@ -543,7 +544,18 @@ fun LocalPlaylistScreen(
         }
     }
 
-    val tint = rememberHeroTint(playlist?.thumbnails?.firstOrNull())
+    // The local library scan streams thumbnails in as songs are found — this
+    // playlist's own thumbnail list changes repeatedly while it's running, so
+    // grabbing "the first one" live chases every intermediate result. Debounce:
+    // only commit to a hero thumbnail once it's held still for a bit.
+    val rawHeroUrl = playlist?.thumbnails?.firstOrNull()
+    var heroUrl by remember { mutableStateOf(rawHeroUrl) }
+    LaunchedEffect(rawHeroUrl) {
+        delay(1500)
+        heroUrl = rawHeroUrl
+    }
+
+    val tint = rememberHeroTint(heroUrl)
     val onTint = com.convx.music.ui.theme.AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current
@@ -557,7 +569,6 @@ fun LocalPlaylistScreen(
     val heroBackdrop = rememberLayerBackdrop()
     val heroZoom = rememberHeroZoom()
 
-    val heroUrl = playlist?.thumbnails?.firstOrNull()
     val heroSource = rememberHeroSource(
         staticArt = heroUrl,
         songs = songs.map { it.song.song.thumbnailUrl to false },
@@ -1169,7 +1180,15 @@ fun LocalPlaylistHeader(
         }
     }
 
-    val heroUrl = playlist.thumbnails.firstOrNull()
+    // See the main LocalPlaylistScreen composable: debounce against the local
+    // scan streaming thumbnails in one at a time.
+    val rawHeroUrl = playlist.thumbnails.firstOrNull()
+    var heroUrl by remember { mutableStateOf(rawHeroUrl) }
+    LaunchedEffect(rawHeroUrl) {
+        delay(1500)
+        heroUrl = rawHeroUrl
+    }
+
     val heroSource = rememberHeroSource(
         staticArt = heroUrl,
         songs = songs.map { it.song.song.thumbnailUrl to false },

@@ -55,11 +55,11 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -345,17 +345,23 @@ fun Thumbnail(
 
     // Current item tracking - derived state for efficiency
     val currentItem by remember { derivedStateOf { thumbnailLazyGridState.firstVisibleItemIndex } }
-    val itemScrollOffset by remember { derivedStateOf { thumbnailLazyGridState.firstVisibleItemScrollOffset } }
 
-    // Handle swipe to change song
-    LaunchedEffect(itemScrollOffset) {
-        if (!thumbnailLazyGridState.isScrollInProgress || !swipeThumbnail || itemScrollOffset != 0 || currentMediaIndex < 0) return@LaunchedEffect
-
-        if (currentItem > currentMediaIndex && canSkipNext) {
-            playerConnection.player.seekToNext()
-        } else if (currentItem < currentMediaIndex && canSkipPrevious) {
-            playerConnection.player.seekToPreviousMediaItem()
-        }
+    // Handle swipe to change song. Watch the scroll end (snapshotFlow) instead of
+    // keying on the scroll offset, so per-pixel scroll changes don't recompose
+    // the whole thumbnail carousel.
+    LaunchedEffect(swipeThumbnail, currentMediaIndex, canSkipNext, canSkipPrevious) {
+        if (!swipeThumbnail || currentMediaIndex < 0) return@LaunchedEffect
+        snapshotFlow { thumbnailLazyGridState.isScrollInProgress }
+            .collect { scrolling ->
+                if (!scrolling && thumbnailLazyGridState.firstVisibleItemScrollOffset == 0) {
+                    val index = thumbnailLazyGridState.firstVisibleItemIndex
+                    if (index > currentMediaIndex && canSkipNext) {
+                        playerConnection.player.seekToNext()
+                    } else if (index < currentMediaIndex && canSkipPrevious) {
+                        playerConnection.player.seekToPreviousMediaItem()
+                    }
+                }
+            }
     }
 
     // Update position when song changes
@@ -396,10 +402,6 @@ fun Thumbnail(
 
     Box(
         modifier = modifier
-            .graphicsLayer {
-                // Use hardware layer for entire Thumbnail to ensure smooth 120Hz animations
-                compositingStrategy = CompositingStrategy.Offscreen
-            }
     ) {
         // Error view
         AnimatedVisibility(

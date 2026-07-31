@@ -206,6 +206,7 @@ private class DrawBackdropElement(
         node.onDrawSurface = onDrawSurface
         node.onDrawFront = onDrawFront
         node.backdropScale = backdropScale
+        node.surfaceDirty = true
         node.invalidateDrawCache()
     }
 
@@ -286,6 +287,31 @@ private class DrawBackdropNode(
 
     private var padding by mutableFloatStateOf(0f)
 
+    // True whenever the surface's own state changed in a way that invalidates the
+    // previously recorded backdrop layer (element update, effect retune, first
+    // attach). When false, draw() reuses the last record unless the source content
+    // version, size or offset moved — so surface-local redraws (e.g. a glass rim
+    // highlight animation) no longer re-record the whole backdrop source per frame.
+    internal var surfaceDirty = true
+
+    private var recordedBackdropVersion: Int? = null
+    private var recordedBackdropOffset: Offset? = null
+    private var recordedBackdropSize: IntSize = IntSize.Zero
+
+    private fun currentBackdropVersion(): Int? = (backdrop as? LayerBackdrop)?.contentVersion
+
+    /** Position of this surface within the backdrop source's coordinate space. */
+    private fun currentBackdropOffset(): Offset? {
+        val source = backdrop as? LayerBackdrop ?: return null
+        val sourceCoordinates = source.layerCoordinates ?: return null
+        val selfCoordinates = layoutCoordinates ?: return null
+        return try {
+            sourceCoordinates.localPositionOf(selfCoordinates)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private val recordBackdropBlock: (DrawScope.() -> Unit) = {
         val canvas = drawContext.canvas
         val padding = padding
@@ -316,21 +342,37 @@ private class DrawBackdropNode(
         }
     }
 
-    private val drawBackdropLayer: DrawScope.() -> Unit = {
+    private val drawBackdropLayer: DrawScope.() -> Boolean = {
         val layer = graphicsLayer
         if (layer != null) {
             val padding = padding
             val scale = backdropScale
-
-            recordLayer(
-                this@DrawBackdropNode,
-                layer,
-                size = IntSize(
-                    ((size.width * scale).toInt() + padding.toInt() * 2).coerceAtLeast(1),
-                    ((size.height * scale).toInt() + padding.toInt() * 2).coerceAtLeast(1)
-                ),
-                block = recordBackdropBlock
+            val recordSize = IntSize(
+                ((size.width * scale).toInt() + padding.toInt() * 2).coerceAtLeast(1),
+                ((size.height * scale).toInt() + padding.toInt() * 2).coerceAtLeast(1)
             )
+            val version = currentBackdropVersion()
+            val offset = currentBackdropOffset()
+
+            // Re-record only when the source pixels changed (version bump from the
+            // source's own node) or this surface's size/position moved. Non-layer
+            // backdrops have no version, so `version == null` keeps them recording
+            // every draw, matching the original behavior.
+            val needsRecord = surfaceDirty ||
+                version == null || version != recordedBackdropVersion ||
+                offset != recordedBackdropOffset ||
+                recordSize != recordedBackdropSize
+            if (needsRecord) {
+                recordLayer(
+                    this@DrawBackdropNode,
+                    layer,
+                    size = recordSize,
+                    block = recordBackdropBlock
+                )
+                recordedBackdropVersion = version
+                recordedBackdropOffset = offset
+                recordedBackdropSize = recordSize
+            }
 
             layer.topLeft =
                 if (padding != 0f) IntOffset(-padding.toInt(), -padding.toInt())
@@ -344,6 +386,9 @@ private class DrawBackdropNode(
             } else {
                 drawLayer(layer)
             }
+            needsRecord
+        } else {
+            false
         }
     }
 
@@ -363,19 +408,22 @@ private class DrawBackdropNode(
         }
 
         onDrawBehind?.invoke(this)
-        drawBackdropLayer()
+        val contentRecorded = drawBackdropLayer()
         onDrawSurface?.invoke(this)
         drawContent()
         onDrawFront?.invoke(this)
 
         exportedBackdrop?.graphicsLayer?.let { layer ->
-            recordLayer(this@DrawBackdropNode, layer) {
-                onDrawBehind?.invoke(this)
-                drawBackdropLayer()
-                onDrawSurface?.invoke(this)
-                onDrawFront?.invoke(this)
+            if (surfaceDirty || contentRecorded) {
+                recordLayer(this@DrawBackdropNode, layer) {
+                    onDrawBehind?.invoke(this)
+                    drawBackdropLayer()
+                    onDrawSurface?.invoke(this)
+                    onDrawFront?.invoke(this)
+                }
             }
         }
+        surfaceDirty = false
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
@@ -392,6 +440,7 @@ private class DrawBackdropNode(
     }
 
     override fun onObservedReadsChanged() {
+        surfaceDirty = true
         invalidateDrawCache()
     }
 
@@ -408,13 +457,18 @@ private class DrawBackdropNode(
 
         effectScope.apply(effects)
         graphicsLayer?.renderEffect = effectScope.renderEffect
-        padding = effectScope.padding
+        val newPadding = effectScope.padding
+        if (newPadding != padding) {
+            padding = newPadding
+            surfaceDirty = true
+        }
     }
 
     override fun onAttach() {
         val graphicsContext = requireGraphicsContext()
         graphicsLayer = graphicsContext.createGraphicsLayer()
 
+        surfaceDirty = true
         observeEffects()
     }
 
@@ -428,5 +482,8 @@ private class DrawBackdropNode(
         effectScope.reset()
         layoutCoordinates = null
         exportedBackdrop?.layerCoordinates = null
+        recordedBackdropVersion = null
+        recordedBackdropOffset = null
+        recordedBackdropSize = IntSize.Zero
     }
 }

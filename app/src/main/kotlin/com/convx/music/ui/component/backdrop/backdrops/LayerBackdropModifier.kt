@@ -64,6 +64,9 @@ private class LayerBackdropNode(
     override fun ContentDrawScope.draw() {
         drawContent()
         recordLayer(this@LayerBackdropNode, backdrop.graphicsLayer) { backdrop.onDraw(this@draw) }
+        // Notify sampling glass surfaces that the source pixels changed, so they
+        // re-record their own layers. When the source is static they skip it.
+        backdrop.contentRecorded()
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {

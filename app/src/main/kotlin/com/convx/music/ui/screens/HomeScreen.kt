@@ -1137,7 +1137,8 @@ fun HomeScreen(
                                                                 }
                                                             } else if (itemIndex < pageItems.size) {
                                                                 val item = pageItems[itemIndex]
-                                                                val isPinned by database.speedDialDao.isPinned(item.id).collectAsStateWithLifecycle(initialValue =false)
+                                                                val isPinnedFlow = remember(item.id) { database.speedDialDao.isPinned(item.id) }
+                                                                val isPinned by isPinnedFlow.collectAsStateWithLifecycle(initialValue =false)
 
                                                                 Box(
                                                                     modifier = Modifier
@@ -1267,8 +1268,8 @@ fun HomeScreen(
                                             key = { _, it -> it.id }
                                         ) { index, originalSong ->
                                             // fetch song from database to keep updated
-                                            val song by database.song(originalSong.id)
-                                                .collectAsStateWithLifecycle(initialValue =originalSong)
+                                            val songFlow = remember(originalSong.id) { database.song(originalSong.id) }
+                                            val song by songFlow.collectAsStateWithLifecycle(initialValue =originalSong)
 
                                             SongListItem(
                                                 song = song!!,
@@ -1549,8 +1550,8 @@ fun HomeScreen(
                                             items = forgottenFavorites.distinctBy { it.id },
                                             key = { _, it -> it.id }
                                         ) { index, originalSong ->
-                                            val song by database.song(originalSong.id)
-                                                .collectAsStateWithLifecycle(initialValue =originalSong)
+                                            val songFlow = remember(originalSong.id) { database.song(originalSong.id) }
+                                            val song by songFlow.collectAsStateWithLifecycle(initialValue =originalSong)
 
                                             SongListItem(
                                                 song = song!!,

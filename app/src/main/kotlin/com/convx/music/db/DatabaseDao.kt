@@ -57,6 +57,8 @@ import com.convx.music.models.toMediaMetadata
 import com.convx.music.ui.utils.resize
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import java.text.Collator
@@ -116,6 +118,8 @@ interface DatabaseDao {
 
         SongSortType.PLAY_TIME -> songsByPlayTimeAsc()
     }.map { it.reversed(descending) }
+        // Collator sort of the full library must not run on the collector (main).
+        .flowOn(Dispatchers.Default)
 
     @Transaction
     @Query("SELECT * FROM song WHERE liked ORDER BY rowId")
@@ -166,6 +170,7 @@ interface DatabaseDao {
 
         SongSortType.PLAY_TIME -> likedSongsByPlayTimeAsc()
     }.map { it.reversed(descending) }
+        .flowOn(Dispatchers.Default)
 
     @Transaction
     @Query("SELECT COUNT(1) FROM song WHERE liked")
@@ -1286,6 +1291,7 @@ interface DatabaseDao {
 
         SongSortType.PLAY_TIME -> downloadedSongsByPlayTimeAsc()
     }.map { it.reversed(descending) }
+        .flowOn(Dispatchers.Default)
 
     @Transaction
     @Query("SELECT * FROM song WHERE isDownloaded = 1 ORDER BY dateDownload")
@@ -1351,6 +1357,7 @@ interface DatabaseDao {
 
         SongSortType.PLAY_TIME -> uploadedSongsByPlayTimeAsc()
     }.map { it.reversed(descending) }
+        .flowOn(Dispatchers.Default)
 
     @Transaction
     @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY dateDownload")
@@ -1401,6 +1408,7 @@ interface DatabaseDao {
 
         SongSortType.PLAY_TIME -> localSongsByPlayTimeAsc()
     }.map { it.reversed(descending) }
+        .flowOn(Dispatchers.Default)
 
     @Transaction
     @Query("SELECT * FROM song WHERE title LIKE '%' || :query || '%' AND inLibrary IS NOT NULL LIMIT :previewSize")

@@ -638,13 +638,16 @@ fun Lyrics(
             return@LaunchedEffect
         }
         while (isActive) {
-            delay(8) // Faster update for word-by-word animation
+            delay(100) // Line positions only need ~10Hz; word animation reads this position
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
             val position = sliderPosition ?: playerConnection.player.currentPosition
             currentPlaybackPosition = position
             val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
-            currentLineIndex = findCurrentLineIndex(lines, position + lyricsOffset)
+            val newLineIndex = findCurrentLineIndex(lines, position + lyricsOffset)
+            if (newLineIndex != currentLineIndex) {
+                currentLineIndex = newLineIndex
+            }
         }
     }
 

@@ -167,6 +167,7 @@ import com.convx.music.extensions.toMediaItem
 import com.convx.music.extensions.toPersistQueue
 import com.convx.music.extensions.toQueue
 import com.convx.music.lyrics.LyricsHelper
+import com.convx.music.models.MediaMetadata
 import com.convx.music.models.PersistPlayerState
 import com.convx.music.models.PersistQueue
 import com.convx.music.models.toMediaMetadata
@@ -201,6 +202,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import android.os.PowerManager
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -229,6 +231,10 @@ import kotlin.time.Duration.Companion.seconds
 
 private const val INSTANT_SILENCE_SKIP_STEP_MS = 15_000L
 private const val INSTANT_SILENCE_SKIP_SETTLE_MS = 350L
+
+// Minimum gap between two DB writes for the same media item from the ~3s
+// onPlaybackStatsReady reports.
+private const val STATS_WRITE_INTERVAL_MS = 20_000L
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -287,6 +293,15 @@ class MusicService :
     }
 
     private var scope = CoroutineScope(Dispatchers.Main) + Job()
+
+    // Serialized disk writer for queue/player-state persistence: one worker keeps
+    // snapshots from overwriting each other and keeps ObjectOutputStream IO (3
+    // files per save) off the main and playback threads.
+    private val persistenceScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+
+    // Last DB write per media id, to coalesce the ~3s ExoPlayer stats reports.
+    private val lastStatsWriteAt = HashMap<String, Long>()
 
     private val binder = MusicBinder()
 
@@ -3173,17 +3188,25 @@ class MusicService :
         if (playbackStats.totalPlayTimeMs >= historyDurationMs &&
             !dataStore.get(PauseListenHistoryKey, false)
         ) {
-            database.query {
-                incrementTotalPlayTime(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
-                try {
-                    insert(
-                        Event(
-                            songId = mediaItem.mediaId,
-                            timestamp = LocalDateTime.now(),
-                            playTime = playbackStats.totalPlayTimeMs,
-                        ),
-                    )
-                } catch (_: SQLException) {
+            // Coalesce stats writes: ExoPlayer reports every ~3s during playback, so
+            // without this a single listen inserts a history row and invalidates the
+            // events/stats flows every few seconds. Writing at most once per song per
+            // window keeps short listens recorded while stopping the storm.
+            val now = System.currentTimeMillis()
+            if (now - (lastStatsWriteAt[mediaItem.mediaId] ?: 0L) >= STATS_WRITE_INTERVAL_MS) {
+                lastStatsWriteAt[mediaItem.mediaId] = now
+                database.query {
+                    incrementTotalPlayTime(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
+                    try {
+                        insert(
+                            Event(
+                                songId = mediaItem.mediaId,
+                                timestamp = LocalDateTime.now(),
+                                playTime = playbackStats.totalPlayTimeMs,
+                            ),
+                        )
+                    } catch (_: SQLException) {
+                    }
                 }
             }
         }
@@ -3203,38 +3226,78 @@ class MusicService :
         }
     }
 
+    // ExoPlayer state must be read on its application thread (main), so only the
+    // file IO goes to the worker; the single worker serializes saves so a newer
+    // snapshot can't be overwritten by an older one.
     private fun saveQueueToDisk() {
-        if (player.mediaItemCount == 0) {
-            Timber.tag(TAG).d("Skipping queue save - no media items")
-            return
+        val queue = currentQueue
+        val title = queueTitle
+        val items = player.mediaItems.mapNotNull { it.metadata }
+        if (items.isEmpty()) return
+        val mediaItemIndex = player.currentMediaItemIndex
+        val position = player.currentPosition
+        val playWhenReady = player.playWhenReady
+        val repeatMode = player.repeatMode
+        val shuffleModeEnabled = player.shuffleModeEnabled
+        val volume = player.volume
+        val playbackState = player.playbackState
+        val automixItems = automixItems.value.mapNotNull { it.metadata }
+        persistenceScope.launch {
+            persistQueueToDisk(
+                queue = queue,
+                title = title,
+                items = items,
+                mediaItemIndex = mediaItemIndex,
+                position = position,
+                playWhenReady = playWhenReady,
+                repeatMode = repeatMode,
+                shuffleModeEnabled = shuffleModeEnabled,
+                volume = volume,
+                playbackState = playbackState,
+                automixItems = automixItems,
+            )
         }
+    }
 
+    private fun persistQueueToDisk(
+        queue: Queue,
+        title: String?,
+        items: List<MediaMetadata>,
+        mediaItemIndex: Int,
+        position: Long,
+        playWhenReady: Boolean,
+        repeatMode: Int,
+        shuffleModeEnabled: Boolean,
+        volume: Float,
+        playbackState: Int,
+        automixItems: List<MediaMetadata>,
+    ) {
         try {
             // Save current queue with proper type information
-            val persistQueue = currentQueue.toPersistQueue(
-                title = queueTitle,
-                items = player.mediaItems.mapNotNull { it.metadata },
-                mediaItemIndex = player.currentMediaItemIndex,
-                position = player.currentPosition
+            val persistQueue = queue.toPersistQueue(
+                title = title,
+                items = items,
+                mediaItemIndex = mediaItemIndex,
+                position = position
             )
 
             val persistAutomix =
                 PersistQueue(
                     title = "automix",
-                    items = automixItems.value.mapNotNull { it.metadata },
+                    items = automixItems,
                     mediaItemIndex = 0,
                     position = 0,
                 )
 
             // Save player state
             val persistPlayerState = PersistPlayerState(
-                playWhenReady = player.playWhenReady,
-                repeatMode = player.repeatMode,
-                shuffleModeEnabled = player.shuffleModeEnabled,
-                volume = player.volume,
-                currentPosition = player.currentPosition,
-                currentMediaItemIndex = player.currentMediaItemIndex,
-                playbackState = player.playbackState
+                playWhenReady = playWhenReady,
+                repeatMode = repeatMode,
+                shuffleModeEnabled = shuffleModeEnabled,
+                volume = volume,
+                currentPosition = position,
+                currentMediaItemIndex = mediaItemIndex,
+                playbackState = playbackState
             )
 
             runCatching {

@@ -31,6 +31,11 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import javax.inject.Inject
 
+// Upper bound for the stats leaderboards. The UI shows the full counts of the
+// returned lists, so 1000 keeps the visible "N songs/artists/albums" intact for
+// any realistic library while bounding the query result size and list recomposition.
+private const val STATS_LIMIT = 1000
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class StatsViewModel
@@ -52,7 +57,7 @@ constructor(
                 database
                     .mostPlayedSongsStats(
                         fromTimeStamp = statToPeriod(selection, t),
-                        limit = -1,
+                        limit = STATS_LIMIT,
                         toTimeStamp =
                         if (selection == OptionStats.CONTINUOUS || t == 0) {
                             LocalDateTime
@@ -66,7 +71,9 @@ constructor(
                     ).map { songs ->
                         if (hideVideoSongs) songs.filter { !it.isVideo } else songs
                     }
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }
+                .distinctUntilChanged()
+                .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val mostPlayedSongs =
         combine(
@@ -78,7 +85,7 @@ constructor(
                 database
                     .mostPlayedSongs(
                         fromTimeStamp = statToPeriod(selection, t),
-                        limit = -1,
+                        limit = STATS_LIMIT,
                         toTimeStamp =
                         if (selection == OptionStats.CONTINUOUS || t == 0) {
                             LocalDateTime
@@ -92,7 +99,9 @@ constructor(
                     ).map { songs ->
                         if (hideVideoSongs) songs.filter { !it.song.isVideo } else songs
                     }
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }
+                .distinctUntilChanged()
+                .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val mostPlayedArtists =
         combine(
@@ -103,7 +112,7 @@ constructor(
                 database
                     .mostPlayedArtists(
                         statToPeriod(selection, t),
-                        limit = -1,
+                        limit = STATS_LIMIT,
                         toTimeStamp =
                         if (selection == OptionStats.CONTINUOUS || t == 0) {
                             LocalDateTime
@@ -117,7 +126,9 @@ constructor(
                     ).map { artists ->
                         artists.filter { it.artist.isYouTubeArtist }
                     }
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }
+                .distinctUntilChanged()
+                .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val mostPlayedAlbums =
         combine(
@@ -127,7 +138,7 @@ constructor(
             .flatMapLatest { (selection, t) ->
                 database.mostPlayedAlbums(
                     statToPeriod(selection, t),
-                    limit = -1,
+                    limit = STATS_LIMIT,
                     toTimeStamp =
                     if (selection == OptionStats.CONTINUOUS || t == 0) {
                         LocalDateTime
@@ -139,7 +150,9 @@ constructor(
                         statToPeriod(selection, t - 1)
                     },
                 )
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }
+                .distinctUntilChanged()
+                .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val firstEvent =
         database

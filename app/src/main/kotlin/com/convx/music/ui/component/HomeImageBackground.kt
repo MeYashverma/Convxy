@@ -24,12 +24,19 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
+import android.graphics.Bitmap
+import android.graphics.BlurMaskFilter
+import android.graphics.Canvas
+import android.graphics.Paint
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.request.transformations
 import coil3.size.Size as CoilSize
+import coil3.transform.Transformation
 import com.convx.music.constants.HomeBackgroundAnimateKey
 import com.convx.music.constants.HomeBackgroundBlurKey
 import com.convx.music.constants.HomeBackgroundDimKey
@@ -37,6 +44,28 @@ import com.convx.music.constants.HomeBackgroundEnabledKey
 import com.convx.music.constants.HomeBackgroundPathKey
 import com.convx.music.utils.rememberPreference
 import java.io.File
+import kotlin.math.roundToInt
+
+/**
+ * Bakes a gaussian blur into the decoded bitmap via BlurMaskFilter (software, runs
+ * on every API level). Runs once per (image, radius) and the result is cached by
+ * Coil, replacing the realtime full-screen Modifier.blur on the static path.
+ */
+private class PreBlurTransformation(private val radiusPx: Int) : Transformation() {
+    override val cacheKey: String = "blur-$radiusPx"
+
+    override suspend fun transform(input: Bitmap, size: CoilSize): Bitmap {
+        if (radiusPx <= 0) return input
+        val output = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val radius = radiusPx.toFloat()
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            maskFilter = BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL)
+        }
+        canvas.drawBitmap(input, 0f, 0f, paint)
+        return output
+    }
+}
 
 /** Process-wide: the intro blur ramp plays only the first time this session. */
 private var blurAnimatedThisSession = false
@@ -84,11 +113,22 @@ fun BoxScope.HomeImageBackground(
     )
     val effectiveBlur = if (animate) animatedBlur else blur
     val context = LocalContext.current
-    val imageRequest = remember(path) {
+    val density = LocalDensity.current
+    // The static (non-animated) path blurs once at decode instead of re-running a
+    // realtime full-screen blur every frame. The animated ramp can't use a pre-blur,
+    // so it keeps Modifier.blur and its per-frame cost for its 2.2s intro.
+    val decodeBlur = !animate
+    val blurRadiusPx = with(density) {
+        if (decodeBlur) blur.dp.toPx().roundToInt().coerceAtLeast(1) else 0
+    }
+    val imageRequest = remember(path, decodeBlur, blurRadiusPx) {
         ImageRequest.Builder(context)
             .data(File(path))
             .size(1080, 1920)
             .crossfade(false)
+            .apply {
+                if (decodeBlur) transformations(PreBlurTransformation(blurRadiusPx))
+            }
             .build()
     }
 
@@ -98,7 +138,7 @@ fun BoxScope.HomeImageBackground(
         contentScale = ContentScale.Crop,
         modifier = Modifier
             .matchParentSize()
-            .blur(effectiveBlur.dp),
+            .then(if (animate) Modifier.blur(effectiveBlur.dp) else Modifier),
     )
     Box(
         modifier = Modifier

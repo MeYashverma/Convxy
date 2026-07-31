@@ -315,6 +315,8 @@ object LyricsUtils {
         "Ѓ", "ѓ", "Ѕ", "ѕ", "Ќ", "ќ"
     )
 
+    private fun isCyrillic(char: Char): Boolean = char in '\u0400'..'\u04FF'
+
     // Lazy initialized Tokenizer
     private val kuromojiTokenizer: Tokenizer by lazy {
         Tokenizer()
@@ -574,12 +576,23 @@ object LyricsUtils {
         lines: List<LyricsEntry>,
         position: Long,
     ): Int {
-        for (index in lines.indices) {
-            if (lines[index].time >= position + 300L) {
-                return index - 1
+        // Binary search over the time-sorted LRC lines instead of a linear scan.
+        // Finds the first line whose time is >= position + 300ms; the current
+        // line is the one before it.
+        var low = 0
+        var high = lines.size - 1
+        var firstPast = lines.size
+        val target = position + 300L
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            if (lines[mid].time >= target) {
+                firstPast = mid
+                high = mid - 1
+            } else {
+                low = mid + 1
             }
         }
-        return lines.lastIndex
+        return if (firstPast == 0) -1 else firstPast - 1
     }
 
     // TODO: Will be useful if we let the user pick the language, useless for now
@@ -1055,7 +1068,7 @@ object LyricsUtils {
             RUSSIAN_CYRILLIC_LETTERS.contains(char.toString())
         } && text.all { char ->
             val charStr = char.toString()
-            RUSSIAN_CYRILLIC_LETTERS.contains(charStr) || !charStr.matches("[\\u0400-\\u04FF]".toRegex())
+            RUSSIAN_CYRILLIC_LETTERS.contains(charStr) || !isCyrillic(char)
         }
     }
 
@@ -1063,7 +1076,7 @@ object LyricsUtils {
         return text.any { char ->
             UKRAINIAN_CYRILLIC_LETTERS.contains(char.toString()) || UKRAINIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString())
         } && text.all { char ->
-            UKRAINIAN_CYRILLIC_LETTERS.contains(char.toString()) || UKRAINIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !char.toString().matches("[\\u0400-\\u04FF]".toRegex())
+            UKRAINIAN_CYRILLIC_LETTERS.contains(char.toString()) || UKRAINIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !isCyrillic(char)
         }
     }
 
@@ -1071,7 +1084,7 @@ object LyricsUtils {
         return text.any { char ->
             SERBIAN_CYRILLIC_LETTERS.contains(char.toString()) || SERBIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString())
         } && text.all { char ->
-            SERBIAN_CYRILLIC_LETTERS.contains(char.toString()) || SERBIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !char.toString().matches("[\\u0400-\\u04FF]".toRegex())
+            SERBIAN_CYRILLIC_LETTERS.contains(char.toString()) || SERBIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !isCyrillic(char)
         }
     }
 
@@ -1079,7 +1092,7 @@ object LyricsUtils {
         return text.any { char ->
             BULGARIAN_CYRILLIC_LETTERS.contains(char.toString()) // Bulgarian doesn't have any language specific letters
         } && text.all { char ->
-            BULGARIAN_CYRILLIC_LETTERS.contains(char.toString()) || !char.toString().matches("[\\u0400-\\u04FF]".toRegex())
+            BULGARIAN_CYRILLIC_LETTERS.contains(char.toString()) || !isCyrillic(char)
         }
     }
 
@@ -1087,7 +1100,7 @@ object LyricsUtils {
         return text.any { char ->
             BELARUSIAN_CYRILLIC_LETTERS.contains(char.toString()) || BELARUSIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString())
         } && text.all { char ->
-            BELARUSIAN_CYRILLIC_LETTERS.contains(char.toString()) || BELARUSIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !char.toString().matches("[\\u0400-\\u04FF]".toRegex())
+            BELARUSIAN_CYRILLIC_LETTERS.contains(char.toString()) || BELARUSIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !isCyrillic(char)
         }
     }
 
@@ -1095,7 +1108,7 @@ object LyricsUtils {
         return text.any { char ->
             KYRGYZ_CYRILLIC_LETTERS.contains(char.toString()) || KYRGYZ_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString())
         } && text.all { char ->
-            KYRGYZ_CYRILLIC_LETTERS.contains(char.toString()) || KYRGYZ_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !char.toString().matches("[\\u0400-\\u04FF]".toRegex())
+            KYRGYZ_CYRILLIC_LETTERS.contains(char.toString()) || KYRGYZ_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !isCyrillic(char)
         }
     }
 
@@ -1103,7 +1116,7 @@ object LyricsUtils {
         return text.any { char ->
             MACEDONIAN_CYRILLIC_LETTERS.contains(char.toString()) || MACEDONIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString())
         } && text.all { char ->
-            MACEDONIAN_CYRILLIC_LETTERS.contains(char.toString()) || MACEDONIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !char.toString().matches("[\\u0400-\\u04FF]".toRegex())
+            MACEDONIAN_CYRILLIC_LETTERS.contains(char.toString()) || MACEDONIAN_SPECIFIC_CYRILLIC_LETTERS.contains(char.toString()) || !isCyrillic(char)
         }
     }
 

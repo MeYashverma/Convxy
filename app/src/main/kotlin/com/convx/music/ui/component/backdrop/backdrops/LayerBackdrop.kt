@@ -12,6 +12,7 @@ package com.convx.music.ui.component.backdrop.backdrops
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,6 +50,21 @@ class LayerBackdrop internal constructor(
     override val isCoordinatesDependent: Boolean = true
 
     internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null)
+
+    /**
+     * Monotonic counter bumped by [LayerBackdropModifier]'s node each time this
+     * backdrop's content is re-recorded. Glass surfaces read it during their draw
+     * pass to skip re-recording their own layers when the source is static (e.g.
+     * a surface-local animation such as the rim highlight drift), which used to
+     * re-capture the whole screen on every frame.
+     */
+    internal var contentVersion by mutableIntStateOf(0)
+        private set
+
+    /** Called by the recording node after a successful record. */
+    internal fun contentRecorded() {
+        contentVersion++
+    }
 
     private var inverseLayerScope: InverseLayerScope? = null
 

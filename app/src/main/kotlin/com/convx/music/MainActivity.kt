@@ -20,7 +20,9 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.core.spring
@@ -28,7 +30,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -212,6 +217,8 @@ import com.convx.music.ui.component.LocalAppBackdrop
 import com.convx.music.ui.component.LocalAppleMusicUi
 import com.convx.music.ui.component.isGlassAllowed
 import com.convx.music.ui.component.AppFloatingNowPlayingPill
+import com.convx.music.ui.component.FloatingMiniPlayerWidthFraction
+import com.convx.music.ui.component.NavBarSearchInputBar
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.AppFloatingSideBar
 import com.convx.music.ui.component.SideBarAccountRow
@@ -304,7 +311,8 @@ class MainActivity : ComponentActivity() {
         // How long the nav bar's shrink/expand-to-pill animation takes before the
         // actual navigate()/navigateUp() call for entering/exiting search — keeps
         // the animation and the route's own screen transition from overlapping.
-        private const val SearchNavTransitionDelayMs = 260L
+        // Comfortably past the crossfade's own ~300ms so it always finishes first.
+        private const val SearchNavTransitionDelayMs = 360L
     }
 
     @Inject
@@ -743,11 +751,11 @@ class MainActivity : ComponentActivity() {
                     { searchQuery ->
                         if (searchQuery.isNotEmpty()) {
                             navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}") {
-                                launchSingleTop = true
-                                // Refining the query from an existing results screen replaces
-                                // it on the back stack instead of stacking one entry per edit
-                                // (a no-op if there's no prior search/{query} entry yet, e.g.
-                                // the very first submit from search_input).
+                                // No launchSingleTop: it compares destination id, not
+                                // resolved args, so re-submitting a new query while
+                                // already on search/{oldQuery} could get silently
+                                // treated as "already there" and dropped. popUpTo
+                                // below still prevents stacking a new entry per edit.
                                 popUpTo("search/{query}") { inclusive = true }
                             }
 
@@ -1092,7 +1100,16 @@ class MainActivity : ComponentActivity() {
                         searchSource = if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
                     },
                     onTapSearchIcon = enterSearch,
-                    onTapBar = { searchKeyboardActive = true },
+                    onTapBar = {
+                        if (inSearchScreen && !inSearchInputScreen) {
+                            // Tapping the bar again from a results screen (search/{query})
+                            // pops back to the hint screen (search_input) and opens the
+                            // keyboard there instead — a normal, working search, rather
+                            // than trying to resubmit in place.
+                            navController.popBackStack(Screens.Search.route, inclusive = false)
+                        }
+                        searchKeyboardActive = true
+                    },
                     onExit = exitSearch,
                     onCloseKeyboard = { searchKeyboardActive = false },
                     focusRequester = searchFocusRequester,
@@ -1701,8 +1718,11 @@ class MainActivity : ComponentActivity() {
 
                                 // The phone bar's docked accessory, floating free on
                                 // the opposite edge — same pill, same glass, bottom
-                                // right rather than centred.
-                                if (playerMediaMetadata != null) {
+                                // right rather than centred. Swaps for the real
+                                // search input bar while searching, same slide+fade
+                                // the phone's own AppFloatingNavBar uses to hide its
+                                // mini player for the keyboard.
+                                if (playerMediaMetadata != null || inSearchScreen) {
                                     // Centred on the content area, not the screen:
                                     // the side bar's space is padded out first, and
                                     // the pill takes 80% of whatever is left.
@@ -1711,24 +1731,55 @@ class MainActivity : ComponentActivity() {
                                             .fillMaxSize()
                                             .padding(start = sideBarContentInset),
                                     ) {
-                                        AppFloatingNowPlayingPill(
-                                            onClick = { playerBottomSheetState.expandSoft() },
-                                            onLyricsClick = {
-                                                playerBottomSheetState.expandSoft()
-                                                playerConnection?.requestShowLyrics?.value = true
+                                        val pillWidth = maxWidth * FloatingMiniPlayerWidthFraction
+                                        AnimatedContent(
+                                            targetState = inSearchScreen,
+                                            transitionSpec = {
+                                                if (targetState) {
+                                                    (slideInVertically(
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+                                                    ) { it / 2 } + fadeIn()) togetherWith
+                                                        (slideOutVertically(
+                                                            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+                                                        ) { it } + fadeOut())
+                                                } else {
+                                                    (slideInVertically(
+                                                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+                                                    ) { it } + fadeIn()) togetherWith
+                                                        (slideOutVertically(
+                                                            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+                                                        ) { it / 2 } + fadeOut())
+                                                }
                                             },
-                                            onQueueClick = {
-                                                playerBottomSheetState.expandSoft()
-                                                playerConnection?.requestShowQueue?.value = true
-                                            },
-                                            pureBlack = pureBlack,
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .windowInsetsPadding(
                                                     windowsInsets.only(WindowInsetsSides.Bottom)
                                                 )
                                                 .padding(bottom = 12.dp),
-                                        )
+                                            label = "tabViewSearchPill",
+                                        ) { searching ->
+                                            if (searching) {
+                                                NavBarSearchInputBar(
+                                                    state = navSearchState,
+                                                    pureBlack = pureBlack,
+                                                    modifier = Modifier.width(pillWidth),
+                                                )
+                                            } else if (playerMediaMetadata != null) {
+                                                AppFloatingNowPlayingPill(
+                                                    onClick = { playerBottomSheetState.expandSoft() },
+                                                    onLyricsClick = {
+                                                        playerBottomSheetState.expandSoft()
+                                                        playerConnection?.requestShowLyrics?.value = true
+                                                    },
+                                                    onQueueClick = {
+                                                        playerBottomSheetState.expandSoft()
+                                                        playerConnection?.requestShowQueue?.value = true
+                                                    },
+                                                    pureBlack = pureBlack,
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

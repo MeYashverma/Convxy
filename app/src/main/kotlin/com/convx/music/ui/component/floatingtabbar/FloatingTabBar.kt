@@ -250,6 +250,12 @@ fun FloatingTabBar(
     // icon+accessory+standalone row regardless of searchMode.
     searchMode: Boolean = false,
     searchBarContent: (@Composable (Modifier) -> Unit)? = null,
+    // Vendored addition: caller-held width (from a previous onExpandedWidthChanged
+    // report) that SearchExpandedBar holds its row to, so the bar doesn't visibly
+    // widen to fill available space when entering search mode. Null/0 falls back
+    // to filling available space (e.g. first-ever composition in search mode).
+    expandedContentWidthPx: Int? = null,
+    onExpandedWidthChanged: ((Int) -> Unit)? = null,
     content: FloatingTabBarScope.() -> Unit
 ) {
     val scope = remember(contentKey) { FloatingTabBarScopeImpl().apply { content() } }
@@ -322,7 +328,8 @@ fun FloatingTabBar(
                     tabBarContentModifier = tabBarContentModifier,
                     animatedVisibilityScope = this@AnimatedContent,
                     backdrop = backdrop,
-                    accentColor = accentColor
+                    accentColor = accentColor,
+                    onWidthMeasured = onExpandedWidthChanged
                 )
                 FloatingTabBarVisual.SEARCH_EXPANDED -> SearchExpandedBar(
                     scope = scope,
@@ -335,7 +342,8 @@ fun FloatingTabBar(
                     elevations = elevations,
                     tabBarContentModifier = tabBarContentModifier,
                     animatedVisibilityScope = this@AnimatedContent,
-                    searchBarContent = searchBarContent ?: {}
+                    searchBarContent = searchBarContent ?: {},
+                    targetWidthPx = expandedContentWidthPx
                 )
             }
             }
@@ -662,6 +670,11 @@ private fun SharedTransitionScope.InlineStandaloneTab(
     modifier: Modifier,
     tabBarContentModifier: Modifier
 ) {
+    // Same finger-tracking glow as the keyboard-active search pill
+    // (NavBarSearchInputBar) — a soft radial light following the touch point.
+    val glowScope = rememberCoroutineScope()
+    val glow = remember(glowScope) { InteractiveHighlight(animationScope = glowScope) }
+
     Tab(
         icon = standaloneTab.icon,
         title = standaloneTab.title,
@@ -683,6 +696,8 @@ private fun SharedTransitionScope.InlineStandaloneTab(
             )
             .clip(shapes.standaloneTabShape)
             .then(tabBarContentModifier)
+            .then(glow.gestureModifier)
+            .then(glow.modifier)
             .tapClickable(
                 indication = standaloneTab.indication?.invoke(),
                 onClick = standaloneTab.onClick
@@ -748,7 +763,11 @@ private fun SharedTransitionScope.ExpandedBar(
     tabBarContentModifier: Modifier,
     animatedVisibilityScope: AnimatedVisibilityScope,
     backdrop: Backdrop?,
-    accentColor: Color?
+    accentColor: Color?,
+    // Vendored addition: reports this row's own measured width upward so
+    // SearchExpandedBar can hold the bar at the exact same overall width
+    // instead of expanding to fill all available space in search mode.
+    onWidthMeasured: ((Int) -> Unit)? = null,
 ) {
     val hasTabGroup = scope.tabs.isNotEmpty()
     val standaloneTab = scope.standaloneTab
@@ -792,7 +811,10 @@ private fun SharedTransitionScope.ExpandedBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .height(IntrinsicSize.Max)
-                .onSizeChanged { tabRowWidthPx = it.width }
+                .onSizeChanged {
+                    tabRowWidthPx = it.width
+                    onWidthMeasured?.invoke(it.width)
+                }
         ) {
             if (hasTabGroup) {
                 ExpandedTabs(
@@ -848,8 +870,21 @@ private fun SharedTransitionScope.SearchExpandedBar(
     tabBarContentModifier: Modifier,
     animatedVisibilityScope: AnimatedVisibilityScope,
     searchBarContent: @Composable (Modifier) -> Unit,
+    // Vendored addition: the normal-expanded row's own last-measured width
+    // (see ExpandedBar's onWidthMeasured) — holding this row to that same
+    // width keeps the bar's overall footprint constant across search mode
+    // instead of the searchBarContent's weight(1f) filling all available
+    // space. Null/0 (nothing measured yet) falls back to filling available
+    // width.
+    targetWidthPx: Int?,
 ) {
     val inlineTab = scope.getInlineTab(selectedTabKey)
+    val density = LocalDensity.current
+    val targetWidthModifier = if (targetWidthPx != null && targetWidthPx > 0) {
+        Modifier.width(with(density) { targetWidthPx.toDp() })
+    } else {
+        Modifier.fillMaxWidth()
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -864,7 +899,7 @@ private fun SharedTransitionScope.SearchExpandedBar(
                 colors = colors,
                 elevations = elevations,
                 animatedVisibilityScope = animatedVisibilityScope,
-                modifier = Modifier.fillMaxWidth()
+                modifier = targetWidthModifier
             )
         }
 
@@ -874,7 +909,7 @@ private fun SharedTransitionScope.SearchExpandedBar(
             // Fixed rather than IntrinsicSize.Max: matches the mini player's own
             // inline (shrunk) height exactly instead of letting a short
             // searchBarContent under-report its intrinsic height and shrink the row.
-            modifier = Modifier.height(SearchBarRowHeight)
+            modifier = Modifier.height(SearchBarRowHeight).then(targetWidthModifier)
         ) {
             if (inlineTab != null) {
                 InlineTab(
@@ -897,6 +932,17 @@ private fun SharedTransitionScope.SearchExpandedBar(
                 Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    // Same "standaloneTab" key as ExpandedStandaloneTab/InlineStandaloneTab
+                    // (the search circle) — without this the circle just pops out and the
+                    // bar pops in as two unrelated fades instead of one smoothly growing
+                    // pill; this is what makes the tab-group icon side already morph
+                    // smoothly, and lets the search-inline (scrolled) state morph back
+                    // down to a circle too.
+                    .sharedElement(
+                        sharedContentState = rememberSharedContentState("standaloneTab"),
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        zIndexInOverlay = 1f
+                    )
                     .shadow(shape = shapes.tabBarShape, elevation = elevations.expandedElevation)
                     .background(color = colors.backgroundColor, shape = shapes.tabBarShape)
                     .clip(shapes.tabBarShape)
@@ -917,6 +963,11 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
     modifier: Modifier,
     tabBarContentModifier: Modifier
 ) {
+    // Same finger-tracking glow as the keyboard-active search pill
+    // (NavBarSearchInputBar) — a soft radial light following the touch point.
+    val glowScope = rememberCoroutineScope()
+    val glow = remember(glowScope) { InteractiveHighlight(animationScope = glowScope) }
+
     Tab(
         icon = standaloneTab.icon,
         title = standaloneTab.title,
@@ -938,6 +989,8 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
             )
             .clip(shapes.standaloneTabShape)
             .then(tabBarContentModifier)
+            .then(glow.gestureModifier)
+            .then(glow.modifier)
             .tapClickable(
                 indication = standaloneTab.indication?.invoke(),
                 onClick = standaloneTab.onClick

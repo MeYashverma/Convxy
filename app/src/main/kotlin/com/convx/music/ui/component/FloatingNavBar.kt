@@ -23,7 +23,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +31,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -41,14 +39,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -189,6 +193,11 @@ private fun AppFloatingNavBarChrome(
     // animate-then-navigate exit as the bar's own back arrow / icon tap.
     BackHandler(enabled = searchModeActive, onBack = navSearch.onExit)
 
+    // Last measured width of the normal (all-tabs) expanded row, held across
+    // the switch into search mode so the bar doesn't visibly widen — search
+    // mode's row targets this same width instead of filling all available space.
+    var expandedContentWidthPx by remember { mutableStateOf<Int?>(null) }
+
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val appleMusicUi = LocalAppleMusicUi.current
@@ -212,12 +221,16 @@ private fun AppFloatingNavBarChrome(
         Modifier
     }
 
-    // Puck/indicator: sticky, so a non-tab destination (a drilled-in detail,
-    // settings sub-page) holds the last tab instead of snapping the puck to Home.
-    val selectedTabKey = rememberStickySelectedRoute(currentRoute, navigationItems)
-
     val searchScreen = navigationItems.firstOrNull { it == Screens.Search }
     val tabScreens = remember(navigationItems) { navigationItems.filter { it != Screens.Search } }
+
+    // Puck/indicator: sticky, so a non-tab destination (a drilled-in detail,
+    // settings sub-page) holds the last tab instead of snapping the puck to Home.
+    // Matched against tabScreens (not navigationItems) — Search is one of the
+    // navigationItems too, so matching against the full list would let
+    // search_input match itself instead of falling back to the last real tab,
+    // leaving the search-expanded row's shrunk icon with nothing to show.
+    val selectedTabKey = rememberStickySelectedRoute(currentRoute, tabScreens)
 
     val accessoryContentColor = when {
         useGlass -> glassConfig.textColor
@@ -285,6 +298,8 @@ private fun AppFloatingNavBarChrome(
         } else {
             null
         },
+        expandedContentWidthPx = expandedContentWidthPx,
+        onExpandedWidthChanged = { expandedContentWidthPx = it },
         // The tab content lambdas are captured once per contentKey, so anything they
         // close over (selection, colors) must be part of the key to avoid stale UI.
         contentKey = listOf(
@@ -372,9 +387,11 @@ private fun AppFloatingNavBarChrome(
 /**
  * Pre-keyboard search bar content — the wide slot [FloatingTabBar] expands the
  * search circle into once [searchMode] is on. Unfocused, placeholder-only; a tap
- * anywhere but the leading back arrow requests focus via [NavSearchState.onTapBar],
- * which flips [NavSearchState.keyboardActive] and swaps the whole nav bar for
- * [NavBarSearchInputBar].
+ * anywhere but the leading back arrow / trailing source toggle requests focus via
+ * [NavSearchState.onTapBar], which flips [NavSearchState.keyboardActive] and swaps
+ * the whole nav bar for [NavBarSearchInputBar]. Same back arrow / placeholder /
+ * source-toggle layout as that keyboard-active pill, just unfocused — reads as
+ * one continuous bar rather than a different-looking intermediate step.
  */
 @Composable
 private fun SearchBarPlaceholder(
@@ -382,11 +399,18 @@ private fun SearchBarPlaceholder(
     contentColor: Color,
     modifier: Modifier,
 ) {
+    // Same finger-tracking glow as the keyboard-active pill (NavBarSearchInputBar)
+    // and the normal search circle (ExpandedStandaloneTab/InlineStandaloneTab).
+    val glowScope = rememberCoroutineScope()
+    val glow = remember(glowScope) { InteractiveHighlight(animationScope = glowScope) }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
+            .then(glow.gestureModifier)
+            .then(glow.modifier)
             .bounceClick(onClick = state.onTapBar)
-            .padding(start = 4.dp, end = 14.dp),
+            .padding(start = 4.dp, end = 4.dp),
     ) {
         Box(
             modifier = Modifier
@@ -401,17 +425,30 @@ private fun SearchBarPlaceholder(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        Icon(
-            painter = painterResource(R.drawable.search),
-            contentDescription = null,
-            tint = contentColor.copy(alpha = 0.7f),
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        DynamicSearchPlaceholder(
-            searchSource = state.searchSource,
-            style = TextStyle(color = contentColor.copy(alpha = 0.6f), fontSize = 15.sp),
-        )
+        Box(Modifier.weight(1f)) {
+            DynamicSearchPlaceholder(
+                searchSource = state.searchSource,
+                style = TextStyle(color = contentColor.copy(alpha = 0.6f), fontSize = 15.sp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .bounceClick { state.onToggleSource() }
+                .padding(9.dp)
+        ) {
+            Icon(
+                painter = painterResource(
+                    when (state.searchSource) {
+                        SearchSource.LOCAL -> R.drawable.library_music
+                        SearchSource.ONLINE -> R.drawable.globe_search
+                    }
+                ),
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 
@@ -423,7 +460,7 @@ private fun SearchBarPlaceholder(
  * bottomBar pill — same markup, now driven by hoisted [NavSearchState].
  */
 @Composable
-private fun NavBarSearchInputBar(
+fun NavBarSearchInputBar(
     state: NavSearchState,
     pureBlack: Boolean,
     modifier: Modifier,
@@ -503,10 +540,29 @@ private fun NavBarSearchInputBar(
                 textStyle = TextStyle(color = onTint, fontSize = 16.sp),
                 cursorBrush = SolidColor(onTint),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { state.onSubmit(state.query.text) }),
+                // Some IMEs render the requested Search action as Done/Go instead
+                // (or don't reliably report it at all) — handle every plausible
+                // submit action so the button always does something.
+                keyboardActions = KeyboardActions(
+                    onSearch = { state.onSubmit(state.query.text) },
+                    onDone = { state.onSubmit(state.query.text) },
+                    onGo = { state.onSubmit(state.query.text) },
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(state.focusRequester)
+                    // Some OEM keyboards (Samsung's included) don't reliably report
+                    // the IME search action through KeyboardActions.onSearch — catch
+                    // the raw Enter key too so submit isn't only reachable by tapping
+                    // a suggestion.
+                    .onKeyEvent {
+                        if (it.key == Key.Enter) {
+                            state.onSubmit(state.query.text)
+                            true
+                        } else {
+                            false
+                        }
+                    }
             )
         }
         if (state.query.text.isNotEmpty()) {

@@ -11,6 +11,7 @@ import com.convx.music.ui.utils.bounceClick
 import com.convx.music.ui.utils.combinedBounceClick
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,11 +70,9 @@ import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.YouTubeListItem
+import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.utils.listItemShape
-import com.convx.music.utils.getGroupedShape
 import androidx.compose.material3.Surface
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Shape
 import com.music.innertube.utils.YouTubeUrlParser
 import com.convx.music.ui.menu.YouTubeAlbumMenu
 import com.convx.music.ui.menu.YouTubeArtistMenu
@@ -93,6 +93,10 @@ fun OnlineSearchScreen(
     onSearch: (String) -> Unit,
     onDismiss: () -> Unit,
     pureBlack: Boolean,
+    // Caller's own hero-derived contrast color (AppleTokens.onColor(tint)) — this
+    // screen renders transparent over the caller's existing blurred hero backdrop
+    // instead of painting its own, so text/icons need to match that same contrast.
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
     viewModel: OnlineSearchSuggestionViewModel = hiltViewModel(),
 ) {
     val database = LocalDatabase.current
@@ -135,7 +139,10 @@ fun OnlineSearchScreen(
         contentPadding = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom).asPaddingValues(),
         modifier = Modifier
             .fillMaxSize()
-            .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
+            // Transparent so the caller's own blurred hero backdrop shows through
+            // instead of this screen painting over it — pureBlack still wants a
+            // flat black, not a see-through one.
+            .then(if (pureBlack) Modifier.background(Color.Black) else Modifier)
     ) {
         if (viewState.history.isNotEmpty()) {
             item(key = "history_header") {
@@ -143,7 +150,7 @@ fun OnlineSearchScreen(
                     text = stringResource(R.string.search_history),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = contentColor,
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp).animateItem()
                 )
             }
@@ -153,7 +160,7 @@ fun OnlineSearchScreen(
             SuggestionItem(
                 query = history.query,
                 online = false,
-                shape = getGroupedShape(index, viewState.history.size),
+                contentColor = contentColor,
                 onClick = {
                     onSearch(history.query)
                     onDismiss()
@@ -167,7 +174,6 @@ fun OnlineSearchScreen(
                     onQueryChange(TextFieldValue(history.query, TextRange(history.query.length)))
                 },
                 modifier = Modifier.animateItem(),
-                pureBlack = pureBlack
             )
         }
 
@@ -183,7 +189,7 @@ fun OnlineSearchScreen(
                     text = stringResource(R.string.suggestions),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = contentColor,
                     modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp).animateItem()
                 )
             }
@@ -193,7 +199,7 @@ fun OnlineSearchScreen(
             SuggestionItem(
                 query = query,
                 online = true,
-                shape = getGroupedShape(index, viewState.suggestions.size),
+                contentColor = contentColor,
                 onClick = {
                     onSearch(query)
                     onDismiss()
@@ -202,7 +208,6 @@ fun OnlineSearchScreen(
                     onQueryChange(TextFieldValue(query, TextRange(query.length)))
                 },
                 modifier = Modifier.animateItem(),
-                pureBlack = pureBlack
             )
         }
 
@@ -218,7 +223,7 @@ fun OnlineSearchScreen(
                     text = stringResource(if (viewState.isFromLink) R.string.parsed_from_link else R.string.top_result),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = contentColor,
                     modifier = Modifier.padding(start = 16.dp, top = 8.dp).animateItem()
                 )
             }
@@ -351,7 +356,7 @@ fun OnlineSearchScreen(
                             }
                         }
                     )
-                    .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+                    .then(if (pureBlack) Modifier.background(Color.Black) else Modifier)
                     .animateItem()
             )
         }
@@ -363,56 +368,64 @@ fun SuggestionItem(
     modifier: Modifier = Modifier,
     query: String,
     online: Boolean,
-    shape: Shape,
+    contentColor: Color,
     onClick: () -> Unit,
     onDelete: () -> Unit = {},
     onFillTextField: () -> Unit,
-    pureBlack: Boolean
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 1.dp)
-            .fillMaxWidth()
-            .height(SuggestionItemHeight)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .bounceClick(onClick = onClick)
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
-    ) {
-        Icon(
-            painterResource(if (online) R.drawable.search else R.drawable.history),
-            contentDescription = null,
-            modifier = Modifier.padding(horizontal = 16.dp).alpha(0.5f)
-        )
+    Column(modifier = modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SuggestionItemHeight)
+                // Flat — same borderless-row-over-hero-blur look as the actual
+                // result rows below (YouTubeListItem, flat = true), not a card.
+                .bounceClick(onClick = onClick)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+        ) {
+            Icon(
+                painterResource(if (online) R.drawable.search else R.drawable.history),
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.padding(horizontal = 16.dp).alpha(0.5f)
+            )
 
-        Text(
-            text = query,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+            Text(
+                text = query,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = contentColor,
+                modifier = Modifier.weight(1f),
+            )
 
-        if (!online) {
+            if (!online) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.alpha(0.5f),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.close),
+                        contentDescription = null,
+                        tint = contentColor,
+                    )
+                }
+            }
+
             IconButton(
-                onClick = onDelete,
+                onClick = onFillTextField,
                 modifier = Modifier.alpha(0.5f),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.close),
+                    painter = painterResource(R.drawable.arrow_top_left),
                     contentDescription = null,
+                    tint = contentColor,
                 )
             }
         }
-
-        IconButton(
-            onClick = onFillTextField,
-            modifier = Modifier.alpha(0.5f),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.arrow_top_left),
-                contentDescription = null,
-            )
-        }
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = AppleTokens.Divider,
+        )
     }
 }

@@ -312,33 +312,33 @@ fun OnlineSearchResult(
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(tint.copy(alpha = 0.8f))
-                    ) {
-                        ChipsRow(
-                            chips = listOf(
-                                null to stringResource(R.string.filter_all),
-                                FILTER_SONG to stringResource(R.string.filter_songs),
-                                FILTER_VIDEO to stringResource(R.string.filter_videos),
-                                FILTER_ALBUM to stringResource(R.string.filter_albums),
-                                FILTER_ARTIST to stringResource(R.string.filter_artists),
-                                FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
-                                FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
-                            ),
-                            currentValue = searchFilter,
-                            onValueUpdate = {
-                                if (viewModel.filter.value != it) {
-                                    viewModel.filter.value = it
-                                }
-                                coroutineScope.launch {
-                                    lazyListState.animateScrollToItem(0)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                    // No opaque wrapper, no Material chip fills — just the row over
+                    // the screen's own blurred hero backdrop, tinted to match.
+                    ChipsRow(
+                        chips = listOf(
+                            null to stringResource(R.string.filter_all),
+                            FILTER_SONG to stringResource(R.string.filter_songs),
+                            FILTER_VIDEO to stringResource(R.string.filter_videos),
+                            FILTER_ALBUM to stringResource(R.string.filter_albums),
+                            FILTER_ARTIST to stringResource(R.string.filter_artists),
+                            FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
+                            FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
+                        ),
+                        currentValue = searchFilter,
+                        onValueUpdate = {
+                            if (viewModel.filter.value != it) {
+                                viewModel.filter.value = it
+                            }
+                            coroutineScope.launch {
+                                lazyListState.animateScrollToItem(0)
+                            }
+                        },
+                        containerColor = Color.Transparent,
+                        selectedContainerColor = onTint.copy(alpha = 0.2f),
+                        labelColor = onTint.copy(alpha = 0.8f),
+                        selectedLabelColor = onTint,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     LazyColumn(
                         state = lazyListState,
@@ -415,14 +415,26 @@ fun OnlineSearchResult(
                     }
                 }
                 if (navSearch.keyboardActive) {
-                    OnlineSearchScreen(
-                        query = navSearch.query.text,
-                        onQueryChange = navSearch.onQueryChange,
-                        navController = navController,
-                        onSearch = navSearch.onSubmit,
-                        onDismiss = navSearch.onCloseKeyboard,
-                        pureBlack = pureBlack
-                    )
+                    // OnlineSearchScreen renders transparent by design (it overlays
+                    // straight onto a screen's own hero blur on SearchScreen) — but
+                    // here it overlays on top of the results list, not empty space,
+                    // so it needs its own opaque backing or the list bleeds through.
+                    // Same tint this screen already uses, not a fresh blur pass.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(tint)
+                    ) {
+                        OnlineSearchScreen(
+                            query = navSearch.query.text,
+                            onQueryChange = navSearch.onQueryChange,
+                            navController = navController,
+                            onSearch = navSearch.onSubmit,
+                            onDismiss = navSearch.onCloseKeyboard,
+                            pureBlack = pureBlack,
+                            contentColor = onTint,
+                        )
+                    }
                 }
             }
         }

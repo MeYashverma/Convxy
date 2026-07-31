@@ -68,6 +68,12 @@ fun <E> ChipsRow(
     onValueUpdate: (E) -> Unit,
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    // Callers sitting over their own blurred hero backdrop (search results, over
+    // a hero blur) pass transparent/tint-based colors here instead of the
+    // Material defaults, so the chips read as part of the glass, not a card.
+    selectedContainerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
+    labelColor: Color = Color.Unspecified,
+    selectedLabelColor: Color = Color.Unspecified,
 ) {
     Row(
         modifier =
@@ -96,6 +102,9 @@ fun <E> ChipsRow(
                 selected = isSelected,
                 colors = FilterChipDefaults.filterChipColors(
                     containerColor = containerColor,
+                    selectedContainerColor = selectedContainerColor,
+                    labelColor = labelColor,
+                    selectedLabelColor = selectedLabelColor,
                 ),
                 onClick = { onValueUpdate(value) },
                 leadingIcon = if (isSelected) {
@@ -103,6 +112,7 @@ fun <E> ChipsRow(
                         Icon(
                             imageVector = Icons.Filled.Done,
                             contentDescription = null,
+                            tint = selectedLabelColor,
                             modifier = Modifier.size(FilterChipDefaults.IconSize),
                         )
                     }

@@ -28,9 +28,10 @@ import com.convx.music.ui.component.backdrop.isRenderEffectSupported
 private const val ThresholdSlope = 10f
 private const val ThresholdMidpoint255 = 0.5f * 255f
 
-private fun gooeyRenderEffect(blurRadiusPx: Float): RenderEffect {
-    val blur = BlurEffect(blurRadiusPx, blurRadiusPx, TileMode.Decal)
-    val thresholdMatrix = ColorMatrix(
+// The threshold never varies, so build the matrix filter once instead of
+// allocating an identical one on every frame of every transition.
+private val ThresholdColorFilter = ColorMatrixColorFilter(
+    ColorMatrix(
         floatArrayOf(
             1f, 0f, 0f, 0f, 0f,
             0f, 1f, 0f, 0f, 0f,
@@ -38,7 +39,23 @@ private fun gooeyRenderEffect(blurRadiusPx: Float): RenderEffect {
             0f, 0f, 0f, ThresholdSlope, -ThresholdSlope * ThresholdMidpoint255
         )
     )
-    return ColorFilterEffect(blur, ColorMatrixColorFilter(thresholdMatrix))
+)
+
+// Radius is quantised to whole pixels before the effect is built and cached, so a
+// transition reuses one RenderEffect per distinct radius instead of allocating a
+// fresh BlurEffect + ColorMatrixColorFilter every frame. Sub-pixel blur steps are
+// not visible through an alpha threshold anyway. Bounded: the radius only ever
+// ranges over 0..GooeyPeakBlur.
+private val gooeyEffectCache = HashMap<Int, RenderEffect>()
+
+private fun gooeyRenderEffect(blurRadiusPx: Float): RenderEffect {
+    val key = blurRadiusPx.toInt()
+    return gooeyEffectCache.getOrPut(key) {
+        ColorFilterEffect(
+            BlurEffect(key.toFloat(), key.toFloat(), TileMode.Decal),
+            ThresholdColorFilter
+        )
+    }
 }
 
 /**

@@ -69,6 +69,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -195,6 +197,12 @@ fun FloatingTabBar(
 private val GooeyPeakBlur = 12.dp
 private const val GooeyDurationMs = 300
 
+// Rim/shadow the selection puck keeps when it is NOT being pressed. Both used to
+// be driven straight off pressProgress, i.e. zero at rest, which left the puck
+// defined only by its own dark surface wash — invisible against a dark bar.
+private const val PuckRestHighlightAlpha = 0.5f
+private const val PuckRestShadowAlpha = 0.35f
+
 // Vendored addition: the three shapes the bar can render. INLINE is the
 // scroll-collapsed row (unchanged by search mode); EXPANDED is the normal
 // all-tabs pill; SEARCH_EXPANDED replaces EXPANDED while search mode is
@@ -297,6 +305,13 @@ fun FloatingTabBar(
         // bounds) renders via that overlay, and capturing it into the gooey
         // layer at the wrong level made it visibly pop in a frame late when
         // re-expanding. This way the overlay draws normally, on top.
+        // Held as a lambda rather than a Boolean so flipping it costs no
+        // recomposition — the glass surfaces call it during draw. See
+        // LocalTabBarBackdropFrozen.
+        val frozenWhileAnimating = remember(transition) {
+            { transition.currentState != transition.targetState }
+        }
+        CompositionLocalProvider(LocalTabBarBackdropFrozen provides frozenWhileAnimating) {
         Box(Modifier.gooey { gooeyBlurPx * gooeyProgress }) {
             transition.AnimatedContent(
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -348,8 +363,21 @@ fun FloatingTabBar(
             }
             }
         }
+        }
     }
 }
+
+/**
+ * True for exactly the frames of a tab bar transition (inline <-> expanded <->
+ * search). The bar's glass surfaces pass it to `drawBackdrop`'s `frozen`, which
+ * makes them reuse their last backdrop capture instead of re-recording the whole
+ * screen every frame while their bounds animate.
+ *
+ * A lambda, not a Boolean, so flipping it triggers no recomposition — the surfaces
+ * call it during draw. Static local for the same reason: the lambda's identity is
+ * stable, only what it reads changes.
+ */
+internal val LocalTabBarBackdropFrozen = staticCompositionLocalOf<() -> Boolean> { { false } }
 
 /**
  * A [NestedScrollConnection] that handles scroll events to transition between inline and expanded states.
@@ -1312,7 +1340,8 @@ private fun SharedTransitionScope.ExpandedTabs(
                         // hidden row at a fraction of surface resolution and let the
                         // blur hide the upscale — was left at the 1f (full-res)
                         // default here even though liquidGlass already uses this.
-                        backdropScale = tabsBackdropScale
+                        backdropScale = tabsBackdropScale,
+                        frozen = LocalTabBarBackdropFrozen.current
                     )
                     .then(interactiveHighlight.modifier)
                     // NOT a second .padding(sizes.tabBarContentPadding) here — the one
@@ -1398,11 +1427,23 @@ private fun SharedTransitionScope.ExpandedTabs(
                             },
                             highlight = {
                                 val progress = dampedDragAnimation.pressProgress
-                                Highlight.Default.copy(alpha = progress)
+                                // Floored, not 0-at-rest. With no rim the puck's
+                                // shape came entirely from its dark wash below,
+                                // so it vanished into the bar whenever the bar
+                                // itself sat on dark content. A specular rim
+                                // reads against light AND dark, and unlike
+                                // lightening the wash it leaves the selected
+                                // icon (white by default, drawn on top) legible.
+                                Highlight.Default.copy(
+                                    alpha = lerp(PuckRestHighlightAlpha, 1f, progress)
+                                )
                             },
                             shadow = {
                                 val progress = dampedDragAnimation.pressProgress
-                                Shadow(alpha = progress)
+                                // Same reasoning: a little separation at rest so
+                                // the puck reads as a raised element rather than
+                                // a flat patch of the bar.
+                                Shadow(alpha = lerp(PuckRestShadowAlpha, 1f, progress))
                             },
                             innerShadow = {
                                 val progress = dampedDragAnimation.pressProgress
@@ -1425,8 +1466,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // while pressed.
                                 val progress = dampedDragAnimation.pressProgress
 
-                                drawRect(Color.Black.copy(alpha = 0.4f - 0.2f * progress))
-                            }
+                                drawRect(Color(28, 27, 28, 255).copy(alpha = 0.8f - 0.6f * progress))
+                            },
+                            frozen = LocalTabBarBackdropFrozen.current
                         )
                     } else {
                         Modifier

@@ -237,7 +237,7 @@ fun AboutScreen(
                     icon = painterResource(R.drawable.discord),
                     title = { Text(stringResource(R.string.discord_channel)) },
                     description = { Text(stringResource(R.string.join_discord)) },
-                    onClick = { uriHandler.safeOpenUri(context, "https://discord.gg/KC9BE5Vqud") }
+                    onClick = { uriHandler.safeOpenUri(context, "https://discord.gg/Ejeb4cmzfd") }
                 )
             )
         )

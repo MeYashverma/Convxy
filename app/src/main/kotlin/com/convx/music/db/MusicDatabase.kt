@@ -50,7 +50,9 @@ import java.time.ZoneOffset
 import java.util.Date
 
 class MusicDatabase(
-    private val delegate: InternalDatabase,
+    // Not private: the Hilt module hands the same instance back out as
+    // InternalDatabase, so both bindings resolve to the one configured builder.
+    val delegate: InternalDatabase,
 ) : DatabaseDao by delegate.dao {
     val speedDialDao: SpeedDialDao
         get() = delegate.speedDialDao

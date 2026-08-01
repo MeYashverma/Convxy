@@ -231,13 +231,25 @@ fun Modifier.liquidGlass(
     blurRadiusDp: Float = config.blurRadius,
     // The nav bar and mini player want a dimmer specular rim than the default.
     highlightAlpha: Float = EdgeHighlightAlpha,
+    // Fraction of the surface resolution the backdrop is recorded at. Defaults to
+    // [glassResolutionScale] for the blur radius (cheap, and the blur masks the
+    // upscaling) — pass 1f for a crisp full-resolution backdrop, e.g. the small
+    // glass buttons whose whole look is clear content, not heavy frost.
+    backdropScale: Float = glassResolutionScale(blurRadiusDp),
+    // Forwarded to drawBackdrop: while this returns true the surface holds its
+    // last capture instead of re-recording the screen. Used by the floating tab
+    // bar for the frames of its inline/expanded/search transition, where the
+    // bar's bounds animate and would otherwise force a full-screen re-capture
+    // plus effect chain on every frame.
+    frozen: () -> Boolean = { false },
 ): Modifier {
     if (!isGlassAllowed()) return this
     val backdrop = LocalAppBackdrop.current
     val density = LocalDensity.current
-    val resolutionScale = glassResolutionScale(blurRadiusDp)
-    // Pixel-sized effect parameters operate on the downscaled backdrop layer, so
-    // they are pre-multiplied by the resolution scale to keep the same visual size.
+    val resolutionScale = backdropScale.coerceIn(0.05f, 1f)
+    // Pixel-sized effect parameters operate on the backdrop layer at its recorded
+    // resolution, so they are pre-multiplied by the resolution scale to keep the
+    // same visual size.
     val blurPx = with(density) { blurRadiusDp.dp.toPx() } * resolutionScale
     val saturation = glassSaturation(config.vibrancy)
     val lensHeightPx = with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale
@@ -312,5 +324,6 @@ fun Modifier.liquidGlass(
             }
         },
         backdropScale = resolutionScale,
+        frozen = frozen,
     )
 }

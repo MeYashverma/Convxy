@@ -25,11 +25,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import com.convx.music.ui.component.GlassSwitchCompat as Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -125,8 +126,14 @@ fun HomeBackgroundControls() {
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
             if (path.isNotEmpty()) {
+                // Mirrors HomeImageBackground: always realtime Modifier.blur.
+                val previewRequest = remember(path) {
+                    ImageRequest.Builder(context)
+                        .data(File(path))
+                        .build()
+                }
                 AsyncImage(
-                    model = File(path),
+                    model = previewRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

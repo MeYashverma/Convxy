@@ -71,7 +71,7 @@ import androidx.compose.material3.OutlinedButton
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Surface
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.Switch
+import com.convx.music.ui.component.GlassSwitchCompat as Switch
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Text
 import com.convx.music.ui.utils.appTopBarWindowInsets

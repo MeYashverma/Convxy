@@ -920,13 +920,21 @@ fun HomeScreen(
         isRefreshing = isRefreshing,
         onRefresh = viewModel::refresh,
         indicator = {
-            PullToRefreshDefaults.LoadingIndicator(
-                state = pullRefreshState,
-                isRefreshing = isRefreshing,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
-            )
+            // Material3's expressive LoadingIndicator morphs its shape on an
+            // infinite animation for as long as it is composed — it does not
+            // gate on isRefreshing. Left in the tree it awaits a frame forever,
+            // so the whole app recomposed and redrew every vsync at idle (~50
+            // draws/s on a motionless Home) for an indicator scaled to nothing.
+            // Compose it only while it can actually be seen.
+            if (isRefreshing || pullRefreshState.distanceFraction > 0f) {
+                PullToRefreshDefaults.LoadingIndicator(
+                    state = pullRefreshState,
+                    isRefreshing = isRefreshing,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
+                )
+            }
         }
     ) {
         BoxWithConstraints(

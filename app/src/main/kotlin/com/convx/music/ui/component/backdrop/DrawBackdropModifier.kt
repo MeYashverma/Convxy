@@ -52,6 +52,7 @@ import com.convx.music.ui.component.backdrop.shadow.ShadowElement
 private val DefaultHighlight = { Highlight.Default }
 private val DefaultShadow = { Shadow.Default }
 private val DefaultOnDrawBackdrop: DrawScope.(DrawScope.() -> Unit) -> Unit = { it() }
+private val NeverFrozen: () -> Boolean = { false }
 
 fun Modifier.drawPlainBackdrop(
     backdrop: Backdrop,
@@ -62,7 +63,22 @@ fun Modifier.drawPlainBackdrop(
     onDrawBehind: (DrawScope.() -> Unit)? = null,
     onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit = DefaultOnDrawBackdrop,
     onDrawSurface: (DrawScope.() -> Unit)? = null,
-    onDrawFront: (DrawScope.() -> Unit)? = null
+    onDrawFront: (DrawScope.() -> Unit)? = null,
+    // Vendored addition: same meaning as [drawBackdrop]'s parameter of the same
+    // name — record the backdrop at this fraction of the surface resolution so
+    // the RenderEffect chain processes far fewer pixels. Callers must
+    // pre-multiply pixel-sized effect parameters (blur radius) by the same
+    // factor; the blur hides the upscaling. 1f keeps full resolution.
+    backdropScale: Float = 1f,
+    // While this returns true the surface reuses its last recorded backdrop
+    // instead of re-capturing the source. Meant for the frames of a transition
+    // that animates the surface's size or position: those change every frame, so
+    // the size/offset checks below force a fresh full-screen capture (plus the
+    // whole effect chain) on every one of them. Measured on the search
+    // transition: 9 frames at a 250-450ms median with the nav bar's glass on,
+    // versus 77 frames at 42ms with it off. The bar is moving and heavily
+    // blurred for those ~300ms, so reusing the previous capture is not visible.
+    frozen: () -> Boolean = NeverFrozen
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -84,7 +100,8 @@ fun Modifier.drawPlainBackdrop(
                 onDrawBackdrop = onDrawBackdrop,
                 onDrawSurface = onDrawSurface,
                 onDrawFront = onDrawFront,
-                backdropScale = 1f
+                backdropScale = backdropScale.coerceIn(0.05f, 1f),
+                frozen = frozen
             )
         )
 }
@@ -107,7 +124,16 @@ fun Modifier.drawBackdrop(
     // processes far fewer pixels. Pixel-sized effect parameters (blur radius, lens
     // refraction) must be pre-multiplied by the same factor by the caller; the blur
     // hides the upscaling. 1f keeps the original full resolution behavior.
-    backdropScale: Float = 1f
+    backdropScale: Float = 1f,
+    // While this returns true the surface reuses its last recorded backdrop
+    // instead of re-capturing the source. Meant for the frames of a transition
+    // that animates the surface's size or position: those change every frame, so
+    // the size/offset checks below force a fresh full-screen capture (plus the
+    // whole effect chain) on every one of them. Measured on the search
+    // transition: 9 frames at a 250-450ms median with the nav bar's glass on,
+    // versus 77 frames at 42ms with it off. The bar is moving and heavily
+    // blurred for those ~300ms, so reusing the previous capture is not visible.
+    frozen: () -> Boolean = NeverFrozen
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -159,7 +185,8 @@ fun Modifier.drawBackdrop(
                 onDrawBackdrop = onDrawBackdrop,
                 onDrawSurface = onDrawSurface,
                 onDrawFront = onDrawFront,
-                backdropScale = backdropScale.coerceIn(0.05f, 1f)
+                backdropScale = backdropScale.coerceIn(0.05f, 1f),
+                frozen = frozen
             )
         )
 }
@@ -174,7 +201,8 @@ private class DrawBackdropElement(
     val onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit,
     val onDrawSurface: (DrawScope.() -> Unit)?,
     val onDrawFront: (DrawScope.() -> Unit)?,
-    val backdropScale: Float
+    val backdropScale: Float,
+    val frozen: () -> Boolean
 ) : ModifierNodeElement<DrawBackdropNode>() {
 
     override fun create(): DrawBackdropNode {
@@ -188,7 +216,8 @@ private class DrawBackdropElement(
             onDrawBackdrop = onDrawBackdrop,
             onDrawSurface = onDrawSurface,
             onDrawFront = onDrawFront,
-            backdropScale = backdropScale
+            backdropScale = backdropScale,
+            frozen = frozen
         )
     }
 
@@ -206,6 +235,7 @@ private class DrawBackdropElement(
         node.onDrawSurface = onDrawSurface
         node.onDrawFront = onDrawFront
         node.backdropScale = backdropScale
+        node.frozen = frozen
         node.surfaceDirty = true
         node.invalidateDrawCache()
     }
@@ -266,7 +296,8 @@ private class DrawBackdropNode(
     var onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit,
     var onDrawSurface: (DrawScope.() -> Unit)?,
     var onDrawFront: (DrawScope.() -> Unit)?,
-    var backdropScale: Float
+    var backdropScale: Float,
+    var frozen: () -> Boolean
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode, Modifier.Node() {
 
     private val effectScope =
@@ -358,10 +389,18 @@ private class DrawBackdropNode(
             // source's own node) or this surface's size/position moved. Non-layer
             // backdrops have no version, so `version == null` keeps them recording
             // every draw, matching the original behavior.
-            val needsRecord = surfaceDirty ||
-                version == null || version != recordedBackdropVersion ||
-                offset != recordedBackdropOffset ||
-                recordSize != recordedBackdropSize
+            // Once frozen, hold the last capture. Only skip when there IS one —
+            // a surface frozen before it ever recorded would otherwise draw an
+            // empty layer.
+            val hasRecording = recordedBackdropSize != IntSize.Zero
+            val needsRecord = if (frozen() && hasRecording) {
+                false
+            } else {
+                surfaceDirty ||
+                    version == null || version != recordedBackdropVersion ||
+                    offset != recordedBackdropOffset ||
+                    recordSize != recordedBackdropSize
+            }
             if (needsRecord) {
                 recordLayer(
                     this@DrawBackdropNode,

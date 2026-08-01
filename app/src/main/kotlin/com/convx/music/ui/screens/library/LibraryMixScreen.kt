@@ -397,11 +397,16 @@ fun LibraryMixScreen(
             isRefreshing = isRefreshing,
             onRefresh = viewModel::refresh,
             indicator = {
-                PullToRefreshDefaults.LoadingIndicator(
-                    state = pullRefreshState,
-                    isRefreshing = isRefreshing,
-                    modifier = Modifier.align(Alignment.TopCenter),
-                )
+                // Only while visible — see HomeScreen: the M3 LoadingIndicator
+                // animates forever once composed and pins the app at full frame
+                // rate at idle.
+                if (isRefreshing || pullRefreshState.distanceFraction > 0f) {
+                    PullToRefreshDefaults.LoadingIndicator(
+                        state = pullRefreshState,
+                        isRefreshing = isRefreshing,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
             }
         ) {
             HomeImageBackground(withGradient = true)

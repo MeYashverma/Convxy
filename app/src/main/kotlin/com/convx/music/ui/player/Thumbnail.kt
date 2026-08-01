@@ -47,15 +47,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -343,17 +346,29 @@ fun Thumbnail(
         )
     }
 
-    // Current item tracking - derived state for efficiency
-    val currentItem by remember { derivedStateOf { thumbnailLazyGridState.firstVisibleItemIndex } }
+    // Guards the swipe detector below from mistaking the position-resync
+    // scroll (also below) for a user swipe — that scroll also flips
+    // isScrollInProgress, which is otherwise indistinguishable from a drag.
+    var isSyncingPosition by remember { mutableStateOf(false) }
 
     // Handle swipe to change song. Watch the scroll end (snapshotFlow) instead of
     // keying on the scroll offset, so per-pixel scroll changes don't recompose
     // the whole thumbnail carousel.
     LaunchedEffect(swipeThumbnail, currentMediaIndex, canSkipNext, canSkipPrevious) {
         if (!swipeThumbnail || currentMediaIndex < 0) return@LaunchedEffect
+        // drop(1): this effect restarts every time currentMediaIndex changes,
+        // and snapshotFlow replays the CURRENT isScrollInProgress value
+        // immediately on collection start — which is stale grid state from
+        // before the index changed (the resync scroll below hasn't started
+        // yet). Comparing that stale position against the new index misread
+        // as a user swipe and fired a spurious seek, which changed the index
+        // again, restarting this effect again — an infinite ping-pong at
+        // queue boundaries (index 0/1) where the carousel window is 2 items
+        // instead of 3. Only react to an actual transition, not the replay.
         snapshotFlow { thumbnailLazyGridState.isScrollInProgress }
+            .drop(1)
             .collect { scrolling ->
-                if (!scrolling && thumbnailLazyGridState.firstVisibleItemScrollOffset == 0) {
+                if (!scrolling && !isSyncingPosition && thumbnailLazyGridState.firstVisibleItemScrollOffset == 0) {
                     val index = thumbnailLazyGridState.firstVisibleItemIndex
                     if (index > currentMediaIndex && canSkipNext) {
                         playerConnection.player.seekToNext()
@@ -368,18 +383,14 @@ fun Thumbnail(
     LaunchedEffect(mediaMetadata, canSkipPrevious, canSkipNext) {
         val index = maxOf(0, currentMediaIndex)
         if (index >= 0 && index < mediaItems.size) {
+            isSyncingPosition = true
             try {
                 thumbnailLazyGridState.animateScrollToItem(index)
             } catch (e: Exception) {
                 thumbnailLazyGridState.scrollToItem(index)
+            } finally {
+                isSyncingPosition = false
             }
-        }
-    }
-
-    LaunchedEffect(playerConnection.player.currentMediaItemIndex) {
-        val index = mediaItemsData.currentIndex
-        if (index >= 0 && index != currentItem) {
-            thumbnailLazyGridState.scrollToItem(index)
         }
     }
 
@@ -626,16 +637,24 @@ private fun ThumbnailItem(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val isCurrentItem = item.mediaId == currentMediaId
 
-    val infiniteTransition = rememberInfiniteTransition(label = "ThumbnailRotation")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = if (isPlaying && rotatingThumbnail && isCurrentItem) 360f else 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Restart
-        ),
-        label = "Rotation"
-    )
+    // An infiniteRepeatable never finishes, so pinning targetValue to 0f did not
+    // stop this — the transition kept awaiting a frame forever and redrew the
+    // whole app every vsync whenever the player was on screen. Only create it
+    // while the artwork is actually spinning.
+    val rotation: State<Float> = if (isPlaying && rotatingThumbnail && isCurrentItem) {
+        val infiniteTransition = rememberInfiniteTransition(label = "ThumbnailRotation")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(20000, easing = LinearEasing),
+                repeatMode = androidx.compose.animation.core.RepeatMode.Restart
+            ),
+            label = "Rotation"
+        )
+    } else {
+        remember { mutableFloatStateOf(0f) }
+    }
 
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
     var skipMultiplier by remember { mutableIntStateOf(1) }
@@ -696,7 +715,7 @@ private fun ThumbnailItem(
             modifier = Modifier
                 .size(dimensions.thumbnailSize)
                 .graphicsLayer {
-                    rotationZ = rotation
+                    rotationZ = rotation.value
                 }
                 .clip(
                     when (artworkStyle) {
@@ -708,7 +727,7 @@ private fun ThumbnailItem(
                 )
                 // A vinyl spins with its label, so only the clover shape counter-rotates.
                 .graphicsLayer {
-                    rotationZ = if (artworkStyle == PlayerArtworkStyle.VINYL) 0f else -rotation
+                    rotationZ = if (artworkStyle == PlayerArtworkStyle.VINYL) 0f else -rotation.value
                 }
         ) {
             if (hidePlayerThumbnail) {

@@ -68,6 +68,7 @@ import com.convx.music.ui.player.FloatingMiniPlayer
 import com.convx.music.ui.screens.Screens
 import com.convx.music.ui.screens.search.DynamicSearchPlaceholder
 import com.convx.music.ui.component.floatingtabbar.FloatingTabBar
+import com.convx.music.ui.component.floatingtabbar.LocalTabBarBackdropFrozen
 import com.convx.music.ui.component.floatingtabbar.FloatingTabBarDefaults
 import com.convx.music.ui.component.floatingtabbar.FloatingTabBarScrollConnection
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
@@ -216,6 +217,10 @@ private fun AppFloatingNavBarChrome(
             config = glassConfig,
             shape = NavBarShape,
             highlightAlpha = 0.3f,
+            // The bar's own surface is the largest of its glass layers, and its
+            // bounds animate across the whole inline/expanded/search transition —
+            // freezing its capture for those frames is most of the win.
+            frozen = LocalTabBarBackdropFrozen.current,
         )
     } else {
         Modifier

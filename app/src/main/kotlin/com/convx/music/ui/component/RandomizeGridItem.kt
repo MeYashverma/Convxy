@@ -17,8 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.convx.music.constants.ThumbnailCornerRadius
 
@@ -63,7 +64,7 @@ fun RandomizeGridItem(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = -padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
+                .offset { IntOffset((-padding * dotOffsetMultiplier).roundToPx(), (-padding * dotOffsetMultiplier).roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -72,7 +73,7 @@ fun RandomizeGridItem(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = padding * dotOffsetMultiplier, y = -padding * dotOffsetMultiplier)
+                .offset { IntOffset((padding * dotOffsetMultiplier).roundToPx(), (-padding * dotOffsetMultiplier).roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -89,7 +90,7 @@ fun RandomizeGridItem(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = -padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
+                .offset { IntOffset((-padding * dotOffsetMultiplier).roundToPx(), (padding * dotOffsetMultiplier).roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
@@ -98,18 +99,26 @@ fun RandomizeGridItem(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = padding * dotOffsetMultiplier, y = padding * dotOffsetMultiplier)
+                .offset { IntOffset((padding * dotOffsetMultiplier).roundToPx(), (padding * dotOffsetMultiplier).roundToPx()) }
                 .size(dotSize)
                 .clip(CircleShape)
                 .background(dotColor)
         )
-        
-        // Loading Indicator overlay
-        Box(modifier = Modifier.alpha(loadingAlpha)) {
-            LoadingIndicator(
-                modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
+
+        // Loading Indicator overlay. Composed only while it has any opacity:
+        // Material3's LoadingIndicator morphs its shape on an infinite
+        // animation for as long as it is in the tree, and alpha = 0 does not
+        // stop that. Left composed, this tile — which sits permanently in
+        // Home's Speed dial grid — kept the whole app recomposing and redrawing
+        // every vsync at idle. The fade-out still plays: the condition only
+        // goes false once the animation has actually reached 0.
+        if (loadingAlpha > 0f) {
+            Box(modifier = Modifier.graphicsLayer { alpha = loadingAlpha }) {
+                LoadingIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
         }
     }
 }

@@ -57,7 +57,7 @@ import androidx.compose.material3.RadioButton
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Scaffold
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.Switch
+import com.convx.music.ui.component.GlassSwitchCompat as Switch
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Text
 import com.convx.music.ui.utils.appTopBarWindowInsets

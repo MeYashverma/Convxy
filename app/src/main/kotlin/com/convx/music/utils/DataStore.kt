@@ -60,12 +60,18 @@ fun <T> rememberPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    // The seed value goes through DataStore's blocking accessor, which does a
+    // runBlocking disk read. As a bare argument it was re-evaluated on every
+    // recomposition, so each preference a composable reads cost one synchronous
+    // file read per recomposition — on the main thread. remember pins it to the
+    // first composition, which is the only one whose value is ever used.
+    val initialValue = remember { context.dataStore[key] ?: defaultValue }
     val state =
         remember {
             context.dataStore.data
                 .map { it[key] ?: defaultValue }
                 .distinctUntilChanged()
-        }.collectAsState(context.dataStore[key] ?: defaultValue)
+        }.collectAsState(initialValue)
 
     return remember {
         object : MutableState<T> {
@@ -94,7 +100,10 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val initialValue = context.dataStore[key].toEnum(defaultValue = defaultValue)
+    // remembered for the same reason as in [rememberPreference]: this is a
+    // blocking main-thread disk read, and unremembered it ran on every
+    // recomposition.
+    val initialValue = remember { context.dataStore[key].toEnum(defaultValue = defaultValue) }
     val state =
         remember {
             context.dataStore.data

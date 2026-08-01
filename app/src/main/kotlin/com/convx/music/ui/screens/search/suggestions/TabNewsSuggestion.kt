@@ -96,11 +96,16 @@ fun SuggestionsTabContent(
         },
         state = pullToRefreshState,
         indicator = {
-            PullToRefreshDefaults.LoadingIndicator(
-                state = pullToRefreshState,
-                isRefreshing = isManualLoading,
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
+            // Only while visible — see HomeScreen: the M3 LoadingIndicator
+            // animates forever once composed and pins the app at full frame
+            // rate at idle.
+            if (isManualLoading || pullToRefreshState.distanceFraction > 0f) {
+                PullToRefreshDefaults.LoadingIndicator(
+                    state = pullToRefreshState,
+                    isRefreshing = isManualLoading,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
         },
         modifier = Modifier.fillMaxSize()
     ) {

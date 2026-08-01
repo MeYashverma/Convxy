@@ -33,7 +33,7 @@ import androidx.compose.material3.Icon
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Slider
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.Switch
+import com.convx.music.ui.component.GlassSwitchCompat as Switch
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.SwitchDefaults
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -449,37 +449,36 @@ fun PlayerSettings(
                         onClick = { onCrossfadeGaplessChange(!crossfadeGapless) }
                     ))
                 }
-                // Removed for now — commented out, not deleted.
-                // add(Material3SettingsItem(
-                //     icon = painterResource(R.drawable.equalizer),
-                //     title = { Text(stringResource(R.string.auto_dj_mixing)) },
-                //     description = {
-                //         Text(
-                //             if (crossfadeEnabled) stringResource(R.string.auto_dj_mixing_desc)
-                //             else stringResource(R.string.auto_dj_mixing_needs_crossfade)
-                //         )
-                //     },
-                //     enabled = crossfadeEnabled,
-                //     trailingContent = {
-                //         Switch(
-                //             checked = autoDjMixingEnabled && crossfadeEnabled,
-                //             enabled = crossfadeEnabled,
-                //             onCheckedChange = onAutoDjMixingEnabledChange,
-                //             thumbContent = {
-                //                 Icon(
-                //                     painter = painterResource(
-                //                         id = if (autoDjMixingEnabled) R.drawable.check else R.drawable.close
-                //                     ),
-                //                     contentDescription = null,
-                //                     modifier = Modifier.size(SwitchDefaults.IconSize)
-                //                 )
-                //             }
-                //         )
-                //     },
-                //     onClick = if (crossfadeEnabled) {
-                //         { onAutoDjMixingEnabledChange(!autoDjMixingEnabled) }
-                //     } else null
-                // ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.equalizer),
+                    title = { Text(stringResource(R.string.auto_dj_mixing)) },
+                    description = {
+                        Text(
+                            if (crossfadeEnabled) stringResource(R.string.auto_dj_mixing_desc)
+                            else stringResource(R.string.auto_dj_mixing_needs_crossfade)
+                        )
+                    },
+                    enabled = crossfadeEnabled,
+                    trailingContent = {
+                        Switch(
+                            checked = autoDjMixingEnabled && crossfadeEnabled,
+                            enabled = crossfadeEnabled,
+                            onCheckedChange = onAutoDjMixingEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (autoDjMixingEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = if (crossfadeEnabled) {
+                        { onAutoDjMixingEnabledChange(!autoDjMixingEnabled) }
+                    } else null
+                ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),
                     title = { Text(stringResource(R.string.hide_volume_bar)) },

@@ -40,6 +40,9 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.verticalScroll
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.*
+// Explicit import wins over the star import above, so the two toggles below
+// pick up the glass switch without touching their call sites.
+import com.convx.music.ui.component.GlassSwitchCompat as Switch
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.*
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -202,6 +205,21 @@ fun AccountSettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoggedIn) {
+                Material3SettingsGroup(
+                    items = listOf(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.sync),
+                            title = { Text(stringResource(R.string.switch_channel_action)) },
+                            description = { Text(stringResource(R.string.switch_channel_action_desc)) },
+                            onClick = { navController.navigate("switch_channel") }
+                        )
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Token / Advanced Login Section
             Material3SettingsGroup(

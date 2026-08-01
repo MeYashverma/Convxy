@@ -30,7 +30,13 @@ import kotlinx.coroutines.launch
 
 class InteractiveHighlight(
     val animationScope: CoroutineScope,
-    val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset }
+    val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset },
+    // Glow radius = size.minDimension * radiusScale. Fine on the small components
+    // this was designed for (mini player pill, nav bar row) where minDimension is
+    // naturally small; on a tall, narrow container (the side panel) minDimension
+    // is still the panel's full width, so the default blows the glow up to
+    // several rows across and visually buries whatever's under the finger.
+    val radiusScale: Float = 1.5f,
 ) {
 
     private val pressProgressAnimationSpec =
@@ -79,7 +85,7 @@ half4 main(float2 coord) {
                         val position = position(size, positionAnimation.value)
                         setFloatUniform("size", size.width, size.height)
                         setColorUniform("color", Color.White.copy(0.15f * progress))
-                        setFloatUniform("radius", size.minDimension * 1.5f)
+                        setFloatUniform("radius", size.minDimension * radiusScale)
                         setFloatUniform(
                             "position",
                             position.x.fastCoerceIn(0f, size.width),

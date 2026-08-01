@@ -548,6 +548,12 @@ val HomeBackgroundAnimateKey = booleanPreferencesKey("homeBackgroundAnimate")
 val LibraryBackgroundModeKey = stringPreferencesKey("libraryBackgroundMode")
 val IosOverscrollKey = booleanPreferencesKey("iosOverscroll")
 
+val CustomFontEnabledKey = booleanPreferencesKey("customFontEnabled")
+val CustomFontPathKey = stringPreferencesKey("customFontPath")
+val CustomFontNameKey = stringPreferencesKey("customFontName")
+/** When on, the installed custom font renders only on artist names instead of app-wide. */
+val CustomFontArtistOnlyKey = booleanPreferencesKey("customFontArtistOnly")
+
 // 8spine Modules
 val ModuleSourcesKey = stringPreferencesKey("moduleSources")
 val EnabledModulesKey = stringPreferencesKey("enabledModules")

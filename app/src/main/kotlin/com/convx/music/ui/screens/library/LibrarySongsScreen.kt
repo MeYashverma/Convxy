@@ -155,10 +155,8 @@ fun LibrarySongsScreen(
         }
     }
 
-    val filteredSongs = if (hideExplicit) {
-        songs.filter { !it.song.explicit }
-    } else {
-        songs
+    val filteredSongs = remember(songs, hideExplicit) {
+        if (hideExplicit) songs.filter { !it.song.explicit } else songs
     }
 
     Box(

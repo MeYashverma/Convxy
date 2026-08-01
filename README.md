@@ -12,7 +12,7 @@
     <a href="LICENSE">
       <img src="https://img.shields.io/github/license/cosmictaserdev-creator/Convx?style=for-the-badge" alt="License">
     </a>
-    <a href="https://discord.gg/KC9BE5Vqud">
+    <a href="https://discord.gg/Ejeb4cmzfd">
       <img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
     </a>
   </p>
@@ -25,6 +25,23 @@
 <p><b>Convx</b> is a free, open-source music player for Android that streams from YouTube Music, with a UI built around a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
 
 <p>Convx started as a fork of <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a>; see <a href="#-credits">Credits</a> below.</p>
+
+<hr>
+
+<h2>📸 Screenshots</h2>
+
+<div align="center">
+  <img src="docs/screenshots/screenshot-1.jpg" width="30%" alt="Screenshot 1">
+  <img src="docs/screenshots/screenshot-2.jpg" width="30%" alt="Screenshot 2">
+  <img src="docs/screenshots/screenshot-3.jpg" width="30%" alt="Screenshot 3">
+  <br>
+  <img src="docs/screenshots/screenshot-4.jpg" width="30%" alt="Screenshot 4">
+  <img src="docs/screenshots/screenshot-5.jpg" width="30%" alt="Screenshot 5">
+  <img src="docs/screenshots/screenshot-6.jpg" width="30%" alt="Screenshot 6">
+  <br>
+  <img src="docs/screenshots/screenshot-7.jpg" width="30%" alt="Screenshot 7">
+  <img src="docs/screenshots/screenshot-8.jpg" width="30%" alt="Screenshot 8">
+</div>
 
 <hr>
 
@@ -149,7 +166,7 @@
         <h3>💬 Community & Support</h3>
         <p>Connect with other listeners, suggest features, report bugs, and stay updated on releases.</p>
         <br>
-        <a href="https://discord.gg/KC9BE5Vqud">
+        <a href="https://discord.gg/Ejeb4cmzfd">
           <img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
         </a>
         <br><br>

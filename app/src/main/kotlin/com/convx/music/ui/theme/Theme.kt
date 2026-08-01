@@ -75,13 +75,17 @@ fun vivimusicTheme(
         withBlack.accentText(themeColor, darkTheme)
     }
 
+    val customFont = rememberCustomFontFamily()
+
     androidx.compose.runtime.CompositionLocalProvider(
         LocalAccentColor provides themeColor,
         LocalAccentTextColor provides accentTextColor(themeColor, darkTheme),
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = AppTypography,
+            typography = remember(customFont) {
+                if (customFont != null) AppTypography(customFont) else AppTypography()
+            },
             content = content
         )
     }

@@ -115,6 +115,12 @@ fun FloatingMiniPlayer(
 
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    // Swipe thresholds below were tuned as raw pixel counts, which is only
+    // ~14dp on a dense (~3.5x) screen — well within a tap's incidental finger
+    // drift, so plain taps were misread as deliberate swipes and skipped the
+    // track. Scaling by density.density makes them density-independent.
+    val densityScale = density.density
 
     val offsetXAnimatable = remember { Animatable(0f) }
     var dragStartTime by remember { mutableLongStateOf(0L) }
@@ -122,8 +128,8 @@ fun FloatingMiniPlayer(
     val animationSpec = remember {
         spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
     }
-    val autoSwipeThreshold = remember(swipeSensitivity) {
-        (600 / (1f + exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
+    val autoSwipeThreshold = remember(swipeSensitivity, densityScale) {
+        ((600 / (1f + exp(-(-11.44748 * swipeSensitivity + 9.04945)))) * densityScale).roundToInt()
     }
 
     // iOS 26 style press response: the whole glass pill grows slightly while touched.
@@ -148,7 +154,6 @@ fun FloatingMiniPlayer(
     // and SubcomposeLayout can't answer intrinsic-measurement queries, which
     // crashes the whole bar. onSizeChanged gets the same measured height for
     // the !isInline tablet pill's icon/thumbnail scaling without that problem.
-    val density = LocalDensity.current
     var measuredHeightPx by remember { mutableIntStateOf(0) }
     Box(
         contentAlignment = Alignment.CenterStart,
@@ -200,8 +205,8 @@ fun FloatingMiniPlayer(
                                 val dragDuration = System.currentTimeMillis() - dragStartTime
                                 val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
                                 val currentOffset = offsetXAnimatable.value
-                                val minDistanceThreshold = 50f
-                                val velocityThreshold = (swipeSensitivity * -8.25f) + 8.5f
+                                val minDistanceThreshold = 50f * densityScale
+                                val velocityThreshold = ((swipeSensitivity * -8.25f) + 8.5f) * densityScale
                                 val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
                                 val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
 

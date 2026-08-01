@@ -35,4 +35,4 @@ Open an [issue](https://github.com/cosmictaserdev-creator/Convx/issues) with rep
 
 ## 💬 Questions
 
-Ask in the [Discord](https://discord.gg/KC9BE5Vqud) before starting anything large — happy to point you at the right file instead of you reverse-engineering it.
+Ask in the [Discord](https://discord.gg/Ejeb4cmzfd) before starting anything large — happy to point you at the right file instead of you reverse-engineering it.

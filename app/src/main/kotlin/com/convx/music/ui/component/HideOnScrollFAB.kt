@@ -21,11 +21,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -33,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
+import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.utils.isScrollingUp
 
 @Composable
@@ -55,16 +54,23 @@ fun BoxScope.HideOnScrollFAB(
                     .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
             ),
     ) {
+        // Unattached backdrop, scoped to just these two buttons: never
+        // .layerBackdrop'd, so liquidGlass early-returns to its translucent
+        // frosted fallback instead of sampling the live NavHost-wide
+        // appBackdrop, which — since this composable is used on ordinary
+        // NavHost screens with no hero backdrop of their own to borrow —
+        // would be a RenderNode self-reference cycle. Same style as the nav
+        // bar's glass (liquidGlass + GlassCircleButton), just without real
+        // blur-through here.
+        val fabBackdrop = rememberLayerBackdrop()
+        CompositionLocalProvider(LocalAppBackdrop provides fabBackdrop) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(16.dp)
         ) {
             if (onRecognitionClick != null) {
-                SmallFloatingActionButton(
+                GlassCircleButton(
                     onClick = onRecognitionClick,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
@@ -74,14 +80,16 @@ fun BoxScope.HideOnScrollFAB(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            FloatingActionButton(
+            GlassCircleButton(
                 onClick = onClick,
+                size = 56.dp,
             ) {
                 Icon(
                     painter = painterResource(icon),
                     contentDescription = null,
                 )
             }
+        }
         }
     }
 }
@@ -106,16 +114,23 @@ fun BoxScope.HideOnScrollFAB(
                     .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
             ),
     ) {
+        // Unattached backdrop, scoped to just these two buttons: never
+        // .layerBackdrop'd, so liquidGlass early-returns to its translucent
+        // frosted fallback instead of sampling the live NavHost-wide
+        // appBackdrop, which — since this composable is used on ordinary
+        // NavHost screens with no hero backdrop of their own to borrow —
+        // would be a RenderNode self-reference cycle. Same style as the nav
+        // bar's glass (liquidGlass + GlassCircleButton), just without real
+        // blur-through here.
+        val fabBackdrop = rememberLayerBackdrop()
+        CompositionLocalProvider(LocalAppBackdrop provides fabBackdrop) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(16.dp)
         ) {
             if (onRecognitionClick != null) {
-                SmallFloatingActionButton(
+                GlassCircleButton(
                     onClick = onRecognitionClick,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
@@ -125,14 +140,16 @@ fun BoxScope.HideOnScrollFAB(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            FloatingActionButton(
+            GlassCircleButton(
                 onClick = onClick,
+                size = 56.dp,
             ) {
                 Icon(
                     painter = painterResource(icon),
                     contentDescription = null,
                 )
             }
+        }
         }
     }
 }
@@ -157,16 +174,23 @@ fun BoxScope.HideOnScrollFAB(
                     .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
             ),
     ) {
+        // Unattached backdrop, scoped to just these two buttons: never
+        // .layerBackdrop'd, so liquidGlass early-returns to its translucent
+        // frosted fallback instead of sampling the live NavHost-wide
+        // appBackdrop, which — since this composable is used on ordinary
+        // NavHost screens with no hero backdrop of their own to borrow —
+        // would be a RenderNode self-reference cycle. Same style as the nav
+        // bar's glass (liquidGlass + GlassCircleButton), just without real
+        // blur-through here.
+        val fabBackdrop = rememberLayerBackdrop()
+        CompositionLocalProvider(LocalAppBackdrop provides fabBackdrop) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(16.dp)
         ) {
             if (onRecognitionClick != null) {
-                SmallFloatingActionButton(
+                GlassCircleButton(
                     onClick = onRecognitionClick,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
@@ -176,14 +200,16 @@ fun BoxScope.HideOnScrollFAB(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            FloatingActionButton(
+            GlassCircleButton(
                 onClick = onClick,
+                size = 56.dp,
             ) {
                 Icon(
                     painter = painterResource(icon),
                     contentDescription = null,
                 )
             }
+        }
         }
     }
 }

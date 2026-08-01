@@ -160,7 +160,11 @@ class InnerTube {
             // Add common headers for better compatibility
             header("Accept", "application/json")
             header("Accept-Language", "en-US,en;q=0.9")
-            header("Cache-Control", "no-cache")
+            // No blanket Cache-Control: no-cache — OkHttp never caches POST
+            // (nearly every InnerTube call) regardless of headers, so this only
+            // ever mattered for the handful of real GET calls (getSwJsData,
+            // returnYouTubeDislike, the watch-tracking ping), where it was
+            // silently defeating the 50MB disk cache configured below.
         }
     }
 
@@ -188,9 +192,14 @@ class InnerTube {
     }
 
     /**
-     * Simple retry wrapper for transient IO errors (socket aborts, timeouts).
-     * Retries the given block up to [maxAttempts] times with exponential backoff.
-     * Cancellation is respected since [delay] will throw if the coroutine is cancelled.
+     * Simple retry wrapper for transient IO errors (socket aborts, timeouts) and
+     * for 429/5xx HTTP responses (rate-limited or a momentary server hiccup —
+     * expectSuccess = true makes Ktor throw ResponseException for these instead
+     * of IOException). Other 4xx (400/401/403/404...) are not retried — retrying
+     * a genuine client error just wastes attempts. Retries up to [maxAttempts]
+     * times with exponential backoff, honoring a Retry-After header if the
+     * server sent one. Cancellation is respected since [delay] throws if the
+     * coroutine is cancelled.
      */
     private suspend fun <T> withRetry(
         maxAttempts: Int = 3,
@@ -207,6 +216,13 @@ class InnerTube {
                 attempt++
                 if (attempt >= maxAttempts) throw e
                 delay(currentDelay)
+                currentDelay = (currentDelay * factor).toLong()
+            } catch (e: io.ktor.client.plugins.ResponseException) {
+                val status = e.response.status.value
+                attempt++
+                if ((status != 429 && status !in 500..599) || attempt >= maxAttempts) throw e
+                val retryAfterMs = e.response.headers[HttpHeaders.RetryAfter]?.toLongOrNull()?.times(1000L)
+                delay(retryAfterMs ?: currentDelay)
                 currentDelay = (currentDelay * factor).toLong()
             }
         }
@@ -417,10 +433,13 @@ class InnerTube {
         }
     }
 
+    // Not wrapped in withRetry: a mutation, and an IOException/5xx can happen
+    // after the server already applied it — an auto-retry risks double-firing
+    // (e.g. liking twice). Let the caller retry explicitly instead.
     suspend fun likeVideo(
         client: YouTubeClient,
         videoId: String,
-    ) = withRetry {
+    ) = run {
         httpClient.post("like/like") {
             ytClient(client, setLogin = true)
             setBody(
@@ -507,11 +526,12 @@ class InnerTube {
         }
     }
 
+    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun addToPlaylist(
         client: YouTubeClient,
         playlistId: String,
         videoId: String,
-    ) = withRetry {
+    ) = run {
         httpClient.post("browse/edit_playlist") {
             ytClient(client, setLogin = true)
             setBody(
@@ -591,10 +611,11 @@ class InnerTube {
         }
     }
 
+    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun createPlaylist(
         client: YouTubeClient,
         title: String,
-    ) = withRetry {
+    ) = run {
         httpClient.post("playlist/create") {
             ytClient(client, true)
             setBody(
@@ -606,11 +627,12 @@ class InnerTube {
         }
     }
 
+    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun renamePlaylist(
         client: YouTubeClient,
         playlistId: String,
         name: String,
-    ) = withRetry {
+    ) = run {
         httpClient.post("browse/edit_playlist") {
             ytClient(client, setLogin = true)
             setBody(
@@ -699,10 +721,11 @@ class InnerTube {
         }
     }
 
+    // Not wrapped in withRetry — see likeVideo's comment.
     suspend fun deletePlaylist(
         client: YouTubeClient,
         playlistId: String,
-    ) = withRetry {
+    ) = run {
         httpClient.post("playlist/delete") {
             println("deleting $playlistId")
             ytClient(client, setLogin = true)

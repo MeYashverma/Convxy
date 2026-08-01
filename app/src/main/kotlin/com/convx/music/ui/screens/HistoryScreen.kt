@@ -99,6 +99,7 @@ import com.convx.music.ui.component.rememberHeroSource
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
+import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.isGlassAllowed
 import com.convx.music.ui.component.liquidGlass
@@ -215,7 +216,7 @@ fun HistoryScreen(
     val onTint = AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
 
     val heroZoom = rememberHeroZoom()

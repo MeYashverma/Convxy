@@ -300,6 +300,11 @@
     <string name="action_logout">Log out</string>
     <string name="action_login">Log in</string>
     <string name="login">Login</string>
+    <string name="switch_channel_title">Tap your profile picture, then pick a channel</string>
+    <string name="switch_channel_switched_title">Switched — you can go back now</string>
+    <string name="switch_channel_success">Switched channel</string>
+    <string name="switch_channel_action">Switch YouTube channel</string>
+    <string name="switch_channel_action_desc">Use a different channel on your Google Account for library, likes and playlists</string>
     <string name="show_audio_quality_badge">Show audio quality badge</string>
     <string name="mini_player_waveform">Mini player waveform seek bar</string>
     <string name="mini_bar_tab_style">Multi-icon mini bar</string>

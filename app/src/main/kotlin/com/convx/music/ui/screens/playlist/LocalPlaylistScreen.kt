@@ -162,7 +162,9 @@ import com.convx.music.ui.component.ChromeScrim
 import com.convx.music.ui.component.rememberChromeScrimProgress
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
+import com.convx.music.ui.component.backdrop.backdrops.LayerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.LocalMenuState
@@ -559,7 +561,7 @@ fun LocalPlaylistScreen(
     val onTint = com.convx.music.ui.theme.AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val chromeShape = ContinuousRoundedRectangle(percent = 50)
     val chromeContentColor = if (useGlass) glassConfig.textColor else onTint
 
@@ -567,6 +569,27 @@ fun LocalPlaylistScreen(
     // early-returns → translucent frosted surface, no RenderNode self-reference.
     // See ArtistScreen.kt for the full explanation of the cycle this avoids.
     val heroBackdrop = rememberLayerBackdrop()
+
+    // A SECOND, ATTACHED backdrop: .layerBackdrop'd onto the LazyColumn below
+    // (see its modifier), which is a *sibling* of the floating chrome row, not
+    // an ancestor — the chrome row samples a texture of already-drawn list
+    // content, it never captures its own draw pass, so no cycle. This is what
+    // lets the chrome buttons show real blurred list/hero content behind them
+    // instead of heroBackdrop's flat empty-capture fallback.
+    // Fills the screen tint into the capture BEFORE the content, exactly like
+    // MainActivity's appBackdrop does with its own background. Without it the
+    // list records onto a transparent canvas (the tint is painted by the outer
+    // Box, outside this capture), so the blurred result is itself part
+    // transparent and the sharp content shows straight through it — the glass
+    // read as a doubled/ghosted image, or as no glass at all where the list is
+    // sparse. This is the difference that made the nav bar look right and these
+    // screens look wrong.
+    val listBackdrop = rememberLayerBackdrop(
+        onDraw = remember(tint) {
+            val bg = tint
+            { drawRect(bg); drawContent() }
+        }
+    )
     val heroZoom = rememberHeroZoom()
 
     val heroSource = rememberHeroSource(
@@ -585,6 +608,13 @@ fun LocalPlaylistScreen(
         } else {
             Modifier.background(LocalContentColor.current.copy(alpha = 0.15f), chromeShape)
         }
+        // Capture from a plain Box wrapping the LazyColumn, not the LazyColumn's
+        // own modifier: LazyColumn promotes its items to their own RenderNodes
+        // for scroll recycling, which a capture attached directly to it doesn't
+        // reliably flatten (images came through, text/icons didn't). A plain
+        // Box one level up just sees "a fully-drawn child" and captures all of
+        // it, same as it would any other already-rendered composable.
+        Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
         LazyColumn(
             state = lazyListState,
             // No bounce here: the top pull drives the hero zoom instead.
@@ -615,6 +645,7 @@ fun LocalPlaylistScreen(
                                 onshowDeletePlaylistDialog = { showDeletePlaylistDialog = true },
                                 onStartSearch = { isSearching = true },
                                 snackbarHostState = snackbarHostState,
+                                listBackdrop = listBackdrop,
                                 heroScale = heroZoom.scale,
                                 modifier = Modifier.animateItem()
                             )
@@ -836,6 +867,7 @@ fun LocalPlaylistScreen(
                 Spacer(Modifier.height(50.dp))
             }
         }
+        }
 
         DraggableScrollbar(
             modifier = Modifier
@@ -853,9 +885,13 @@ fun LocalPlaylistScreen(
         // except the existing "reveal playlist name once scrolled" logic, which
         // is preserved as-is. Select mode and in-place search keep their exact
         // prior behavior, just restyled containers.
-        CompositionLocalProvider(LocalAppBackdrop provides heroBackdrop) {
-        // Built INSIDE the provider so liquidGlass captures heroBackdrop, not the
-        // root appBackdrop — sampling appBackdrop here is the RenderNode cycle.
+        CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
+        // Built INSIDE the provider so liquidGlass captures listBackdrop (the
+        // LazyColumn's own recorded content, a sibling — see its declaration
+        // above), not the root appBackdrop — sampling appBackdrop here is the
+        // RenderNode cycle. listBackdrop is attached (unlike heroBackdrop), so
+        // this chrome actually shows blurred list/hero content, not just a
+        // flat tinted fallback.
         val chromeBackgroundModifier = if (useGlass) {
             Modifier.liquidGlass(config = glassConfig, shape = chromeShape, highlightAlpha = 0.3f)
         } else {
@@ -1041,6 +1077,7 @@ fun LocalPlaylistHeader(
     onshowDeletePlaylistDialog: () -> Unit,
     onStartSearch: () -> Unit,
     snackbarHostState: SnackbarHostState,
+    listBackdrop: LayerBackdrop,
     modifier: Modifier,
     heroScale: Float = 1f,
 ) {
@@ -1312,6 +1349,12 @@ fun LocalPlaylistHeader(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Action Buttons Row — Redesigned for unified circular look
+            // Wrapped in the list's own attached backdrop (not whatever
+            // LocalAppBackdrop is ambient here, which is heroBackdrop's
+            // unattached safe-fallback — flat/no-op glass) so these buttons
+            // sample real blurred list content, same as the floating chrome
+            // row in the enclosing LocalPlaylistScreen composable.
+            CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1404,11 +1447,18 @@ fun LocalPlaylistHeader(
                 }
 
                 // Play Button (Center - Large Circle)
-                Surface(
+                // A playlist's own id never matches a song's albumId (different
+                // id spaces) — that comparison was always false, so this button
+                // never showed "pause" and always restarted the queue on tap.
+                // Membership of the current song in this playlist's own song
+                // list is the same "is this the active context" heuristic
+                // AlbumScreen uses (there, albumId happens to match directly).
+                val isPlayingThisPlaylist = isPlaying && songs.any { it.song.id == mediaMetadata?.id }
+                GlassCircleButton(
                     onClick = {
-                        if (isPlaying && mediaMetadata?.album?.id == playlist.playlist.id) {
+                        if (isPlayingThisPlaylist) {
                             playerConnection.player.pause()
-                        } else if (mediaMetadata?.album?.id == playlist.playlist.id) {
+                        } else if (songs.any { it.song.id == mediaMetadata?.id }) {
                             playerConnection.player.play()
                         } else {
                             playerConnection.playQueue(
@@ -1419,18 +1469,13 @@ fun LocalPlaylistHeader(
                             )
                         }
                     },
-                    shape = CircleShape,
-                    color = LocalContentColor.current,
-                    modifier = Modifier.size(72.dp)
+                    size = 72.dp,
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        AnimatedPlayPauseIcon(
-                            isPlaying = isPlaying && mediaMetadata?.album?.id == playlist.playlist.id,
-                            tint = tint,
-                            size = 32.dp,
-                            modifier = Modifier.offset(x = 2.dp),
-                        )
-                    }
+                    AnimatedPlayPauseIcon(
+                        isPlaying = isPlayingThisPlaylist,
+                        size = 32.dp,
+                        modifier = Modifier.offset(x = 2.dp),
+                    )
                 }
 
                 // Shuffle Button (Right - Circular)
@@ -1451,6 +1496,7 @@ fun LocalPlaylistHeader(
                         modifier = Modifier.size(20.dp),
                     )
                 }
+            }
             }
 
             Spacer(Modifier.height(24.dp))

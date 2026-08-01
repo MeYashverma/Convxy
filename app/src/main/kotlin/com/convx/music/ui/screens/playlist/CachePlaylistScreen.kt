@@ -128,10 +128,13 @@ import com.convx.music.ui.component.rememberHeroSource
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
+import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.isGlassAllowed
 import com.convx.music.ui.component.liquidGlass
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
+import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.material3.LocalContentColor
 import com.convx.music.ui.component.GlassCircleButton
@@ -232,8 +235,23 @@ fun CachePlaylistScreen(
     val onTint = AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
+
+    // Attached capture of the list, sampled by the floating chrome below. The
+    // chrome is a *sibling* of the capture, never inside it, so there is no
+    // RenderNode self-reference. heroBackdrop alone is unattached — its
+    // drawBackdrop early-returns, which is why this chrome rendered flat with
+    // no real blur behind it. The tint is filled into the capture BEFORE the
+    // content (same as MainActivity's appBackdrop) so the recording is opaque;
+    // without it the blurred result is part-transparent and the sharp content
+    // shows straight through it as a doubled image.
+    val listBackdrop = rememberLayerBackdrop(
+        onDraw = remember(tint) {
+            val bg = tint
+            { drawRect(bg); drawContent() }
+        }
+    )
 
     val heroZoom = rememberHeroZoom()
 
@@ -252,6 +270,11 @@ fun CachePlaylistScreen(
         val chromeShape = ContinuousRoundedRectangle(percent = 50)
         
         Box(modifier = Modifier.fillMaxSize()) {
+            // Capture from a plain Box wrapping the LazyColumn, not the
+            // LazyColumn's own modifier: LazyColumn promotes its items to their
+            // own RenderNodes for scroll recycling, which a capture attached
+            // directly to it doesn't reliably flatten.
+            Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
             LazyColumn(
                 state = lazyListState,
                 // No bounce here: the top pull drives the hero zoom instead.
@@ -405,6 +428,7 @@ fun CachePlaylistScreen(
                     }
                 }
             }
+            }
 
             DraggableScrollbar(
                 modifier = Modifier
@@ -419,6 +443,17 @@ fun CachePlaylistScreen(
 
             // Top bar logic
             val chromeScrimProgress = rememberChromeScrimProgress(lazyListState)
+            // Sample the list's own attached capture (a sibling, so no
+            // RenderNode cycle) rather than the ambient unattached heroBackdrop,
+            // whose drawBackdrop early-returns and left this chrome flat.
+            CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
+            // Built inside the provider so liquidGlass captures listBackdrop at
+            // composition time, not the ambient unattached backdrop.
+            val chromeBackgroundModifier = if (useGlass) {
+                Modifier.liquidGlass(config = glassConfig, shape = chromeShape, highlightAlpha = 0.3f)
+            } else {
+                Modifier.background(onTint.copy(alpha = 0.15f), chromeShape)
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -506,7 +541,7 @@ fun CachePlaylistScreen(
                             .weight(1f)
                             .height(48.dp)
                             .clip(chromeShape)
-                            .background(onTint.copy(alpha = 0.15f), chromeShape)
+                            .then(chromeBackgroundModifier)
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -556,6 +591,7 @@ fun CachePlaylistScreen(
                         )
                     }
                 }
+            }
             }
             }
         }

@@ -61,6 +61,7 @@ import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -126,6 +127,8 @@ import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.LinkSegment
+import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
@@ -278,7 +281,7 @@ fun AlbumScreen(
     val onTint = com.convx.music.ui.theme.AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val chromeShape = ContinuousRoundedRectangle(percent = 50)
     val chromeContentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
 
@@ -287,6 +290,27 @@ fun AlbumScreen(
     // refraction — but crucially no RenderNode self-reference. See ArtistScreen.kt
     // for the full explanation of the cycle this avoids.
     val heroBackdrop = rememberLayerBackdrop()
+
+    // A SECOND, ATTACHED backdrop: .layerBackdrop'd onto the LazyColumn below,
+    // which is a *sibling* of the floating chrome row, not an ancestor — the
+    // chrome row samples a texture of already-drawn list content, it never
+    // captures its own draw pass, so no cycle. This is what lets the chrome
+    // buttons show real blurred list/hero content instead of heroBackdrop's
+    // flat empty-capture fallback.
+    // Fills the screen tint into the capture BEFORE the content, exactly like
+    // MainActivity's appBackdrop does with its own background. Without it the
+    // list records onto a transparent canvas (the tint is painted by the outer
+    // Box, outside this capture), so the blurred result is itself part
+    // transparent and the sharp content shows straight through it — the glass
+    // read as a doubled/ghosted image, or as no glass at all where the list is
+    // sparse. This is the difference that made the nav bar look right and these
+    // screens look wrong.
+    val listBackdrop = rememberLayerBackdrop(
+        onDraw = remember(tint) {
+            val bg = tint
+            { drawRect(bg); drawContent() }
+        }
+    )
     val heroZoom = rememberHeroZoom()
 
     Box(
@@ -302,6 +326,13 @@ fun AlbumScreen(
     } else {
         Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f), chromeShape)
     }
+    // Capture from a plain Box wrapping the LazyColumn, not the LazyColumn's own
+    // modifier: LazyColumn promotes its items to their own RenderNodes for
+    // scroll recycling, which a capture attached directly to it doesn't
+    // reliably flatten (images came through, text/icons didn't). A plain Box
+    // one level up just sees "a fully-drawn child" and captures all of it,
+    // same as it would any other already-rendered composable.
+    Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
     LazyColumn(
         state = lazyListState,
         // No bounce here: the top pull drives the hero zoom instead.
@@ -889,6 +920,7 @@ fun AlbumScreen(
             }
         }
     }
+    }
 
         // Floating glass back/share buttons over the hero art, replacing the
         // Material TopAppBar — always visible, no title-bar-on-scroll behavior.
@@ -896,6 +928,16 @@ fun AlbumScreen(
         // pill instead, same as the TopAppBar's title/actions used to. Backed by a
         // scrim that ramps from transparent to a dark shade as the list scrolls
         // past the hero art, same treatment as the Artist screen.
+        // Redeclared here (shadowing the one above) inside the listBackdrop
+        // provider — liquidGlass reads LocalAppBackdrop at the point it's
+        // composed, so the outer val (composed before this provider) would
+        // still capture heroBackdrop's empty fallback otherwise.
+        CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
+        val chromeBackgroundModifier = if (useGlass) {
+            Modifier.liquidGlass(config = glassConfig, shape = chromeShape, highlightAlpha = 0.3f)
+        } else {
+            Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f), chromeShape)
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1051,6 +1093,7 @@ fun AlbumScreen(
                     }
                 }
             }
+        }
         }
         }
     }

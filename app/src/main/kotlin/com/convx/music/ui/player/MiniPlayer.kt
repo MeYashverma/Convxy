@@ -258,10 +258,15 @@ private fun NewMiniPlayer(
     val listenTogetherManager = LocalListenTogetherManager.current
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
     val swipeThumbnail = swipeThumbnailPref && !isListenTogetherGuest
-    
+
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
-    
+    // Swipe thresholds below were tuned as raw pixel counts, which is only ~14dp
+    // on a dense (~3.5x) screen — well within a tap's incidental finger drift,
+    // so plain taps on the mini player were misread as deliberate swipes and
+    // skipped the track. Scaling them by density makes them density-independent.
+    val density = LocalDensity.current.density
+
     val configuration = LocalConfiguration.current
     // Cap regardless of orientation — portrait tablets used to get a
     // full-width stretched bar with unchanged small fixed-dp icons, which
@@ -279,8 +284,8 @@ private fun NewMiniPlayer(
         spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
     }
 
-    val autoSwipeThreshold = remember(swipeSensitivity) {
-        (600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
+    val autoSwipeThreshold = remember(swipeSensitivity, density) {
+        ((600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))) * density).roundToInt()
     }
 
     val (gradientColors, onGradientColorsChange) = remember { mutableStateOf<List<Color>>(emptyList()) }
@@ -358,8 +363,8 @@ private fun NewMiniPlayer(
                                 val dragDuration = System.currentTimeMillis() - dragStartTime
                                 val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
                                 val currentOffset = offsetXAnimatable.value
-                                val minDistanceThreshold = 50f
-                                val velocityThreshold = (swipeSensitivity * -8.25f) + 8.5f
+                                val minDistanceThreshold = 50f * density
+                                val velocityThreshold = ((swipeSensitivity * -8.25f) + 8.5f) * density
 
                                 val shouldChangeSong = (kotlin.math.abs(currentOffset) > minDistanceThreshold && velocity > velocityThreshold) ||
                                     (kotlin.math.abs(currentOffset) > autoSwipeThreshold)
@@ -772,7 +777,8 @@ private fun LegacyMiniPlayer(
 
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
-    
+    val density = LocalDensity.current.density
+
     val configuration = LocalConfiguration.current
     val isTablet = remember(configuration.screenWidthDp) {
         configuration.screenWidthDp >= 600
@@ -786,8 +792,8 @@ private fun LegacyMiniPlayer(
         spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
     }
 
-    val autoSwipeThreshold = remember(swipeSensitivity) {
-        (600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
+    val autoSwipeThreshold = remember(swipeSensitivity, density) {
+        ((600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))) * density).roundToInt()
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -839,8 +845,8 @@ private fun LegacyMiniPlayer(
                                 val dragDuration = System.currentTimeMillis() - dragStartTime
                                 val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
                                 val currentOffset = offsetXAnimatable.value
-                                val minDistanceThreshold = 50f
-                                val velocityThreshold = (swipeSensitivity * -8.25f) + 8.5f
+                                val minDistanceThreshold = 50f * density
+                                val velocityThreshold = ((swipeSensitivity * -8.25f) + 8.5f) * density
 
                                 val shouldChangeSong = (kotlin.math.abs(currentOffset) > minDistanceThreshold && velocity > velocityThreshold) ||
                                     (kotlin.math.abs(currentOffset) > autoSwipeThreshold)

@@ -11,7 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.AudioAttributes
@@ -228,6 +228,6 @@ fun CanvasArtworkPlayer(
         update = { view ->
             // AspectRatioFrameLayout handles itself, no specific update needed here
         },
-        modifier = modifier.alpha(alpha),
+        modifier = modifier.graphicsLayer { this.alpha = alpha },
     )
 }

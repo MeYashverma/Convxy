@@ -28,7 +28,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,12 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabPosition
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.Composable
@@ -123,6 +117,8 @@ import com.convx.music.ui.component.LocalNavSearchState
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.catalog.components.LiquidBottomTab
+import com.convx.music.ui.component.backdrop.catalog.components.LiquidBottomTabs
 import androidx.compose.ui.text.font.FontWeight
 import com.convx.music.ui.component.GlassCircleButton
 import androidx.compose.ui.text.style.TextAlign
@@ -232,47 +228,39 @@ fun SearchScreen(
                     ) {
                         Column {
                             Spacer(modifier = Modifier.height(8.dp))
-                            SecondaryTabRow(
-                                selectedTabIndex = selectedTabIndex,
-                                containerColor = Color.Transparent,
-                                indicator = {
-                                    Box(
-                                        modifier = Modifier
-                                            .tabIndicatorOffset(selectedTabIndex)
-                                            .fillMaxWidth(),
-                                        contentAlignment = Alignment.BottomCenter
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(32.dp)
-                                                .height(3.dp)
-                                                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                                                .background(accent)
-                                        )
-                                    }
-                                }
+                            // Wide floating pill, swipeable with the same drag-puck
+                            // ("pluck") feel as the floating nav bar's own tab selector.
+                            LiquidBottomTabs(
+                                selectedTabIndex = { selectedTabIndex },
+                                onTabSelected = { selectedTabIndex = it },
+                                backdrop = heroBackdrop,
+                                tabsCount = 3,
+                                // Blend into this screen's own tint instead of the
+                                // component's default near-black glass fill.
+                                containerColor = onTint.copy(alpha = 0.12f),
+                                height = 44.dp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 30.dp , vertical = 16.dp)
                             ) {
-                                Tab(
-                                    selected = selectedTabIndex == 0,
-                                    onClick = { selectedTabIndex = 0 },
-                                    selectedContentColor = accent,
-                                    unselectedContentColor = onTint.copy(alpha = 0.6f),
-                                    text = { Text(stringResource(R.string.tab_explore)) }
-                                )
-                                Tab(
-                                    selected = selectedTabIndex == 1,
-                                    onClick = { selectedTabIndex = 1 },
-                                    selectedContentColor = accent,
-                                    unselectedContentColor = onTint.copy(alpha = 0.6f),
-                                    text = { Text(stringResource(R.string.tab_Suggestions)) }
-                                )
-                                Tab(
-                                    selected = selectedTabIndex == 2,
-                                    onClick = { selectedTabIndex = 2 },
-                                    selectedContentColor = accent,
-                                    unselectedContentColor = onTint.copy(alpha = 0.6f),
-                                    text = { Text(stringResource(R.string.tab_album)) }
-                                )
+                                LiquidBottomTab(onClick = { selectedTabIndex = 0 }) {
+                                    Text(
+                                        text = stringResource(R.string.tab_explore),
+                                        color = if (selectedTabIndex == 0) accent else onTint.copy(alpha = 0.6f),
+                                    )
+                                }
+                                LiquidBottomTab(onClick = { selectedTabIndex = 1 }) {
+                                    Text(
+                                        text = stringResource(R.string.tab_Suggestions),
+                                        color = if (selectedTabIndex == 1) accent else onTint.copy(alpha = 0.6f),
+                                    )
+                                }
+                                LiquidBottomTab(onClick = { selectedTabIndex = 2 }) {
+                                    Text(
+                                        text = stringResource(R.string.tab_album),
+                                        color = if (selectedTabIndex == 2) accent else onTint.copy(alpha = 0.6f),
+                                    )
+                                }
                             }
                     }
                 }

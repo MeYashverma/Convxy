@@ -59,6 +59,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -127,6 +128,8 @@ import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.LinkSegment
+import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
@@ -154,12 +157,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.LocalAccentTextColor
 import com.convx.music.ui.theme.rememberBrandFontFamily
+import com.convx.music.ui.theme.rememberCustomArtistFontFamily
 import com.convx.music.ui.utils.backToMain
 import com.convx.music.ui.utils.rememberHeroZoom
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.utils.fadingEdge
-import com.convx.music.ui.utils.isScrollingUp
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.listItemShape
 import com.convx.music.utils.rememberPreference
@@ -247,7 +250,7 @@ fun ArtistScreen(
     val screenBackground = MaterialTheme.colorScheme.background
 
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val chromeShape = ContinuousRoundedRectangle(percent = 50)
     val chromeContentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
 
@@ -264,10 +267,32 @@ fun ArtistScreen(
     // no self-reference. (True artwork-refracting glass here would need a capture
     // layer rendered OUTSIDE the NavHost.)
     val heroBackdrop = rememberLayerBackdrop()
+
+    // A SECOND, ATTACHED backdrop: .layerBackdrop'd onto the LazyColumn below,
+    // which is a *sibling* of the floating chrome row below, not an ancestor —
+    // the chrome row samples a texture of already-drawn list content, it never
+    // captures its own draw pass, so no cycle (proven working the same way on
+    // the playlist/album screens — contrary to the note above, a capture layer
+    // outside the NavHost turned out not to be necessary).
     val heroZoom = rememberHeroZoom()
 
     val tint = rememberHeroTint(artistThumbnail)
     val onTint = com.convx.music.ui.theme.AppleTokens.onColor(tint)
+
+    // Fills the screen tint into the capture BEFORE the content, exactly like
+    // MainActivity's appBackdrop does with its own background. Without it the
+    // list records onto a transparent canvas (the tint is painted by the outer
+    // Box, outside this capture), so the blurred result is itself part
+    // transparent and the sharp content shows straight through it — the glass
+    // read as a doubled/ghosted image, or as no glass at all where the list is
+    // sparse. This is the difference that made the nav bar look right and these
+    // screens look wrong.
+    val listBackdrop = rememberLayerBackdrop(
+        onDraw = remember(tint) {
+            val bg = tint
+            { drawRect(bg); drawContent() }
+        }
+    )
 
     Box(
         modifier = Modifier
@@ -287,6 +312,13 @@ fun ArtistScreen(
             .asPaddingValues()
             .calculateStartPadding(LocalLayoutDirection.current)
 
+        // Capture from a plain Box wrapping the LazyColumn, not the LazyColumn's
+        // own modifier: LazyColumn promotes its items to their own RenderNodes
+        // for scroll recycling, which a capture attached directly to it doesn't
+        // reliably flatten (images came through, text/icons didn't). A plain
+        // Box one level up just sees "a fully-drawn child" and captures all of
+        // it, same as it would any other already-rendered composable.
+        Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
         LazyColumn(
             state = lazyListState,
             // No bounce here: the top pull drives the hero zoom instead.
@@ -449,7 +481,7 @@ fun ArtistScreen(
                                     Text(
                                         text = artistName?.lowercase() ?: "unknown",
                                         style = MaterialTheme.typography.headlineLarge,
-                                        fontFamily = rememberBrandFontFamily(),
+                                        fontFamily = rememberCustomArtistFontFamily() ?: rememberBrandFontFamily(),
                                         fontWeight = FontWeight.SemiBold,
                                         color = LocalAccentTextColor.current,
                                         maxLines = 2,
@@ -541,7 +573,7 @@ fun ArtistScreen(
                                             }
                                         },
                                         style = MaterialTheme.typography.headlineLarge,
-                                        fontFamily = rememberBrandFontFamily(),
+                                        fontFamily = rememberCustomArtistFontFamily() ?: rememberBrandFontFamily(),
                                         fontWeight = FontWeight.SemiBold,
                                         // The page's biggest heading: carries the artwork
                                         // tint plainly rather than flat content colour.
@@ -664,8 +696,10 @@ fun ArtistScreen(
                                 // description pushed them off the fold.
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.padding(top = 12.dp, bottom = 16.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 12.dp, bottom = 16.dp)
                                 ) {
                                     if (showArtistSubscriberCount) {
                                         artistPage?.subscriberCountText?.let { subscribers ->
@@ -1064,8 +1098,8 @@ fun ArtistScreen(
                 }
             }
         }
+        }
 
-        val isScrollingUp = lazyListState.isScrollingUp()
         val showLocalFab = librarySongs.isNotEmpty() && libraryArtist?.artist?.isLocal != true
         
         // Library/Local Toggle FAB
@@ -1079,149 +1113,6 @@ fun ArtistScreen(
             }
         )
         
-        // Play All FAB (Stacked above Library/Local FAB if visible)
-        val canPlayAll = !isGuest && (
-            (showLocal && librarySongs.isNotEmpty()) || 
-            (!showLocal && artistPage?.sections?.any { 
-                (it.items.firstOrNull() as? SongItem)?.album != null 
-            } == true)
-        )
-
-        if (canPlayAll) {
-             androidx.compose.animation.AnimatedVisibility(
-                visible = isScrollingUp,
-                enter = androidx.compose.animation.slideInVertically { it * 2 },
-                exit = androidx.compose.animation.slideOutVertically { it * 2 },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .windowInsetsPadding(
-                        LocalPlayerAwareWindowInsets.current
-                            .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
-                    )
-                    // Add padding to position it above the other FAB (56dp height + 16dp padding + 8dp spacing)
-                    // If the other FAB is visible.
-                    .padding(bottom = if (showLocalFab) 64.dp else 0.dp)
-            ) {
-                val onPlayAllClick: () -> Unit = {
-                     if (showLocal) {
-                         if (librarySongs.isNotEmpty()) {
-                            playerConnection.playQueue(
-                                ListQueue(
-                                    title = libraryArtist?.artist?.name ?: "Unknown Artist",
-                                    items = librarySongs.map { it.toMediaItem() }
-                                )
-                            )
-                        }
-                    } else if (artistPage != null) {
-                        val songSection = artistPage.sections.find { section ->
-                            (section.items.firstOrNull() as? SongItem)?.album != null
-                        }
-                        
-                        val moreEndpoint = songSection?.moreEndpoint
-                        if (moreEndpoint != null) {
-                            coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                val result = YouTube.artistItems(moreEndpoint).getOrNull()
-                                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                    if (result != null && result.items.isNotEmpty()) {
-                                        val songs = result.items.filterIsInstance<SongItem>().map { it.toMediaItem() }
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = artistPage.artist.title,
-                                                items = songs
-                                            )
-                                        )
-                                    } else {
-                                        // Fallback to loaded items
-                                        val songs = songSection.items.filterIsInstance<SongItem>().map { it.toMediaItem() }
-                                        if (songs.isNotEmpty()) {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = artistPage.artist.title,
-                                                    items = songs
-                                                )
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            } else if (songSection != null) {
-                            // Use loaded items if no more endpoint
-                            val songs = songSection.items.filterIsInstance<SongItem>().map { it.toMediaItem() }
-                            playerConnection.playQueue(
-                                ListQueue(
-                                    title = artistPage.artist.title,
-                                    items = songs
-                                )
-                            )
-                        } else {
-                            // Fallback to shuffle endpoint (stripped) if no song section found
-                            val shuffleEndpoint = artistPage.artist.shuffleEndpoint
-                            if (shuffleEndpoint != null) {
-                                val endpoint = if (shuffleEndpoint.playlistId != null) {
-                                    WatchEndpoint(
-                                        playlistId = shuffleEndpoint.playlistId,
-                                        params = null, // Remove shuffle params to play in order
-                                        videoId = null // Ensure videoId is null to start from beginning of playlist
-                                    )
-                                } else {
-                                    shuffleEndpoint
-                                }
-                                playerConnection.playQueue(YouTubeQueue(endpoint))
-                            }
-                        }
-                    }
-                }
-
-                val fabArtistId = artistPage?.artist?.id
-                val isCurrentArtistForFab = fabArtistId != null &&
-                    mediaMetadata?.artists?.any { it.id == fabArtistId } == true
-                if (showLocalFab) {
-                     androidx.compose.material3.SmallFloatingActionButton(
-                        modifier = Modifier.padding(16.dp).offset(x = (-4).dp), // Align center with standard FAB (56dp vs 48dp)
-                        onClick = {
-                            if (isPlaying && isCurrentArtistForFab) {
-                                playerConnection.player.pause()
-                            } else if (isCurrentArtistForFab) {
-                                playerConnection.player.play()
-                            } else {
-                                onPlayAllClick()
-                            }
-                        },
-                        containerColor = onTint,
-                        contentColor = tint
-                    ) {
-                        AnimatedPlayPauseIcon(
-                            isPlaying = isPlaying && isCurrentArtistForFab,
-                            tint = tint,
-                            size = 24.dp,
-                        )
-                    }
-                } else {
-                    androidx.compose.material3.FloatingActionButton(
-                        modifier = Modifier.padding(16.dp),
-                        onClick = {
-                            if (isPlaying && isCurrentArtistForFab) {
-                                playerConnection.player.pause()
-                            } else if (isCurrentArtistForFab) {
-                                playerConnection.player.play()
-                            } else {
-                                onPlayAllClick()
-                            }
-                        },
-                        containerColor = onTint,
-                        contentColor = tint
-                    ) {
-                        AnimatedPlayPauseIcon(
-                            isPlaying = isPlaying && isCurrentArtistForFab,
-                            tint = tint,
-                            size = 32.dp,
-                        )
-                    }
-                }
-            }
-        }
-
-
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
@@ -1234,6 +1125,9 @@ fun ArtistScreen(
         // Backed by a scrim that ramps from transparent to a dark shade as the
         // list scrolls past the hero art, so the buttons stay legible over
         // regular content too.
+        // GlassCircleButton below reads LocalAppBackdrop at its own composition
+        // point, so wrapping it here (not redeclaring a val above) is enough.
+        CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1286,6 +1180,7 @@ fun ArtistScreen(
                 )
             }
             }
+        }
         }
       }
     }

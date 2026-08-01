@@ -9,11 +9,7 @@
  * com.kyant.shapes.Capsule swapped for RoundedCornerShape(percent = 50) (the
  * lens effect only supports CornerBasedShape here — see GlassEffect.kt).
  *
- * Not wired into any screen yet — vendored for later use. This app's own
- * FloatingTabBar/FloatingSideBar (selection puck sync, InteractiveHighlight,
- * GlassEffectConfig-driven, shared-element transitions) already covers what
- * this and LiquidBottomTabs.kt provide, with more app-specific behavior built
- * on top — kept as reference/building blocks, not a replacement.
+ * Used directly by LiquidBottomTabs.kt — see that file for where it's wired in.
  */
 package com.convx.music.ui.component.backdrop.catalog.components
 

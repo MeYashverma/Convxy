@@ -45,13 +45,10 @@ object NextPage {
                 longByLineRuns
                     .getOrNull(1)
                     ?.firstOrNull()
-                    ?.takeIf {
-                        it.navigationEndpoint?.browseEndpoint != null
-                    }?.let {
-                        Album(
-                            name = it.text,
-                            id = it.navigationEndpoint?.browseEndpoint?.browseId!!,
-                        )
+                    ?.let { run ->
+                        run.navigationEndpoint?.browseEndpoint?.browseId?.let { browseId ->
+                            Album(name = run.text, id = browseId)
+                        }
                     },
             duration =
                 renderer.lengthText

@@ -65,6 +65,19 @@ import java.text.Collator
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+
+// Artist name -> id, process-lifetime. Song/album import (insert(mediaMetadata),
+// insert(albumPage)) previously ran one `SELECT * FROM artist WHERE name = :name`
+// per artist per song — for a 100-song playlist import with repeated artists,
+// that's hundreds of redundant round-trips for names already resolved earlier
+// in the same batch. Artist count is small relative to song count, so caching
+// the whole name->id mapping in memory is cheap and turns repeat lookups within
+// (and across) imports into O(1) hits instead of a DB query each.
+private val artistIdCache = ConcurrentHashMap<String, String>()
+
+private fun DatabaseDao.resolveArtistId(name: String): String? =
+    artistIdCache[name] ?: artistByName(name)?.id?.also { artistIdCache[name] = it }
 
 @Dao
 interface DatabaseDao {
@@ -1636,7 +1649,8 @@ interface DatabaseDao {
         if (insert(mediaMetadata.toSongEntity().let(block)) == -1L) return
 
         mediaMetadata.artists.forEachIndexed { index, artist ->
-            val artistId = artist.id ?: artistByName(artist.name)?.id ?: ArtistEntity.generateArtistId()
+            val artistId = artist.id ?: resolveArtistId(artist.name) ?: ArtistEntity.generateArtistId()
+            artistIdCache[artist.name] = artistId
 
             insert(
                 ArtistEntity(
@@ -1691,9 +1705,10 @@ interface DatabaseDao {
             }.forEach(::upsert)
         albumPage.album.artists
             ?.map { artist ->
+                val artistId = artist.id ?: resolveArtistId(artist.name) ?: ArtistEntity.generateArtistId()
+                artistIdCache[artist.name] = artistId
                 ArtistEntity(
-                    id = artist.id ?: artistByName(artist.name)?.id
-                    ?: ArtistEntity.generateArtistId(),
+                    id = artistId,
                     name = artist.name,
                 )
             }?.onEach(::insert)
@@ -1724,7 +1739,8 @@ interface DatabaseDao {
         )
         songArtistMap(song.id).forEach(::delete)
         mediaMetadata.artists.forEachIndexed { index, artist ->
-            val artistId = artist.id ?: artistByName(artist.name)?.id ?: ArtistEntity.generateArtistId()
+            val artistId = artist.id ?: resolveArtistId(artist.name) ?: ArtistEntity.generateArtistId()
+            artistIdCache[artist.name] = artistId
 
             insert(
                 ArtistEntity(
@@ -1815,9 +1831,10 @@ interface DatabaseDao {
             albumArtistMaps(album.id).forEach(::delete)
             artists
                 .map { artist ->
+                    val artistId = artist.id ?: resolveArtistId(artist.name) ?: ArtistEntity.generateArtistId()
+                    artistIdCache[artist.name] = artistId
                     ArtistEntity(
-                        id = artist.id ?: artistByName(artist.name)?.id
-                        ?: ArtistEntity.generateArtistId(),
+                        id = artistId,
                         name = artist.name,
                     )
                 }.onEach(::insert)

@@ -44,14 +44,25 @@ fun GlassCircleButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
-    size: Dp = 40.dp,
+    size: Dp = 44.dp,
     content: @Composable () -> Unit,
 ) {
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    // These float over content the same way the nav bar does and are meant to
+    // read as the same material, so they follow the nav bar's own on/off switch
+    // and its effect values rather than only the global one.
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
 
     val backgroundModifier = if (useGlass) {
-        Modifier.liquidGlass(config = glassConfig, shape = GlassCircleShape, highlightAlpha = 0.3f)
+        Modifier.liquidGlass(
+            config = glassConfig,
+            shape = GlassCircleShape,
+            highlightAlpha = 0.3f,
+            // backdropScale is left at liquidGlass's default
+            // (glassResolutionScale of the blur radius) so these record their
+            // backdrop at the same reduced resolution the nav bar uses instead
+            // of full res — the blur hides the upscale.
+        )
     } else {
         Modifier
             .clip(GlassCircleShape)

@@ -63,6 +63,7 @@ import com.convx.music.ui.component.HeroBackground
 import com.convx.music.ui.utils.rememberHeroZoom
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
+import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.YouTubeGridItem
@@ -119,7 +120,7 @@ fun YouTubeBrowseScreen(
     val onTint = AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val heroBackdrop = rememberLayerBackdrop()
 
     val heroZoom = rememberHeroZoom()

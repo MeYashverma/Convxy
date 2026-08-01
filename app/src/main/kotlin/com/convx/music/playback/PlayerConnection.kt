@@ -383,7 +383,17 @@ class PlayerConnection(
                 castHandler.skipToNext()
                 return
             }
+            Timber.tag(TAG).d(
+                "SKIP_DEBUG seekToNext() called: beforeIndex=${player.currentMediaItemIndex} " +
+                    "beforeId=${player.currentMediaItem?.mediaId} repeatMode=${player.repeatMode} " +
+                    "shuffle=${player.shuffleModeEnabled} hasNext=${player.hasNextMediaItem()} " +
+                    "nextIndex=${player.nextMediaItemIndex}"
+            )
             player.seekToNext()
+            Timber.tag(TAG).d(
+                "SKIP_DEBUG seekToNext() returned: afterIndex=${player.currentMediaItemIndex} " +
+                    "afterId=${player.currentMediaItem?.mediaId}"
+            )
             if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
                 player.prepare()
             }

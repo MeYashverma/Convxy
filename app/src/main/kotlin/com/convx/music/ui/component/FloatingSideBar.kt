@@ -185,8 +185,11 @@ fun AppFloatingSideBar(
     // Same finger-tracking glow the mini player carries: it follows the touch
     // across the whole panel, so every row lights up under the finger, not just
     // the tab group.
+    // radiusScale is much smaller than the default 1.5f: minDimension here is the
+    // panel's full width, not a row's — at the default scale the glow bloom
+    // covered several rows and buried the icon/label under the finger.
     val interactiveHighlight = remember(animationScope) {
-        InteractiveHighlight(animationScope = animationScope)
+        InteractiveHighlight(animationScope = animationScope, radiusScale = 0.3f)
     }
 
     val backgroundColor = when {

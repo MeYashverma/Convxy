@@ -283,6 +283,16 @@ class MusicService :
     private var crossfadeGapless = true
     private var crossfadeTriggerJob: Job? = null
 
+    // Mirrors of settings read at ExoPlayer construction time (initial player +
+    // crossfade's secondary player). Kept fresh by the dataStore.data collectors
+    // in onCreate so construction never blocks the (Main-dispatcher) service
+    // scope on a DataStore read — critical on the crossfade path, where a
+    // blocking read would stall audio right as the next track needs to start.
+    private var cachedSkipSilence = false
+    private var cachedSkipSilenceInstant = false
+    private var cachedOffloadEnabled = false
+    private var cachedAutoDjMixEnabled = false
+
     private val secondaryPlayerListener = object : Player.Listener {
         override fun onPlayerError(error: PlaybackException) {
             Timber.tag(TAG).e(error, "Secondary player error")
@@ -446,6 +456,19 @@ class MusicService :
     // Tempo-correction decision for the crossfade in progress, if DJ mixing
     // decided one — read in cleanupCrossfade() to know whether to revert speed.
     private var activeDjMixPlan: DjMixPlan? = null
+
+    // DJ-mix BPM pre-analysis: the incoming track's BPM is only knowable once
+    // it has actually played BpmAnalyzerAudioProcessor's analysis window, but
+    // startCrossfade() needs the estimate before the incoming track has played
+    // at all. This silently pre-plays the incoming track through a throwaway
+    // probe player at high speed (BpmAnalyzerAudioProcessor sits before Sonic
+    // in the chain, so it always sees real-time-equivalent content regardless
+    // of playback speed) so the estimate is cached well before crossfade time,
+    // without touching the real secondary player's start position.
+    private var djProbeJob: Job? = null
+    private var djProbePlayer: ExoPlayer? = null
+    private val DJ_PROBE_SPEED = 6f
+    private val DJ_PROBE_LEAD_MS = 8_000L
 
     // Track failed songs to prevent infinite retry loops
     private val recentlyFailedSongs = mutableSetOf<String>()
@@ -779,6 +802,9 @@ class MusicService :
             .map { (it[SkipSilenceKey] ?: false) to (it[SkipSilenceInstantKey] ?: false) }
             .distinctUntilChanged()
             .collectLatest(scope) { (skipSilence, instantSkip) ->
+                cachedSkipSilence = skipSilence
+                cachedSkipSilenceInstant = instantSkip
+
                 player.skipSilenceEnabled = skipSilence
                 secondaryPlayer?.skipSilenceEnabled = skipSilence
 
@@ -814,6 +840,7 @@ class MusicService :
              if (crossfadeEnabled) false else offloadPref
         }.distinctUntilChanged()
         .collectLatest(scope) { useOffload ->
+             cachedOffloadEnabled = useOffload
              player.setOffloadEnabled(useOffload)
              secondaryPlayer?.setOffloadEnabled(useOffload)
         }
@@ -928,6 +955,11 @@ class MusicService :
                 crossfadeGapless = gapless
             }
 
+        dataStore.data
+            .map { it[AutoDjMixingEnabledKey] ?: false }
+            .distinctUntilChanged()
+            .collect(scope) { cachedAutoDjMixEnabled = it }
+
         if (dataStore.get(PersistentQueueKey, true)) {
             val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
             if (queueFile.exists()) {
@@ -1033,7 +1065,7 @@ class MusicService :
         }
     }
 
-    private fun createExoPlayer(): ExoPlayer {
+    private fun createExoPlayer(publishAsActive: Boolean = true): ExoPlayer {
         val eqProcessor = CustomEqualizerAudioProcessor()
         equalizerService.addAudioProcessor(eqProcessor)
 
@@ -1053,12 +1085,11 @@ class MusicService :
         )
         bpmAnalyzerRef = bpmAnalyzer
 
-        // Set initial state
-        runBlocking {
-            val skipSilence = dataStore.get(SkipSilenceKey, false)
-            val instantSkip = dataStore.get(SkipSilenceInstantKey, false)
-            silenceProcessor.instantModeEnabled = skipSilence && instantSkip
-        }
+        // Set initial state from the cached mirrors (kept fresh by the
+        // dataStore.data collectors in onCreate) rather than blocking here —
+        // this runs on the crossfade path too, where a blocking DataStore read
+        // would stall audio right as the next track needs to start.
+        silenceProcessor.instantModeEnabled = cachedSkipSilence && cachedSkipSilenceInstant
 
         val player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
@@ -1093,17 +1124,13 @@ class MusicService :
         playerBpmAnalyzers[player] = bpmAnalyzer
 
         player.apply {
-                runBlocking {
-                    val offload = dataStore.get(AudioOffload, false)
-                    val crossfade = dataStore.get(CrossfadeEnabledKey, false)
-                    setOffloadEnabled(if (crossfade) false else offload)
-                    skipSilenceEnabled = dataStore.get(SkipSilenceKey, false)
-                }
+                setOffloadEnabled(cachedOffloadEnabled)
+                skipSilenceEnabled = cachedSkipSilence
                 addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
 
                 // Cleanup handled manually in onDestroy/release
             }
-        _playerFlow.value = player
+        if (publishAsActive) _playerFlow.value = player
         return player
     }
 
@@ -1726,15 +1753,20 @@ class MusicService :
                 // Build new shuffle order: current -> newly inserted (in insertion order) -> rest
                 val nextBlock = (insertIndex until (insertIndex + items.size)).toList()
                 val finalOrder = IntArray(size)
+                // Tracks which window indices have already been placed, so the
+                // safety-net fill below is an O(1) lookup per slot instead of an
+                // O(n) IntArray.contains scan — O(n^2) on a large queue otherwise.
+                val placed = BooleanArray(size)
                 var pos = 0
                 finalOrder[pos++] = currentIndex
-                nextBlock.forEach { if (it in 0 until size) finalOrder[pos++] = it }
-                existingOrder.forEach { if (pos < size) finalOrder[pos++] = it }
+                placed[currentIndex] = true
+                nextBlock.forEach { if (it in 0 until size) { finalOrder[pos++] = it; placed[it] = true } }
+                existingOrder.forEach { if (pos < size) { finalOrder[pos++] = it; placed[it] = true } }
 
                 // Fill any missing indices (safety) to ensure a full permutation
                 if (pos < size) {
                     for (i in 0 until size) {
-                        if (!finalOrder.contains(i)) {
+                        if (!placed[i]) {
                             finalOrder[pos++] = i
                             if (pos == size) break
                         }
@@ -1948,6 +1980,12 @@ class MusicService :
         mediaItem: MediaItem?,
         reason: Int,
     ) {
+        Timber.tag(TAG).d(
+            "SKIP_DEBUG onMediaItemTransition: reason=$reason (0=REPEAT,1=AUTO,2=SEEK,3=PLAYLIST_CHANGED) " +
+                "newIndex=${player.currentMediaItemIndex} newId=${mediaItem?.mediaId} " +
+                "prevTrackedIndex=$previousMediaItemIndex mediaItemCount=${player.mediaItemCount} " +
+                "repeatMode=${player.repeatMode} shuffle=${player.shuffleModeEnabled}"
+        )
         // Force Repeat One if the player ignored it and auto-advanced
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
             val repeatMode = runBlocking { dataStore.get(RepeatModeKey, REPEAT_MODE_OFF) }
@@ -1955,6 +1993,7 @@ class MusicService :
                 previousMediaItemIndex != C.INDEX_UNSET &&
                 previousMediaItemIndex != player.currentMediaItemIndex) {
 
+                Timber.tag(TAG).d("SKIP_DEBUG onMediaItemTransition: forcing repeat-one seekTo($previousMediaItemIndex)")
                 player.seekTo(previousMediaItemIndex, 0)
             }
         }
@@ -3371,6 +3410,7 @@ class MusicService :
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
+        releaseDjProbe()
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
@@ -3549,6 +3589,12 @@ class MusicService :
         newPosition: Player.PositionInfo,
         reason: Int
     ) {
+        Timber.tag(TAG).d(
+            "SKIP_DEBUG onPositionDiscontinuity: reason=$reason (0=REPEAT,1=SEEK,2=SEEK_ADJUSTMENT," +
+                "3=SKIP,4=REMOVE,5=INTERNAL) oldIndex=${oldPosition.mediaItemIndex} " +
+                "oldId=${oldPosition.mediaItem?.mediaId} newIndex=${newPosition.mediaItemIndex} " +
+                "newId=${newPosition.mediaItem?.mediaId} crossfadeEnabled=$crossfadeEnabled"
+        )
         if (reason == Player.DISCONTINUITY_REASON_SEEK) {
             scheduleCrossfade()
         }
@@ -3557,6 +3603,7 @@ class MusicService :
     private fun scheduleCrossfade() {
         crossfadeTriggerJob?.cancel()
         crossfadeTriggerJob = null
+        releaseDjProbe()
         if (!crossfadeEnabled || player.duration == C.TIME_UNSET || player.duration <= crossfadeDuration) return
         if (crossfadeGapless && isNextItemGapless()) return
         if (!player.hasNextMediaItem() && player.repeatMode != REPEAT_MODE_ONE) return
@@ -3567,12 +3614,85 @@ class MusicService :
 
         val targetMediaId = player.currentMediaItem?.mediaId
 
+        if (cachedAutoDjMixEnabled) {
+            val probeDelayMs = delayMs - DJ_PROBE_LEAD_MS
+            val targetIndex = if (player.repeatMode == REPEAT_MODE_ONE) {
+                player.currentMediaItemIndex
+            } else {
+                player.nextMediaItemIndex
+            }
+            if (probeDelayMs > 0 && targetIndex != C.INDEX_UNSET) {
+                val incomingItem = player.getMediaItemAt(targetIndex)
+                if (!bpmCache.containsKey(incomingItem.mediaId)) {
+                    scheduleDjBpmProbe(incomingItem, probeDelayMs, targetMediaId)
+                }
+            }
+        }
+
         crossfadeTriggerJob = scope.launch {
             delay(delayMs)
             if (isActive && player.isPlaying && player.currentMediaItem?.mediaId == targetMediaId && !sleepTimer.pauseWhenSongEnd) {
-                startCrossfade()
+                // Sanity re-check before actually firing: player.duration read
+                // right after a seek/media-item transition (where this job is
+                // scheduled from) isn't always settled yet, so delayMs can end
+                // up far too short — this fired way earlier than the real
+                // trigger point would, crossfading back into "next" (often the
+                // previous track on a short/looping queue) mid-song instead of
+                // near its end. Re-derive from live state; if we're genuinely
+                // not close to the end yet, reschedule fresh instead of firing.
+                val liveTriggerTime = player.duration - crossfadeDuration.toLong()
+                val prematureToleranceMs = 1500L
+                if (player.duration != C.TIME_UNSET &&
+                    player.currentPosition < liveTriggerTime - prematureToleranceMs
+                ) {
+                    scheduleCrossfade()
+                } else {
+                    startCrossfade()
+                }
             }
         }
+    }
+
+    /** Silently pre-plays [incomingItem] through a throwaway muted player at
+     *  [DJ_PROBE_SPEED]x so BpmAnalyzerAudioProcessor can cache a BPM estimate
+     *  for it well before the real crossfade needs one — see the djProbeJob
+     *  field comment. [currentTargetMediaId] guards against a stale probe
+     *  outliving the track it was scheduled for. */
+    private fun scheduleDjBpmProbe(incomingItem: MediaItem, afterMs: Long, currentTargetMediaId: String?) {
+        djProbeJob = scope.launch {
+            delay(afterMs)
+            if (!isActive || player.currentMediaItem?.mediaId != currentTargetMediaId) return@launch
+            if (bpmCache.containsKey(incomingItem.mediaId)) return@launch
+            try {
+                val probe = createExoPlayer(publishAsActive = false)
+                djProbePlayer = probe
+                probe.setMediaItem(incomingItem)
+                probe.volume = 0f
+                probe.playbackParameters = PlaybackParameters(DJ_PROBE_SPEED, 1f)
+                probe.prepare()
+                probe.playWhenReady = true
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "DJ BPM probe failed to start")
+                releaseDjProbe()
+            }
+        }
+    }
+
+    private fun releaseDjProbe() {
+        djProbeJob?.cancel()
+        djProbeJob = null
+        djProbePlayer?.let { probe ->
+            playerBpmAnalyzers.remove(probe)
+            playerSilenceProcessors.remove(probe)
+            playerStallWatchdogs.remove(probe)
+            try {
+                probe.stop()
+                probe.clearMediaItems()
+                probe.release()
+            } catch (_: Exception) {
+            }
+        }
+        djProbePlayer = null
     }
 
     private fun isNextItemGapless(): Boolean {
@@ -3585,11 +3705,15 @@ class MusicService :
 
     private fun startCrossfade() {
         if (isCrossfading) return
+        releaseDjProbe()
 
-        // Preserve player state before creating the secondary player
-        // Use runBlocking to ensure we get the correct state from DataStore
-        val savedRepeatMode = runBlocking { dataStore.get(RepeatModeKey, REPEAT_MODE_OFF) }
-        val savedShuffleEnabled = runBlocking { dataStore.get(ShuffleModeKey, false) }
+        // Preserve player state before creating the secondary player. The live
+        // ExoPlayer instance is always the authoritative, already-in-memory
+        // source of truth for these — reading DataStore here would just be a
+        // blocking round-trip to re-derive what `player` already holds, right
+        // as the next track needs to start.
+        val savedRepeatMode = player.repeatMode
+        val savedShuffleEnabled = player.shuffleModeEnabled
 
         // For repeat-one, crossfade back into the same track
         val targetIndex = if (savedRepeatMode == REPEAT_MODE_ONE) {
@@ -3605,7 +3729,7 @@ class MusicService :
         // processor, same mechanism as the playback-speed setting. EQ sweep/
         // reverb/delay are built (BpmAnalyzerAudioProcessor, DjMixPlanner,
         // DelayAudioProcessor) but deliberately not wired into this live path yet.
-        val djMixEnabled = runBlocking { dataStore.get(AutoDjMixingEnabledKey, false) }
+        val djMixEnabled = cachedAutoDjMixEnabled
         activeDjMixPlan = if (djMixEnabled) {
             val outgoingMediaId = player.currentMediaItem?.mediaId
             val incomingMediaId = player.getMediaItemAt(targetIndex).mediaId

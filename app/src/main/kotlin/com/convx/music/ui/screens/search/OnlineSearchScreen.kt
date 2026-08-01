@@ -139,10 +139,11 @@ fun OnlineSearchScreen(
         contentPadding = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom).asPaddingValues(),
         modifier = Modifier
             .fillMaxSize()
-            // Transparent so the caller's own blurred hero backdrop shows through
-            // instead of this screen painting over it — pureBlack still wants a
-            // flat black, not a see-through one.
-            .then(if (pureBlack) Modifier.background(Color.Black) else Modifier)
+            // Transparent so the caller's own blurred hero backdrop (and home
+            // background image, if the user has one set) shows through instead
+            // of this screen painting over it. The rest of the search flow
+            // (title, tabs) doesn't special-case pureBlack either — this used
+            // to override with flat black regardless, hiding the image.
     ) {
         if (viewState.history.isNotEmpty()) {
             item(key = "history_header") {
@@ -356,7 +357,6 @@ fun OnlineSearchScreen(
                             }
                         }
                     )
-                    .then(if (pureBlack) Modifier.background(Color.Black) else Modifier)
                     .animateItem()
             )
         }

@@ -12,6 +12,8 @@ import com.convx.music.utils.cipher.CipherDeobfuscator
 import com.convx.music.utils.PlaybackLogManager
 import com.convx.music.utils.PlaybackLogLevel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicInteger
@@ -30,6 +32,13 @@ object BotDetectionMitigator {
     private const val TAG = "BotDetectionMitigator"
 
     private val failureCount = AtomicInteger(0)
+
+    // Guards rotateGuestSession(): several concurrent playback/download failures
+    // can each call it at once (e.g. DownloadUtil launches one coroutine per
+    // queued song). Without this, each caller independently nulls out then
+    // re-fetches visitorData in parallel — a slower fetch can clobber a faster
+    // one's freshly-issued token, and requests in between see a null window.
+    private val rotationMutex = Mutex()
 
     // Error reasons that indicate geographic restriction – NOT a bot signal.
     // IMPORTANT: Keep these specific to avoid false positives.
@@ -78,14 +87,14 @@ object BotDetectionMitigator {
     /**
      * Rotates the guest session by obtaining a fresh visitorData token while preserving locale.
      */
-    suspend fun rotateGuestSession() {
+    suspend fun rotateGuestSession() = rotationMutex.withLock {
         Timber.tag(TAG).i("Rotating guest session to bypass bot detection...")
         PlaybackLogManager.log(
-            PlaybackLogLevel.BOT, 
-            "Rotating guest session", 
+            PlaybackLogLevel.BOT,
+            "Rotating guest session",
             "Bypassing bot detection by refreshing visitorData (locale preserved)"
         )
-        
+
         withContext(Dispatchers.IO) {
             // Snapshot locale so the new token is issued for the user's actual region.
             val currentLocale = YouTube.locale

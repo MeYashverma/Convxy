@@ -562,7 +562,7 @@ fun WelcomePagerScreen(onFinished: () -> Unit) {
                                 )
                             },
                             onClick = {
-                                uriHandler.safeOpenUri(context, "https://discord.gg/KC9BE5Vqud")
+                                uriHandler.safeOpenUri(context, "https://discord.gg/Ejeb4cmzfd")
                             }
                         )
 

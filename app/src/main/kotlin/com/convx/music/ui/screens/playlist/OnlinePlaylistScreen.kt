@@ -27,6 +27,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -132,6 +133,8 @@ import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.ChromeScrim
 import com.convx.music.ui.component.rememberChromeScrimProgress
 import com.convx.music.ui.component.IconButton
+import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.backdrop.backdrops.LayerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
@@ -294,7 +297,7 @@ fun OnlinePlaylistScreen(
     )
 
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val chromeShape = ContinuousRoundedRectangle(percent = 50)
     val chromeContentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
 
@@ -302,6 +305,13 @@ fun OnlinePlaylistScreen(
     // early-returns → translucent frosted surface, no RenderNode self-reference.
     // See ArtistScreen.kt for the full explanation of the cycle this avoids.
     val heroBackdrop = rememberLayerBackdrop()
+
+    // A SECOND, ATTACHED backdrop: .layerBackdrop'd onto the LazyColumn below,
+    // which is a *sibling* of the floating chrome row, not an ancestor — the
+    // chrome row samples a texture of already-drawn list content, it never
+    // captures its own draw pass, so no cycle. This is what lets the chrome
+    // buttons show real blurred list/hero content instead of heroBackdrop's
+    // flat empty-capture fallback.
     val heroZoom = rememberHeroZoom()
 
     val heroSource = rememberHeroSource (
@@ -310,6 +320,21 @@ fun OnlinePlaylistScreen(
     )
     val tint = rememberHeroTint(playlist?.thumbnail)
     val onTint = com.convx.music.ui.theme.AppleTokens.onColor(tint)
+
+    // Fills the screen tint into the capture BEFORE the content, exactly like
+    // MainActivity's appBackdrop does with its own background. Without it the
+    // list records onto a transparent canvas (the tint is painted by the outer
+    // Box, outside this capture), so the blurred result is itself part
+    // transparent and the sharp content shows straight through it — the glass
+    // read as a doubled/ghosted image, or as no glass at all where the list is
+    // sparse. This is the difference that made the nav bar look right and these
+    // screens look wrong.
+    val listBackdrop = rememberLayerBackdrop(
+        onDraw = remember(tint) {
+            val bg = tint
+            { drawRect(bg); drawContent() }
+        }
+    )
 
     Box(
         modifier = Modifier
@@ -324,6 +349,13 @@ fun OnlinePlaylistScreen(
         } else {
             Modifier.background(LocalContentColor.current.copy(alpha = 0.15f), chromeShape)
         }
+        // Capture from a plain Box wrapping the LazyColumn, not the LazyColumn's
+        // own modifier: LazyColumn promotes its items to their own RenderNodes
+        // for scroll recycling, which a capture attached directly to it doesn't
+        // reliably flatten (images came through, text/icons didn't). A plain
+        // Box one level up just sees "a fully-drawn child" and captures all of
+        // it, same as it would any other already-rendered composable.
+        Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
         LazyColumn(
             state = lazyListState,
             // No bounce here: the top pull drives the hero zoom instead.
@@ -365,7 +397,7 @@ fun OnlinePlaylistScreen(
                         }
                     }
 
-                    itemsIndexed(filteredSongs) { index, (_, songItem) ->
+                    itemsIndexed(filteredSongs, key = { _, (_, item) -> item.id }) { index, (_, songItem) ->
                         val onCheckedChange: (Boolean) -> Unit = {
                             if (it) {
                                 selection.add(songItem.id)
@@ -458,7 +490,7 @@ fun OnlinePlaylistScreen(
                                     .fillMaxWidth()
                                     .animateItem()
                             ) {
-                                items(relatedItems) { item ->
+                                items(relatedItems, key = { it.id }) { item ->
                                     YouTubeGridItem(
                                         item = item,
                                         modifier = Modifier
@@ -513,12 +545,20 @@ fun OnlinePlaylistScreen(
                 }
             }
         }
+        }
 
         // Floating glass chrome over the tinted background, replacing the
         // Material TopAppBar. Select mode and in-place search keep their exact
         // prior behavior, just restyled containers; the title still only fades
         // in once scrolled past the hero, same as before.
         val chromeScrimProgress = rememberChromeScrimProgress(lazyListState)
+        // Built INSIDE the provider so liquidGlass captures listBackdrop (the
+        // LazyColumn's own recorded content, a sibling — see its declaration
+        // above), not the root appBackdrop — sampling appBackdrop here is the
+        // RenderNode cycle. listBackdrop is attached (unlike heroBackdrop), so
+        // this chrome actually shows blurred list/hero content, not just a
+        // flat tinted fallback.
+        CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -676,6 +716,7 @@ fun OnlinePlaylistScreen(
             }
         }
         }
+        }
 
         SnackbarHost(
             hostState = snackbarHostState,
@@ -714,7 +755,7 @@ private fun OnlinePlaylistHeader(
     // top bar — recomputed here since this is a separate composable function.
     val artworkColors = rememberArtworkTint(playlist.thumbnail)
     val glassConfig = LocalGlassEffectConfig.current
-    val useGlass = glassConfig.globalEnabled && isGlassAllowed()
+    val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val chromeShape = ContinuousRoundedRectangle(percent = 50)
     val chromeContentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
     val chromeBackgroundModifier = if (useGlass) {
@@ -785,13 +826,19 @@ private fun OnlinePlaylistHeader(
                     }
 
                     // Play Button (Center - Large Circle)
-                    Surface(
+                    // playlist.id is a YouTube playlist id, never equal to a
+                    // song's albumId — that comparison was always false, so this
+                    // never showed "pause" and always restarted the queue on tap.
+                    // Membership of the current song in this playlist's own list
+                    // is the same "is this the active context" heuristic
+                    // AlbumScreen uses (there, albumId happens to match directly).
+                    val isPlayingThisPlaylist = isPlaying && songs.any { it.id == mediaMetadata?.id }
+                    GlassCircleButton(
                         onClick = {
                             if (songs.isNotEmpty()) {
-                                val isCurrentPlaylist = isPlaying && mediaMetadata?.album?.id == playlist.id
-                                if (isCurrentPlaylist) {
+                                if (isPlayingThisPlaylist) {
                                     playerConnection.player.pause()
-                                } else if (mediaMetadata?.album?.id == playlist.id) {
+                                } else if (songs.any { it.id == mediaMetadata?.id }) {
                                     playerConnection.player.play()
                                 } else {
                                     playerConnection.playQueue(
@@ -805,17 +852,12 @@ private fun OnlinePlaylistHeader(
                                 }
                             }
                         },
-                        shape = CircleShape,
-                        color = LocalContentColor.current,
-                        modifier = Modifier.size(72.dp)
+                        size = 72.dp,
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            AnimatedPlayPauseIcon(
-                                isPlaying = isPlaying && mediaMetadata?.album?.id == playlist.id,
-                                tint = tint,
-                                size = 32.dp,
-                            )
-                        }
+                        AnimatedPlayPauseIcon(
+                            isPlaying = isPlayingThisPlaylist,
+                            size = 32.dp,
+                        )
                     }
 
                     // Save Button (Right - Circular)

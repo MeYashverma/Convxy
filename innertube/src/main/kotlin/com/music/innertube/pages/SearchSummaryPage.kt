@@ -96,11 +96,10 @@ data class SearchSummaryPage(
                                 )
                             } ?: return null,
                         album =
-                            subtitle.getOrNull(2)?.firstOrNull()?.takeIf { it.navigationEndpoint?.browseEndpoint != null }?.let {
-                                Album(
-                                    name = it.text,
-                                    id = it.navigationEndpoint?.browseEndpoint?.browseId!!,
-                                )
+                            subtitle.getOrNull(2)?.firstOrNull()?.let { run ->
+                                run.navigationEndpoint?.browseEndpoint?.browseId?.let { browseId ->
+                                    Album(name = run.text, id = browseId)
+                                }
                             },
                         duration =
                             subtitle
@@ -250,11 +249,10 @@ data class SearchSummaryPage(
                                 id = it.navigationEndpoint?.browseEndpoint?.browseId
                             )
                         } ?: return null,
-                        album = listRun.getOrNull(1)?.firstOrNull()?.takeIf { it.navigationEndpoint?.browseEndpoint != null }?.let {
-                            Album(
-                                name = it.text,
-                                id = it.navigationEndpoint?.browseEndpoint?.browseId!!
-                            )
+                        album = listRun.getOrNull(1)?.firstOrNull()?.let { run ->
+                            run.navigationEndpoint?.browseEndpoint?.browseId?.let { browseId ->
+                                Album(name = run.text, id = browseId)
+                            }
                         },
                         duration =
                             secondaryLine

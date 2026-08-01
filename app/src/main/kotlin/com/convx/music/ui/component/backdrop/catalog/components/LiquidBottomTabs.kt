@@ -9,12 +9,11 @@
  * com.kyant.shapes.Capsule swapped for RoundedCornerShape(percent = 50) (the
  * lens effect only supports CornerBasedShape here — see GlassEffect.kt).
  *
- * Not wired into any screen yet — vendored for later use. This app's own
- * FloatingTabBar/FloatingSideBar (selection puck sync between phone bar and
- * tablet sidebar, InteractiveHighlight, GlassEffectConfig-driven, shared-element
- * transitions, search-tab morphing) already covers what this provides, with
- * more app-specific behavior built on top — kept as reference/building blocks,
- * not a replacement.
+ * Used directly by SearchScreen's Explore/Suggestions/Album pill selector.
+ * This app's own FloatingTabBar/FloatingSideBar (selection puck sync between
+ * phone bar and tablet sidebar, InteractiveHighlight, GlassEffectConfig-driven,
+ * shared-element transitions, search-tab morphing) still handles primary nav —
+ * this component is for smaller in-screen segmented pills.
  */
 package com.convx.music.ui.component.backdrop.catalog.components
 
@@ -50,6 +49,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -81,15 +81,21 @@ fun LiquidBottomTabs(
     backdrop: Backdrop,
     tabsCount: Int,
     modifier: Modifier = Modifier,
+    // Nav-bar pill defaults; pass a caller color/height to blend into a
+    // specific screen (e.g. that screen's own hero tint) instead.
+    containerColor: Color? = null,
+    height: Dp = 64.dp,
     content: @Composable RowScope.() -> Unit
 ) {
     val isLightTheme = !isSystemInDarkTheme()
     val accentColor =
         if (isLightTheme) Color(0xFF0088FF)
         else Color(0xFF0091FF)
-    val containerColor =
+    val resolvedContainerColor = containerColor ?: (
         if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
         else Color(0xFF121212).copy(0.4f)
+    )
+    val innerHeight = height * 0.875f
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -195,10 +201,10 @@ fun LiquidBottomTabs(
                         scaleX = scale
                         scaleY = scale
                     },
-                    onDrawSurface = { drawRect(containerColor) }
+                    onDrawSurface = { drawRect(resolvedContainerColor) }
                 )
                 .then(interactiveHighlight.modifier)
-                .height(64f.dp)
+                .height(height)
                 .fillMaxWidth()
                 .padding(4f.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -234,10 +240,10 @@ fun LiquidBottomTabs(
                             val progress = dampedDragAnimation.pressProgress
                             Highlight.Default.copy(alpha = progress)
                         },
-                        onDrawSurface = { drawRect(containerColor) }
+                        onDrawSurface = { drawRect(resolvedContainerColor) }
                     )
                     .then(interactiveHighlight.modifier)
-                    .height(56f.dp)
+                    .height(innerHeight)
                     .fillMaxWidth()
                     .padding(horizontal = 4f.dp)
                     .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
@@ -299,7 +305,7 @@ fun LiquidBottomTabs(
                         drawRect(Color.Black.copy(alpha = 0.03f * progress))
                     }
                 )
-                .height(56f.dp)
+                .height(innerHeight)
                 .fillMaxWidth(1f / tabsCount)
         )
     }

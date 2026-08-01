@@ -62,7 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -335,16 +335,16 @@ private fun ListeningState(
             Box(
                 modifier = Modifier
                     .size(200.dp)
-                    .scale(scale)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             )
-            
+
             // Inner pulsing ring
             Box(
                 modifier = Modifier
                     .size(180.dp)
-                    .scale(scale * 0.9f)
+                    .graphicsLayer { scaleX = scale * 0.9f; scaleY = scale * 0.9f }
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
             )

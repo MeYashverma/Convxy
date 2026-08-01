@@ -140,8 +140,13 @@ fun LoginScreen(
                         }
                         @JavascriptInterface
                         fun onRetrieveDataSyncId(newDataSyncId: String?) {
+                            // Kept whole, not truncated at "||" — that suffix is
+                            // what distinguishes a brand/second channel from the
+                            // account's primary identity. Stripping it meant the
+                            // app could only ever authenticate as the primary
+                            // channel no matter which one was active.
                             if (newDataSyncId != null) {
-                                dataSyncId = newDataSyncId.substringBefore("||")
+                                dataSyncId = newDataSyncId
                             }
                         }
                     }, "Android")

@@ -85,6 +85,8 @@ import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.LocalNavSearchState
 import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.YouTubeListItem
+import com.convx.music.ui.component.HomeImageBackground
+import com.convx.music.ui.component.rememberAppBackgroundTint
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
@@ -255,6 +257,12 @@ fun OnlineSearchResult(
     val tint = rememberHeroTint(heroUrl)
     val onTint = AppleTokens.onColor(tint)
 
+    // The suggestions/"hint" overlay below (shown while re-typing on this results
+    // page) tints from the app's home background image, not this page's own
+    // search-result hero — matching the initial SearchScreen's header tint.
+    val hintTint = rememberAppBackgroundTint(AppleTokens.BgElevated)
+    val hintOnTint = AppleTokens.onColor(hintTint)
+
     val heroBackdrop = rememberLayerBackdrop()
 
     val context = LocalContext.current
@@ -419,12 +427,14 @@ fun OnlineSearchResult(
                     // straight onto a screen's own hero blur on SearchScreen) — but
                     // here it overlays on top of the results list, not empty space,
                     // so it needs its own opaque backing or the list bleeds through.
-                    // Same tint this screen already uses, not a fresh blur pass.
+                    // Tinted from the app's home background image (like the initial
+                    // SearchScreen), not from this results page's search-result hero.
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(tint)
+                            .background(hintTint)
                     ) {
+                        HomeImageBackground()
                         OnlineSearchScreen(
                             query = navSearch.query.text,
                             onQueryChange = navSearch.onQueryChange,
@@ -432,7 +442,7 @@ fun OnlineSearchResult(
                             onSearch = navSearch.onSubmit,
                             onDismiss = navSearch.onCloseKeyboard,
                             pureBlack = pureBlack,
-                            contentColor = onTint,
+                            contentColor = hintOnTint,
                         )
                     }
                 }

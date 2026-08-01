@@ -26,6 +26,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,6 +49,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,6 +57,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -83,6 +86,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -92,10 +96,17 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -296,6 +307,68 @@ import kotlin.time.Duration.Companion.milliseconds
  * repeat work when a song recurs in a session.
  */
 private val themeColorCache = android.util.LruCache<String, androidx.compose.ui.graphics.Color>(64)
+
+/**
+ * Fraction of the surface resolution the top bar's blur layers record their
+ * backdrop at — matching [com.convx.music.ui.component.MIN_GLASS_RESOLUTION_SCALE],
+ * the floor the nav bar's own glass already uses for heavy blur. The strip is two
+ * full-width captures per frame, and at these radii the blur completely hides the
+ * upscale.
+ */
+private const val TopBarBackdropScale = 0.33f
+
+/**
+ * Drives whether the top bar's blur/scrim strip is drawn at all: shown while the
+ * list is at the top and while the user is scrolling back up, hidden once they
+ * scroll down into the content. Without this the darkened strip sits over every
+ * screen permanently.
+ *
+ * MainActivity doesn't own any screen's list state — the nested scroll stream is
+ * the only app-level scroll signal available here, so direction is tracked from
+ * the deltas rather than read off a LazyListState.
+ */
+@Stable
+private class TopBarChromeVisibility {
+    var visible by mutableStateOf(true)
+        private set
+
+    /** True while the content is against its top edge. */
+    private var atTop = true
+
+    val connection = object : NestedScrollConnection {
+        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            // Finger moving down (positive y) scrolls the content back up.
+            val dy = available.y
+            if (dy > ScrollSlopPx) {
+                visible = true
+            } else if (dy < -ScrollSlopPx && !atTop) {
+                visible = false
+            }
+            return Offset.Zero
+        }
+
+        override fun onPostScroll(
+            consumed: Offset,
+            available: Offset,
+            source: NestedScrollSource,
+        ): Offset {
+            // Leftover downward delta the list could not consume means it is
+            // already pinned at its top edge.
+            if (available.y > 0f) {
+                atTop = true
+                visible = true
+            } else if (consumed.y != 0f) {
+                atTop = false
+            }
+            return Offset.Zero
+        }
+    }
+
+    private companion object {
+        /** Ignore sub-pixel jitter so the strip doesn't flicker while settling. */
+        const val ScrollSlopPx = 1.5f
+    }
+}
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -653,8 +726,10 @@ class MainActivity : ComponentActivity() {
                 // 0 (fully transparent, unreachable from the color picker) marks the
                 // theme-adaptive default tint.
                 // 0 = theme-adaptive tint (a lighter frosted grey) rather than a
-                // fixed dark chip — the dark default read as a near-black bar.
-                val (liquidGlassSurfaceTintColorInt) = rememberPreference(LiquidGlassSurfaceTintColorKey, defaultValue = Color(0xFF1A1A1A).toArgb())
+                // fixed dark chip — the dark default read as a near-black bar (and
+                // an invisible button surface over a dark hero, e.g. the playlist
+                // action buttons).
+                val (liquidGlassSurfaceTintColorInt) = rememberPreference(LiquidGlassSurfaceTintColorKey, defaultValue = 0)
                 val (liquidGlassSurfaceOpacity) = rememberPreference(LiquidGlassSurfaceOpacityKey, defaultValue = 0.5f)
                 val (liquidGlassTextColorInt) = rememberPreference(LiquidGlassTextColorKey, defaultValue = Color.White.toArgb())
                 val (liquidGlassPlayerEnabled) = rememberPreference(LiquidGlassPlayerEnabledKey, defaultValue = true)
@@ -911,6 +986,10 @@ class MainActivity : ComponentActivity() {
                     },
                 )
 
+                // Shows the top bar's blur/scrim strip only at the top of a list
+                // or while scrolling back up — see TopBarChromeVisibility.
+                val topBarChrome = remember { TopBarChromeVisibility() }
+
                 // Navigation tracking
                 LaunchedEffect(navBackStackEntry) {
                     // Only the results route (search/{query}) carries a query arg;
@@ -1080,7 +1159,15 @@ class MainActivity : ComponentActivity() {
                         searchVisualOverride = false
                         coroutineScope.launch {
                             delay(SearchNavTransitionDelayMs)
-                            navController.navigateUp()
+                            // Pop the WHOLE search flow, not a single level. Searching
+                            // pushes search_input and then search/{query} on top of it,
+                            // so navigateUp() from a results screen landed on the hint
+                            // screen — which renders nothing once the keyboard is closed,
+                            // and read as "the screen I came from lost all its content".
+                            // Cancelling search must return to whatever preceded it.
+                            if (!navController.popBackStack(Screens.Search.route, inclusive = true)) {
+                                navController.navigateUp()
+                            }
                             searchVisualOverride = null
                         }
                     }
@@ -1146,32 +1233,132 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Row {
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-                                            .drawPlainBackdrop(
-                                                backdrop = LocalAppBackdrop.current,
-                                                shape = { RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp) },
-                                                effects = {
-                                                    if (isRenderEffectSupported()) {
-                                                        blur(20f)
-                                                    }
-                                                },
-                                                onDrawSurface = {
-                                                    // Progressive darkening scrim ON TOP of the blurred
-                                                    // backdrop but BEHIND the sharp content (drawContent).
-                                                    drawRect(
-                                                        brush = Brush.verticalGradient(
-                                                            colors = listOf(
-                                                                Color.Black.copy(alpha = 0.55f),
-                                                                Color.Black.copy(alpha = 0.20f),
-                                                                Color.Transparent,
-                                                            ),
-                                                        ),
-                                                    )
-                                                },
-                                            )
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
+                                        // Progressive blur: two stacked capture layers with
+                                        // increasing blur radius, each masked (DstIn) to fade
+                                        // out over its own height. A single layer can only fade
+                                        // its *opacity* — the radius stays constant, so it reads
+                                        // as one uniform blur dissolving rather than a true
+                                        // iOS-style ramp from sharp at the bottom to heavily
+                                        // frosted at the status bar. Offscreen compositing is
+                                        // required for DstIn to mask just that layer instead of
+                                        // the whole screen underneath. Two layers, not four:
+                                        // each one is a full backdrop capture + blur pass.
+                                        //
+                                        // Plain alpha rather than AnimatedVisibility: this sits in
+                                        // a Box nested in a Row, so AnimatedVisibility resolves
+                                        // against RowScope and does not compile here. Animating
+                                        // alpha in graphicsLayer keeps the fade off the
+                                        // recomposition path anyway, and the `if` drops the two
+                                        // backdrop captures entirely once it is fully hidden.
+                                        val chromeAlpha by animateFloatAsState(
+                                            targetValue = if (topBarChrome.visible) 1f else 0f,
+                                            animationSpec = tween(durationMillis = 200),
+                                            label = "topBarChromeAlpha",
+                                        )
+                                        if (chromeAlpha > 0.01f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(AppBarHeight * 1.6f)
+                                                .align(Alignment.TopCenter)
+                                                .graphicsLayer { alpha = chromeAlpha }
+                                                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                                        ) {
+                                            // Light blur across the whole strip. All three masks
+                                            // below hold their value through the title band and
+                                            // only ramp out in the lower part of the strip — a
+                                            // plain two-stop Black->Transparent gradient starts
+                                            // fading from the first pixel, leaving the title over
+                                            // an already half-faded blur.
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                                                    .drawWithContent {
+                                                        drawContent()
+                                                        drawRect(
+                                                            brush = Brush.verticalGradient(
+                                                                0f to Color.Black,
+                                                                0.60f to Color.Black,
+                                                                1f to Color.Transparent,
+                                                            ),
+                                                            blendMode = BlendMode.DstIn,
+                                                        )
+                                                    }
+                                                    .drawPlainBackdrop(
+                                                        backdrop = LocalAppBackdrop.current,
+                                                        shape = { RectangleShape },
+                                                        effects = {
+                                                            // blur() takes px, not dp — the raw-float
+                                                            // calls here before were off by the device
+                                                            // density factor (~3x), so bumping the float
+                                                            // barely moved the real radius. Pre-multiplied
+                                                            // by the record scale below, same as
+                                                            // Modifier.liquidGlass does.
+                                                            if (isRenderEffectSupported()) {
+                                                                blur(18.dp.toPx() * TopBarBackdropScale)
+                                                            }
+                                                        },
+                                                        // Record at the same reduced resolution the nav
+                                                        // bar's glass uses; the blur hides the upscale
+                                                        // and this strip is otherwise two full-width
+                                                        // captures per frame.
+                                                        backdropScale = TopBarBackdropScale,
+                                                    )
+                                            )
+
+                                            // Heavy blur concentrated behind the status bar/title,
+                                            // so the title stays legible over any background.
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .fillMaxHeight(0.62f)
+                                                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                                                    .drawWithContent {
+                                                        drawContent()
+                                                        drawRect(
+                                                            brush = Brush.verticalGradient(
+                                                                0f to Color.Black,
+                                                                0.55f to Color.Black,
+                                                                1f to Color.Transparent,
+                                                            ),
+                                                            blendMode = BlendMode.DstIn,
+                                                        )
+                                                    }
+                                                    .drawPlainBackdrop(
+                                                        backdrop = LocalAppBackdrop.current,
+                                                        shape = { RectangleShape },
+                                                        effects = {
+                                                            if (isRenderEffectSupported()) {
+                                                                blur(64.dp.toPx() * TopBarBackdropScale)
+                                                            }
+                                                        },
+                                                        backdropScale = TopBarBackdropScale,
+                                                    )
+                                            )
+
+                                            // Darkening scrim over both blur layers, behind the
+                                            // sharp title/actions drawn by the TopAppBar below.
+                                            // Deliberately light: the legibility here should come
+                                            // from the blur above, not from painting the strip
+                                            // near-black. This only needs to lift contrast enough
+                                            // for the title over a busy blurred background.
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            0f to Color.Black.copy(alpha = 0.38f),
+                                                            0.50f to Color.Black.copy(alpha = 0.24f),
+                                                            0.78f to Color.Black.copy(alpha = 0.08f),
+                                                            1f to Color.Transparent,
+                                                        )
+                                                    )
+                                            )
+                                        }
+                                        }
                                         TopAppBar(
                                         title = {
                                             // Home shows the wordmark; every other tab keeps
@@ -1296,17 +1483,22 @@ class MainActivity : ComponentActivity() {
                                         }
                                     } else {
                                         val now = SystemClock.elapsedRealtime()
+                                        // The debounce below only suppresses a genuine duplicate
+                                        // fire for a tab we are still sitting on. Once the user
+                                        // has moved anywhere else (tapped a song, opened an
+                                        // artist), the remembered route is stale — leaving it set
+                                        // meant a tab tap within the debounce window was silently
+                                        // swallowed and you stayed on the previous screen, which
+                                        // is why Home sometimes did nothing.
+                                        if (navController.currentDestination?.route != lastNavRoute) {
+                                            lastNavRoute = null
+                                        }
                                         // Guards against a double-fire from the floating tab bar's
                                         // predictive (press/drag-threshold) nav landing on top of the
                                         // puck's own release-fire for the same target.
                                         if (screen.route != lastNavRoute || now - lastNavTimeMs >= NavDebounceMs) {
                                             lastNavRoute = screen.route
                                             lastNavTimeMs = now
-                                            // No saveState/restoreState: every tab switch lands on that
-                                            // tab's own root instead of resuming a prior drill-down, so
-                                            // the live back stack stays at most [Home, current tab, ...]
-                                            // and one Back press from a freshly-switched tab always
-                                            // settles on Home.
                                             navController.navigate(screen.route) {
                                                 // Preserve each tab's own back stack across tab
                                                 // switches (multi-back-stack): drilling into a
@@ -1594,6 +1786,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     modifier = Modifier
                                         .layerBackdrop(appBackdrop)
+                                        .nestedScroll(topBarChrome.connection)
                                         .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                                         .then(
                                             if (useFloatingNavBar) {

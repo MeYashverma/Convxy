@@ -822,13 +822,14 @@ fun Queue(
                             text = mediaMetadata?.title.orEmpty(),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = TextBackgroundColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = mediaMetadata?.artists?.joinToString { it.name }.orEmpty(),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary,
+                            color = TextBackgroundColor.copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -1035,12 +1036,12 @@ fun Queue(
                         Text(
                             text = stringResource(R.string.continue_playing),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = TextBackgroundColor
                         )
                         Text(
                             text = stringResource(R.string.next_in_queue),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextBackgroundColor.copy(alpha = 0.7f)
                         )
                     }
 
@@ -1055,12 +1056,12 @@ fun Queue(
                                 queueWindows.size
                             ),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextBackgroundColor.copy(alpha = 0.7f)
                         )
                         Text(
                             text = makeTimeString(queueLength * 1000L),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextBackgroundColor.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -1226,6 +1227,7 @@ fun Queue(
                                         isActive = isActive,
                                         isPlaying = isPlaying && isActive,
                                         shape = listItemShape(index, mutableQueueWindows.size),
+                                        flat = true,
                                         trailingContent = {
                                             if (inSelectMode) {
                                                 Checkbox(
@@ -1360,6 +1362,7 @@ fun Queue(
                                 MediaMetadataListItem(
                                     mediaMetadata = item.metadata!!,
                                     shape = listItemShape(index, automix.size),
+                                    flat = true,
                                     trailingContent = {
                                         if (!isListenTogetherGuest) {
                                             IconButton(
@@ -1499,11 +1502,15 @@ private fun PlayerQueueButton(
             val baseTint = if (isActive) {
                 iconButtonColor
             } else {
+                // Dimmed on purpose: iconButtonColor/textButtonColor are often
+                // white-on-photo too, so without a clear alpha drop the "off"
+                // state was indistinguishable from "active" at this icon size —
+                // the filled-vs-outlined button background was the only tell.
                 when (playerBackground) {
                     PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH, PlayerBackgroundStyle.STATIC, PlayerBackgroundStyle.CUSTOM_GRADIENT ->
-                        Color.White
+                        Color.White.copy(alpha = 0.55f)
                     PlayerBackgroundStyle.DEFAULT ->
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 }
             }
             val finalTint = if (enabled) baseTint else baseTint.copy(alpha = 0.5f)

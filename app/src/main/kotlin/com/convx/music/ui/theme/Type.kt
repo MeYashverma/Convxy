@@ -6,10 +6,126 @@
 package com.convx.music.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.convx.music.R
+
+@OptIn(ExperimentalTextApi::class)
+val GoogleSansFontFamily = FontFamily(
+    Font(
+        resId = R.font.google_sans_flex,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(400),
+            FontVariation.width(100f),
+            FontVariation.Setting("ROND", 100f)
+        )
+    ),
+    Font(
+        resId = R.font.google_sans_flex,
+        weight = FontWeight.Medium,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(500),
+            FontVariation.width(100f),
+            FontVariation.Setting("ROND", 100f)
+        )
+    ),
+    Font(
+        resId = R.font.google_sans_flex,
+        weight = FontWeight.Bold,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(700),
+            FontVariation.width(100f),
+            FontVariation.Setting("ROND", 100f)
+        )
+    )
+)
+
+@OptIn(ExperimentalTextApi::class)
+val SansFlexFontFamily = FontFamily(
+    Font(
+        resId = R.font.sans_flex,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(400),
+            FontVariation.width(100f),
+            FontVariation.Setting("ROND", 100f)
+        )
+    ),
+    Font(
+        resId = R.font.sans_flex,
+        weight = FontWeight.Medium,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(500),
+            FontVariation.width(100f),
+            FontVariation.Setting("ROND", 100f)
+        )
+    ),
+    Font(
+        resId = R.font.sans_flex,
+        weight = FontWeight.Bold,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(700),
+            FontVariation.width(100f),
+            FontVariation.Setting("ROND", 100f)
+        )
+    )
+)
+
+@OptIn(ExperimentalTextApi::class)
+val OutfitFontFamily = FontFamily(
+    Font(
+        resId = R.font.outfit,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(400)
+        )
+    ),
+    Font(
+        resId = R.font.outfit,
+        weight = FontWeight.Medium,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(500)
+        )
+    ),
+    Font(
+        resId = R.font.outfit,
+        weight = FontWeight.Bold,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(700)
+        )
+    )
+)
+
+@OptIn(ExperimentalTextApi::class)
+val PlusJakartaSansFontFamily = FontFamily(
+    Font(
+        resId = R.font.plus_jakarta_sans,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(400)
+        )
+    ),
+    Font(
+        resId = R.font.plus_jakarta_sans,
+        weight = FontWeight.Medium,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(500)
+        )
+    ),
+    Font(
+        resId = R.font.plus_jakarta_sans,
+        weight = FontWeight.Bold,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(700)
+        )
+    )
+)
 
 // TODO: Define or import actual M3 Expressive font families if needed.
 // For now, using default FontFamily as a placeholder.

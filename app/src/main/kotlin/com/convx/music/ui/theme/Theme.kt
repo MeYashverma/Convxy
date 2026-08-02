@@ -10,13 +10,18 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontFamily
 import androidx.palette.graphics.Palette
+import com.convx.music.constants.AppFont
+import com.convx.music.constants.SelectedFontKey
+import com.convx.music.utils.rememberPreference
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
@@ -75,7 +80,18 @@ fun vivimusicTheme(
         withBlack.accentText(themeColor, darkTheme)
     }
 
+    val (selectedFont) = rememberPreference(SelectedFontKey, defaultValue = AppFont.SYSTEM.value)
     val customFont = rememberCustomFontFamily()
+
+    val appFont = remember(selectedFont, customFont) {
+        when (AppFont.fromValue(selectedFont)) {
+            AppFont.SYSTEM -> customFont ?: FontFamily.Default
+            AppFont.GOOGLE_SANS -> GoogleSansFontFamily
+            AppFont.SANS_FLEX -> SansFlexFontFamily
+            AppFont.OUTFIT -> OutfitFontFamily
+            AppFont.PLUS_JAKARTA_SANS -> PlusJakartaSansFontFamily
+        }
+    }
 
     androidx.compose.runtime.CompositionLocalProvider(
         LocalAccentColor provides themeColor,
@@ -83,9 +99,7 @@ fun vivimusicTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = remember(customFont) {
-                if (customFont != null) AppTypography(customFont) else AppTypography()
-            },
+            typography = remember(appFont) { AppTypography(appFont) },
             content = content
         )
     }

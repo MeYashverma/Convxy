@@ -42,6 +42,7 @@ import com.convx.music.ui.screens.search.SearchScreen
 import com.convx.music.ui.screens.settings.AboutScreen
 import com.convx.music.ui.screens.settings.AppearanceSettings
 import com.convx.music.ui.screens.settings.CanvasSelection
+import com.convx.music.ui.screens.settings.FontSelectionScreen
 import com.convx.music.ui.screens.settings.GlassEffectSettings
 import com.convx.music.ui.screens.settings.PlayerThemeScreen
 import com.convx.music.ui.screens.settings.BackupAndRestore
@@ -350,6 +351,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/appearance/theme") {
         ThemeScreen(navController)
+    }
+
+    composable("settings/appearance/font") {
+        FontSelectionScreen(navController, scrollBehavior)
     }
 
     composable("settings/appearance/canvas") {

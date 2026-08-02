@@ -221,6 +221,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.convx.music.constants.CustomFontEnabledKey
 import com.convx.music.constants.CustomFontNameKey
 import com.convx.music.constants.CustomFontPathKey
+import com.convx.music.constants.AppFont
+import com.convx.music.constants.SelectedFontKey
 import com.convx.music.ui.theme.copyCustomFont
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -262,6 +264,10 @@ fun AppearanceSettings(
     val (customFontName, onCustomFontNameChange) = rememberPreference(
         CustomFontNameKey,
         defaultValue = ""
+    )
+    val (selectedFontValue) = rememberPreference(
+        SelectedFontKey,
+        defaultValue = AppFont.SYSTEM.value
     )
     val customFontScope = rememberCoroutineScope()
     val customFontPickerLauncher = rememberLauncherForActivityResult(
@@ -562,6 +568,21 @@ fun AppearanceSettings(
                     icon = painterResource(R.drawable.palette),
                     title = { Text(stringResource(R.string.theme_colors)) },
                     onClick = { navController.navigate("settings/appearance/theme") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.alphabet_cyrillic),
+                    title = { Text(stringResource(R.string.app_font)) },
+                    description = {
+                        val fontLabel = when (AppFont.fromValue(selectedFontValue)) {
+                            AppFont.SYSTEM -> stringResource(R.string.font_system)
+                            AppFont.GOOGLE_SANS -> stringResource(R.string.font_google_sans)
+                            AppFont.SANS_FLEX -> stringResource(R.string.font_sans_flex)
+                            AppFont.OUTFIT -> stringResource(R.string.font_outfit)
+                            AppFont.PLUS_JAKARTA_SANS -> stringResource(R.string.font_plus_jakarta_sans)
+                        }
+                        Text(fontLabel)
+                    },
+                    onClick = { navController.navigate("settings/appearance/font") }
                 )
             )
         )

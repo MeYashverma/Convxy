@@ -3,8 +3,18 @@
   <h3>An iOS-inspired, Liquid Glass music player for Android</h3>
 
   <p>
+    <a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.3">
+      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20CONVX%201.3-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convx 1.3">
+    </a>
+  </p>
+  <p>
+    <b><a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.3">⬇️ DOWNLOAD CONVX 1.3</a></b>
+    — Latest release. Works on Android 8.0+.
+  </p>
+
+  <p>
     <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
-      <img src="https://img.shields.io/github/v/release/cosmictaserdev-creator/Convx?label=Download&style=for-the-badge&color=4CAF50" alt="Download Latest">
+      <img src="https://img.shields.io/github/downloads/cosmictaserdev-creator/Convx/total?style=for-the-badge&color=blue" alt="Downloads">
     </a>
     <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
       <img src="https://img.shields.io/github/downloads/cosmictaserdev-creator/Convx/total?style=for-the-badge&color=blue" alt="Downloads">

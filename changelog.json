@@ -1,7 +1,14 @@
 {
-  "description": "Convx 1.3 — big update: Auto-DJ mixing, a full-screen lyrics overhaul, waveform seeking in the mini player, a redesigned Liquid Glass system, and a large performance pass. Read on for how to use everything.",
+  "description": "Convx 1.3 — big update: bundled App Fonts, Auto-DJ mixing, a full-screen lyrics overhaul, waveform seeking in the mini player, a redesigned Liquid Glass system, and a large performance pass. Read on for how to use everything.",
   "image": "",
   "changelog": [
+    {
+      "title": "App Fonts (New)",
+      "items": [
+        "Pick a bundled typeface for the app's display text: Google Sans, Sans Flex, Outfit, or Plus Jakarta Sans — Settings → Appearance → App Font, with a live typography preview.",
+        "Choose System Default to use the system font, or a custom-installed font."
+      ]
+    },
     {
       "title": "Auto-DJ Mixing (New)",
       "items": [
@@ -54,7 +61,8 @@
         "Fixed downloaded FLAC songs being unplayable when lossless/Spine toggles were on.",
         "Fixed lossless/Atmos audio dropouts — playback now recovers and falls back to standard audio instead of stalling.",
         "Stopped chunk-slicing Tidal/Spine lossless streams, which caused premature auto-skip.",
-        "Fixed a crash opening playlists and the Room migration 35→36 crash on upgrade."
+        "Fixed a crash opening playlists and the Room migration 35→36 crash on upgrade.",
+        "No more spurious error reports when a signed-in account's info can't be refreshed after a token change."
       ]
     },
     {

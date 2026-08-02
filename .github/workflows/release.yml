@@ -73,4 +73,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          gh release upload "$TAG" app/build/outputs/apk/universalGms/release/*.apk#convx-${TAG}.apk --repo ${{ github.repository }} --clobber
+          APK_PATH=$(find app/build/outputs/apk -name '*.apk' | head -n 1)
+          gh release upload "$TAG" "$APK_PATH#convx-${TAG}.apk" --repo "${{ github.repository }}" --clobber

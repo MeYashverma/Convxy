@@ -16,9 +16,6 @@
     <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
       <img src="https://img.shields.io/github/downloads/cosmictaserdev-creator/Convx/total?style=for-the-badge&color=blue" alt="Downloads">
     </a>
-    <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
-      <img src="https://img.shields.io/github/downloads/cosmictaserdev-creator/Convx/total?style=for-the-badge&color=blue" alt="Downloads">
-    </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/github/license/cosmictaserdev-creator/Convx?style=for-the-badge" alt="License">
     </a>

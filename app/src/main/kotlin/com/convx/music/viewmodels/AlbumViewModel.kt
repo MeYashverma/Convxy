@@ -27,7 +27,9 @@ import javax.inject.Inject
 class AlbumViewModel
 @Inject
 constructor(
-    database: MusicDatabase,
+    // A property, not a plain constructor param: refresh() is a member function,
+    // and a bare param is only in scope for initializers and init blocks.
+    private val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val albumId = savedStateHandle.get<String>("albumId")!!
@@ -42,6 +44,11 @@ constructor(
     var descriptionRuns = MutableStateFlow<List<com.music.innertube.models.Run>?>(null)
 
     init {
+        refresh()
+    }
+
+    /** Re-fetches the album page. Bound to the pull-to-refresh gesture. */
+    fun refresh() {
         viewModelScope.launch {
             val album = database.album(albumId).first()
             if (album?.description != null) {

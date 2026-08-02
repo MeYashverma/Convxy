@@ -81,6 +81,9 @@ import com.convx.music.utils.listItemShape
 import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.LibrarySongsViewModel
+import com.convx.music.ui.utils.heroPullZoom
+import com.convx.music.ui.utils.listOverscroll
+import com.convx.music.ui.utils.rememberHeroZoom
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -110,6 +113,10 @@ fun LibrarySongsScreen(
     val scanResult by viewModel.scanResult.collectAsState()
 
     var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIKED)
+    // Pull-to-refresh only: no hero artwork on this screen, so heroZoom.scale
+    // goes unread and the modifier contributes just the rubber-band stretch.
+    val heroZoom = rememberHeroZoom()
+
 
     var hasStoragePermission by remember { mutableStateOf(false) }
 
@@ -164,6 +171,15 @@ fun LibrarySongsScreen(
     ) {
         LazyColumn(
             state = lazyListState,
+            overscrollEffect = heroZoom.listOverscroll(),
+            modifier = Modifier.heroPullZoom(heroZoom, onRefresh = {
+                when (filter) {
+                    SongFilter.LIKED -> viewModel.syncLikedSongs()
+                    SongFilter.LIBRARY -> viewModel.syncLibrarySongs()
+                    SongFilter.UPLOADED -> viewModel.syncUploadedSongs()
+                    else -> Unit
+                }
+            }),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
             item(

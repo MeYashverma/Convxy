@@ -313,7 +313,7 @@ fun AutoPlaylistScreen(
                     state = lazyListState,
                     // No bounce here: the top pull drives the hero zoom instead.
                     overscrollEffect = heroZoom.listOverscroll(),
-                    modifier = Modifier.heroPullZoom(heroZoom),
+                    modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::refresh),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(key = "header_title") {

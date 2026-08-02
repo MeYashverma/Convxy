@@ -80,6 +80,16 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
+ * Optical size correction for the lyrics glyph beside the queue one.
+ *
+ * `lyrics` is drawn in a 28dp viewport with real padding around the artwork;
+ * `queue_music` is drawn in a 24dp viewport with its strokes running nearly edge
+ * to edge. Rendered at the same box size the lyrics mark therefore reads visibly
+ * smaller, so it gets a slightly larger box to match by eye rather than by number.
+ */
+private const val LyricsIconScale = 1.18f
+
+/**
  * Compact now playing controls docked inside the floating tab bar, mirroring the
  * iOS 26 Apple Music accessory: a wide pill above the tabs when the bar is
  * expanded, and a slim strip between the tab pill and the search tab when inline.
@@ -484,7 +494,7 @@ fun FloatingMiniPlayer(
                         painter = painterResource(R.drawable.lyrics),
                         contentDescription = stringResource(R.string.lyrics),
                         tint = contentColor,
-                        modifier = Modifier.size(iconSize),
+                        modifier = Modifier.size(iconSize * LyricsIconScale),
                     )
                 }
                 IconButton(

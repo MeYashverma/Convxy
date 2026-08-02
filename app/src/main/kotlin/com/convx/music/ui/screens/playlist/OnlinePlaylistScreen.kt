@@ -360,7 +360,7 @@ fun OnlinePlaylistScreen(
             state = lazyListState,
             // No bounce here: the top pull drives the hero zoom instead.
             overscrollEffect = heroZoom.listOverscroll(),
-            modifier = Modifier.heroPullZoom(heroZoom),
+            modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::retry),
             contentPadding = LocalPlayerAwareWindowInsets.current
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 .union(WindowInsets.ime)

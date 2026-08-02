@@ -5,8 +5,6 @@
 
 package com.convx.music.ui.component
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,12 +14,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,10 +31,30 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.roundToInt
 
+/**
+ * Fast-scroll thumb for a [LazyListState], drawn over the list's trailing edge.
+ *
+ * Two rules keep it honest, and both were previously broken:
+ *
+ * 1. While dragging, the thumb follows the finger and the list follows the thumb.
+ *    The list must never be allowed to move the thumb — the old version scrolled
+ *    the list, read the resulting `firstVisibleItemIndex` back out to position the
+ *    thumb, and wrote that position into a `var` from inside a `derivedStateOf`.
+ *    That is a write to observed state during a derived computation, so it
+ *    re-invalidated itself; combined with three separate smoothing filters fighting
+ *    each other, the thumb drifted away from the finger and juddered.
+ *
+ * 2. One scroll at a time. The old version launched a fresh `animateScrollToItem`
+ *    every 40ms without cancelling the last, so several scroll animations ran
+ *    concurrently toward different targets. Dragging now cancels the in-flight
+ *    scroll and issues an instant `scrollToItem`; there is nothing to animate,
+ *    because the finger is already providing the motion.
+ */
 @Composable
 fun DraggableScrollbar(
     scrollState: LazyListState,
@@ -56,176 +71,97 @@ fun DraggableScrollbar(
 ) {
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
-    var isDragging by remember { mutableStateOf(false) }
-    var lastScrollTime by remember { mutableLongStateOf(0L) }
-    var smoothedY by remember { mutableFloatStateOf(0f) }
-    var smoothedThumbY by remember { mutableFloatStateOf(0f) }
-    var lastThumbPosition by remember { mutableFloatStateOf(0f) }
-    val animatedThumbY = remember { Animatable(0f) }
 
-    val isUserScrolling by remember(scrollState) {
-        derivedStateOf { scrollState.isScrollInProgress }
-    }
+    // Both are read only from the Canvas draw lambda, so writing them during a drag
+    // invalidates the draw phase and nothing else — no recomposition per touch move.
+    /** Thumb top edge while the finger owns it. Only the drag handler writes this. */
+    var dragThumbY by remember { mutableFloatStateOf(0f) }
+    var isDraggingState by remember { mutableStateOf(false) }
 
-    val isScrollable by remember {
+    /** Highest first-visible index the list can actually come to rest on. */
+    val maxScrollIndex by remember(scrollState, headerItems) {
         derivedStateOf {
             val layoutInfo = scrollState.layoutInfo
-            val total = layoutInfo.totalItemsCount
             val visible = layoutInfo.visibleItemsInfo.size
-            val contentCount = total - headerItems
-            contentCount > minItemCountForScroll && contentCount > visible
+            max(1, layoutInfo.totalItemsCount - headerItems - visible)
+        }
+    }
+
+    val isScrollable by remember(scrollState, headerItems) {
+        derivedStateOf {
+            val layoutInfo = scrollState.layoutInfo
+            val contentCount = layoutInfo.totalItemsCount - headerItems
+            contentCount > minItemCountForScroll &&
+                contentCount > layoutInfo.visibleItemsInfo.size
+        }
+    }
+
+    /**
+     * Where the list currently is, 0..1. Read-only: it observes the list and never
+     * writes anything back, which is what stops the thumb and the list from
+     * driving each other in a circle.
+     *
+     * The intra-item fraction is what makes the thumb glide. Index alone moves it
+     * one whole item-height at a time, which on a long list reads as the thumb
+     * stuttering downward in visible steps.
+     */
+    val scrollProgress by remember(scrollState, headerItems) {
+        derivedStateOf {
+            val visible = scrollState.layoutInfo.visibleItemsInfo
+            if (visible.isEmpty()) return@derivedStateOf 0f
+            val index = (scrollState.firstVisibleItemIndex - headerItems).coerceAtLeast(0)
+            val firstSize = visible.first().size.takeIf { it > 0 } ?: return@derivedStateOf 0f
+            val withinItem =
+                (scrollState.firstVisibleItemScrollOffset.toFloat() / firstSize).coerceIn(0f, 1f)
+            ((index + withinItem) / maxScrollIndex).coerceIn(0f, 1f)
         }
     }
 
     if (!isScrollable) return
 
-    var lastTargetIndex by remember { mutableIntStateOf(-1) }
-
     BoxWithConstraints(
         modifier = modifier
             .width(trackWidth)
             .fillMaxHeight()
-            .pointerInput(scrollState) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        isDragging = true
-                        lastTargetIndex = -1
-                        val viewportHeight = size.height.toFloat()
-                        val constThumbHeight = with(density) { thumbHeight.toPx() }
-                        val maxThumbY = viewportHeight - constThumbHeight
-                        smoothedThumbY = (offset.y - constThumbHeight / 2).coerceIn(0f, maxThumbY)
-                    },
-                    onDragEnd = { 
-                        isDragging = false
-                        lastScrollTime = 0L
-                    },
-                    onDragCancel = { 
-                        isDragging = false 
-                        lastScrollTime = 0L
-                    }
-                ) { change, _ ->
-                    val currentTime = System.currentTimeMillis()
-                    val viewportHeight = size.height.toFloat()
-                    val constThumbHeight = with(density) { thumbHeight.toPx() }
-                    val maxThumbY = viewportHeight - constThumbHeight
-                    
-                    val targetThumbY = (change.position.y - constThumbHeight / 2).coerceIn(0f, maxThumbY)
-                    
-                    val layoutInfo = scrollState.layoutInfo
-                    val totalContentItems = layoutInfo.totalItemsCount - headerItems
-                    
-                    val thumbSmoothingFactor = when {
-                        totalContentItems < 20 -> 0.1f
-                        totalContentItems < 50 -> 0.3f
-                        else -> 0.7f
-                    }
-                    
-                    smoothedThumbY = smoothedThumbY * (1f - thumbSmoothingFactor) + targetThumbY * thumbSmoothingFactor
-                    
-                    if (currentTime - lastScrollTime < 40) return@detectDragGestures
-                    lastScrollTime = currentTime
+            .pointerInput(scrollState, headerItems) {
+                val thumbHeightPx = with(density) { thumbHeight.toPx() }
+                // Plain locals, not remembered state: only this gesture loop reads
+                // them, so making them observable would just cost recompositions.
+                var lastTargetIndex = -1
+                var scrollJob: Job? = null
 
-                    val visibleItems = layoutInfo.visibleItemsInfo
-                    if (visibleItems.isEmpty()) return@detectDragGestures
+                fun seek(touchY: Float) {
+                    val maxThumbY = (size.height - thumbHeightPx).coerceAtLeast(1f)
+                    dragThumbY = (touchY - thumbHeightPx / 2f).coerceIn(0f, maxThumbY)
+                    if (maxScrollIndex <= minScrollRangeForDrag) return
 
-                    val maxScrollIndex = max(1, totalContentItems - visibleItems.size)
-
-                    if (maxScrollIndex > minScrollRangeForDrag) {
-                        val touchProgress = (change.position.y / size.height).coerceIn(0f, 1f)
-                        
-                        val listSmoothingFactor = when {
-                            totalContentItems < 20 -> 0.15f
-                            totalContentItems < 50 -> 0.4f
-                            else -> 0.8f
-                        }
-                        
-                        smoothedY = smoothedY * (1f - listSmoothingFactor) + touchProgress * listSmoothingFactor
-                        
-                        val targetFractionalIndex = smoothedY * maxScrollIndex
-                        val targetIndex = (headerItems + targetFractionalIndex.toInt())
-                            .coerceIn(headerItems, layoutInfo.totalItemsCount - 1)
-
-                        if (abs(targetIndex - lastTargetIndex) >= 1) {
-                            lastTargetIndex = targetIndex
-                            coroutineScope.launch {
-                                try {
-                                    scrollState.animateScrollToItem(
-                                        index = targetIndex,
-                                        scrollOffset = 0
-                                    )
-                                } catch (e: Exception) {
-                                }
-                            }
-                        }
+                    val target = headerItems + (dragThumbY / maxThumbY * maxScrollIndex).roundToInt()
+                    if (target == lastTargetIndex) return
+                    lastTargetIndex = target
+                    // Cancel first: overlapping scrolls toward different targets are
+                    // what made the list lurch back and forth under the finger.
+                    scrollJob?.cancel()
+                    scrollJob = coroutineScope.launch {
+                        scrollState.scrollToItem(
+                            target.coerceIn(0, scrollState.layoutInfo.totalItemsCount - 1)
+                        )
                     }
                 }
+
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        isDraggingState = true
+                        lastTargetIndex = -1
+                        seek(offset.y)
+                    },
+                    onDragEnd = { isDraggingState = false },
+                    onDragCancel = { isDraggingState = false },
+                ) { change, _ -> seek(change.position.y) }
             }
     ) {
         val viewportHeight = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
-        val constThumbHeight = with(density) { thumbHeight.toPx() }
-
-        val targetThumbY by remember {
-            derivedStateOf {
-                val layoutInfo = scrollState.layoutInfo
-                val visibleItems = layoutInfo.visibleItemsInfo
-                if (visibleItems.isEmpty()) return@derivedStateOf lastThumbPosition
-
-                val totalContentItems = layoutInfo.totalItemsCount - headerItems
-                val maxScrollIndex = max(1, totalContentItems - visibleItems.size)
-                if (maxScrollIndex <= minScrollRangeForDrag) return@derivedStateOf lastThumbPosition
-
-                val rawIndex = (scrollState.firstVisibleItemIndex - headerItems).coerceAtLeast(0)
-
-                val scrollProgress = if (totalContentItems < 30) {
-
-                    val currentProgress = rawIndex.toFloat() / maxScrollIndex
-                    val smoothingFactor = 0.2f
-                    val previousProgress = lastThumbPosition / (viewportHeight - constThumbHeight)
-                    previousProgress * (1f - smoothingFactor) + currentProgress * smoothingFactor
-                } else {
-                    rawIndex.toFloat() / maxScrollIndex
-                }
-
-                val maxThumbY = viewportHeight - constThumbHeight
-                val newPosition = (scrollProgress * maxThumbY).coerceIn(0f, maxThumbY)
-
-                lastThumbPosition = newPosition
-                newPosition
-            }
-        }
-
-        LaunchedEffect(targetThumbY, isDragging, isUserScrolling, smoothedThumbY) {
-            val layoutInfo = scrollState.layoutInfo
-            val totalContentItems = layoutInfo.totalItemsCount - headerItems
-            
-            when {
-                isDragging -> {
-                    animatedThumbY.snapTo(smoothedThumbY)
-                }
-                isUserScrolling -> {
-                    if (totalContentItems < 30) {
-                        animatedThumbY.animateTo(
-                            targetValue = targetThumbY,
-                            animationSpec = spring(
-                                stiffness = 100f,
-                                dampingRatio = 1.2f
-                            )
-                        )
-                    } else {
-                        animatedThumbY.snapTo(targetThumbY)
-                    }
-                }
-                else -> {
-                    animatedThumbY.animateTo(
-                        targetValue = targetThumbY,
-                        animationSpec = spring(
-                            stiffness = if (totalContentItems < 30) 80f else 150f,
-                            dampingRatio = if (totalContentItems < 30) 1.5f else 0.9f
-                        )
-                    )
-                }
-            }
-        }
+        val thumbHeightPx = with(density) { thumbHeight.toPx() }
+        val maxThumbY = (viewportHeight - thumbHeightPx).coerceAtLeast(0f)
 
         Canvas(
             modifier = Modifier
@@ -233,14 +169,15 @@ fun DraggableScrollbar(
                 .fillMaxHeight()
                 .align(Alignment.CenterEnd)
         ) {
-            val color = if (isDragging) thumbColorActive else thumbColor
-            val cornerRadiusPx = thumbCornerRadius.toPx()
+            // Dragging: the finger owns the thumb. Otherwise: the list does. Never
+            // both, so there is no filter needed to reconcile them.
+            val thumbY = if (isDraggingState) dragThumbY else scrollProgress * maxThumbY
 
             drawRoundRect(
-                color = color,
-                topLeft = Offset(0f, animatedThumbY.value),
-                size = Size(this.size.width, constThumbHeight),
-                cornerRadius = CornerRadius(cornerRadiusPx)
+                color = if (isDraggingState) thumbColorActive else thumbColor,
+                topLeft = Offset(0f, thumbY),
+                size = Size(size.width, thumbHeightPx),
+                cornerRadius = CornerRadius(thumbCornerRadius.toPx())
             )
         }
     }

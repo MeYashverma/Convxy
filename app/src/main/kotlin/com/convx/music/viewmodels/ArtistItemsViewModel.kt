@@ -40,6 +40,11 @@ constructor(
     val itemsPage = MutableStateFlow<ItemsPage?>(null)
 
     init {
+        refresh()
+    }
+
+    /** Re-fetches this artist item list. Bound to the pull-to-refresh gesture. */
+    fun refresh() {
         viewModelScope.launch {
             YouTube
                 .artistItems(

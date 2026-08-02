@@ -36,6 +36,11 @@ constructor(
     val result = MutableStateFlow<BrowseResult?>(null)
 
     init {
+        refresh()
+    }
+
+    /** Re-fetches this browse page. Bound to the pull-to-refresh gesture. */
+    fun refresh() {
         viewModelScope.launch {
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)

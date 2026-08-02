@@ -49,7 +49,6 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -309,13 +308,30 @@ import kotlin.time.Duration.Companion.milliseconds
 private val themeColorCache = android.util.LruCache<String, androidx.compose.ui.graphics.Color>(64)
 
 /**
- * Fraction of the surface resolution the top bar's blur layers record their
- * backdrop at — matching [com.convx.music.ui.component.MIN_GLASS_RESOLUTION_SCALE],
- * the floor the nav bar's own glass already uses for heavy blur. The strip is two
- * full-width captures per frame, and at these radii the blur completely hides the
- * upscale.
+ * Fraction of the surface resolution the top bar's blur strip records its backdrop
+ * at. Higher than the nav bar glass's floor: this strip sits over *moving* content,
+ * and at 0.33 the upscaled capture crawled visibly as rows scrolled beneath it.
+ * Affordable now that the strip is one capture per frame rather than two.
  */
-private const val TopBarBackdropScale = 0.33f
+private const val TopBarBackdropScale = 0.45f
+
+/**
+ * Blur radius for that strip. Deliberately moderate — a heavy radius over scrolling
+ * content smears each row into the next and reads as a glitch rather than as frost.
+ * Legibility is topped up by the scrim gradient below the blur, not by the radius.
+ */
+private val TopBarBlurRadius = 26.dp
+
+/**
+ * Routes whose whole screen is an `AndroidView` WebView. They opt out of the app
+ * backdrop capture — see the NavHost modifier for why.
+ */
+private val WebViewRoutes = setOf(
+    "login",
+    "switch_channel",
+    "settings/spotify",
+    "settings/discord/login",
+)
 
 /**
  * Drives whether the top bar's blur/scrim strip is drawn at all: shown while the
@@ -1235,26 +1251,34 @@ class MainActivity : ComponentActivity() {
                                     Box(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        // Progressive blur: two stacked capture layers with
-                                        // increasing blur radius, each masked (DstIn) to fade
-                                        // out over its own height. A single layer can only fade
-                                        // its *opacity* — the radius stays constant, so it reads
-                                        // as one uniform blur dissolving rather than a true
-                                        // iOS-style ramp from sharp at the bottom to heavily
-                                        // frosted at the status bar. Offscreen compositing is
-                                        // required for DstIn to mask just that layer instead of
-                                        // the whole screen underneath. Two layers, not four:
-                                        // each one is a full backdrop capture + blur pass.
+                                        // ONE capture layer, masked (DstIn) to fade out over its
+                                        // own height, at a moderate radius. It used to be two
+                                        // stacked captures (light 18dp over heavy 64dp) chasing a
+                                        // true iOS radius ramp; in practice the two low-res
+                                        // captures disagreed frame to frame as content scrolled
+                                        // under them and the seam between their masks crawled —
+                                        // the "glitchy" edge. One capture at a higher record
+                                        // scale is steadier, costs about the same (0.45² for one
+                                        // vs 2 × 0.33² for two), and the vertical mask still
+                                        // gives the sharp-at-the-bottom ramp. Offscreen
+                                        // compositing is required for DstIn to mask just this
+                                        // layer instead of the whole screen underneath.
                                         //
                                         // Plain alpha rather than AnimatedVisibility: this sits in
                                         // a Box nested in a Row, so AnimatedVisibility resolves
                                         // against RowScope and does not compile here. Animating
                                         // alpha in graphicsLayer keeps the fade off the
-                                        // recomposition path anyway, and the `if` drops the two
-                                        // backdrop captures entirely once it is fully hidden.
+                                        // recomposition path anyway, and the `if` drops the
+                                        // backdrop capture entirely once it is fully hidden.
+                                        //
+                                        // The fade is asymmetric on purpose: coming back has
+                                        // to feel immediate, because it trails the scroll
+                                        // that asked for it. Going away can be lazy.
                                         val chromeAlpha by animateFloatAsState(
                                             targetValue = if (topBarChrome.visible) 1f else 0f,
-                                            animationSpec = tween(durationMillis = 200),
+                                            animationSpec = tween(
+                                                durationMillis = if (topBarChrome.visible) 90 else 200
+                                            ),
                                             label = "topBarChromeAlpha",
                                         )
                                         if (chromeAlpha > 0.01f) {
@@ -1266,9 +1290,8 @@ class MainActivity : ComponentActivity() {
                                                 .graphicsLayer { alpha = chromeAlpha }
                                                 .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
                                         ) {
-                                            // Light blur across the whole strip. All three masks
-                                            // below hold their value through the title band and
-                                            // only ramp out in the lower part of the strip — a
+                                            // The mask holds its value through the title band and
+                                            // only ramps out in the lower part of the strip — a
                                             // plain two-stop Black->Transparent gradient starts
                                             // fading from the first pixel, leaving the title over
                                             // an already half-faded blur.
@@ -1298,61 +1321,27 @@ class MainActivity : ComponentActivity() {
                                                             // by the record scale below, same as
                                                             // Modifier.liquidGlass does.
                                                             if (isRenderEffectSupported()) {
-                                                                blur(18.dp.toPx() * TopBarBackdropScale)
-                                                            }
-                                                        },
-                                                        // Record at the same reduced resolution the nav
-                                                        // bar's glass uses; the blur hides the upscale
-                                                        // and this strip is otherwise two full-width
-                                                        // captures per frame.
-                                                        backdropScale = TopBarBackdropScale,
-                                                    )
-                                            )
-
-                                            // Heavy blur concentrated behind the status bar/title,
-                                            // so the title stays legible over any background.
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .fillMaxHeight(0.62f)
-                                                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                                                    .drawWithContent {
-                                                        drawContent()
-                                                        drawRect(
-                                                            brush = Brush.verticalGradient(
-                                                                0f to Color.Black,
-                                                                0.55f to Color.Black,
-                                                                1f to Color.Transparent,
-                                                            ),
-                                                            blendMode = BlendMode.DstIn,
-                                                        )
-                                                    }
-                                                    .drawPlainBackdrop(
-                                                        backdrop = LocalAppBackdrop.current,
-                                                        shape = { RectangleShape },
-                                                        effects = {
-                                                            if (isRenderEffectSupported()) {
-                                                                blur(64.dp.toPx() * TopBarBackdropScale)
+                                                                blur(TopBarBlurRadius.toPx() * TopBarBackdropScale)
                                                             }
                                                         },
                                                         backdropScale = TopBarBackdropScale,
                                                     )
                                             )
 
-                                            // Darkening scrim over both blur layers, behind the
+                                            // Darkening scrim over the blur layer, behind the
                                             // sharp title/actions drawn by the TopAppBar below.
-                                            // Deliberately light: the legibility here should come
-                                            // from the blur above, not from painting the strip
-                                            // near-black. This only needs to lift contrast enough
-                                            // for the title over a busy blurred background.
+                                            // Still light, but doing slightly more of the work
+                                            // than it used to: it now covers the legibility the
+                                            // dropped heavy-blur layer was providing, without
+                                            // painting the strip near-black.
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
                                                     .background(
                                                         Brush.verticalGradient(
-                                                            0f to Color.Black.copy(alpha = 0.38f),
-                                                            0.50f to Color.Black.copy(alpha = 0.24f),
-                                                            0.78f to Color.Black.copy(alpha = 0.08f),
+                                                            0f to Color.Black.copy(alpha = 0.46f),
+                                                            0.50f to Color.Black.copy(alpha = 0.30f),
+                                                            0.78f to Color.Black.copy(alpha = 0.10f),
                                                             1f to Color.Transparent,
                                                         )
                                                     )
@@ -1785,7 +1774,23 @@ class MainActivity : ComponentActivity() {
                                             slideOutHorizontally { it / 8 } + fadeOut(tween(200))
                                     },
                                     modifier = Modifier
-                                        .layerBackdrop(appBackdrop)
+                                        // Skipped on WebView routes: layerBackdrop records
+                                        // this whole subtree into a GraphicsLayer so glass
+                                        // can sample it, which means the subtree is drawn
+                                        // twice per frame. A WebView renders on its own
+                                        // hardware canvas and does not survive that second
+                                        // pass intact — the page tears and flickers while
+                                        // still being usable, exactly the reported symptom.
+                                        // Those screens are plain full-bleed WebViews with
+                                        // their own Material top bar, so they have no glass
+                                        // to feed anyway.
+                                        .then(
+                                            if (currentRoute in WebViewRoutes) {
+                                                Modifier
+                                            } else {
+                                                Modifier.layerBackdrop(appBackdrop)
+                                            }
+                                        )
                                         .nestedScroll(topBarChrome.connection)
                                         .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                                         .then(

@@ -29,12 +29,19 @@ class NewReleaseViewModel
 @Inject
 constructor(
     @ApplicationContext val context: Context,
-    database: MusicDatabase,
+    // A property, not a plain constructor param: refresh() is a member function,
+    // and a bare param is only in scope for initializers and init blocks.
+    private val database: MusicDatabase,
 ) : ViewModel() {
     private val _newReleaseAlbums = MutableStateFlow<List<AlbumItem>>(emptyList())
     val newReleaseAlbums = _newReleaseAlbums.asStateFlow()
 
     init {
+        refresh()
+    }
+
+    /** Re-fetches new releases. Bound to the pull-to-refresh gesture. */
+    fun refresh() {
         viewModelScope.launch {
             YouTube
                 .newReleaseAlbums()

@@ -2487,15 +2487,22 @@ class MusicService :
     private fun performAggressiveCacheClear(mediaId: String) {
         Timber.tag(TAG).d("Performing aggressive cache clear for $mediaId")
 
-        // Clear URL cache
+        // Clear URL cache. Lossless/Spine streams live under the "#flac"
+        // namespace (see createDataSourceFactory's effKey), so clearing only the
+        // plain id left a half-written FLAC body in place: every later resolve
+        // read those bytes back and failed with the same
+        // ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, forever.
         songUrlCache.remove(mediaId)
+        songUrlCache.remove("$mediaId#flac")
 
         // Clear player cache
-        try {
-            playerCache.removeResource(mediaId)
-            Timber.tag(TAG).d("Cleared player cache for $mediaId")
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to clear player cache for $mediaId")
+        for (key in listOf(mediaId, "$mediaId#flac")) {
+            try {
+                playerCache.removeResource(key)
+                Timber.tag(TAG).d("Cleared player cache for $key")
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to clear player cache for $key")
+            }
         }
 
         // Clear decryption caches
@@ -2978,6 +2985,11 @@ class MusicService :
 
         forceStandardAudioMediaIds.add(mediaId)
         bypassCacheForQualityChange.add(mediaId)
+        // bypassCacheForQualityChange only skips the resolver's own isCached
+        // early-returns; the CacheDataSource underneath still serves whatever is
+        // already stored for this key. Drop the lossless bytes outright or the
+        // standard-audio retry parses the leftover FLAC body and fails again.
+        performAggressiveCacheClear(mediaId)
         losslessStreamMediaIds.remove(mediaId)
         losslessStallCount.remove(mediaId)
         playerStallWatchdogs[player]?.armed = false

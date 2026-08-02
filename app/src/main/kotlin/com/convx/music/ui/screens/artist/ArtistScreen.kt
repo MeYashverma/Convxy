@@ -74,6 +74,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -178,6 +179,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.convx.music.canvas.AppleMusicArtistBackgroundProvider
 import com.convx.music.ui.component.floatingtabbar.gooey
+
+/**
+ * Resting scale of the artist hero artwork, before pull-to-zoom multiplies it.
+ * Above 1 so the artwork always bleeds past the status bar / app bar strip instead
+ * of ending exactly at it. Raise it if a device's insets still expose bare tint
+ * behind the top bar; each 0.01 is ~2dp of extra bleed on a 400dp-wide header.
+ */
+private const val ArtistHeroBaseScale = 1.18f
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -323,7 +332,7 @@ fun ArtistScreen(
             state = lazyListState,
             // No bounce here: the top pull drives the hero zoom instead.
             overscrollEffect = heroZoom.listOverscroll(),
-            modifier = Modifier.heroPullZoom(heroZoom),
+            modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::fetchArtistsFromYTM),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
             if (artistPage == null && !showLocal) {
@@ -445,8 +454,26 @@ fun ArtistScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .graphicsLayer {
-                                            scaleX = heroZoom.scale
-                                            scaleY = heroZoom.scale
+                                            // Anchored at the BOTTOM, not the centre: the
+                                            // artwork's bottom edge stays glued to the
+                                            // content below it and all the growth goes
+                                            // upward, which is what a stretchy header is.
+                                            transformOrigin = TransformOrigin(0.5f, 1f)
+
+                                            // heroPullZoom slides the whole list down by
+                                            // heroZoom.offset. Unlike the other hero
+                                            // screens, this one's backdrop is a flat tint
+                                            // (no HeroBackground behind the list), so that
+                                            // slide exposed bare colour above the artwork.
+                                            // Growing by exactly offset/height keeps the
+                                            // artwork's top edge pinned off-screen however
+                                            // far the pull goes — the old fixed 0.18 zoom
+                                            // could never keep up with a 220dp pull.
+                                            val cover =
+                                                if (size.height > 0f) heroZoom.offset / size.height else 0f
+                                            val s = ArtistHeroBaseScale + cover
+                                            scaleX = s
+                                            scaleY = s
                                         }
                                         .fadingEdge(
                                             bottom = 200.dp,

@@ -20,7 +20,9 @@ import com.convx.music.ui.utils.rememberHeroZoom
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.component.HeroSource
+import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.convx.music.ui.component.LocalAppBackdrop
 import androidx.compose.ui.text.font.FontWeight
 import com.convx.music.ui.component.GlassCircleButton
 import androidx.compose.foundation.layout.WindowInsets
@@ -44,8 +46,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.convx.music.utils.rememberPreference
@@ -81,7 +85,20 @@ fun MoodAndGenresScreen(
     val tint = Color.Black
     val onTint = AppleTokens.onColor(tint)
 
+    // Unattached: safe ambient backdrop for anything inside the list (glass
+    // sampling it early-returns instead of forming a RenderNode cycle).
     val heroBackdrop = rememberLayerBackdrop()
+
+    // Attached to a Box wrapping the list, and handed only to the floating
+    // chrome row — a *sibling* of that layer, never a descendant. Without this
+    // the back button's liquidGlass had nothing to sample and rendered as a flat
+    // translucent circle, which is why this screen looked like glass was off.
+    val listBackdrop = rememberLayerBackdrop(
+        onDraw = remember(tint) {
+            val bg = tint
+            { drawRect(bg); drawContent() }
+        }
+    )
 
     val heroZoom = rememberHeroZoom()
 
@@ -94,10 +111,15 @@ fun MoodAndGenresScreen(
     ) {
       HeroTintedContent(tint = tint, backdrop = heroBackdrop) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Capture from a plain Box wrapping the LazyColumn, not the
+            // LazyColumn itself: it promotes its items to their own RenderNodes
+            // for recycling, which a capture attached directly to it doesn't
+            // reliably flatten.
+            Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
             LazyColumn(
                 // No bounce here: the top pull drives the hero zoom instead.
                 overscrollEffect = heroZoom.listOverscroll(),
-                modifier = Modifier.heroPullZoom(heroZoom),
+                modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::refresh),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item(key = "header") {
@@ -162,28 +184,34 @@ fun MoodAndGenresScreen(
                     Spacer(Modifier.height(100.dp))
                 }
             }
+            }
 
-            // Top bar logic
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(appTopBarWindowInsets())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                GlassCircleButton(
-                    onClick = { navController.navigateUp() },
-                    onLongClick = { navController.backToMain() },
+            // Top bar logic. `align` is resolved out here, in BoxScope, because
+            // the provider lambda below is not a BoxScope.
+            val chromeRowModifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .windowInsetsPadding(appTopBarWindowInsets())
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+
+            CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
+                Row(
+                    modifier = chromeRowModifier,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_back),
-                        contentDescription = null,
-                    )
-                }
+                    GlassCircleButton(
+                        onClick = { navController.navigateUp() },
+                        onLongClick = { navController.backToMain() },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_back),
+                            contentDescription = null,
+                        )
+                    }
 
-                Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.weight(1f))
+                }
             }
         }
       }

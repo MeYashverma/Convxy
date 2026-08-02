@@ -102,6 +102,9 @@ import com.convx.music.utils.listItemShape
 import com.convx.music.viewmodels.OnlineSearchViewModel
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
+import com.convx.music.ui.utils.heroPullZoom
+import com.convx.music.ui.utils.listOverscroll
+import com.convx.music.ui.utils.rememberHeroZoom
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -118,6 +121,10 @@ fun OnlineSearchResult(
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
+
+    // Pull-to-refresh only: no hero artwork here, so heroZoom.scale goes unread
+    // and the modifier contributes just the rubber-band stretch.
+    val heroZoom = rememberHeroZoom()
 
     // The nav bar owns the actual search text field/keyboard now (see
     // NavBarSearchInputBar in FloatingNavBar.kt) — this screen just reads the
@@ -350,8 +357,11 @@ fun OnlineSearchResult(
 
                     LazyColumn(
                         state = lazyListState,
+                        overscrollEffect = heroZoom.listOverscroll(),
                         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues(),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heroPullZoom(heroZoom, onRefresh = viewModel::refresh)
                     ) {
                         if (searchFilter == null) {
                             searchSummary?.summaries?.forEach { summary ->

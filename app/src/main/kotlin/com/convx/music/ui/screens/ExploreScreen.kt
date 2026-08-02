@@ -163,7 +163,7 @@ fun ExploreScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .heroPullZoom(heroZoom)
+                .heroPullZoom(heroZoom, onRefresh = exploreViewModel::refresh)
                 // No bounce here: the top pull drives the hero zoom instead.
                 .verticalScroll(scrollState, overscrollEffect = heroZoom.listOverscroll()),
         ) {

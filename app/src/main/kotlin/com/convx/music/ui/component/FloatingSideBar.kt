@@ -111,6 +111,14 @@ private val SideTabHeight = 48.dp
 private val SideBarContentPadding = PaddingValues(6.dp)
 
 /**
+ * Fixed leading slot every row's icon/artwork/avatar is centred in, so the labels
+ * all start at the same x. Without it a 22dp icon row and a 24dp artwork row put
+ * their text 2dp apart, which is exactly what reads as "the icons don't line up".
+ */
+private val SideRowLeadingSlot = 24.dp
+private val SideRowIconSize = 22.dp
+
+/**
  * The free-floating now playing pill in tab view: 80% of the width left over
  * after the side bar, centred in it, with the height following from that width
  * so it keeps its proportions on any screen.
@@ -176,8 +184,9 @@ fun AppFloatingSideBar(
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass = glassConfig.isEnabledFor(GlassComponent.SIDE_PANEL) && isGlassAllowed()
     val animationScope = rememberCoroutineScope()
+    val targetPanelWidth = if (collapsed) SideBarCollapsedWidth else SideBarWidth
     val panelWidth by animateDpAsState(
-        targetValue = if (collapsed) SideBarCollapsedWidth else SideBarWidth,
+        targetValue = targetPanelWidth,
         animationSpec = spring(0.9f, 400f),
         label = "sideBarWidth",
     )
@@ -206,6 +215,12 @@ fun AppFloatingSideBar(
             config = glassConfig.forSidePanel(),
             shape = panelShape,
             highlightAlpha = 0.3f,
+            // The fold is a width animation on the app's largest glass surface:
+            // re-capturing and re-blurring the whole screen on every frame of it
+            // is what makes the collapse stutter. Hold the last capture until the
+            // width settles — the panel is moving, so a frame-old backdrop behind
+            // it is not perceptible.
+            frozen = { panelWidth != targetPanelWidth },
         )
     } else {
         Modifier
@@ -548,22 +563,27 @@ fun SideBarAccountRow(
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp),
     ) {
-        if (accountImageUrl != null) {
-            AsyncImage(
-                model = accountImageUrl,
-                contentDescription = stringResource(R.string.account),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape),
-            )
-        } else {
-            Icon(
-                painter = painterResource(R.drawable.settings),
-                contentDescription = stringResource(R.string.settings),
-                tint = contentColor,
-                modifier = Modifier.size(22.dp),
-            )
+        Box(
+            modifier = Modifier.size(SideRowLeadingSlot),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (accountImageUrl != null) {
+                AsyncImage(
+                    model = accountImageUrl,
+                    contentDescription = stringResource(R.string.account),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.settings),
+                    contentDescription = stringResource(R.string.settings),
+                    tint = contentColor,
+                    modifier = Modifier.size(SideRowIconSize),
+                )
+            }
         }
         if (!collapsed) {
             Spacer(Modifier.width(14.dp))
@@ -596,15 +616,20 @@ private fun SideTabRow(
             .graphicsLayer { this.alpha = alpha }
             .padding(horizontal = if (collapsed) 0.dp else 16.dp),
     ) {
-        Icon(
-            painter = painterResource(
-                if (tab.selected) tab.screen.iconActive(appleMusicUi)
-                else tab.screen.iconInactive(appleMusicUi)
-            ),
-            contentDescription = stringResource(tab.screen.titleId),
-            tint = contentColor,
-            modifier = Modifier.size(22.dp),
-        )
+        Box(
+            modifier = Modifier.size(SideRowLeadingSlot),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (tab.selected) tab.screen.iconActive(appleMusicUi)
+                    else tab.screen.iconInactive(appleMusicUi)
+                ),
+                contentDescription = stringResource(tab.screen.titleId),
+                tint = contentColor,
+                modifier = Modifier.size(SideRowIconSize),
+            )
+        }
         if (!collapsed) {
             Spacer(Modifier.width(14.dp))
             Text(
@@ -629,24 +654,27 @@ private fun SideBarLinkRow(link: SideBarLink, contentColor: Color) {
             .clickable(onClick = link.onClick)
             .padding(horizontal = 16.dp),
     ) {
-        when {
-            link.thumbnailUrl != null -> AsyncImage(
-                model = link.thumbnailUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(ContinuousRoundedRectangle(6.dp)),
-            )
+        Box(
+            modifier = Modifier.size(SideRowLeadingSlot),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                link.thumbnailUrl != null -> AsyncImage(
+                    model = link.thumbnailUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(ContinuousRoundedRectangle(6.dp)),
+                )
 
-            link.iconRes != null -> Icon(
-                painter = painterResource(link.iconRes),
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(22.dp),
-            )
-
-            else -> Spacer(Modifier.size(22.dp))
+                link.iconRes != null -> Icon(
+                    painter = painterResource(link.iconRes),
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(SideRowIconSize),
+                )
+            }
         }
         Spacer(Modifier.width(14.dp))
         Text(

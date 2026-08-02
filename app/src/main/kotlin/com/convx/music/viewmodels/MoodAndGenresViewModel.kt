@@ -22,6 +22,11 @@ constructor() : ViewModel() {
     val moodAndGenres = MutableStateFlow<List<MoodAndGenres>?>(null)
 
     init {
+        refresh()
+    }
+
+    /** Re-fetches the mood/genre list. Bound to the pull-to-refresh gesture. */
+    fun refresh() {
         viewModelScope.launch {
             YouTube
                 .moodAndGenres()

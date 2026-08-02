@@ -72,6 +72,11 @@ constructor(
     }
 
     init {
+        refresh()
+    }
+
+    /** Re-fetches the explore page. Bound to the pull-to-refresh gesture. */
+    fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
             load()
         }

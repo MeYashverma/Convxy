@@ -232,7 +232,7 @@ fun ChartsScreen(
                 LazyColumn(
                     // No bounce here: the top pull drives the hero zoom instead.
                     overscrollEffect = heroZoom.listOverscroll(),
-                    modifier = Modifier.heroPullZoom(heroZoom),
+                    modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::loadCharts),
                     state = lazyListState,
                     contentPadding = LocalPlayerAwareWindowInsets.current
                         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)

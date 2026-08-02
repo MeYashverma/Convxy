@@ -26,12 +26,42 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlin.math.abs
 import kotlin.math.sign
 
-private val MaxPull = 160.dp
+/**
+ * UIKit's rubber band constant. Apple's own value; lower is stiffer.
+ */
+private const val RubberBandConstant = 0.55f
+
+/**
+ * Fallback container height (px) for the one frame before the node has measured.
+ */
+private const val FallbackContainerPx = 2000f
+
+/** Fraction of unconsumed fling velocity handed to the spring-back. */
+private const val FlingBounceScale = 0.4f
+private const val MaxBounceVelocity = 4000f
+
+/**
+ * UIScrollView's rubber band curve: `(1 - 1/(d*c/dim + 1)) * dim/c`.
+ *
+ * [rawDistance] is how far the finger has actually travelled past the edge; the
+ * result is how far the content is allowed to move. Near zero it is 1:1 with the
+ * finger (iOS feels immediate, never mushy), and it asymptotes toward `dim/c`, so
+ * it self-limits instead of needing an arbitrary hard cap that the pull slams
+ * into.
+ *
+ * Shared with [heroPullZoom] so the hero screens' pull and the plain list bounce
+ * are literally the same curve.
+ */
+internal fun rubberBand(rawDistance: Float, containerPx: Float): Float {
+    val dim = if (containerPx > 0f) containerPx else FallbackContainerPx
+    val d = abs(rawDistance)
+    val banded = (1f - 1f / (d * RubberBandConstant / dim + 1f)) * dim / RubberBandConstant
+    return banded * sign(rawDistance)
+}
 
 /**
  * iOS-style rubber-band overscroll, expressed as an [OverscrollEffect] so it can be
@@ -41,23 +71,28 @@ private val MaxPull = 160.dp
  *
  * Replaces Android's stretch/glow edge effect while it is provided.
  *
- * The stretch itself is a plain mutable float mutated synchronously in
- * [applyToScroll] — not an [androidx.compose.animation.core.Animatable] — because
- * `applyToScroll` isn't suspend and every scroll delta during a drag used to launch
- * its own fire-and-forget `snapTo` coroutine. Under a fast drag that's dozens of
- * coroutines racing each other per second, and the offset could end up stuck on a
- * stale value from a coroutine that hadn't run yet. A coroutine (and a real spring)
- * is only needed once, on release, to animate back to rest.
+ * State is the RAW distance dragged past the edge, held in a plain mutable float
+ * mutated synchronously in [applyToScroll] — not an
+ * [androidx.compose.animation.core.Animatable] — because `applyToScroll` isn't
+ * suspend and every scroll delta during a drag used to launch its own
+ * fire-and-forget `snapTo` coroutine. Under a fast drag that's dozens of coroutines
+ * racing each other per second, and the offset could end up stuck on a stale value
+ * from a coroutine that hadn't run yet. A coroutine (and a real spring) is only
+ * needed once, on release, to animate back to rest.
  */
-class IosOverscrollEffect(
-    density: Density,
-) : OverscrollEffect {
+class IosOverscrollEffect : OverscrollEffect {
 
-    private val maxPull = with(density) { MaxPull.toPx() }
-    private val offsetState = mutableFloatStateOf(0f)
+    /** Raw finger distance past the edge; the drawn offset is [rubberBand] of it. */
+    private val rawPull = mutableFloatStateOf(0f)
+
+    /** Measured by [IosOverscrollNode]; the rubber band scales with it, as on iOS. */
+    private var containerPx = 0f
+
+    private val drawOffset: Float
+        get() = rubberBand(rawPull.floatValue, containerPx)
 
     override val isInProgress: Boolean
-        get() = offsetState.floatValue != 0f
+        get() = rawPull.floatValue != 0f
 
     override fun applyToScroll(
         delta: Offset,
@@ -65,29 +100,33 @@ class IosOverscrollEffect(
         performScroll: (Offset) -> Offset,
     ): Offset {
         var selfConsumed = 0f
-        val current = offsetState.floatValue
+        val current = rawPull.floatValue
 
         // Dragging back toward rest pays down the existing stretch before the
-        // list itself gets to scroll — otherwise the content jumps.
+        // list itself gets to scroll — otherwise the content jumps. Paying down
+        // happens in raw (finger) space, so the return trip is damped by exactly
+        // the same curve as the outbound pull, which is what makes the stretch
+        // track the finger symmetrically.
         if (current != 0f && delta.y != 0f && sign(delta.y) != sign(current)) {
             val target = current + delta.y
             val settled = if (sign(target) != sign(current)) 0f else target
             selfConsumed = settled - current
-            offsetState.floatValue = settled
+            rawPull.floatValue = settled
         }
 
         val remaining = Offset(delta.x, delta.y - selfConsumed)
         val consumedByScroll = performScroll(remaining)
         val leftover = remaining - consumedByScroll
 
-        // Leftover means the list hit an edge, so stretch — with progressive
-        // resistance, so the further it is pulled the harder it gets. Starts
-        // near 1:1 with the finger (iOS reads as immediate, not laggy) and
-        // eases off as it nears maxPull.
-        if (leftover.y != 0f) {
-            val resistance = (1f - abs(offsetState.floatValue) / maxPull).coerceIn(0f, 1f).let { it * it * 0.85f + 0.15f }
-            val stretched = (offsetState.floatValue + leftover.y * resistance).coerceIn(-maxPull, maxPull)
-            offsetState.floatValue = stretched
+        // Leftover means the list hit an edge, so stretch. Drag only: absorbing
+        // leftover during a fling reported the whole delta back as consumed, so
+        // the scrollable's decay animation never saw an edge and ran its full
+        // duration with the stretch pinned at maximum — the bounce appeared to
+        // hang, then finally sprang back once the decay expired. Returning
+        // nothing consumed makes the decay cancel at once and hand its remaining
+        // velocity to applyToFling, which is where the bounce belongs.
+        if (leftover.y != 0f && source == NestedScrollSource.UserInput) {
+            rawPull.floatValue += leftover.y
             selfConsumed += leftover.y
         }
 
@@ -98,33 +137,53 @@ class IosOverscrollEffect(
         velocity: Velocity,
         performFling: suspend (Velocity) -> Velocity,
     ) {
-        performFling(velocity)
-        if (offsetState.floatValue != 0f) {
-            // A new drag beats this: the scrollable cancels this suspend fling
-            // (and this animate call with it) as soon as the next pointer-down
-            // starts a fresh drag, so there's no coroutine to race against.
-            animate(
-                initialValue = offsetState.floatValue,
-                targetValue = 0f,
-                animationSpec = spring(
-                    dampingRatio = 0.55f,
-                    stiffness = Spring.StiffnessMedium,
-                ),
-            ) { value, _ -> offsetState.floatValue = value }
-        }
+        val leftoverVelocity = velocity.y - performFling(velocity).y
+        if (rawPull.floatValue == 0f && leftoverVelocity == 0f) return
+
+        // Critically damped, not springy. iOS snaps back and stops dead; a
+        // dampingRatio below 1 wobbles at the end, which is the single thing that
+        // most makes a rubber band read as "Android imitating iOS".
+        //
+        // A new drag beats this: the scrollable cancels this suspend fling (and
+        // this animate call with it) as soon as the next pointer-down starts a
+        // fresh drag, so there's no coroutine to race against.
+        //
+        // Velocity the list could not consume (a flick straight into an
+        // already-reached edge) seeds the spring, so it overshoots into a real
+        // bounce instead of just easing a static stretch back to rest. At rest
+        // the rubber band is 1:1, so fling velocity needs no curve conversion.
+        animate(
+            initialValue = rawPull.floatValue,
+            targetValue = 0f,
+            initialVelocity = (leftoverVelocity * FlingBounceScale)
+                .coerceIn(-MaxBounceVelocity, MaxBounceVelocity),
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        ) { value, _ -> rawPull.floatValue = value }
     }
 
-    override val node: DelegatableNode = IosOverscrollNode { offsetState.floatValue }
+    override val node: DelegatableNode = IosOverscrollNode(
+        offsetY = { drawOffset },
+        onMeasured = { containerPx = it },
+    )
 }
 
 private class IosOverscrollNode(
     private val offsetY: () -> Float,
+    private val onMeasured: (Float) -> Unit,
 ) : Modifier.Node(), LayoutModifierNode {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
         val placeable = measurable.measure(constraints)
+        // The rubber band is scaled by the scroll container's own size on iOS —
+        // a short list resists sooner than a full-screen one.
+        onMeasured(
+            (if (constraints.hasBoundedHeight) constraints.maxHeight else placeable.height).toFloat()
+        )
         return layout(placeable.width, placeable.height) {
             // Read the offset inside the layer block so the bounce animates in the
             // draw phase, without re-laying-out the list every frame.
@@ -137,7 +196,7 @@ private class IosOverscrollFactory(
     private val density: Density,
     private val scope: CoroutineScope,
 ) : OverscrollFactory {
-    override fun createOverscrollEffect(): OverscrollEffect = IosOverscrollEffect(density)
+    override fun createOverscrollEffect(): OverscrollEffect = IosOverscrollEffect()
 
     override fun equals(other: Any?): Boolean =
         other is IosOverscrollFactory && other.density == density && other.scope === scope

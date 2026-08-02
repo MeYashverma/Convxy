@@ -164,7 +164,6 @@ import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.LocalAppBackdrop
 import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
-import com.convx.music.ui.component.backdrop.backdrops.LayerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.LocalMenuState
@@ -619,7 +618,7 @@ fun LocalPlaylistScreen(
             state = lazyListState,
             // No bounce here: the top pull drives the hero zoom instead.
             overscrollEffect = heroZoom.listOverscroll(),
-            modifier = Modifier.heroPullZoom(heroZoom),
+            modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::refresh),
             contentPadding = LocalPlayerAwareWindowInsets.current
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 .union(WindowInsets.ime)
@@ -645,7 +644,6 @@ fun LocalPlaylistScreen(
                                 onshowDeletePlaylistDialog = { showDeletePlaylistDialog = true },
                                 onStartSearch = { isSearching = true },
                                 snackbarHostState = snackbarHostState,
-                                listBackdrop = listBackdrop,
                                 heroScale = heroZoom.scale,
                                 modifier = Modifier.animateItem()
                             )
@@ -1077,7 +1075,6 @@ fun LocalPlaylistHeader(
     onshowDeletePlaylistDialog: () -> Unit,
     onStartSearch: () -> Unit,
     snackbarHostState: SnackbarHostState,
-    listBackdrop: LayerBackdrop,
     modifier: Modifier,
     heroScale: Float = 1f,
 ) {
@@ -1349,12 +1346,12 @@ fun LocalPlaylistHeader(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Action Buttons Row — Redesigned for unified circular look
-            // Wrapped in the list's own attached backdrop (not whatever
-            // LocalAppBackdrop is ambient here, which is heroBackdrop's
-            // unattached safe-fallback — flat/no-op glass) so these buttons
-            // sample real blurred list content, same as the floating chrome
-            // row in the enclosing LocalPlaylistScreen composable.
-            CompositionLocalProvider(LocalAppBackdrop provides listBackdrop) {
+            // These keep the ambient (unattached) heroBackdrop deliberately.
+            // Providing the list's own attached backdrop here is a RenderNode
+            // cycle: this header is drawn INSIDE Modifier.layerBackdrop(
+            // listBackdrop), so glass sampling it captures its own draw pass
+            // (native stack overflow in RenderNode::prepareTreeImpl). Only the
+            // floating chrome row — a *sibling* of that layer — may use it.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1496,7 +1493,6 @@ fun LocalPlaylistHeader(
                         modifier = Modifier.size(20.dp),
                     )
                 }
-            }
             }
 
             Spacer(Modifier.height(24.dp))

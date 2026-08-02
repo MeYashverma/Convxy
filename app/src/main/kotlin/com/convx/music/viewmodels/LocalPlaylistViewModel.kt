@@ -92,12 +92,7 @@ constructor(
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        viewModelScope.launch {
-            // Trigger sync in background if it's a YouTube synced playlist
-            playlist.first { it != null }?.playlist?.browseId?.let { browseId ->
-                syncUtils.syncPlaylist(browseId, playlistId)
-            }
-        }
+        refresh()
 
         viewModelScope.launch {
             val sortedSongs =
@@ -108,6 +103,18 @@ constructor(
                         update(playlistSong.map.copy(position = index))
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Re-syncs this playlist against YouTube. Bound to the pull-to-refresh gesture.
+     * No-op for a purely local playlist, which has no browseId to sync against.
+     */
+    fun refresh() {
+        viewModelScope.launch {
+            playlist.first { it != null }?.playlist?.browseId?.let { browseId ->
+                syncUtils.syncPlaylist(browseId, playlistId)
             }
         }
     }

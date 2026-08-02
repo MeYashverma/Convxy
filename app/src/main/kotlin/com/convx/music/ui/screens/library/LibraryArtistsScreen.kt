@@ -79,6 +79,9 @@ import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.LibraryArtistsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.convx.music.ui.utils.heroPullZoom
+import com.convx.music.ui.utils.listOverscroll
+import com.convx.music.ui.utils.rememberHeroZoom
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -143,6 +146,10 @@ fun LibraryArtistsScreen(
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
+    // Pull-to-refresh only: no hero artwork on this screen, so heroZoom.scale
+    // goes unread and the modifier contributes just the rubber-band stretch.
+    val heroZoom = rememberHeroZoom()
+
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
@@ -227,6 +234,8 @@ fun LibraryArtistsScreen(
             LibraryViewType.LIST ->
                 LazyColumn(
                     state = lazyListState,
+                    overscrollEffect = heroZoom.listOverscroll(),
+                    modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::sync),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(
@@ -274,6 +283,8 @@ fun LibraryArtistsScreen(
             LibraryViewType.GRID ->
                 LazyVerticalGrid(
                     state = lazyGridState,
+                    overscrollEffect = heroZoom.listOverscroll(),
+                    modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::sync),
                     columns =
                     GridCells.Adaptive(
                         minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,

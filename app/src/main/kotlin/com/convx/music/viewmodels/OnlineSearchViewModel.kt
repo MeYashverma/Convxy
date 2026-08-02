@@ -50,49 +50,64 @@ constructor(
 
     init {
         viewModelScope.launch {
-            filter.collect { filter ->
-                if (filter == null) {
-                    if (summaryPage == null) {
-                        YouTube
-                            .searchSummary(query)
-                            .onSuccess {
-                                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
-                                val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
-                                summaryPage =
-                                    it.filterExplicit(
-                                        hideExplicit,
-                                    ).filterVideoSongs(hideVideoSongs).filterYoutubeShorts(hideYoutubeShorts)
-                            }.onFailure {
-                                reportException(it)
-                            }
-                    }
-                } else {
-                    if (viewStateMap[filter.value] == null) {
-                        YouTube
-                            .search(query, filter)
-                            .onSuccess { result ->
-                                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
-                                val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
-                                viewStateMap[filter.value] =
-                                    ItemsPage(
-                                        result.items
-                                            .distinctBy { it.id }
-                                            .filterExplicit(
-                                                hideExplicit,
-                                            )
-                                            .filterVideoSongs(hideVideoSongs)
-                                            .filterYoutubeShorts(hideYoutubeShorts),
-                                        result.continuation,
-                                    )
-                            }.onFailure {
-                                reportException(it)
-                            }
-                    }
-                }
-            }
+            // Only fetches what isn't cached yet — switching filters back and forth
+            // must not re-hit the network. refresh() drops the cache entry first.
+            filter.collect { load(it) }
         }
+    }
+
+    private suspend fun load(filter: YouTube.SearchFilter?) {
+        if (filter == null) {
+            if (summaryPage != null) return
+            YouTube
+                .searchSummary(query)
+                .onSuccess {
+                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                    val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
+                    summaryPage =
+                        it.filterExplicit(
+                            hideExplicit,
+                        ).filterVideoSongs(hideVideoSongs).filterYoutubeShorts(hideYoutubeShorts)
+                }.onFailure {
+                    reportException(it)
+                }
+        } else {
+            if (viewStateMap[filter.value] != null) return
+            YouTube
+                .search(query, filter)
+                .onSuccess { result ->
+                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                    val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
+                    viewStateMap[filter.value] =
+                        ItemsPage(
+                            result.items
+                                .distinctBy { it.id }
+                                .filterExplicit(
+                                    hideExplicit,
+                                )
+                                .filterVideoSongs(hideVideoSongs)
+                                .filterYoutubeShorts(hideYoutubeShorts),
+                            result.continuation,
+                        )
+                }.onFailure {
+                    reportException(it)
+                }
+        }
+    }
+
+    /**
+     * Re-runs the current query. Bound to the pull-to-refresh gesture.
+     *
+     * Clears this filter's cached page first, otherwise [load] short-circuits on
+     * it — and calls [load] directly rather than re-setting [filter], since a
+     * StateFlow drops a write of the value it already holds.
+     */
+    fun refresh() {
+        val current = filter.value
+        if (current == null) summaryPage = null else viewStateMap.remove(current.value)
+        viewModelScope.launch { load(current) }
     }
 
     fun loadMore() {

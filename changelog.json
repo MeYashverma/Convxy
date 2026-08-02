@@ -1,9 +1,16 @@
 {
-  "description": "Convx 1.3 — big update: bundled App Fonts, Auto-DJ mixing, a full-screen lyrics overhaul, waveform seeking in the mini player, a redesigned Liquid Glass system, and a large performance pass. Read on for how to use everything.",
+  "description": "Convx 1.4 — fixes the in-app updater (direct APK downloads, no more browser redirect) and consolidates every font control into one place. Plus everything from 1.3: bundled App Fonts, Auto-DJ mixing, a full-screen lyrics overhaul, waveform seeking in the mini player, a redesigned Liquid Glass system, and a large performance pass.",
   "image": "",
   "changelog": [
     {
-      "title": "App Fonts (New)",
+      "title": "Updates & Fonts (Fixed)",
+      "items": [
+        "In-app updates fixed: the update check now finds Convx's actual APK asset and downloads it directly, so Check for updates installs the new version instead of bouncing you to the browser.",
+        "All font controls now live in one place — Settings → Appearance → App Font: the App Font picker, the Display font (Chillax wordmark/title) toggle, and the Custom font installer."
+      ]
+    },
+    {
+      "title": "App Fonts",
       "items": [
         "Pick a bundled typeface for the app's display text: Google Sans, Sans Flex, Outfit, or Plus Jakarta Sans — Settings → Appearance → App Font, with a live typography preview.",
         "Choose System Default to use the system font, or a custom-installed font."

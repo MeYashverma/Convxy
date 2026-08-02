@@ -25,6 +25,12 @@
     <a href="https://discord.gg/Ejeb4cmzfd">
       <img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
     </a>
+    <a href="https://ko-fi.com/cosmictaser">
+      <img src="https://img.shields.io/badge/Ko--fi-Support%20Us-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support on Ko-fi">
+    </a>
+  </p>
+  <p>
+    ☕ <b>Support:</b> <a href="https://ko-fi.com/cosmictaser">Ko-fi</a> · UPI: <code>8439095289@ibl</code>
   </p>
 </div>
 

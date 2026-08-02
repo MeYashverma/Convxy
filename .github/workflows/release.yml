@@ -11,6 +11,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   build_stable:
     name: Build Universal GMS Stable Release

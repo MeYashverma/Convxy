@@ -5,6 +5,9 @@
 
 package com.convx.music.ui.screens.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,13 +26,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -38,6 +46,10 @@ import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
 import com.convx.music.constants.AppFont
+import com.convx.music.constants.BrandFontEnabledKey
+import com.convx.music.constants.CustomFontEnabledKey
+import com.convx.music.constants.CustomFontNameKey
+import com.convx.music.constants.CustomFontPathKey
 import com.convx.music.constants.SelectedFontKey
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.Material3SettingsGroup
@@ -46,9 +58,13 @@ import com.convx.music.ui.theme.GoogleSansFontFamily
 import com.convx.music.ui.theme.OutfitFontFamily
 import com.convx.music.ui.theme.PlusJakartaSansFontFamily
 import com.convx.music.ui.theme.SansFlexFontFamily
+import com.convx.music.ui.theme.copyCustomFont
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.backToMain
 import com.convx.music.utils.rememberPreference
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +76,42 @@ fun FontSelectionScreen(
         SelectedFontKey,
         defaultValue = AppFont.SYSTEM.value
     )
+
+    val (brandFont, onBrandFontChange) = rememberPreference(
+        BrandFontEnabledKey,
+        defaultValue = true
+    )
+    val (customFontEnabled, onCustomFontEnabledChange) = rememberPreference(
+        CustomFontEnabledKey,
+        defaultValue = false
+    )
+    val (customFontPath, onCustomFontPathChange) = rememberPreference(
+        CustomFontPathKey,
+        defaultValue = ""
+    )
+    val (customFontName, onCustomFontNameChange) = rememberPreference(
+        CustomFontNameKey,
+        defaultValue = ""
+    )
+    val context = LocalContext.current
+    val customFontScope = rememberCoroutineScope()
+    val customFontPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        val displayName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
+        } ?: uri.lastPathSegment.orEmpty()
+        customFontScope.launch {
+            val newPath = withContext(Dispatchers.IO) { copyCustomFont(context, uri) }
+            if (newPath != null) {
+                onCustomFontPathChange(newPath)
+                onCustomFontNameChange(displayName)
+                onCustomFontEnabledChange(true)
+            }
+        }
+    }
 
     val activeFontFamily = remember(selectedFont) {
         when (AppFont.fromValue(selectedFont)) {
@@ -252,6 +304,62 @@ fun FontSelectionScreen(
                             )
                         },
                         onClick = { onSelectedFontChange(AppFont.PLUS_JAKARTA_SANS.value) }
+                    )
+                )
+            )
+            Spacer(modifier = Modifier.height(27.dp))
+
+            Material3SettingsGroup(
+                title = stringResource(R.string.font_additional),
+                items = listOf(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text(stringResource(R.string.brand_font)) },
+                        description = { Text(stringResource(R.string.brand_font_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = brandFont,
+                                onCheckedChange = onBrandFontChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (brandFont) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onBrandFontChange(!brandFont) }
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text(stringResource(R.string.custom_font)) },
+                        description = {
+                            Text(
+                                if (customFontPath.isEmpty()) stringResource(R.string.custom_font_none)
+                                else customFontName.ifEmpty { stringResource(R.string.custom_font_set) }
+                            )
+                        },
+                        trailingContent = {
+                            if (customFontPath.isNotEmpty()) {
+                                Switch(
+                                    checked = customFontEnabled,
+                                    onCheckedChange = onCustomFontEnabledChange,
+                                    thumbContent = {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (customFontEnabled) R.drawable.check else R.drawable.close
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
+                                    }
+                                )
+                            }
+                        },
+                        onClick = { customFontPickerLauncher.launch(arrayOf("*/*")) }
                     )
                 )
             )

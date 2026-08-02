@@ -71,8 +71,6 @@ import androidx.compose.runtime.mutableStateOf
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.remember
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.runtime.rememberCoroutineScope
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.setValue
@@ -210,23 +208,11 @@ import com.convx.music.constants.LyricsScrollKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ShowAudioQualityBadgeKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.BrandFontEnabledKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.MiniPlayerWaveformKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ShowCommentButtonKey
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import com.convx.music.constants.CustomFontEnabledKey
-import com.convx.music.constants.CustomFontNameKey
-import com.convx.music.constants.CustomFontPathKey
 import com.convx.music.constants.AppFont
 import com.convx.music.constants.SelectedFontKey
-import com.convx.music.ui.theme.copyCustomFont
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -249,44 +235,11 @@ fun AppearanceSettings(
         MiniPlayerWaveformKey,
         defaultValue = true
     )
-    val (brandFont, onBrandFontChange) = rememberPreference(
-        BrandFontEnabledKey,
-        defaultValue = true
-    )
-    val (customFontEnabled, onCustomFontEnabledChange) = rememberPreference(
-        CustomFontEnabledKey,
-        defaultValue = false
-    )
-    val (customFontPath, onCustomFontPathChange) = rememberPreference(
-        CustomFontPathKey,
-        defaultValue = ""
-    )
-    val (customFontName, onCustomFontNameChange) = rememberPreference(
-        CustomFontNameKey,
-        defaultValue = ""
-    )
     val (selectedFontValue) = rememberPreference(
         SelectedFontKey,
         defaultValue = AppFont.SYSTEM.value
     )
-    val customFontScope = rememberCoroutineScope()
-    val customFontPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        val displayName = activity.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
-        } ?: uri.lastPathSegment.orEmpty()
-        customFontScope.launch {
-            val newPath = withContext(Dispatchers.IO) { copyCustomFont(activity, uri) }
-            if (newPath != null) {
-                onCustomFontPathChange(newPath)
-                onCustomFontNameChange(displayName)
-                onCustomFontEnabledChange(true)
-            }
-        }
-    }
+
     val (libraryIconsOnly, onLibraryIconsOnlyChange) = rememberPreference(
         LibraryIconsOnlyKey,
         defaultValue = true
@@ -893,55 +846,6 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onShowCommentButtonChange(!showCommentButton) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.palette),
-                    title = { Text(stringResource(R.string.brand_font)) },
-                    description = { Text(stringResource(R.string.brand_font_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = brandFont,
-                            onCheckedChange = onBrandFontChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (brandFont) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onBrandFontChange(!brandFont) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.palette),
-                    title = { Text(stringResource(R.string.custom_font)) },
-                    description = {
-                        Text(
-                            if (customFontPath.isEmpty()) stringResource(R.string.custom_font_none)
-                            else customFontName.ifEmpty { stringResource(R.string.custom_font_set) }
-                        )
-                    },
-                    trailingContent = {
-                        if (customFontPath.isNotEmpty()) {
-                            Switch(
-                                checked = customFontEnabled,
-                                onCheckedChange = onCustomFontEnabledChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (customFontEnabled) R.drawable.check else R.drawable.close
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize)
-                                    )
-                                }
-                            )
-                        }
-                    },
-                    onClick = { customFontPickerLauncher.launch(arrayOf("*/*")) }
                 )
             )
         )

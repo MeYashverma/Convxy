@@ -1145,6 +1145,7 @@
 
     <string name="app_font">App Font</string>
     <string name="font_selection">Font Selection</string>
+    <string name="font_additional">Additional Fonts</string>
     <string name="font_system">System Default</string>
     <string name="font_google_sans">Google Sans</string>
     <string name="font_sans_flex">Sans Flex</string>

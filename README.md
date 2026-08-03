@@ -56,12 +56,12 @@
       <img src="https://img.shields.io/badge/Ko--fi-Support%20Us-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support on Ko-fi">
     </a>
     <a href="https://cosmic-taser.netlify.app/">
-      <img src="https://img.shields.io/badge/Portfolio-Visit%20Us-8A2BE2?style=for-the-badge&logo=netlify&logoColor=white" alt="Visit Portfolio">
+      <img src="https://img.shields.io/badge/Convx-Website-8A2BE2?style=for-the-badge&logo=netlify&logoColor=white" alt="Visit Convx Website">
     </a>
   </p>
   <p>
     ☕ <b>Support:</b> <a href="https://ko-fi.com/cosmictaser">Ko-fi</a> &nbsp;•&nbsp;
-    🌐 <b>Portfolio:</b> <a href="https://cosmic-taser.netlify.app/">cosmic-taser.netlify.app</a>
+    🌐 <b>Website:</b> <a href="https://cosmic-taser.netlify.app/">Convx Website</a>
   </p>
 </div>
 

@@ -55,9 +55,13 @@
     <a href="https://ko-fi.com/cosmictaser">
       <img src="https://img.shields.io/badge/Ko--fi-Support%20Us-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support on Ko-fi">
     </a>
+    <a href="https://cosmic-taser.netlify.app/">
+      <img src="https://img.shields.io/badge/Portfolio-Visit%20Us-8A2BE2?style=for-the-badge&logo=netlify&logoColor=white" alt="Visit Portfolio">
+    </a>
   </p>
   <p>
-    ☕ <b>Support:</b> <a href="https://ko-fi.com/cosmictaser">Ko-fi</a>
+    ☕ <b>Support:</b> <a href="https://ko-fi.com/cosmictaser">Ko-fi</a> &nbsp;•&nbsp;
+    🌐 <b>Portfolio:</b> <a href="https://cosmic-taser.netlify.app/">cosmic-taser.netlify.app</a>
   </p>
 </div>
 
@@ -212,7 +216,7 @@
 
   <h2>🙏 Credits</h2>
 
-  <p>Convx is developed and maintained by <a href="https://github.com/cosmictaserdev-creator">Aryan (CosmicTaser)</a>.</p>
+  <p>Convx is developed and maintained by <a href="https://github.com/cosmictaserdev-creator">Aryan (CosmicTaser)</a>. See <a href="https://cosmic-taser.netlify.app/">cosmic-taser.netlify.app</a> for the portfolio.</p>
 
   <table border="0" cellpadding="10" cellspacing="0" width="90%">
     <tr valign="top">

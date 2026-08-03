@@ -1,16 +1,46 @@
 <div align="center">
   <h1>CONVX</h1>
-  <h3>An iOS-inspired, Liquid Glass music player for Android</h3>
+  <h3>Convx is an open-source, Liquid Glass music player for Android</h3>
 
   <p>
-    <a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.3">
-      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20CONVX%201.3-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convx 1.3">
+    <a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.4">
+      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20CONVX%201.4-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convx 1.4">
     </a>
   </p>
   <p>
-    <b><a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.3">⬇️ DOWNLOAD CONVX 1.3</a></b>
+    <b><a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.4">⬇️ DOWNLOAD CONVX 1.4</a></b>
     — Latest release. Works on Android 8.0+.
   </p>
+
+  <h3>📸 Screenshots</h3>
+  <div>
+    <img src="docs/screenshots/Screenshot_20260802_202411_Convx-portrait.png" width="30%" alt="Convx Liquid Glass music player now playing screen with frosted glass controls">
+    <img src="docs/screenshots/Screenshot_20260802_205400_Convx-portrait.png" width="30%" alt="Convx Android music player home screen with glass chrome">
+    <img src="docs/screenshots/Screenshot_20260802_205417_Convx-portrait.png" width="30%" alt="Convx music player library view with Liquid Glass blur">
+    <br>
+    <img src="docs/screenshots/Screenshot_20260802_205427_Convx-portrait.png" width="30%" alt="Convx music player search screen with frosted glass UI">
+    <img src="docs/screenshots/mobile%20%283%29-portrait.png" width="30%" alt="Convx Liquid Glass music player UI showing the frosted player screen">
+    <img src="docs/screenshots/mobile%20%284%29-portrait.png" width="30%" alt="Convx music player now playing screen with artwork and glass controls">
+    <br>
+    <img src="docs/screenshots/mobile%20%285%29-portrait.png" width="30%" alt="Convx music player queue screen with Liquid Glass surfaces">
+    <img src="docs/screenshots/mobile%20%287%29-portrait.png" width="30%" alt="Convx Android music player synced lyrics screen">
+    <img src="docs/screenshots/mobile%20%289%29-portrait.png" width="30%" alt="Convx music player album page with refractive glass chrome">
+    <br>
+    <img src="docs/screenshots/mobile%20%2810%29-portrait.png" width="30%" alt="Convx music player settings screen with frosted glass panels">
+    <img src="docs/screenshots/mobile%20%2811%29-portrait.png" width="30%" alt="Convx music player artist page with glass design">
+    <img src="docs/screenshots/mobile%20%2812%29-portrait.png" width="30%" alt="Convx music player Android Auto playback controls">
+    <br>
+    <img src="docs/screenshots/mobile%20%2813%29-portrait.png" width="30%" alt="Convx music player equalizer with Liquid Glass UI">
+    <img src="docs/screenshots/lyrics%20screen-portrait.png" width="30%" alt="Convx music player karaoke-style lyrics with word-by-word highlighting">
+    <img src="docs/screenshots/users%20%282%29-portrait.png" width="30%" alt="Convx Listen Together shared playback with friends">
+    <br>
+    <img src="docs/screenshots/tabview%20%281%29-landscape.png" width="30%" alt="Convx Liquid Glass music player tablet home view">
+    <img src="docs/screenshots/tabview%20%282%29-landscape.png" width="30%" alt="Convx music player tablet library browsing">
+    <img src="docs/screenshots/tabview%20%283%29-landscape.png" width="30%" alt="Convx music player tablet now playing screen">
+    <br>
+    <img src="docs/screenshots/users%20%283%29-portrait.png" width="30%" alt="Convx Discord Rich Presence showing what you are listening to">
+    <img src="docs/screenshots/users%20%285%29-landscape.png" width="30%" alt="Convx music player shared sessions and community">
+  </div>
 
   <p>
     <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
@@ -27,7 +57,7 @@
     </a>
   </p>
   <p>
-    ☕ <b>Support:</b> <a href="https://ko-fi.com/cosmictaser">Ko-fi</a> · UPI: <code>8439095289@ibl</code>
+    ☕ <b>Support:</b> <a href="https://ko-fi.com/cosmictaser">Ko-fi</a>
   </p>
 </div>
 
@@ -35,26 +65,9 @@
 
 <h2>🎵 About Convx</h2>
 
-<p><b>Convx</b> is a free, open-source music player for Android that streams from YouTube Music, with a UI built around a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
+<p><b>Convx</b> is a free, open-source music player for Android that streams from YouTube Music, built with <b>Jetpack Compose</b> on a <b>Media3</b> ExoPlayer core. The UI is a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
 
 <p>Convx started as a fork of <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a>; see <a href="#-credits">Credits</a> below.</p>
-
-<hr>
-
-<h2>📸 Screenshots</h2>
-
-<div align="center">
-  <img src="docs/screenshots/screenshot-1.jpg" width="30%" alt="Screenshot 1">
-  <img src="docs/screenshots/screenshot-2.jpg" width="30%" alt="Screenshot 2">
-  <img src="docs/screenshots/screenshot-3.jpg" width="30%" alt="Screenshot 3">
-  <br>
-  <img src="docs/screenshots/screenshot-4.jpg" width="30%" alt="Screenshot 4">
-  <img src="docs/screenshots/screenshot-5.jpg" width="30%" alt="Screenshot 5">
-  <img src="docs/screenshots/screenshot-6.jpg" width="30%" alt="Screenshot 6">
-  <br>
-  <img src="docs/screenshots/screenshot-7.jpg" width="30%" alt="Screenshot 7">
-  <img src="docs/screenshots/screenshot-8.jpg" width="30%" alt="Screenshot 8">
-</div>
 
 <hr>
 

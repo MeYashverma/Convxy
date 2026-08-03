@@ -125,3 +125,6 @@ NEW-UI/
 News/
 fastlane/
 merge_strings.py
+
+# Hermes automation scripts (local only)
+.hermes_tmp/

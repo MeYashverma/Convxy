@@ -93,6 +93,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.CrossfadeDurationKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.AutoDjMixingEnabledKey
+import com.convx.music.constants.CreativeTransitionsEnabledKey
 import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.constants.CrossfadeEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -173,6 +174,10 @@ fun PlayerSettings(
     val (crossfadeGapless, onCrossfadeGaplessChange) = rememberPreference(
         CrossfadeGaplessKey,
         defaultValue = true
+    )
+    val (creativeTransitionsEnabled, onCreativeTransitionsEnabledChange) = rememberPreference(
+        CreativeTransitionsEnabledKey,
+        defaultValue = false
     )
     val (autoDjMixingEnabled, onAutoDjMixingEnabledChange) = rememberPreference(
         AutoDjMixingEnabledKey,
@@ -305,16 +310,17 @@ fun PlayerSettings(
 
 
 
-    Column(
+    androidx.compose.foundation.lazy.LazyColumn(
         Modifier
             .windowInsetsPadding(
                 LocalPlayerAwareWindowInsets.current.only(
                     WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
                 )
             )
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
     ) {
+        item(key = "player_settings_content") {
+            Column {
         var showCrossfadeBetaDialog by remember { mutableStateOf(false) }
 
         if (showCrossfadeBetaDialog) {
@@ -477,6 +483,37 @@ fun PlayerSettings(
                     },
                     onClick = if (crossfadeEnabled) {
                         { onAutoDjMixingEnabledChange(!autoDjMixingEnabled) }
+                    } else null
+                ))
+                val creativeAvailable = crossfadeEnabled && autoDjMixingEnabled
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.equalizer),
+                    title = { Text(stringResource(R.string.creative_transitions)) },
+                    description = {
+                        Text(
+                            if (creativeAvailable) stringResource(R.string.creative_transitions_desc)
+                            else stringResource(R.string.creative_transitions_needs_dj)
+                        )
+                    },
+                    enabled = creativeAvailable,
+                    trailingContent = {
+                        Switch(
+                            checked = creativeTransitionsEnabled && creativeAvailable,
+                            enabled = creativeAvailable,
+                            onCheckedChange = onCreativeTransitionsEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (creativeTransitionsEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = if (creativeAvailable) {
+                        { onCreativeTransitionsEnabledChange(!creativeTransitionsEnabled) }
                     } else null
                 ))
                 add(Material3SettingsItem(
@@ -964,6 +1001,8 @@ fun PlayerSettings(
             )
         )
         Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
     }
 
     TopAppBar(

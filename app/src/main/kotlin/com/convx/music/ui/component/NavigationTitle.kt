@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.convx.music.R
 
 import androidx.compose.material3.LocalContentColor
+import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.LocalAccentTextColor
 import androidx.compose.ui.graphics.Color
 
@@ -66,7 +67,7 @@ fun NavigationTitle(
             .clickable(enabled = onClick != null) {
                 onClick?.invoke()
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = AppleTokens.Gutter, vertical = 12.dp)
     ) {
         thumbnail?.invoke()
 
@@ -111,7 +112,7 @@ fun NavigationTitle(
         onPlayAllClick?.let { playAllClick ->
             OutlinedButton(
                 onClick = playAllClick,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(AppleTokens.Control),
                 border = BorderStroke(1.dp, contentColor.copy(alpha = 0.5f)),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = contentColor

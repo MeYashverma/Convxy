@@ -7,9 +7,9 @@ package com.convx.music.constants
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 
 const val CONTENT_TYPE_HEADER = 0
 const val CONTENT_TYPE_LIST = 1
@@ -37,10 +37,23 @@ val SearchFilterHeight = 48.dp
 val ListThumbnailSize = 48.dp
 val SmallGridThumbnailHeight = 128.dp
 val GridThumbnailHeight = 164.dp
+
+// Minimum column width for every vertical GridCells.Adaptive in the app. Sized
+// so a normal phone lands on three columns: the old value was GridThumbnailHeight
+// (a carousel tile's height) swung ±24 by a preference, which gave two very wide
+// columns and made library grids read as oversized.
+val GridColumnMinWidth = 108.dp
 val AlbumThumbnailSize = 144.dp
 
-val ThumbnailCornerRadius = 6.dp //from 3 to 6
-val ThumbnailRoundedShape = RoundedCornerShape(ThumbnailCornerRadius)
+// Kept in sync with AppleTokens.Artwork — this is the same token, reachable
+// from :constants which cannot depend on the theme package.
+val ThumbnailCornerRadius = 12.dp
+
+// Continuous (squircle) curvature, not a plain rounded rect — the corner eases
+// in the way iOS/Apple Music artwork does instead of meeting the edge on a
+// circular arc. CornerBasedShape, so it drops into anything that took the old
+// RoundedCornerShape, liquidGlass included.
+val ThumbnailRoundedShape = ContinuousRoundedRectangle(ThumbnailCornerRadius)
 
 val PlayerHorizontalPadding = 32.dp
 

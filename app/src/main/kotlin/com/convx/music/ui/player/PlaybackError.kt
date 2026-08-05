@@ -7,6 +7,7 @@ package com.convx.music.ui.player
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,17 +20,22 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.PlaybackException
+import androidx.media3.datasource.HttpDataSource
 import com.convx.music.R
 
 @Composable
@@ -37,12 +43,49 @@ fun PlaybackError(
     error: PlaybackException,
     retry: () -> Unit,
 ) {
-    // Build detailed error info for debugging
-    val rawErrorMessage = error.cause?.cause?.message 
-        ?: error.cause?.message 
-        ?: error.message 
-        ?: stringResource(R.string.error_unknown)
-    
+    // Walk the whole cause chain, not just two levels. ExoPlayer buckets most
+    // network failures into ERROR_CODE_IO_UNSPECIFIED (2000) with no message of
+    // its own, so the old two-level lookup fell through to "Unknown error" and
+    // every screenshotted report arrived with nothing to act on.
+    val causeChain = remember(error) {
+        generateSequence(error as Throwable) { it.cause }.take(8).toList()
+    }
+    val httpStatus = remember(causeChain) {
+        causeChain.filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+            .firstOrNull()?.responseCode
+    }
+    // First real message anywhere in the chain, innermost first — that's the one
+    // that names the actual failure.
+    val chainMessage = remember(causeChain) {
+        causeChain.reversed().firstNotNullOfOrNull { it.message?.takeIf { m -> m.isNotBlank() } }
+    }
+    // Last resort when nothing carries a message: the exception types themselves
+    // still say a lot (e.g. UnknownHostException vs SocketTimeoutException).
+    val chainTypes = remember(causeChain) {
+        causeChain.map { it.javaClass.simpleName }.distinct().joinToString(" <- ")
+    }
+    val unknownLabel = stringResource(R.string.error_unknown)
+    val rawErrorMessage = when {
+        httpStatus != null && chainMessage != null -> "HTTP $httpStatus - $chainMessage"
+        httpStatus != null -> "HTTP $httpStatus"
+        chainMessage != null -> chainMessage
+        chainTypes.isNotBlank() -> chainTypes
+        else -> unknownLabel
+    }
+
+    // What the Copy button hands over — everything, untruncated, so a pasted
+    // report is diagnosable without a follow-up round trip.
+    val copyDetails = remember(error, rawErrorMessage) {
+        buildString {
+            appendLine("Convx playback error")
+            appendLine("code: ${getErrorCodeName(error.errorCode)} (${error.errorCode})")
+            httpStatus?.let { appendLine("http: $it") }
+            appendLine("detail: $rawErrorMessage")
+            appendLine("chain: $chainTypes")
+        }
+    }
+    val clipboard = LocalClipboardManager.current
+
     // Check if this is an age-restricted content error
     // Age-restricted content typically returns 403 Forbidden or contains age-related messages
     val isAgeRestricted = rawErrorMessage.contains("age", ignoreCase = true) ||
@@ -51,7 +94,10 @@ fun PlaybackError(
             rawErrorMessage.contains("confirm your age", ignoreCase = true) ||
             rawErrorMessage.contains("403", ignoreCase = true) ||
             rawErrorMessage.contains("Response code: 403", ignoreCase = true) ||
-            error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
+            // Only a real 403 means age-gated. IO_BAD_HTTP_STATUS on its own
+            // covers 404/429/5xx too, and claiming "age-restricted" for those
+            // sent people chasing the wrong problem.
+            httpStatus == 403
     
     val errorMessage = if (isAgeRestricted) {
         "This app does not support playing age-restricted songs. We are working on fixing this issue."
@@ -111,21 +157,41 @@ fun PlaybackError(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Retry button
-        Button(
-            onClick = retry,
-            shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.replay),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = stringResource(R.string.retry))
+            // Retry button
+            Button(
+                onClick = retry,
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.replay),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = stringResource(R.string.retry))
+            }
+
+            // The on-screen detail is clamped to 3 lines; this hands over the
+            // whole thing so a bug report arrives diagnosable the first time.
+            TextButton(
+                onClick = { clipboard.setText(AnnotatedString(copyDetails)) },
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.content_copy),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = stringResource(R.string.error_copy_details))
+            }
         }
     }
 }

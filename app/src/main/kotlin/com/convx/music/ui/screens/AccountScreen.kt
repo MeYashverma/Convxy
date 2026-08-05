@@ -58,6 +58,7 @@ import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.R
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.GridItemSize
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.GridItemsSizeKey
@@ -113,7 +114,7 @@ fun AccountScreen(
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
+        columns = rememberGridColumns(),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {

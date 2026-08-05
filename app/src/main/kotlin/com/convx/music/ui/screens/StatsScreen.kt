@@ -79,7 +79,10 @@ import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.ListQueue
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.ChoiceChipsRow
+import com.convx.music.ui.component.CollapsedTitleBar
 import com.convx.music.ui.component.HideOnScrollFAB
+import com.convx.music.ui.component.LargeScreenTitle
+import com.convx.music.ui.component.rememberTitleCollapseProgress
 import com.convx.music.ui.component.LocalAlbumsGrid
 import com.convx.music.ui.component.LocalArtistsGrid
 import com.convx.music.ui.component.LocalMenuState
@@ -227,14 +230,9 @@ fun StatsScreen(
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item(key = "header") {
-                    Spacer(Modifier.height(40.dp))
-                    Text(
-                        text = stringResource(R.string.stats).lowercase(),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.ExtraBold,
+                    LargeScreenTitle(
+                        title = stringResource(R.string.stats),
                         color = onTint,
-                        fontSize = 42.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                     )
                 }
 
@@ -492,6 +490,13 @@ fun StatsScreen(
             }
 
             // Top bar logic
+            CollapsedTitleBar(
+                title = stringResource(R.string.stats),
+                progress = rememberTitleCollapseProgress(lazyListState),
+                color = onTint,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

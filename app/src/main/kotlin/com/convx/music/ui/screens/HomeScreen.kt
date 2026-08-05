@@ -78,6 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
@@ -115,6 +116,7 @@ import com.convx.music.constants.ListItemHeight
 import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.RandomizeHomeOrderKey
+import com.convx.music.constants.SpeedDialColumnsOverrideKey
 import com.convx.music.constants.SmallGridThumbnailHeight
 import com.convx.music.constants.ThumbnailCornerRadius
 import com.convx.music.db.entities.Album
@@ -142,6 +144,7 @@ import com.convx.music.ui.component.AlbumGridItem
 import com.convx.music.ui.component.ArtistGridItem
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.HideOnScrollFAB
+import com.convx.music.ui.component.HomeHeroCard
 import com.convx.music.ui.component.HomeImageBackground
 import com.convx.music.ui.component.rememberAppBackgroundTint
 import com.convx.music.ui.component.LocalBottomSheetPageState
@@ -181,7 +184,19 @@ import kotlinx.coroutines.withContext
 import com.convx.music.viewmodels.DailyDiscoverItem
 
 
+/**
+ * Home item budget. Content alone (glass bypassed) measured 14ms per frame against an
+ * 8.33ms/120Hz budget, driven by how many rich rows are composed at once. The two song
+ * grids used to stack 4 rows each, so ~40 rows could be live simultaneously. Two rows
+ * matches the survey's "2x2 grid" preference for recent activity and halves that.
+ */
+private const val SongGridRows = 2
+private const val MaxSimilarSections = 2
+private const val MaxHomePageSections = 3
+
 sealed class HomeSection(val id: String, val baseWeight: Int) {
+    /** The "star of the day" card. Always first, never shuffled. */
+    data object Hero : HomeSection("hero", 110)
     data object SpeedDial : HomeSection("speed_dial", 100)
     data object QuickPicks : HomeSection("quick_picks", 90)
     data object DailyDiscover : HomeSection("daily_discover", 80)
@@ -597,7 +612,10 @@ fun HomeScreen(
     val accountName by viewModel.accountName.collectAsStateWithLifecycle()
     val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
-    val (randomizeHomeOrder) = rememberPreference(RandomizeHomeOrderKey, true)
+    // Default flipped to false: 2 of 3 survey responses asked for a fixed order
+    // ("fixed order, I can find things faster"); the third wanted only the top section
+    // pinned. Users who explicitly enabled shuffling keep it.
+    val (randomizeHomeOrder) = rememberPreference(RandomizeHomeOrderKey, false)
 
     val shouldShowWrappedCard by viewModel.showWrappedCard.collectAsStateWithLifecycle()
     val wrappedState by viewModel.wrappedManager.state.collectAsStateWithLifecycle()
@@ -754,9 +772,12 @@ fun HomeScreen(
     }
 
     val ytGridItem: @Composable (YTItem) -> Unit = { item ->
+        val isActive = remember(item.id, mediaMetadata?.album?.id, mediaMetadata?.id) {
+            item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id)
+        }
         YouTubeGridItem(
             item = item,
-            isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
+            isActive = isActive,
             isPlaying = isPlaying,
             coroutineScope = scope,
             thumbnailRatio = 1f,
@@ -826,6 +847,7 @@ fun HomeScreen(
     ) {
         val list = mutableListOf<HomeSection>()
 
+        if (quickPicks?.isNotEmpty() == true) list.add(HomeSection.Hero)
         if (speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
         if (quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
         if (communityPlaylists?.isNotEmpty() == true) list.add(HomeSection.FromTheCommunity)
@@ -834,11 +856,15 @@ fun HomeScreen(
         if (accountPlaylists?.isNotEmpty() == true) list.add(HomeSection.AccountPlaylists)
         if (forgottenFavorites?.isNotEmpty() == true) list.add(HomeSection.ForgottenFavorites)
 
-        similarRecommendations?.indices?.forEach { i ->
+        // Capped. The survey's most concrete complaint was "I have to see 4 to 6
+        // similar-to sections that I don't want", and each extra section is ~12 more
+        // simultaneously composed rows — the single largest driver of Home's frame cost
+        // (content alone measured 14ms/frame against an 8.33ms budget).
+        similarRecommendations?.indices?.take(MaxSimilarSections)?.forEach { i ->
             list.add(HomeSection.SimilarRecommendation(i))
         }
 
-        homePage?.sections?.indices?.forEach { i ->
+        homePage?.sections?.indices?.take(MaxHomePageSections)?.forEach { i ->
             list.add(HomeSection.HomePageSection(i))
         }
 
@@ -854,6 +880,10 @@ fun HomeScreen(
                 // Flatten the base values to allow for more overlap and variation
                 // All "main" sections start closer together
                 val base = when (section) {
+                    // Pinned above everything, even with shuffling on — the one survey
+                    // response that wanted shuffling still asked to keep the top fixed.
+                    HomeSection.Hero -> 10_000
+
                     HomeSection.SpeedDial,
                     HomeSection.QuickPicks,
                     HomeSection.DailyDiscover -> 500 // Top tier starts equal
@@ -888,6 +918,7 @@ fun HomeScreen(
             }
         } else {
             val defaultOrder = mapOf(
+                HomeSection.Hero to 110,
                 HomeSection.SpeedDial to 100,
                 HomeSection.QuickPicks to 90,
                 HomeSection.FromTheCommunity to 80,
@@ -982,11 +1013,20 @@ fun HomeScreen(
             LazyColumn(
                 state = lazylistState,
                 modifier = Modifier,
+                // Sections had nothing but NavigationTitle's own 12dp padding
+                // between them — ran into each other, felt cramped.
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item {
+                    // ChipsRow takes a raw List, which Compose treats as unstable, so a
+                    // freshly mapped list here meant it could never skip — every chip
+                    // recomposed whenever this LazyColumn scope did.
+                    val chips = remember(homePage?.chips) {
+                        homePage?.chips?.map { it to it.title } ?: emptyList()
+                    }
                     ChipsRow(
-                        chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
+                        chips = chips,
                         currentValue = selectedChip,
                         onValueUpdate = {
                             viewModel.toggleChip(it)
@@ -1080,6 +1120,48 @@ fun HomeScreen(
 
                 homeSections.forEach { section ->
                     when (section) {
+                        HomeSection.Hero -> {
+                            quickPicks?.firstOrNull()?.let { top ->
+                                item(key = "hero_card") {
+                                    val heroSubtitle = remember(top.id) {
+                                        top.artists.joinToString { it.name }
+                                    }
+                                    HomeHeroCard(
+                                        title = top.song.title,
+                                        subtitle = heroSubtitle,
+                                        thumbnailUrl = top.song.thumbnailUrl,
+                                        onPlay = {
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = top.song.title,
+                                                    items = quickPicks.orEmpty().map { it.toMediaItem() },
+                                                )
+                                            )
+                                        },
+                                        onShuffle = {
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = top.song.title,
+                                                    items = quickPicks.orEmpty().shuffled().map { it.toMediaItem() },
+                                                )
+                                            )
+                                        },
+                                        onClick = {
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = top.song.title,
+                                                    items = listOf(top.toMediaItem()),
+                                                )
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .padding(horizontal = AppleTokens.Gutter)
+                                            .animateItem(),
+                                    )
+                                }
+                            }
+                        }
+
                         HomeSection.SpeedDial -> {
                             speedDialItems.takeIf { it.isNotEmpty() }?.let { items ->
                                 item(key = "speed_dial_title") {
@@ -1092,7 +1174,12 @@ fun HomeScreen(
                                 item(key = "speed_dial_list") {
                                     val targetItemSize = 160.dp
                                     val availableWidth = maxWidth - 32.dp
-                                    val columns = (availableWidth / targetItemSize).toInt().coerceAtLeast(3)
+                                    val (speedDialColumnsOverride) = rememberPreference(SpeedDialColumnsOverrideKey, 0)
+                                    val columns = if (speedDialColumnsOverride > 0) {
+                                        speedDialColumnsOverride
+                                    } else {
+                                        (availableWidth / targetItemSize).toInt().coerceAtLeast(3)
+                                    }
                                     val rows = if (columns >= 6) 1 else if (columns >= 4) 2 else 3
                                     val itemsPerPage = columns * rows
                                     val itemWidth = availableWidth / columns
@@ -1276,19 +1363,21 @@ fun HomeScreen(
                                 }
 
                                 item(key = "quick_picks_list") {
+                                    val distinctQuickPicks =
+                                        remember(quickPicks) { quickPicks.distinctBy { it.id } }
                                     LazyHorizontalGrid(
                                         state = quickPicksLazyGridState,
-                                        rows = GridCells.Fixed(4),
+                                        rows = GridCells.Fixed(SongGridRows),
                                         flingBehavior = rememberSnapFlingBehavior(quickPicksSnapLayoutInfoProvider),
                                         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                                             .asPaddingValues().plusStart(sideInset),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(ListItemHeight * 4)
+                                            .height(ListItemHeight * SongGridRows)
                                             .animateItem().bleedStart(sideInset)
                                     ) {
                                         itemsIndexed(
-                                            items = quickPicks.distinctBy { it.id },
+                                            items = distinctQuickPicks,
                                             key = { _, it -> it.id }
                                         ) { index, originalSong ->
                                             // fetch song from database to keep updated
@@ -1302,7 +1391,7 @@ fun HomeScreen(
                                                 isPlaying = isPlaying,
                                                 isSwipeable = false,
                                                 flat = true,
-                                                shape = listItemShape(index = index % 4, count = 4),
+                                                shape = listItemShape(index = index % SongGridRows, count = SongGridRows),
                                                 trailingContent = {
                                                     IconButton(
                                                         onClick = {
@@ -1523,6 +1612,8 @@ fun HomeScreen(
                                 }
 
                                 item(key = "account_playlists_list") {
+                                    val distinctAccountPlaylists =
+                                        remember(accountPlaylists) { accountPlaylists.distinctBy { it.id } }
                                     LazyRow(
                                         contentPadding = WindowInsets.systemBars
                                             .only(WindowInsetsSides.Horizontal)
@@ -1530,7 +1621,7 @@ fun HomeScreen(
                                         modifier = Modifier.animateItem().bleedStart(sideInset)
                                     ) {
                                         items(
-                                            items = accountPlaylists.distinctBy { it.id },
+                                            items = distinctAccountPlaylists,
                                             key = { it.id },
                                         ) { item ->
                                             ytGridItem(item)
@@ -1559,7 +1650,9 @@ fun HomeScreen(
 
                                 item(key = "forgotten_favorites_list") {
                                     // take min in case list size is less than 4
-                                    val rows = min(4, forgottenFavorites.size)
+                                    val rows = min(SongGridRows, forgottenFavorites.size)
+                                    val distinctForgottenFavorites =
+                                        remember(forgottenFavorites) { forgottenFavorites.distinctBy { it.id } }
                                     LazyHorizontalGrid(
                                         state = forgottenFavoritesLazyGridState,
                                         rows = GridCells.Fixed(rows),
@@ -1574,7 +1667,7 @@ fun HomeScreen(
                                             .animateItem().bleedStart(sideInset)
                                     ) {
                                         itemsIndexed(
-                                            items = forgottenFavorites.distinctBy { it.id },
+                                            items = distinctForgottenFavorites,
                                             key = { _, it -> it.id }
                                         ) { index, originalSong ->
                                             val songFlow = remember(originalSong.id) { database.song(originalSong.id) }
@@ -1743,19 +1836,21 @@ fun HomeScreen(
                                 if (isSongsOnlySection) {
                                     // Render songs as a horizontal scrollable list (like Quick picks in YouTube Music)
                                     item(key = "home_section_list_${section.index}") {
+                                        val distinctSectionSongs =
+                                            remember(sectionSongs) { sectionSongs.distinctBy { it.id } }
                                         LazyHorizontalGrid(
                                             state = rememberLazyGridState(),
-                                            rows = GridCells.Fixed(4),
+                                            rows = GridCells.Fixed(SongGridRows),
                                             contentPadding = WindowInsets.systemBars
                                                 .only(WindowInsetsSides.Horizontal)
                                                 .asPaddingValues().plusStart(sideInset),
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(ListItemHeight * 4)
+                                                .height(ListItemHeight * SongGridRows)
                                                 .animateItem().bleedStart(sideInset)
                                         ) {
                                             itemsIndexed(
-                                                items = sectionSongs.distinctBy { it.id },
+                                                items = distinctSectionSongs,
                                                 key = { _, it -> it.id }
                                             ) { index, song ->
                                                 YouTubeListItem(
@@ -1763,7 +1858,7 @@ fun HomeScreen(
                                                     isActive = song.id == mediaMetadata?.id,
                                                     isPlaying = isPlaying,
                                                     isSwipeable = false,
-                                                    shape = listItemShape(index = index % 4, count = 4),
+                                                    shape = listItemShape(index = index % SongGridRows, count = SongGridRows),
                                                     trailingContent = {
                                                         IconButton(
                                                             onClick = {
@@ -1870,7 +1965,13 @@ fun HomeScreen(
                     }
                 }
 
-                if (isLoading || homePage?.continuation != null && homePage?.sections?.isNotEmpty() == true) {
+                // Only while a fetch is actually in flight. The old condition also kept this
+                // composed whenever a continuation merely EXISTED, so parking at the bottom of
+                // Home left the shimmer mounted forever — and its infinite transition drove
+                // ~65 recompositions/s with nothing on screen moving (328 Recomposer:animation
+                // sections in a 5s trace). Reaching the bottom triggers loadMoreYouTubeItems
+                // immediately, so the placeholder still appears for every real load.
+                if (isLoading) {
                     item(key = "loading_shimmer") {
                         ShimmerHost(
                             modifier = Modifier.animateItem()

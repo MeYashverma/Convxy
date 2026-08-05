@@ -183,6 +183,14 @@ android {
     }
 }
 
+composeCompiler {
+    // :innertube ships no Compose metadata, so its models default to unstable
+    // and every YouTube row/tile was unskippable. See compose_stability.conf.
+    stabilityConfigurationFiles.add(
+        layout.projectDirectory.file("compose_stability.conf")
+    )
+}
+
 protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
@@ -246,6 +254,7 @@ dependencies {
 
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.coil.gif)
 
     implementation(libs.ucrop)
 

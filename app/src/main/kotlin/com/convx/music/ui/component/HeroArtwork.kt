@@ -54,6 +54,7 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.convx.music.R
 import com.convx.music.constants.DynamicThemeKey
+import com.convx.music.constants.PureBlackHeroBackgroundKey
 import com.convx.music.constants.SelectedThemeColorKey
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
@@ -313,8 +314,13 @@ fun HeroBackground(
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    Box(modifier = modifier.background(tint)) {
-        when (heroSource) {
+    val (pureBlack) = rememberPreference(PureBlackHeroBackgroundKey, false)
+    // Reuses the existing Default branch (flat tint, no image) to suppress the
+    // artwork backdrop entirely rather than adding a second code path.
+    val effectiveTint = if (pureBlack) Color.Black else tint
+    val effectiveHeroSource = if (pureBlack) HeroSource.Default else heroSource
+    Box(modifier = modifier.background(effectiveTint)) {
+        when (val heroSource = effectiveHeroSource) {
             is HeroSource.Artwork -> {
                 // Fade-in animation for the hero image (the "smooth transition"
                 // as the artwork resolves).

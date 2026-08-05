@@ -10,62 +10,59 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import com.convx.music.R
 
+/**
+ * A bottom-bar / side-bar destination.
+ *
+ * One icon per destination per UI style — deliberately not a selected/unselected
+ * pair. iOS ships outline/filled pairs because its tab bar has no selection
+ * indicator; this bar has both a glass puck and an accent content colour, so a
+ * filled variant would be a third signal saying the same thing. Two artworks per
+ * tab also have to be optically aligned against each other or the icon visibly
+ * shifts on selection, which is exactly the cheap-looking wobble the pair would
+ * have bought us.
+ */
 @Immutable
 sealed class Screens(
     @StringRes val titleId: Int,
-    @DrawableRes val iconIdInactive: Int,
-    @DrawableRes val iconIdActive: Int,
     val route: String,
-    // SF Symbols-style lookalikes used when the Apple Music UI style is active.
-    // Default to the classic icon so screens that don't define an iOS pair still work.
-    @DrawableRes val iconIdInactiveIos: Int = iconIdInactive,
-    @DrawableRes val iconIdActiveIos: Int = iconIdActive,
+    @DrawableRes val icon: Int,
+    // SF Symbols-style lookalike used when the Apple Music UI style is active.
+    // Defaults to the classic icon, so a destination only names this when it
+    // actually has a distinct iOS drawing.
+    @DrawableRes val iosIcon: Int = icon,
 ) {
-    /** Resolves the icon pair to draw for the current UI style. */
-    fun iconInactive(appleMusicUi: Boolean): Int = if (appleMusicUi) iconIdInactiveIos else iconIdInactive
-    fun iconActive(appleMusicUi: Boolean): Int = if (appleMusicUi) iconIdActiveIos else iconIdActive
+    /** The icon to draw for the current UI style. */
+    fun icon(appleMusicUi: Boolean): Int = if (appleMusicUi) iosIcon else icon
 
     object Home : Screens(
         titleId = R.string.home,
-        iconIdInactive = R.drawable.accord_home,
-        iconIdActive = R.drawable.accord_home,
         route = "home",
-        iconIdInactiveIos = R.drawable.accord_home,
-        iconIdActiveIos = R.drawable.accord_home,
+        icon = R.drawable.accord_home,
     )
 
     object Search : Screens(
         titleId = R.string.search,
-        iconIdInactive = R.drawable.search,
-        iconIdActive = R.drawable.search,
         route = "search_input",
-        iconIdInactiveIos = R.drawable.cosmos_search,
-        iconIdActiveIos = R.drawable.cosmos_search,
+        icon = R.drawable.search,
+        iosIcon = R.drawable.cosmos_search,
     )
 
     object ListenTogether : Screens(
         titleId = R.string.together,
-        iconIdInactive = R.drawable.accord_groups,
-        iconIdActive = R.drawable.accord_groups,
         route = "listen_together",
-        iconIdInactiveIos = R.drawable.accord_groups,
-        iconIdActiveIos = R.drawable.accord_groups,
+        icon = R.drawable.accord_groups,
     )
 
     object Library : Screens(
         titleId = R.string.filter_library,
-        iconIdInactive = R.drawable.accord_library,
-        iconIdActive = R.drawable.accord_library,
         route = "library",
-        iconIdInactiveIos = R.drawable.accord_library,
-        iconIdActiveIos = R.drawable.accord_library,
+        icon = R.drawable.accord_library,
     )
 
     object Settings : Screens(
         titleId = R.string.settings,
-        iconIdInactive = R.drawable.settings,
-        iconIdActive = R.drawable.settings,
         route = "settings",
+        icon = R.drawable.settings,
     )
 
     companion object {

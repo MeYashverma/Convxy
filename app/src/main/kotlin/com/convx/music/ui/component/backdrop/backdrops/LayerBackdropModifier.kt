@@ -20,15 +20,26 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import com.convx.music.ui.component.backdrop.internal.recordLayer
 
-fun Modifier.layerBackdrop(backdrop: LayerBackdrop): Modifier =
-    this then LayerBackdropElement(backdrop)
+/**
+ * @param frozen while this returns true the source is NOT re-recorded: the content is
+ *   drawn straight to the screen on Compose's normal incremental path, and sampling glass
+ *   surfaces keep replaying the last capture. Used during scroll, where re-recording the
+ *   whole tree every frame is by far the most expensive thing the app does (measured on
+ *   Home: 47ms of record with it, 1.9ms without). The screen itself stays live — only the
+ *   blur behind the chrome lags, which is invisible against moving content.
+ */
+fun Modifier.layerBackdrop(
+    backdrop: LayerBackdrop,
+    frozen: () -> Boolean = { false }
+): Modifier = this then LayerBackdropElement(backdrop, frozen)
 
 private class LayerBackdropElement(
-    val backdrop: LayerBackdrop
+    val backdrop: LayerBackdrop,
+    val frozen: () -> Boolean
 ) : ModifierNodeElement<LayerBackdropNode>() {
 
     override fun create(): LayerBackdropNode {
-        return LayerBackdropNode(backdrop)
+        return LayerBackdropNode(backdrop, frozen)
     }
 
     override fun update(node: LayerBackdropNode) {
@@ -36,6 +47,7 @@ private class LayerBackdropElement(
             node.backdrop.layerCoordinates = null
             node.backdrop = backdrop
         }
+        node.frozen = frozen
         node.invalidateDraw()
     }
 
@@ -49,17 +61,19 @@ private class LayerBackdropElement(
         if (other !is LayerBackdropElement) return false
 
         if (backdrop != other.backdrop) return false
+        if (frozen != other.frozen) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return backdrop.hashCode()
+        return 31 * backdrop.hashCode() + frozen.hashCode()
     }
 }
 
 private class LayerBackdropNode(
-    var backdrop: LayerBackdrop
+    var backdrop: LayerBackdrop,
+    var frozen: () -> Boolean
 ) : DrawModifierNode, GlobalPositionAwareModifierNode, Modifier.Node() {
 
     override fun ContentDrawScope.draw() {
@@ -80,6 +94,14 @@ private class LayerBackdropNode(
         // belongs on screen anyway: the app's onDraw fills an opaque background
         // before drawContent(), so the layer is opaque and drawing it is
         // equivalent to having drawn the tree directly.
+        // While frozen, take Compose's ordinary draw path instead. That path reuses
+        // every child RenderNode that did not change; layer.record { drawContent() }
+        // cannot, so it re-issues the whole subtree every frame. Skipping the version
+        // bump is what keeps the glass surfaces on their existing captures.
+        if (frozen() && backdrop.hasRecording) {
+            backdrop.onDraw(this@draw)
+            return
+        }
         recordLayer(this@LayerBackdropNode, backdrop.graphicsLayer) { backdrop.onDraw(this@draw) }
         drawLayer(backdrop.graphicsLayer)
         // Notify sampling glass surfaces that the source pixels changed, so they

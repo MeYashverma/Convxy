@@ -222,6 +222,20 @@ private class DrawBackdropElement(
     }
 
     override fun update(node: DrawBackdropNode) {
+        // Only the parameters that feed the CAPTURE invalidate it. onDrawBehind/
+        // Surface/Front (and with them the highlight rim, shadow and tint) are
+        // painted over an already-captured layer, so a change there needs a
+        // repaint, not a re-record. Conflating the two meant any recomposition
+        // reaching a glass call site — every one of which allocates fresh
+        // lambdas — re-sampled the screen and re-ran saturation/blur/lens.
+        val captureChanged =
+            node.backdrop !== backdrop ||
+                node.shapeProvider !== shapeProvider ||
+                node.effects !== effects ||
+                node.layerBlock !== layerBlock ||
+                node.onDrawBackdrop !== onDrawBackdrop ||
+                node.backdropScale != backdropScale
+
         node.backdrop = backdrop
         node.shapeProvider = shapeProvider
         node.effects = effects
@@ -236,7 +250,10 @@ private class DrawBackdropElement(
         node.onDrawFront = onDrawFront
         node.backdropScale = backdropScale
         node.frozen = frozen
-        node.surfaceDirty = true
+        if (captureChanged) {
+            node.surfaceDirty = true
+        }
+        // Always: the overlay repaints even when the capture is reused.
         node.invalidateDrawCache()
     }
 

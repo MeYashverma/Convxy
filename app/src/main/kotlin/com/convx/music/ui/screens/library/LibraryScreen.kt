@@ -18,6 +18,7 @@ import com.convx.music.R
 import com.convx.music.constants.ChipSortTypeKey
 import com.convx.music.constants.LibraryFilter
 import com.convx.music.ui.component.ChipsRow
+import com.convx.music.ui.component.HomeImageBackground
 import com.convx.music.utils.rememberEnumPreference
 
 @Composable
@@ -51,6 +52,10 @@ fun LibraryScreen(navController: NavController) {
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
+        // Hoisted here (not per-tab) so switching Songs/Albums/Artists/Playlists
+        // doesn't lose the custom background — previously only LibraryMixScreen drew it.
+        HomeImageBackground(withGradient = true)
+
         when (filterType) {
             LibraryFilter.LIBRARY -> LibraryMixScreen(navController, filterContent)
             LibraryFilter.PLAYLISTS -> LibraryPlaylistsScreen(navController, filterContent)

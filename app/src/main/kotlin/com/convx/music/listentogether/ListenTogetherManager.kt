@@ -118,6 +118,11 @@ class ListenTogetherManager @Inject constructor(
     val events = client.events
     val blockedUsernames = client.blockedUsernames
     val pendingSuggestions = client.pendingSuggestions
+    val controlMode = client.controlMode
+    val canControl = client.canControl
+    val roomExpiresAt = client.roomExpiresAt
+    val roomExpiring = client.roomExpiring
+    val extensionsLeft = client.extensionsLeft
 
     val isInRoom: Boolean get() = client.isInRoom
     val isHost: Boolean get() = client.isHost
@@ -130,7 +135,7 @@ class ListenTogetherManager @Inject constructor(
     private val playerListener = object : Player.Listener {
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             try {
-                if (isSyncing || !isHost || !isInRoom) return
+                if (isSyncing || !canControlPlayback || !isInRoom) return
                 
                 val connection = playerConnection ?: return
                 val player = connection.player
@@ -186,7 +191,7 @@ class ListenTogetherManager @Inject constructor(
         
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             try {
-                if (isSyncing || !isHost || !isInRoom) return
+                if (isSyncing || !canControlPlayback || !isInRoom) return
                 if (mediaItem == null) return
                 
                 val connection = playerConnection ?: return
@@ -225,7 +230,7 @@ class ListenTogetherManager @Inject constructor(
             reason: Int
         ) {
             try {
-                if (isSyncing || !isHost || !isInRoom) return
+                if (isSyncing || !canControlPlayback || !isInRoom) return
                 
                 // Only send seek if it was a user-initiated seek
                 if (reason == Player.DISCONTINUITY_REASON_SEEK) {
@@ -263,10 +268,14 @@ class ListenTogetherManager @Inject constructor(
             
             playerConnection = connection
             
-            // Set up playback blocking for guests
+            // Set up playback blocking for members who may not drive playback.
             connection?.shouldBlockPlaybackChanges = {
-                // Block if we're in a room as a guest (not host)
-                isInRoom && !isHost
+                // Blocking on !isHost ignored the room's control mode, so with
+                // "everyone" enabled a member's press was rejected here — before
+                // any action could be sent — and the toggle appeared to do
+                // nothing. Evaluated live, so flipping the mode takes effect
+                // without rejoining.
+                isInRoom && !canControlPlayback
             }
             
             // Add listener if in room
@@ -283,7 +292,7 @@ class ListenTogetherManager @Inject constructor(
                 // Hook up skip actions
                 connection.onSkipPrevious = {
                     try {
-                        if (isHost && !isSyncing) {
+                        if (canControlPlayback && !isSyncing) {
                             Timber.tag(TAG).d("Host Skip Previous triggered")
                             client.sendPlaybackAction(PlaybackActions.SKIP_PREV)
                         }
@@ -293,7 +302,7 @@ class ListenTogetherManager @Inject constructor(
                 }
                 connection.onSkipNext = {
                 try {
-                        if (isHost && !isSyncing) {
+                        if (canControlPlayback && !isSyncing) {
                             Timber.tag(TAG).d("Host Skip Next triggered")
                             client.sendPlaybackAction(PlaybackActions.SKIP_NEXT)
                         }
@@ -305,7 +314,7 @@ class ListenTogetherManager @Inject constructor(
                 // Hook up restart action
                 connection.onRestartSong = {
                     try {
-                        if (isHost && !isSyncing) {
+                        if (canControlPlayback && !isSyncing) {
                             Timber.tag(TAG).d("Host Restart Song triggered (sending 1ms as 0ms workaround)")
                             client.sendPlaybackAction(PlaybackActions.SEEK, position = 1L)
                         }
@@ -470,12 +479,24 @@ class ListenTogetherManager @Inject constructor(
             
             is ListenTogetherEvent.PlaybackSync -> {
                 Timber.tag(TAG).d("PlaybackSync received: ${event.action.action}")
-                // Guests handle all sync actions. Host should also apply queue ops.
                 val actionType = event.action.action
                 val isQueueOp = actionType == PlaybackActions.QUEUE_ADD ||
                         actionType == PlaybackActions.QUEUE_REMOVE ||
                         actionType == PlaybackActions.QUEUE_CLEAR
-                if (!isHost || isQueueOp) {
+                // The server echoes an action back to its sender too, so the only
+                // thing that must be ignored is our own. Gating on !isHost instead
+                // meant a host discarded every play/pause a member sent while the
+                // room was set to "everyone" — the control mode did nothing.
+                val sender = event.action.fromUserId
+                val shouldApply = if (sender != null) {
+                    sender != userId.value
+                } else {
+                    // Pre-v2 server: no sender stamp, so "not from me" cannot be
+                    // determined. Fall back to the old host-ignores rule rather
+                    // than let a host apply its own echo and feed back on itself.
+                    !isHost
+                }
+                if (shouldApply || isQueueOp) {
                     handlePlaybackSync(event.action)
                 }
             }
@@ -830,6 +851,21 @@ class ListenTogetherManager @Inject constructor(
     }
 
     private fun handlePlaybackSync(action: PlaybackActionPayload) {
+        // Surfaced in Settings -> Listen Together -> logs. Without the song name
+        // a desync reads as "it is broken"; with it you can see whether the two
+        // devices disagree about the track or only about the position.
+        val who = action.fromUserId?.let { id ->
+            roomState.value?.users?.firstOrNull { it.userId == id }?.username ?: id.take(6)
+        } ?: "host"
+        val what = action.trackInfo?.let { "${it.title} — ${it.artist}" }
+        client.logExternal(
+            "Sync in: ${action.action}",
+            listOfNotNull(
+                "from $who",
+                what?.let { "track: $it" },
+                action.position?.let { "pos ${it / 1000}s" }
+            ).joinToString(", ")
+        )
         val connection = playerConnection
         if (connection == null) {
             Timber.tag(TAG).w("Cannot sync playback - no player connection")
@@ -1499,7 +1535,7 @@ class ListenTogetherManager @Inject constructor(
      * Send track change (host only) - called when host changes track
      */
     fun sendTrackChange(metadata: MediaMetadata) {
-        if (!isHost || isSyncing) return
+        if (!canControlPlayback || isSyncing) return
         sendTrackChangeInternal(metadata)
     }
     
@@ -1507,7 +1543,10 @@ class ListenTogetherManager @Inject constructor(
      * Internal track change - bypasses isSyncing check for initial state sync
      */
     private fun sendTrackChangeInternal(metadata: MediaMetadata) {
-        if (!isHost) return
+        // Was !isHost, which meant a member with control could pause and skip but
+        // never tell the room what it had switched to — the others kept playing
+        // the old song.
+        if (!canControlPlayback) return
         
         // Use a default duration of 3 minutes if duration is 0 or negative
         val durationMs = if (metadata.duration > 0) metadata.duration.toLong() * 1000 else 180000L
@@ -1523,6 +1562,10 @@ class ListenTogetherManager @Inject constructor(
         )
         
         Timber.tag(TAG).d("Sending track change: ${trackInfo.title}, duration: $durationMs")
+        client.logExternal(
+            "Sync out: now playing",
+            "${trackInfo.title} — ${trackInfo.artist} (${durationMs / 1000}s)"
+        )
         
         // Also grab current queue to send along with track change
         val currentQueue = try {
@@ -1657,6 +1700,14 @@ class ListenTogetherManager @Inject constructor(
      * Suggest the given track to the host (guest only)
      */
     fun suggestTrack(track: TrackInfo) = client.suggestTrack(track)
+
+    /** Owner-only: `ControlModes.OWNER` or `ControlModes.EVERYONE`. */
+    fun setControlMode(mode: String) = client.setControlMode(mode)
+
+    /** Owner-only: push the room's closing time back. */
+    fun extendSession() = client.extendSession()
+
+    val canControlPlayback: Boolean get() = client.canControlPlayback
 
     /**
      * Approve a suggestion (host only)

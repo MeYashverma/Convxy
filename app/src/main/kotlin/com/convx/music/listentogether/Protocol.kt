@@ -30,6 +30,8 @@ object MessageTypes {
     const val SUGGEST_TRACK = "suggest_track"
     const val APPROVE_SUGGESTION = "approve_suggestion"
     const val REJECT_SUGGESTION = "reject_suggestion"
+    const val SET_CONTROL_MODE = "set_control_mode"
+    const val EXTEND_SESSION = "extend_session"
 
     // Server -> Client
     const val ROOM_CREATED = "room_created"
@@ -52,6 +54,22 @@ object MessageTypes {
     const val SUGGESTION_RECEIVED = "suggestion_received"
     const val SUGGESTION_APPROVED = "suggestion_approved"
     const val SUGGESTION_REJECTED = "suggestion_rejected"
+    const val CONTROL_MODE_CHANGED = "control_mode_changed"
+    const val ROOM_EXPIRING = "room_expiring"
+    const val ROOM_CLOSED = "room_closed"
+}
+
+/** Room codes are not a fixed width across servers — the Cloudflare server
+ *  mints six characters, older ones used eight — so the UI validates a range
+ *  rather than an exact length. Matches the server's own `[A-Z0-9]{4,12}`. */
+const val MIN_ROOM_CODE_LENGTH = 4
+const val MAX_ROOM_CODE_LENGTH = 12
+
+/** Who may send playback actions. Enforced by the server; the client only
+ *  mirrors it so the transport controls can be disabled honestly. */
+object ControlModes {
+    const val OWNER = "owner"
+    const val EVERYONE = "everyone"
 }
 
 /**
@@ -118,7 +136,12 @@ data class RoomState(
     val position: Long, // milliseconds
     @SerialName("last_update") val lastUpdate: Long, // unix timestamp ms
     val volume: Float = 1f,
-    val queue: List<TrackInfo> = emptyList()
+    val queue: List<TrackInfo> = emptyList(),
+    // v2. Defaulted so a room from an older server still decodes.
+    @SerialName("control_mode") val controlMode: String = ControlModes.OWNER,
+    /** Unix ms when the room closes; 0 when the server does not expire rooms. */
+    @SerialName("expires_at") val expiresAt: Long = 0,
+    @SerialName("extensions_used") val extensionsUsed: Int = 0
 )
 
 // Request payloads
@@ -155,7 +178,11 @@ data class PlaybackActionPayload(
     val queue: List<TrackInfo>? = null,
     @SerialName("queue_title") val queueTitle: String? = null,
     val volume: Float? = null,
-    @SerialName("server_time") val serverTime: Long? = null
+    @SerialName("server_time") val serverTime: Long? = null,
+    /** Stamped by the server on every broadcast. Lets a receiver tell its own
+     *  action echoing back from someone else's, which is the difference between
+     *  ignoring a loop and ignoring a real command. */
+    @SerialName("from_user_id") val fromUserId: String? = null
 )
 
 @Serializable
@@ -230,7 +257,9 @@ data class SuggestionRejectedPayload(
 data class RoomCreatedPayload(
     @SerialName("room_code") val roomCode: String,
     @SerialName("user_id") val userId: String,
-    @SerialName("session_token") val sessionToken: String
+    @SerialName("session_token") val sessionToken: String,
+    /** Null on pre-v2 servers, which sent no state to the creator. */
+    val state: RoomState? = null
 )
 
 @Serializable
@@ -301,6 +330,36 @@ data class KickedPayload(
     val reason: String
 )
 
+// v2 payloads
+
+@Serializable
+data class SetControlModePayload(
+    @SerialName("control_mode") val controlMode: String
+)
+
+@Serializable
+data class ControlModeChangedPayload(
+    @SerialName("control_mode") val controlMode: String
+)
+
+@Serializable
+data class RoomExpiringPayload(
+    @SerialName("expires_at") val expiresAt: Long,
+    @SerialName("extensions_left") val extensionsLeft: Int = 0
+)
+
+@Serializable
+data class RoomClosedPayload(
+    val reason: String? = null
+)
+
+/** Body of `POST /api/rooms`. The room code has to exist before the socket
+ *  opens, because the server routes the connection by room. */
+@Serializable
+data class RoomAllocationResponse(
+    @SerialName("room_code") val roomCode: String
+)
+
 /**
  * Sync state payload - sent to guest when they request current state
  */
@@ -311,7 +370,9 @@ data class SyncStatePayload(
     val position: Long,
     @SerialName("last_update") val lastUpdate: Long,
     val queue: List<TrackInfo>? = null,
-    val volume: Float? = null
+    val volume: Float? = null,
+    @SerialName("control_mode") val controlMode: String? = null,
+    @SerialName("expires_at") val expiresAt: Long? = null
 )
 
 // Reconnection payloads

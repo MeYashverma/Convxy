@@ -295,6 +295,24 @@
     <string name="grid_cell_size">Grid cell size</string>
     <string name="small">Small</string>
     <string name="big">Big</string>
+    <string name="grid_and_cards">Grid &amp; cards</string>
+    <string name="grid_columns">Grid columns</string>
+    <string name="grid_columns_desc">Column count for library, search and browse grids</string>
+    <string name="grid_spacing">Grid spacing</string>
+    <string name="speed_dial_columns">Speed Dial columns</string>
+    <string name="auto">Auto</string>
+    <string name="pure_black_hero_background">Pure black backgrounds</string>
+    <string name="pure_black_hero_background_desc">Flat black instead of blurred artwork on Artist, Album, Playlist and Search</string>
+    <string name="theme_packs">Theme packs</string>
+    <string name="theme_pack_save_current">Save current as new theme</string>
+    <string name="theme_pack_import">Import theme from file</string>
+    <string name="theme_pack_apply_hint">Tap to apply · export or delete on the right</string>
+    <string name="theme_pack_name">Theme name</string>
+    <string name="theme_pack_imported">Theme imported</string>
+    <string name="theme_pack_import_failed">Could not read that theme file</string>
+    <string name="home_background_video_set">Video set</string>
+    <string name="home_background_video_warning">Video backgrounds decode every frame, unlike a still image — this can cost extra battery and may stutter on lower-end devices. Continue?</string>
+    <string name="home_background_video_confirm">Use this video</string>
 
     <string name="content">Content</string>
     <string name="action_logout">Log out</string>
@@ -305,6 +323,10 @@
     <string name="switch_channel_success">Switched channel</string>
     <string name="switch_channel_action">Switch YouTube channel</string>
     <string name="switch_channel_action_desc">Use a different channel on your Google Account for library, likes and playlists</string>
+    <string name="choose_channel_title">Choose a channel</string>
+    <string name="choose_channel_subtitle">This Google Account has more than one YouTube channel</string>
+    <string name="saved_accounts_title">Accounts</string>
+    <string name="saved_accounts_desc">Tap to switch — no re-login needed</string>
     <string name="show_audio_quality_badge">Show audio quality badge</string>
     <string name="mini_player_waveform">Mini player waveform seek bar</string>
     <string name="mini_bar_tab_style">Multi-icon mini bar</string>

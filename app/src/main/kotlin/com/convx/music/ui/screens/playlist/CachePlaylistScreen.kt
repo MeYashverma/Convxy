@@ -51,6 +51,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -284,13 +285,9 @@ fun CachePlaylistScreen(
             ) {
                 item(key = "header_title") {
                     Column {
-                        Spacer(Modifier.height(40.dp))
-                        Text(
-                            text = stringResource(R.string.cached_playlist),
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
+                        LargeScreenTitle(
+                            title = stringResource(R.string.cached_playlist),
                             color = onTint,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                         )
                     }
                 }

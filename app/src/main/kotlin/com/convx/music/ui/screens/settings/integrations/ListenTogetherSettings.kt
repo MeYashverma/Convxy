@@ -133,6 +133,7 @@ import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.R
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.ListenTogetherAutoAddSuggestionsKey
 import com.convx.music.constants.ListenTogetherAutoApprovalKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ListenTogetherServerUrlKey
@@ -192,6 +193,7 @@ fun ListenTogetherSettings(
     var serverUrl by rememberPreference(ListenTogetherServerUrlKey, ListenTogetherServers.defaultServerUrl)
     var username by rememberPreference(ListenTogetherUsernameKey, "")
     var autoApproval by rememberPreference(ListenTogetherAutoApprovalKey, false)
+    var autoAddSuggestions by rememberPreference(ListenTogetherAutoAddSuggestionsKey, false)
     var syncHostVolume by rememberPreference(ListenTogetherSyncVolumeKey, true)
     var smartResync by rememberPreference(ListenTogetherSmartResyncKey, true)
     
@@ -495,6 +497,34 @@ fun ListenTogetherSettings(
                         },
                         // Allow clicking to see disabled state, but only change if enabled
                         onClick = { if (roomState == null || role != RoomRole.GUEST) autoApproval = !autoApproval }
+                    ),
+                    IntegrationCardItem(
+                        icon = painterResource(R.drawable.playlist_add),
+                        title = { Text(stringResource(R.string.listen_together_auto_add)) },
+                        description = {
+                            Text(stringResource(R.string.listen_together_auto_add_desc))
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = autoAddSuggestions,
+                                onCheckedChange = { autoAddSuggestions = it },
+                                enabled = roomState == null || role != RoomRole.GUEST,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (autoAddSuggestions) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                }
+                            )
+                        },
+                        onClick = {
+                            if (roomState == null || role != RoomRole.GUEST) {
+                                autoAddSuggestions = !autoAddSuggestions
+                            }
+                        }
                     ),
                     IntegrationCardItem(
                         icon = painterResource(R.drawable.volume_up),

@@ -70,6 +70,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.Proxy
 import kotlin.random.Random
@@ -1373,6 +1374,47 @@ object YouTube {
             .actions[0].openPopupAction.popup.multiPageMenuRenderer
             .header?.activeAccountHeaderRenderer
             ?.toAccountInfo()!!
+    }
+
+    /**
+     * Every YouTube channel the currently-set cookie can act as. A response wraps a
+     * deep, mostly-irrelevant renderer tree (buttons, banners, footer links) — walked
+     * as a generic [JsonElement] tree, same as [visitorData], rather than modeling the
+     * whole thing as data classes for the handful of fields actually used.
+     */
+    suspend fun getAccountChannels(): Result<List<AccountInfo>> = runCatching {
+        val raw = innerTube.getAccountSwitcherEndpoint(WEB_REMIX).bodyAsText()
+            .removePrefix(")]}'\n")
+        val root = Json.parseToJsonElement(raw).jsonObject
+        if (root["code"]?.jsonPrimitive?.contentOrNull != "SUCCESS") return@runCatching emptyList()
+
+        val items = root["data"]?.jsonObject
+            ?.get("contents")?.jsonArray?.firstOrNull()?.jsonObject
+            ?.get("accountSectionListRenderer")?.jsonObject
+            ?.get("contents")?.jsonArray?.firstOrNull()?.jsonObject
+            ?.get("accountItemSectionRenderer")?.jsonObject
+            ?.get("contents")?.jsonArray.orEmpty()
+
+        items.mapNotNull { itemEl ->
+            val item = itemEl.jsonObject["accountItem"]?.jsonObject ?: return@mapNotNull null
+            val name = item["accountName"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.contentOrNull
+                ?: return@mapNotNull null
+            val dataSyncId = item["serviceEndpoint"]?.jsonObject
+                ?.get("selectActiveIdentityEndpoint")?.jsonObject
+                ?.get("supportedTokens")?.jsonArray
+                ?.firstNotNullOfOrNull {
+                    it.jsonObject["datasyncIdToken"]?.jsonObject
+                        ?.get("datasyncIdToken")?.jsonPrimitive?.contentOrNull
+                }
+            AccountInfo(
+                name = name,
+                email = null,
+                channelHandle = item["channelHandle"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.contentOrNull,
+                thumbnailUrl = item["accountPhoto"]?.jsonObject?.get("thumbnails")?.jsonArray
+                    ?.lastOrNull()?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull,
+                dataSyncId = dataSyncId,
+            )
+        }
     }
 
     suspend fun feedback(tokens: List<String>): Result<Boolean> = runCatching {

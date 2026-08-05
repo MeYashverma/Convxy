@@ -115,9 +115,7 @@ fun AppNavigationRail(
             val isSelected = remember(currentRoute, screen.route) {
                 isRouteSelected(currentRoute, screen.route, navigationItems)
             }
-            val iconRes = remember(isSelected, screen) {
-                if (isSelected) screen.iconIdActive else screen.iconIdInactive
-            }
+            val iconRes = screen.icon
 
             val isSearchItem = screen == Screens.Search && onSearchLongClick != null
             val interactionSource = remember { MutableInteractionSource() }
@@ -227,9 +225,7 @@ fun AppNavigationBar(
             val isSelected = remember(currentRoute, screen.route) {
                 isRouteSelected(currentRoute, screen.route, navigationItems)
             }
-            val iconRes = remember(isSelected, screen) {
-                if (isSelected) screen.iconIdActive else screen.iconIdInactive
-            }
+            val iconRes = screen.icon
 
             val isSearchItem = screen == Screens.Search && onSearchLongClick != null
             val interactionSource = remember { MutableInteractionSource() }
@@ -336,7 +332,7 @@ fun AppLandscapeRail(
             val isSelected = remember(currentRoute, screen.route) {
                 isRouteSelected(currentRoute, screen.route, navigationItems)
             }
-            val iconRes = if (isSelected) screen.iconIdActive else screen.iconIdInactive
+            val iconRes = screen.icon
 
             Row(
                 modifier = Modifier

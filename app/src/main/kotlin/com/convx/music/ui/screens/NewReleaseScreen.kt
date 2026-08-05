@@ -50,12 +50,14 @@ import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.MiniPlayerBottomSpacing
 import com.convx.music.constants.MiniPlayerHeight
 import com.convx.music.constants.NavigationBarHeight
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.HeroBackground
 import com.convx.music.ui.utils.rememberHeroZoom
@@ -127,18 +129,14 @@ fun NewReleaseScreen(
                 // No bounce here: the top pull drives the hero zoom instead.
                 overscrollEffect = heroZoom.listOverscroll(),
                 modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::refresh).fillMaxSize(),
-                columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
+                columns = rememberGridColumns(),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
                     Column {
-                        Spacer(Modifier.height(40.dp))
-                        Text(
-                            text = stringResource(R.string.new_release_albums),
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
+                        LargeScreenTitle(
+                            title = stringResource(R.string.new_release_albums),
                             color = onTint,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                         )
                     }
                 }

@@ -43,6 +43,8 @@ import coil3.compose.SubcomposeAsyncImage
 import com.convx.music.R
 import com.convx.music.constants.SuggestionRegionKey
 import com.convx.music.constants.SuggestionRegionSlugToName
+import com.convx.music.ui.component.NavigationTitle
+import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.utils.rememberPreference
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -247,15 +249,10 @@ fun TrendingAppleMusicSection(
     val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Apple Music Top 100",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 32.dp)
-        )
-        Text(
-            text = SuggestionRegionSlugToName[countryCode] ?: "Global Charts",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp)
+        NavigationTitle(
+            title = "Apple Music Top 100",
+            label = SuggestionRegionSlugToName[countryCode] ?: "Global Charts",
+            modifier = Modifier.padding(top = AppleTokens.Gutter),
         )
         HorizontalPager(
             state = pagerState,
@@ -346,11 +343,7 @@ fun TopArtistsSection(
 ) {
     if (artists.isEmpty()) return
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Trending Artists",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 16.dp)
-        )
+        NavigationTitle(title = "Trending Artists")
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -398,10 +391,9 @@ fun TrendingAlbumsSection(
 ) {
     if (albums.isEmpty()) return
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Trending Albums",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 16.dp)
+        NavigationTitle(
+            title = "Trending Albums",
+            onClick = onMoreClick,
         )
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -483,28 +475,10 @@ fun TrendingVideosSection(
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Trending Music Videos",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Text(
-                text = "More",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.bounceClick { onMoreClick() }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        NavigationTitle(
+            title = "Trending Music Videos",
+            onClick = onMoreClick,
+        )
 
         HorizontalMultiBrowseCarousel(
             state = carouselState,

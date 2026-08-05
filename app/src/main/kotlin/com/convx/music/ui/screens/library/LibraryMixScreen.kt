@@ -65,6 +65,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.AlbumViewTypeKey
 import com.convx.music.constants.CONTENT_TYPE_HEADER
 import com.convx.music.constants.CONTENT_TYPE_PLAYLIST
@@ -98,7 +99,7 @@ import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.PlaylistGridItem
 import com.convx.music.ui.component.CreatePlaylistDialog
 import com.convx.music.ui.component.HideOnScrollFAB
-import com.convx.music.ui.component.HomeImageBackground
+import com.convx.music.ui.component.hasCustomHomeBackground
 import com.convx.music.ui.component.PlaylistListItem
 import com.convx.music.ui.component.SortHeader
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
@@ -107,6 +108,7 @@ import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.menu.AlbumMenu
 import com.convx.music.ui.menu.ArtistMenu
 import com.convx.music.ui.menu.PlaylistMenu
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
 import com.convx.music.ui.utils.bounceClick
@@ -159,7 +161,13 @@ fun LibraryMixScreen(
 
     val libraryBackgroundMode by rememberEnumPreference(LibraryBackgroundModeKey, LibraryBackgroundMode.THUMBNAIL_BLUR)
 
-    val heroUrl = if (libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR) {
+    // LibraryBackgroundMode only applies when no custom image is set. Without this
+    // the blurred-artwork hero and its scrim kept rendering under the user's own
+    // background, so the same picture looked right on Home and wrong here.
+    val customBackground = hasCustomHomeBackground()
+    val heroArtworkVisible = !customBackground
+
+    val heroUrl = if (libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR && heroArtworkVisible) {
         (albums + artists + playlists).firstOrNull()?.let {
             when (it) {
                 is Album -> it.album.thumbnailUrl
@@ -180,65 +188,41 @@ fun LibraryMixScreen(
     val onTint = AppleTokens.onColor(tint)
     val heroBackdrop = rememberLayerBackdrop()
 
-    val likedPlaylist =
+    // These six are constant for the life of the screen, but were rebuilt on every
+    // recomposition and passed straight into keyed lazy items — a new instance each
+    // time defeats skipping, so all six rows recomposed on any state change here.
+    val likedName = stringResource(R.string.liked)
+    val offlineName = stringResource(R.string.offline)
+    val myTopName = stringResource(R.string.my_top)
+    val cachedName = stringResource(R.string.cached_playlist)
+    val uploadedName = stringResource(R.string.uploaded_playlist)
+    val localName = stringResource(R.string.filter_local)
+
+    fun fixedPlaylist(id: String, name: String) =
         Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.LIKED_PLAYLIST_ID,
-                name = stringResource(R.string.liked)
-            ),
+            playlist = PlaylistEntity(id = id, name = name),
             songCount = 0,
             songThumbnails = emptyList(),
         )
 
-    val downloadPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID,
-                name = stringResource(R.string.offline)
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
-
-    val topPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.TOP_PLAYLIST_ID,
-                name = stringResource(R.string.my_top) + " $topSize"
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
-
-    val cachePlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.CACHED_PLAYLIST_ID,
-                name = stringResource(R.string.cached_playlist)
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
-
-    val uploadedPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.UPLOADED_PLAYLIST_ID,
-                name = stringResource(R.string.uploaded_playlist)
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
-
-    val localPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.LOCAL_PLAYLIST_ID,
-                name = stringResource(R.string.filter_local)
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
+    val likedPlaylist = remember(likedName) {
+        fixedPlaylist(PlaylistEntity.LIKED_PLAYLIST_ID, likedName)
+    }
+    val downloadPlaylist = remember(offlineName) {
+        fixedPlaylist(PlaylistEntity.DOWNLOADED_PLAYLIST_ID, offlineName)
+    }
+    val topPlaylist = remember(myTopName, topSize) {
+        fixedPlaylist(PlaylistEntity.TOP_PLAYLIST_ID, "$myTopName $topSize")
+    }
+    val cachePlaylist = remember(cachedName) {
+        fixedPlaylist(PlaylistEntity.CACHED_PLAYLIST_ID, cachedName)
+    }
+    val uploadedPlaylist = remember(uploadedName) {
+        fixedPlaylist(PlaylistEntity.UPLOADED_PLAYLIST_ID, uploadedName)
+    }
+    val localPlaylist = remember(localName) {
+        fixedPlaylist(PlaylistEntity.LOCAL_PLAYLIST_ID, localName)
+    }
 
     val (showLiked) = rememberPreference(ShowLikedPlaylistKey, true)
     val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
@@ -322,7 +306,7 @@ fun LibraryMixScreen(
     val headerContent = @Composable {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp),
+            modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
         ) {
             SortHeader(
                 sortType = sortType,
@@ -377,12 +361,12 @@ fun LibraryMixScreen(
     HeroBackground(
         tint = tint,
         heroSource = heroSource,
-        showDefaultIcon = libraryBackgroundMode != LibraryBackgroundMode.PLAIN,
-        blurArtwork = libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR,
+        showDefaultIcon = libraryBackgroundMode != LibraryBackgroundMode.PLAIN && heroArtworkVisible,
+        blurArtwork = libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR && heroArtworkVisible,
         fullBlur = true,
         modifier = Modifier.fillMaxSize(),
     ) {
-      if (libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR) {
+      if (libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR && heroArtworkVisible) {
           // Blurred thumbnail alone isn't dark/flat enough for text on top to
           // stay readable — a uniform scrim, not just the bottom gradient.
           Box(
@@ -409,8 +393,6 @@ fun LibraryMixScreen(
                 }
             }
         ) {
-            HomeImageBackground(withGradient = true)
-
             when (viewType) {
                 LibraryViewType.LIST ->
                     LazyColumn(
@@ -420,14 +402,9 @@ fun LibraryMixScreen(
                     ) {
                         item(key = "header_title") {
                             Column {
-                                Spacer(Modifier.height(40.dp))
-                                Text(
-                                    text = stringResource(R.string.filter_library).lowercase(),
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    fontWeight = FontWeight.ExtraBold,
+                                LargeScreenTitle(
+                                    title = stringResource(R.string.filter_library),
                                     color = onTint,
-                                    fontSize = 42.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                                 )
                             }
                         }
@@ -808,22 +785,14 @@ fun LibraryMixScreen(
                 LazyVerticalGrid(
                     state = lazyGridState,
                     modifier = Modifier,
-                    columns =
-                    GridCells.Adaptive(
-                        minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,
-                    ),
+                    columns = rememberGridColumns(),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(key = "header_title", span = { GridItemSpan(maxLineSpan) }) {
                         Column {
-                            Spacer(Modifier.height(40.dp))
-                            Text(
-                                text = stringResource(R.string.filter_library).lowercase(),
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.ExtraBold,
+                            LargeScreenTitle(
+                                title = stringResource(R.string.filter_library),
                                 color = onTint,
-                                fontSize = 42.sp,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                             )
                         }
                     }

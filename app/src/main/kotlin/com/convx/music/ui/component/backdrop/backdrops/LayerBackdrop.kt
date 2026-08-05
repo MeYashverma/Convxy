@@ -77,6 +77,12 @@ class LayerBackdrop internal constructor(
         contentVersion++
     }
 
+    /**
+     * True once the source has been recorded at least once. Freezing before that would
+     * leave sampling surfaces replaying an empty layer.
+     */
+    internal val hasRecording: Boolean get() = contentVersion > 0
+
     private var inverseLayerScope: InverseLayerScope? = null
 
     override fun DrawScope.drawBackdrop(

@@ -71,6 +71,7 @@ import com.convx.music.constants.SongSortTypeKey
 import com.convx.music.constants.YtmSyncKey
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.LocalMenuState
@@ -81,6 +82,7 @@ import com.convx.music.utils.listItemShape
 import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.LibrarySongsViewModel
+import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.utils.rememberHeroZoom
@@ -182,6 +184,13 @@ fun LibrarySongsScreen(
             }),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
+            item(
+                key = "title",
+                contentType = CONTENT_TYPE_HEADER,
+            ) {
+                LargeScreenTitle(title = stringResource(R.string.songs))
+            }
+
             item(
                 key = "filter",
                 contentType = CONTENT_TYPE_HEADER,
@@ -339,7 +348,7 @@ fun LibrarySongsScreen(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
                 ) {
                     SortHeader(
                         sortType = sortType,

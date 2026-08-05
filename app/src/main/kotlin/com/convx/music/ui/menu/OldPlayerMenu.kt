@@ -103,7 +103,9 @@ fun OldPlayerMenu(
 
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsState(initial = RoomRole.NONE)
-    val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
+    // See Player.kt: gated on control mode, not on role.
+    val canControlTogether = listenTogetherManager?.canControl?.collectAsState(initial = true)
+    val isListenTogetherGuest = canControlTogether?.value == false
 
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)

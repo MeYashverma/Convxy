@@ -53,10 +53,12 @@ import com.convx.music.constants.HomeBackgroundAnimateKey
 import com.convx.music.constants.HomeBackgroundBlurKey
 import com.convx.music.constants.HomeBackgroundDimKey
 import com.convx.music.constants.HomeBackgroundEnabledKey
+import com.convx.music.constants.HomeBackgroundIsVideoKey
 import com.convx.music.constants.HomeBackgroundPathKey
 import com.convx.music.constants.LibraryBackgroundMode
 import com.convx.music.constants.LibraryBackgroundModeKey
 import com.convx.music.ui.component.DefaultDialog
+import com.convx.music.ui.component.HomeVideoBackground
 import com.convx.music.ui.component.Material3SettingsGroup
 import com.convx.music.ui.component.Material3SettingsItem
 import com.convx.music.utils.rememberEnumPreference
@@ -66,11 +68,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Copies a picked image into app storage so the background survives without a
- *  persistable URI permission. Unique filename cache-busts Coil. Returns the
- *  absolute path, or null on failure. */
-private fun copyBackgroundImage(context: android.content.Context, source: Uri): String? = runCatching {
-    val dest = File(context.filesDir, "home_background_${System.currentTimeMillis()}.jpg")
+/** Copies a picked image/video into app storage so the background survives
+ *  without a persistable URI permission. Unique filename cache-busts Coil.
+ *  Returns the absolute path, or null on failure. */
+private fun copyBackgroundMedia(context: android.content.Context, source: Uri, isVideo: Boolean): String? = runCatching {
+    val ext = if (isVideo) "mp4" else "jpg"
+    val dest = File(context.filesDir, "home_background_${System.currentTimeMillis()}.$ext")
     context.contentResolver.openInputStream(source)?.use { input ->
         dest.outputStream().use { output -> input.copyTo(output) }
     } ?: return null
@@ -94,22 +97,56 @@ fun HomeBackgroundControls() {
     val (blur, onBlurChange) = rememberPreference(HomeBackgroundBlurKey, defaultValue = 20f)
     val (dim, onDimChange) = rememberPreference(HomeBackgroundDimKey, defaultValue = 0.4f)
     val (animate, onAnimateChange) = rememberPreference(HomeBackgroundAnimateKey, defaultValue = false)
+    val (isVideo, onIsVideoChange) = rememberPreference(HomeBackgroundIsVideoKey, defaultValue = false)
 
     var showBlurDialog by rememberSaveable { mutableStateOf(false) }
     var showDimDialog by rememberSaveable { mutableStateOf(false) }
+    var pendingVideoUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun applyPickedMedia(uri: Uri, video: Boolean) {
+        val previous = path
+        scope.launch {
+            val newPath = withContext(Dispatchers.IO) { copyBackgroundMedia(context, uri, video) }
+            if (newPath != null) {
+                onPathChange(newPath)
+                onIsVideoChange(video)
+                if (!enabled) onEnabledChange(true)
+                if (previous.isNotEmpty()) withContext(Dispatchers.IO) { File(previous).delete() }
+            }
+        }
+    }
 
     val pickLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        val previous = path
-        scope.launch {
-            val newPath = withContext(Dispatchers.IO) { copyBackgroundImage(context, uri) }
-            if (newPath != null) {
-                onPathChange(newPath)
-                if (!enabled) onEnabledChange(true)
-                if (previous.isNotEmpty()) withContext(Dispatchers.IO) { File(previous).delete() }
+        val video = context.contentResolver.getType(uri)?.startsWith("video/") == true
+        if (video) {
+            // Video decode/blur runs every frame, unlike a static image — warn
+            // before committing since this can visibly cost battery/frame time
+            // on lower-end devices.
+            pendingVideoUri = uri
+        } else {
+            applyPickedMedia(uri, video = false)
+        }
+    }
+
+    if (pendingVideoUri != null) {
+        DefaultDialog(
+            onDismiss = { pendingVideoUri = null },
+            buttons = {
+                TextButton(onClick = { pendingVideoUri = null }) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(onClick = {
+                    applyPickedMedia(pendingVideoUri!!, video = true)
+                    pendingVideoUri = null
+                }) { Text(stringResource(R.string.home_background_video_confirm)) }
             }
+        ) {
+            Text(
+                text = stringResource(R.string.home_background_video_warning),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(16.dp),
+            )
         }
     }
 
@@ -125,7 +162,9 @@ fun HomeBackgroundControls() {
                 .clip(RoundedCornerShape(20.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
-            if (path.isNotEmpty()) {
+            if (path.isNotEmpty() && isVideo) {
+                HomeVideoBackground(path = path, blur = blur, dim = dim)
+            } else if (path.isNotEmpty()) {
                 // Mirrors HomeImageBackground: always realtime Modifier.blur.
                 val previewRequest = remember(path) {
                     ImageRequest.Builder(context)
@@ -183,13 +222,16 @@ fun HomeBackgroundControls() {
                     title = { Text(stringResource(R.string.home_background_image)) },
                     description = {
                         Text(
-                            if (path.isEmpty()) stringResource(R.string.home_background_image_none)
-                            else stringResource(R.string.home_background_image_set)
+                            when {
+                                path.isEmpty() -> stringResource(R.string.home_background_image_none)
+                                isVideo -> stringResource(R.string.home_background_video_set)
+                                else -> stringResource(R.string.home_background_image_set)
+                            }
                         )
                     },
                     onClick = {
                         pickLauncher.launch(
-                            PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                         )
                     }
                 ),
@@ -231,6 +273,7 @@ fun HomeBackgroundControls() {
                         val current = path
                         if (current.isNotEmpty()) scope.launch(Dispatchers.IO) { File(current).delete() }
                         onPathChange("")
+                        onIsVideoChange(false)
                         onEnabledChange(false)
                     }
                 ),

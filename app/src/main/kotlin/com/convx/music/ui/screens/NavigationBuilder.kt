@@ -458,6 +458,10 @@ fun NavGraphBuilder.navigationBuilder(
         LoginScreen(navController)
     }
 
+    composable("channel_picker") {
+        ChannelPickerScreen(navController)
+    }
+
     composable("switch_channel") {
         SwitchChannelScreen(navController)
     }

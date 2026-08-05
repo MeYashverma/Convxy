@@ -69,6 +69,7 @@ import com.convx.music.R
 import com.convx.music.constants.ListItemHeight
 import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.YouTubeQueue
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.NavigationTitle
@@ -239,13 +240,9 @@ fun ChartsScreen(
                         .asPaddingValues(),
                 ) {
                     item(key = "charts_header") {
-                        Spacer(Modifier.height(40.dp))
-                        Text(
-                            text = stringResource(R.string.charts),
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
+                        LargeScreenTitle(
+                            title = stringResource(R.string.charts),
                             color = onTint,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                         )
                     }
 

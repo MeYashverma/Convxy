@@ -22,6 +22,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
 import androidx.datastore.preferences.core.edit
 import com.convx.music.R
+import com.convx.music.constants.ListenTogetherAutoAddSuggestionsKey
 import com.convx.music.constants.ListenTogetherAutoApprovalKey
 import com.convx.music.constants.ListenTogetherIsHostKey
 import com.convx.music.constants.ListenTogetherRoomCodeKey
@@ -34,6 +35,8 @@ import com.convx.music.utils.dataStore
 import com.convx.music.utils.get
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -41,8 +44,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -111,6 +117,9 @@ sealed class ListenTogetherEvent {
     data object Disconnected : ListenTogetherEvent()
     data class ConnectionError(val error: String) : ListenTogetherEvent()
     data class Reconnecting(val attempt: Int, val maxAttempts: Int) : ListenTogetherEvent()
+    data class ControlModeChanged(val controlMode: String) : ListenTogetherEvent()
+    data class RoomExpiring(val expiresAt: Long, val extensionsLeft: Int) : ListenTogetherEvent()
+    data class RoomClosed(val reason: String?) : ListenTogetherEvent()
     
     // Room events
     data class RoomCreated(val roomCode: String, val userId: String) : ListenTogetherEvent()
@@ -139,6 +148,11 @@ sealed class ListenTogetherEvent {
     
     // Internal state actions
     data class LocalSuggestionApproved(val payload: SuggestionReceivedPayload) : ListenTogetherEvent()
+
+    /** A track actually landed in the shared queue. Emitted to everyone in the
+     *  room, not just the host, so the change is visible rather than the queue
+     *  silently growing under people. */
+    data class QueueTrackAdded(val title: String, val addedBy: String?) : ListenTogetherEvent()
 }
 
 /**
@@ -203,6 +217,31 @@ class ListenTogetherClient @Inject constructor(
     // Suggestions: pending items visible to host
     private val _pendingSuggestions = MutableStateFlow<List<SuggestionReceivedPayload>>(emptyList())
     val pendingSuggestions: StateFlow<List<SuggestionReceivedPayload>> = _pendingSuggestions.asStateFlow()
+
+    /** Who may drive playback. Mirrors the server; never the source of truth. */
+    private val _controlMode = MutableStateFlow(ControlModes.OWNER)
+    val controlMode: StateFlow<String> = _controlMode.asStateFlow()
+
+    /** Unix ms when the room closes, 0 when the server does not expire rooms. */
+    private val _roomExpiresAt = MutableStateFlow(0L)
+    val roomExpiresAt: StateFlow<Long> = _roomExpiresAt.asStateFlow()
+
+    private val _extensionsLeft = MutableStateFlow(0)
+    val extensionsLeft: StateFlow<Int> = _extensionsLeft.asStateFlow()
+
+    /** True once the server has warned the room is about to close. */
+    private val _roomExpiring = MutableStateFlow(false)
+    val roomExpiring: StateFlow<Boolean> = _roomExpiring.asStateFlow()
+
+    /** Everyone may control when the room says so; the owner always may. */
+    val canControlPlayback: Boolean
+        get() = _role.value == RoomRole.HOST || _controlMode.value == ControlModes.EVERYONE
+
+    /** Observable form of [canControlPlayback], for UI that must enable or grey
+     *  out transport controls and react when the owner flips the mode. */
+    val canControl: StateFlow<Boolean> = combine(_role, _controlMode) { role, mode ->
+        role != RoomRole.GUEST || mode == ControlModes.EVERYONE
+    }.stateIn(scope, SharingStarted.Eagerly, true)
 
     // Blocked usernames (internal list for privacy)
     private val _blockedUsernames = MutableStateFlow<Set<String>>(emptySet())
@@ -384,6 +423,10 @@ class ListenTogetherClient @Inject constructor(
     
     // Pending actions to execute when connected
     private var pendingAction: PendingAction? = null
+
+    /** Room code the current socket was opened against. Needed because the
+     *  room now lives in the URL, so a reconnect must reopen the same path. */
+    private var connectedRoomCode: String? = null
     
     // Wake lock to keep connection alive when in a room
     private var wakeLock: PowerManager.WakeLock? = null
@@ -418,13 +461,19 @@ class ListenTogetherClient @Inject constructor(
 
     private fun getServerUrl(): String {
         val savedUrl = context.dataStore.get(ListenTogetherServerUrlKey, DEFAULT_SERVER_URL)
-        // If the saved URL is no longer in our list (e.g. Meowery was removed), revert to ViviMusic default
-        return if (ListenTogetherServers.findByUrl(savedUrl) != null) {
-            savedUrl
+        // Any well-formed ws/wss URL is honoured, not just the built-in list.
+        // Gating on findByUrl silently discarded every self-hosted server the
+        // settings screen let you type in, and fell back to the default.
+        return if (savedUrl.startsWith("ws://") || savedUrl.startsWith("wss://")) {
+            savedUrl.trimEnd('/')
         } else {
             DEFAULT_SERVER_URL
         }
     }
+
+    /** `wss://host` -> `https://host`, for the room-allocation REST call. */
+    private fun httpBase(): String =
+        getServerUrl().replaceFirst("wss://", "https://").replaceFirst("ws://", "http://")
     
     /**
      * Calculate exponential backoff delay with jitter
@@ -455,18 +504,39 @@ class ListenTogetherClient @Inject constructor(
         _logs.value = emptyList()
     }
 
+    /** Lets the manager write into the same room log the client uses, so send
+     *  and receive appear interleaved in one place instead of two. */
+    fun logExternal(message: String, details: String? = null) =
+        log(LogLevel.INFO, message, details)
+
     /**
      * Connect to the Listen Together server
      */
-    fun connect() {
-        if (_connectionState.value == ConnectionState.CONNECTED || 
+    @JvmOverloads
+    fun connect(roomCode: String? = null) {
+        if (_connectionState.value == ConnectionState.CONNECTED ||
             _connectionState.value == ConnectionState.CONNECTING) {
             log(LogLevel.WARNING, "Already connected or connecting")
             return
         }
 
+        // The room has to be in the URL. Cloudflare routes the socket to the
+        // Durable Object that owns the room, and it picks that object at
+        // upgrade time — by the time a create_room/join_room frame arrives it
+        // is far too late to choose. Fall back to whatever room we were last
+        // in, which is what makes an automatic reconnect land in the same place.
+        val code = roomCode ?: storedRoomCode ?: connectedRoomCode
+        connectedRoomCode = code
+
         _connectionState.value = ConnectionState.CONNECTING
-        val serverUrl = getServerUrl()
+        // No code means a legacy server (Hugging Face / Render), which mints the
+        // room itself after the socket opens and serves everything off the bare
+        // URL. Bailing out here instead would break every pre-v2 server.
+        val serverUrl = if (code.isNullOrBlank()) {
+            getServerUrl()
+        } else {
+            "${getServerUrl()}/room/${code.uppercase()}"
+        }
         log(LogLevel.INFO, "Connecting to server", serverUrl)
 
         // Custom Node.js servers expect JSON without compression
@@ -798,7 +868,10 @@ class ListenTogetherClient @Inject constructor(
                     wasHost = true
                     sessionStartTime = System.currentTimeMillis()
                     
-                    _roomState.value = RoomState(
+                    // Prefer the server's own state. The locally-built fallback
+                    // carries no expiry and no control mode, so a host that
+                    // relied on it never saw the session countdown at all.
+                    val created = payload.state ?: RoomState(
                         roomCode = payload.roomCode,
                         hostId = payload.userId,
                         users = listOf(UserInfo(payload.userId, storedUsername ?: "", true)),
@@ -807,6 +880,8 @@ class ListenTogetherClient @Inject constructor(
                         lastUpdate = System.currentTimeMillis(),
                         volume = 1f
                     )
+                    _roomState.value = created
+                    adoptRoomSettings(created)
                     
                     // Save session to persistent storage
                     savePersistedSession()
@@ -866,6 +941,7 @@ class ListenTogetherClient @Inject constructor(
                     sessionStartTime = System.currentTimeMillis()
                     
                     _roomState.value = payload.state
+                    adoptRoomSettings(payload.state)
                     
                     // Save session to persistent storage
                     savePersistedSession()
@@ -934,6 +1010,8 @@ class ListenTogetherClient @Inject constructor(
                     scope.launch { _events.emit(ListenTogetherEvent.Kicked(payload.reason)) }
                 }
                 
+                // Logged before the specific handlers so the room log shows every
+                // frame that arrived, not only the ones with a branch.
                 MessageTypes.SYNC_PLAYBACK -> {
                     val payload = codec.decodePayload(msgType, payloadBytes, detectedFormat) as? PlaybackActionPayload ?: return
                     log(LogLevel.DEBUG, "Playback sync", "Action: ${payload.action}")
@@ -1016,6 +1094,40 @@ class ListenTogetherClient @Inject constructor(
                     scope.launch { _events.emit(ListenTogetherEvent.SyncStateReceived(payload)) }
                 }
                 
+                MessageTypes.CONTROL_MODE_CHANGED -> {
+                    val payload = codec.decodePayload(msgType, payloadBytes, detectedFormat) as? ControlModeChangedPayload ?: return
+                    _controlMode.value = payload.controlMode
+                    _roomState.value = _roomState.value?.copy(controlMode = payload.controlMode)
+                    log(LogLevel.INFO, "Control mode changed", payload.controlMode)
+                    scope.launch { _events.emit(ListenTogetherEvent.ControlModeChanged(payload.controlMode)) }
+                }
+
+                MessageTypes.ROOM_EXPIRING -> {
+                    val payload = codec.decodePayload(msgType, payloadBytes, detectedFormat) as? RoomExpiringPayload ?: return
+                    _roomExpiresAt.value = payload.expiresAt
+                    _extensionsLeft.value = payload.extensionsLeft
+                    _roomExpiring.value = true
+                    log(LogLevel.WARNING, "Room expiring soon", "extensions left: ${payload.extensionsLeft}")
+                    scope.launch {
+                        _events.emit(ListenTogetherEvent.RoomExpiring(payload.expiresAt, payload.extensionsLeft))
+                    }
+                }
+
+                MessageTypes.ROOM_CLOSED -> {
+                    val payload = codec.decodePayload(msgType, payloadBytes, detectedFormat) as? RoomClosedPayload
+                    log(LogLevel.INFO, "Room closed", payload?.reason)
+                    // Terminal: clear the session so the auto-reconnect loop does
+                    // not spend 15 attempts dialling a room that no longer exists.
+                    clearPersistedSession()
+                    sessionToken = null
+                    storedRoomCode = null
+                    connectedRoomCode = null
+                    _roomState.value = null
+                    _roomExpiring.value = false
+                    scope.launch { _events.emit(ListenTogetherEvent.RoomClosed(payload?.reason)) }
+                    disconnect()
+                }
+
                 MessageTypes.SUGGESTION_RECEIVED -> {
                     val payload = codec.decodePayload(msgType, payloadBytes, detectedFormat) as? SuggestionReceivedPayload ?: return
                     // Only host should receive suggestions
@@ -1023,6 +1135,41 @@ class ListenTogetherClient @Inject constructor(
                         // Check if user is blocked
                         if (isUserBlocked(payload.fromUsername)) {
                             log(LogLevel.INFO, "Suggestion from blocked user ignored", "User: ${payload.fromUsername}")
+                            return
+                        }
+
+                        // Collaborative queue: approve straight away instead of parking
+                        // the track in a pending list the host has to work through. The
+                        // approval still goes out over the normal APPROVE_SUGGESTION
+                        // path, so the server sees exactly what it would have seen if
+                        // the host had tapped Approve — no protocol change.
+                        val autoAddEnabled = context.dataStore.get(ListenTogetherAutoAddSuggestionsKey, false)
+                        if (autoAddEnabled) {
+                            log(
+                                LogLevel.INFO,
+                                "Auto-adding suggestion",
+                                "${payload.fromUsername}: ${payload.trackInfo.title}"
+                            )
+                            // Must go through the pending list even though nothing is
+                            // pending: approveSuggestion looks the payload up there to
+                            // emit LocalSuggestionApproved, and that event is what puts
+                            // the track into the host's own queue. Approving without it
+                            // would notify the server and enqueue nothing locally.
+                            _pendingSuggestions.value += payload
+                            approveSuggestion(payload.suggestionId)
+                            // Still tell the host who added what — silent queue changes
+                            // are how a shared session turns into an argument.
+                            scope.launch(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(
+                                        R.string.listen_together_auto_added,
+                                        payload.fromUsername,
+                                        payload.trackInfo.title
+                                    ),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                             return
                         }
 
@@ -1052,7 +1199,14 @@ class ListenTogetherClient @Inject constructor(
                         NotificationManagerCompat.from(context).cancel(notifId)
                     }
                     
-                    // For guests, optionally notify via events; UI can react if needed
+                    scope.launch {
+                        _events.emit(
+                            ListenTogetherEvent.QueueTrackAdded(
+                                title = payload.trackInfo.title,
+                                addedBy = payload.trackInfo.suggestedBy
+                            )
+                        )
+                    }
                 }
 
                 MessageTypes.SUGGESTION_REJECTED -> {
@@ -1109,6 +1263,7 @@ class ListenTogetherClient @Inject constructor(
                     _userId.value = payload.userId
                     _role.value = if (payload.isHost) RoomRole.HOST else RoomRole.GUEST
                     _roomState.value = payload.state
+                    adoptRoomSettings(payload.state)
                     
                     // Update persisted session info
                     wasHost = payload.isHost
@@ -1212,21 +1367,50 @@ class ListenTogetherClient @Inject constructor(
         clearPersistedSession()
         sessionToken = null
         storedRoomCode = null
+        connectedRoomCode = null
         wasHost = false
-        
+
         storedUsername = username
-        
-        if (_connectionState.value == ConnectionState.CONNECTED) {
-            sendMessage(MessageTypes.CREATE_ROOM, CreateRoomPayload(username))
-        } else {
-            log(LogLevel.INFO, "Not connected, queueing create room action")
-            pendingAction = PendingAction.CreateRoom(username)
-            if (_connectionState.value == ConnectionState.DISCONNECTED || 
-                _connectionState.value == ConnectionState.ERROR) {
-                connect()
+
+        // The room code must exist before the socket opens, so it is allocated
+        // over REST first. Older servers have no /api/rooms; if the call fails
+        // we fall back to letting the server mint the code after connecting,
+        // which is what the previous protocol did.
+        scope.launch(Dispatchers.IO) {
+            val allocated = allocateRoomCode()
+            withContext(Dispatchers.Main) {
+                pendingAction = PendingAction.CreateRoom(username)
+                if (allocated != null) {
+                    storedRoomCode = allocated
+                    connect(allocated)
+                } else {
+                    log(LogLevel.WARNING, "Room allocation failed", "Falling back to legacy connect")
+                    connect()
+                }
             }
-            // If CONNECTING or RECONNECTING, the action will be executed when connected
         }
+    }
+
+    /** POST /api/rooms on the configured server. Null when unsupported. */
+    private fun allocateRoomCode(): String? = try {
+        val request = Request.Builder()
+            .url("${httpBase()}/api/rooms")
+            .post(ByteArray(0).toRequestBody(null, 0, 0))
+            .build()
+        client.newCall(request).execute().use { response ->
+            val body = response.body?.string()
+            if (!response.isSuccessful || body == null) {
+                log(LogLevel.ERROR, "Room allocation rejected", "HTTP ${response.code}")
+                null
+            } else {
+                json.decodeFromString<RoomAllocationResponse>(body)
+                    .roomCode
+                    .takeIf { it.isNotBlank() }
+            }
+        }
+    } catch (e: Exception) {
+        log(LogLevel.ERROR, "Room allocation failed", e.message)
+        null
     }
 
     /**
@@ -1241,17 +1425,18 @@ class ListenTogetherClient @Inject constructor(
         wasHost = false
 
         storedUsername = username
-        
-        if (_connectionState.value == ConnectionState.CONNECTED) {
-            sendMessage(MessageTypes.JOIN_ROOM, JoinRoomPayload(roomCode.uppercase(), username))
+        val code = roomCode.trim().uppercase()
+
+        // A socket opened against a different room cannot be reused: the room
+        // is in the URL now, so joining means reconnecting to that room's path.
+        if (_connectionState.value == ConnectionState.CONNECTED && connectedRoomCode == code) {
+            sendMessage(MessageTypes.JOIN_ROOM, JoinRoomPayload(code, username))
         } else {
-            log(LogLevel.INFO, "Not connected, queueing join room action")
-            pendingAction = PendingAction.JoinRoom(roomCode, username)
-            if (_connectionState.value == ConnectionState.DISCONNECTED || 
-                _connectionState.value == ConnectionState.ERROR) {
-                connect()
+            pendingAction = PendingAction.JoinRoom(code, username)
+            if (_connectionState.value == ConnectionState.CONNECTED) {
+                disconnect()
             }
-            // If CONNECTING or RECONNECTING, the action will be executed when connected
+            connect(code)
         }
     }
 
@@ -1346,8 +1531,10 @@ class ListenTogetherClient @Inject constructor(
         queueTitle: String? = null,
         volume: Float? = null
     ) {
-        if (_role.value != RoomRole.HOST) {
-            log(LogLevel.ERROR, "Cannot control playback", "Not host")
+        // The server is the authority here; this only avoids sending a frame we
+        // already know will be refused.
+        if (!canControlPlayback) {
+            log(LogLevel.ERROR, "Cannot control playback", "Room is set to owner-only")
             return
         }
         sendMessage(
@@ -1382,6 +1569,37 @@ class ListenTogetherClient @Inject constructor(
      */
     fun sendBufferReady(trackId: String) {
         sendMessage(MessageTypes.BUFFER_READY, BufferReadyPayload(trackId))
+    }
+
+    /** Pull the v2 room settings out of a full state snapshot. Servers that
+     *  predate them send nothing, and the defaults keep owner-only control. */
+    private fun adoptRoomSettings(state: RoomState) {
+        _controlMode.value = state.controlMode
+        _roomExpiresAt.value = state.expiresAt
+        _roomExpiring.value = false
+    }
+
+    /** Owner-only: choose whether everyone or only the owner drives playback. */
+    fun setControlMode(mode: String) {
+        if (_role.value != RoomRole.HOST) {
+            log(LogLevel.ERROR, "Cannot change control mode", "Not host (role=${_role.value})")
+            return
+        }
+        if (_connectionState.value != ConnectionState.CONNECTED) {
+            log(LogLevel.ERROR, "Cannot change control mode", "Not connected (${_connectionState.value})")
+            return
+        }
+        log(LogLevel.INFO, "Requesting control mode", "$mode (was ${_controlMode.value})")
+        sendMessage(MessageTypes.SET_CONTROL_MODE, SetControlModePayload(mode))
+    }
+
+    /** Owner-only: push the room's closing time back, if extensions remain. */
+    fun extendSession() {
+        if (_role.value != RoomRole.HOST) {
+            log(LogLevel.ERROR, "Cannot extend session", "Not host")
+            return
+        }
+        sendMessageNoPayload(MessageTypes.EXTEND_SESSION)
     }
 
     /**

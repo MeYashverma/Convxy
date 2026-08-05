@@ -9,6 +9,7 @@ import android.annotation.SuppressLint
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.JsResult
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -71,6 +72,11 @@ fun DiscordLoginScreen(navController: NavController) {
 
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
+                    // Discord's 2FA challenge (and its captcha widget) runs on a
+                    // separate origin and needs third-party cookies to complete —
+                    // WebView blocks those by default, so 2FA accounts got stuck
+                    // partway through login with no visible error.
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
                     // Fix for Motorola devices - UA parsing issue breaks Discord login
                     // See: https://github.com/dead8309/Kizzy/issues/345#issuecomment-2699729072

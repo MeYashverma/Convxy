@@ -28,6 +28,8 @@ import com.music.innertube.models.SongItem
 import com.music.innertube.models.YTItem
 import com.convx.music.R
 import com.convx.music.constants.ThumbnailCornerRadius
+import com.convx.music.constants.ThumbnailRoundedShape
+import com.convx.music.ui.theme.AppleTokens
 
 @Composable
 fun SpeedDialGridItem(
@@ -41,14 +43,14 @@ fun SpeedDialGridItem(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f) // Square aspect ratio
-            .clip(RoundedCornerShape(ThumbnailCornerRadius))
+            .clip(ThumbnailRoundedShape)
     ) {
         // Thumbnail
         ItemThumbnail(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
             modifier = Modifier.fillMaxSize()
         )
 
@@ -72,7 +74,7 @@ fun SpeedDialGridItem(
         Row(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(8.dp) // Reduced padding for tighter layout
+                .padding(AppleTokens.ItemGap / 2) // Reduced padding for tighter layout
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -104,7 +106,7 @@ fun SpeedDialGridItem(
                 tint = Color.White,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
+                    .padding(AppleTokens.ItemGap / 2)
                     .size(16.dp)
             )
         }

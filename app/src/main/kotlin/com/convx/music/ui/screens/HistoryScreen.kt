@@ -83,8 +83,11 @@ import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.IconButton
+import com.convx.music.ui.component.CollapsedTitleBar
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.NavigationTitle
+import com.convx.music.ui.component.rememberTitleCollapseProgress
 import com.convx.music.ui.component.SongListItem
 import com.convx.music.ui.component.YouTubeListItem
 import com.convx.music.ui.component.GlassCircleButton
@@ -245,14 +248,9 @@ fun HistoryScreen(
                     .asPaddingValues(),
             ) {
                 item(key = "history_header") {
-                    Spacer(Modifier.height(40.dp))
-                    Text(
-                        text = stringResource(R.string.history).lowercase(),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.ExtraBold,
+                    LargeScreenTitle(
+                        title = stringResource(R.string.history),
                         color = onTint,
-                        fontSize = 42.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                     )
                 }
 
@@ -470,6 +468,18 @@ fun HistoryScreen(
                     }
                 }
             )
+
+            // The large title's stand-in once it has scrolled away. Centred, so
+            // it sits between the chrome row's edge buttons rather than under
+            // them — but the search field takes the centre in those modes.
+            if (!inSelectMode && !isSearching) {
+                CollapsedTitleBar(
+                    title = stringResource(R.string.history),
+                    progress = rememberTitleCollapseProgress(lazyListState),
+                    color = onTint,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
 
             // Top bar logic
             Row(

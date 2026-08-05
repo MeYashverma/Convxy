@@ -45,7 +45,10 @@ fun AlbumGradient(
 ) {
     val context = LocalContext.current
     val surfaceColor = MaterialTheme.colorScheme.surface
-    val fallbackColorInt = MaterialTheme.colorScheme.primaryContainer.toArgb()
+    // Neutral, not theme-derived — see PlayerColorExtractor.NeutralFallbackColor:
+    // a black/white cover with no extractable color must not paint the theme
+    // accent instead.
+    val fallbackColorInt = PlayerColorExtractor.NeutralFallbackColor.toArgb()
 
     // Keyed on the URL and seeded from cache so a recycled row / revisited image
     // paints instantly and never re-extracts.

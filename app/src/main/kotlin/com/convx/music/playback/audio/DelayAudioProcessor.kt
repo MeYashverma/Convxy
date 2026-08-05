@@ -29,6 +29,22 @@ class DelayAudioProcessor(
     @Volatile
     var wetMix: Float = 0f
 
+    /**
+     * Freeze: stop feeding the track into the delay line and let what is
+     * already in there circulate and decay on its own.
+     *
+     * This is the "echo out" — the source drops away and the last bar hangs in
+     * the air repeating while the next track arrives underneath. Output is
+     * entirely wet while frozen, since the point is that the dry signal is gone.
+     */
+    @Volatile
+    var frozen: Boolean = false
+
+    /** Feedback used while [frozen]; higher than the normal slap-back so the
+     *  tail rings for a few repeats instead of vanishing immediately. */
+    @Volatile
+    var freezeFeedback: Float = 0.72f
+
     private var sampleRate = 0
     private var channelCount = 0
 
@@ -62,10 +78,11 @@ class DelayAudioProcessor(
         inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
         val mix = wetMix
+        val freeze = frozen
         val out = replaceOutputBuffer(inputBuffer.remaining())
         out.order(ByteOrder.LITTLE_ENDIAN)
 
-        if (mix <= 0f || delayBuffer.isEmpty()) {
+        if ((mix <= 0f && !freeze) || delayBuffer.isEmpty()) {
             out.put(inputBuffer)
             out.flip()
             return
@@ -82,11 +99,22 @@ class DelayAudioProcessor(
                 val bufIdx = (writeIndex + channelIndex) % bufferLen
                 val delayed = delayBuffer[bufIdx]
 
-                val wet = (dry + delayed * feedback).roundToInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                val wet = if (freeze) {
+                    // Nothing new goes in; the line just feeds itself and decays.
+                    (delayed * freezeFeedback).roundToInt()
+                        .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                } else {
+                    (dry + delayed * feedback).roundToInt()
+                        .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                }
                 delayBuffer[bufIdx] = wet.toShort()
 
-                val mixed = (dry * (1f - mix) + wet * mix).roundToInt()
-                    .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                val mixed = if (freeze) {
+                    wet
+                } else {
+                    (dry * (1f - mix) + wet * mix).roundToInt()
+                        .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                }
                 out.putShort(mixed.toShort())
             }
             writeIndex = (writeIndex + channelCount) % bufferLen
@@ -112,6 +140,8 @@ class DelayAudioProcessor(
         inputEnded = false
         delayBuffer.fill(0)
         writeIndex = 0
+        frozen = false
+        wetMix = 0f
     }
 
     @Deprecated("Deprecated in AudioProcessor")

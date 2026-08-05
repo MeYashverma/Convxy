@@ -100,6 +100,7 @@ import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.ExoDownloadService
 import com.convx.music.playback.queues.ListQueue
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.DefaultDialog
 import com.convx.music.ui.component.DraggableScrollbar
@@ -341,13 +342,9 @@ fun TopPlaylistScreen(
                 if (songs != null) {
                     item(key = "header_title") {
                         Column {
-                            Spacer(Modifier.height(40.dp))
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold,
+                            LargeScreenTitle(
+                                title = name,
                                 color = onTint,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                             )
                         }
                     }

@@ -108,6 +108,8 @@ fun AccountSettingsScreen(
     val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
     val (visitorData, _) = rememberPreference(VisitorDataKey, "")
     val (dataSyncId, _) = rememberPreference(DataSyncIdKey, "")
+    val (savedAccountsJson, _) = rememberPreference(SavedAccountsKey, "")
+    val savedAccounts = remember(savedAccountsJson) { savedAccountsJson.toSavedAccounts() }
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -205,6 +207,34 @@ fun AccountSettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoggedIn && savedAccounts.size > 1) {
+                Material3SettingsGroup(
+                    title = stringResource(R.string.saved_accounts_title),
+                    items = savedAccounts.map { account ->
+                        Material3SettingsItem(
+                            leadingContent = {
+                                AsyncImage(
+                                    model = account.thumbnailUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    placeholder = painterResource(R.drawable.person),
+                                    error = painterResource(R.drawable.person),
+                                    modifier = Modifier.size(40.dp).clip(CircleShape),
+                                )
+                            },
+                            title = { Text(account.name) },
+                            description = {
+                                Text(account.channelHandle ?: stringResource(R.string.saved_accounts_desc))
+                            },
+                            isHighlighted = account.dataSyncId == dataSyncId,
+                            onClick = { accountSettingsViewModel.switchToSavedAccount(context, account) }
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             if (isLoggedIn) {
                 Material3SettingsGroup(

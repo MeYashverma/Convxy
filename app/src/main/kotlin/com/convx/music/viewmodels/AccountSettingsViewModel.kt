@@ -15,9 +15,13 @@ import com.convx.music.constants.AccountEmailKey
 import com.convx.music.constants.AccountNameKey
 import com.convx.music.constants.DataSyncIdKey
 import com.convx.music.constants.InnerTubeCookieKey
+import com.convx.music.constants.SavedAccount
+import com.convx.music.constants.SavedAccountsKey
 import com.convx.music.constants.VisitorDataKey
+import com.convx.music.constants.toJson
 import com.convx.music.utils.SyncUtils
 import com.convx.music.utils.dataStore
+import com.music.innertube.YouTube
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -87,6 +91,63 @@ class AccountSettingsViewModel @Inject constructor(
                 intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 context.startActivity(intent)
                 Runtime.getRuntime().exit(0)
+            }
+        }
+    }
+
+    /**
+     * Finishes a fresh login once a channel has been chosen (or there was only one
+     * to begin with). [cookie]/[visitorData] are the values the WebView just captured;
+     * [chosenDataSyncId] selects which of [allChannels] is active. Looks up the
+     * chosen channel's name/email/handle via [com.music.innertube.YouTube.accountInfo]
+     * — that call reads whatever identity is currently set on the client, so
+     * dataSyncId must be assigned first — then saves every channel for later
+     * instant switching and restarts, same as [saveTokenAndRestart].
+     */
+    fun applyChannelAndRestart(
+        context: Context,
+        cookie: String,
+        visitorData: String,
+        chosenDataSyncId: String,
+        allChannels: List<SavedAccount>,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            YouTube.cookie = cookie
+            YouTube.visitorData = visitorData
+            YouTube.dataSyncId = chosenDataSyncId
+            val info = YouTube.accountInfo().getOrNull()
+
+            context.dataStore.edit { settings ->
+                settings[InnerTubeCookieKey] = cookie
+                settings[VisitorDataKey] = visitorData
+                settings[DataSyncIdKey] = chosenDataSyncId
+                settings[AccountNameKey] = info?.name.orEmpty()
+                settings[AccountEmailKey] = info?.email.orEmpty()
+                settings[AccountChannelHandleKey] = info?.channelHandle.orEmpty()
+                settings[SavedAccountsKey] = allChannels.toJson()
+            }
+            withContext(Dispatchers.Main) {
+                val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                context.startActivity(intent)
+                Runtime.getRuntime().exit(0)
+            }
+        }
+    }
+
+    /**
+     * Switches the active channel to an already-saved account. No WebView, no
+     * restart — the cookie is unchanged (same Google login), only which channel
+     * it acts as changes, same mechanism [com.convx.music.ui.screens.SwitchChannelScreen]
+     * uses when it detects a DATASYNC_ID change.
+     */
+    fun switchToSavedAccount(context: Context, account: SavedAccount) {
+        viewModelScope.launch(Dispatchers.IO) {
+            YouTube.dataSyncId = account.dataSyncId
+            context.dataStore.edit { settings ->
+                settings[DataSyncIdKey] = account.dataSyncId
+                settings[AccountNameKey] = account.name
+                settings[AccountChannelHandleKey] = account.channelHandle.orEmpty()
             }
         }
     }

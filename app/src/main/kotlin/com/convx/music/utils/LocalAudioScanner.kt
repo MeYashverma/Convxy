@@ -137,7 +137,13 @@ object LocalAudioScanner {
                             .atZone(java.time.ZoneId.systemDefault())
                             .toLocalDateTime(),
                         isLocal = true,
-                        inLibrary = java.time.LocalDateTime.now(),
+                        // The file's real MediaStore DATE_ADDED, not the scan time —
+                        // scanning stamps every song with the same instant, which makes
+                        // "Date added" sorting meaningless. dateAdded was already being
+                        // read here and discarded.
+                        inLibrary = java.time.Instant.ofEpochSecond(dateAdded)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDateTime(),
                     )
 
                     // Song + artist + mapping in ONE transaction: the previous

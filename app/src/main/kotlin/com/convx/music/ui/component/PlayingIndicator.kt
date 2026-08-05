@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -72,7 +73,17 @@ fun PlayingIndicator(
                 modifier =
                 Modifier
                     .fillMaxHeight()
-                    .width(barWidth),
+                    .width(barWidth)
+                    // Own RenderNode per bar. Without it these Canvases draw
+                    // straight into whatever display list encloses them — and on
+                    // every list screen that is the NavHost subtree carrying
+                    // Modifier.layerBackdrop. A bar tick then re-recorded the
+                    // WHOLE screen (measured: ~235 FillRectOps + 4 liquid-glass
+                    // runtime shaders, 113ms) 16×/s for as long as a song played,
+                    // even with the app otherwise idle. With a layer of its own
+                    // the parent's recording replays this node by reference and
+                    // only the 4dp bar re-records. Purely structural — same pixels.
+                    .graphicsLayer(),
             ) {
                 drawRoundRect(
                     color = color,

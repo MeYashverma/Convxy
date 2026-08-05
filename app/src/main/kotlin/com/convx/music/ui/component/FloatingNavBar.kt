@@ -208,9 +208,12 @@ private fun AppFloatingNavBarChrome(
         pureBlack -> Color.Black
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    // Selected nav item = the liquid-glass text color; every other item = white.
+    // Both derive from the glass content colour, which adapts to what the pill
+    // composites to. Unselected used to be hardcoded white, which vanished on a
+    // light-tinted bar; dimming the adaptive colour keeps the selected/unselected
+    // distinction at any tint instead of only on dark ones.
     val selectedContentColor = glassConfig.textColor
-    val unselectedContentColor = Color.White
+    val unselectedContentColor = glassConfig.textColor.copy(alpha = 0.6f)
 
     val tabBarContentModifier = if (useGlass) {
         Modifier.liquidGlass(
@@ -305,17 +308,6 @@ private fun AppFloatingNavBarChrome(
         },
         expandedContentWidthPx = expandedContentWidthPx,
         onExpandedWidthChanged = { expandedContentWidthPx = it },
-        // The tab content lambdas are captured once per contentKey, so anything they
-        // close over (selection, colors) must be part of the key to avoid stale UI.
-        contentKey = listOf(
-            selectedTabKey,
-            currentRoute,
-            navigationItems,
-            selectedContentColor,
-            unselectedContentColor,
-            searchModeActive,
-            navSearch.searchSource,
-        ),
     ) {
         tabScreens.forEach { screen ->
             val isSelected = screen.route == selectedTabKey
@@ -333,7 +325,7 @@ private fun AppFloatingNavBarChrome(
                 icon = {
                     Icon(
                         painter = painterResource(
-                            if (isSelected) screen.iconActive(appleMusicUi) else screen.iconInactive(appleMusicUi)
+                            screen.icon(appleMusicUi)
                         ),
                         contentDescription = stringResource(screen.titleId),
                         tint = if (isSelected) selectedContentColor else unselectedContentColor,
@@ -370,7 +362,7 @@ private fun AppFloatingNavBarChrome(
                 icon = {
                     Icon(
                         painter = painterResource(
-                            if (isSelected) screen.iconActive(appleMusicUi) else screen.iconInactive(appleMusicUi)
+                            screen.icon(appleMusicUi)
                         ),
                         contentDescription = stringResource(screen.titleId),
                         tint = if (isSelected) selectedContentColor else unselectedContentColor,
@@ -472,7 +464,13 @@ fun NavBarSearchInputBar(
 ) {
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
-    val onTint = if (pureBlack || useGlass) Color.White else MaterialTheme.colorScheme.onSurface
+    // On glass, take the adaptive glass content colour rather than a flat white —
+    // the search field is the one piece of chrome the user is actively reading.
+    val onTint = when {
+        useGlass -> glassConfig.textColor
+        pureBlack -> Color.White
+        else -> MaterialTheme.colorScheme.onSurface
+    }
     val pillShape = ContinuousRoundedRectangle(percent = 50)
     val coroutineScope = rememberCoroutineScope()
     // Finger-tracking glow, same as the nav bar puck's InteractiveHighlight: a

@@ -100,6 +100,7 @@ fun vivimusicTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = remember(appFont) { AppTypography(appFont) },
+            shapes = AppShapes,
             content = content
         )
     }

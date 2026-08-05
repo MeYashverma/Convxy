@@ -1,5 +1,7 @@
 package com.convx.music.ui.theme
 
+import androidx.compose.material3.Shapes
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -23,7 +25,23 @@ object AppleTokens {
     // Dividers
     val Divider = Color(0x1AFFFFFF)
 
-    // Shapes
+    // Spacing — the whole scale. Screens reference these, never a dp literal.
+
+    /** Horizontal screen gutter. The only gutter. */
+    val Gutter = 16.dp
+    /** Gap between siblings in a grid or list. */
+    val ItemGap = 16.dp
+    /** Gap between a section and the next section's header. */
+    val SectionGap = 28.dp
+    /** Gap between stacked text lines inside one item. */
+    val TextGap = 2.dp
+
+    // Shapes — four corners, no more. Artwork is the only rounded thing on a
+    // content tile; a card corner means the object is genuinely a card.
+    // Every one of them is drawn with continuous (squircle) curvature — see
+    // [AppShapes] — so nothing in the app mixes circular and continuous corners.
+    val Artwork = 12.dp
+    val Control = 12.dp
     val CardCorner = 22.dp
     val CardCornerLarge = 28.dp
 
@@ -83,3 +101,16 @@ object AppleTokens {
     fun dividerOn(bg: Color): Color =
         if (bg.luminance() > 0.5f) Color(0x1A000000) else Divider
 }
+
+/**
+ * The M3 shape scale, bound to [AppleTokens]' four corners so that anything
+ * reaching for `MaterialTheme.shapes` lands on the same vocabulary as code that
+ * names the token directly.
+ */
+val AppShapes = Shapes(
+    extraSmall = ContinuousRoundedRectangle(4.dp),
+    small = ContinuousRoundedRectangle(AppleTokens.Artwork),
+    medium = ContinuousRoundedRectangle(AppleTokens.Control),
+    large = ContinuousRoundedRectangle(AppleTokens.CardCorner),
+    extraLarge = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge),
+)

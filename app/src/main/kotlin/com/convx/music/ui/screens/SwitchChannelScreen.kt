@@ -6,6 +6,7 @@
 package com.convx.music.ui.screens
 
 import android.annotation.SuppressLint
+import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,9 +35,14 @@ import com.music.innertube.YouTube
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
 import com.convx.music.constants.DataSyncIdKey
+import com.convx.music.constants.InnerTubeCookieKey
+import com.convx.music.constants.SavedAccount
+import com.convx.music.constants.SavedAccountsKey
+import com.convx.music.constants.toJson
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.utils.backToMain
 import com.convx.music.utils.rememberPreference
+import kotlinx.coroutines.launch
 
 /**
  * Lets an already-logged-in user switch which YouTube channel on their Google
@@ -56,7 +63,10 @@ import com.convx.music.utils.rememberPreference
 @Composable
 fun SwitchChannelScreen(navController: NavController) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var dataSyncId by rememberPreference(DataSyncIdKey, "")
+    var innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
+    var savedAccountsJson by rememberPreference(SavedAccountsKey, "")
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     var switched by remember { mutableStateOf(false) }
 
@@ -81,8 +91,35 @@ fun SwitchChannelScreen(navController: NavController) {
                             if (newDataSyncId != null && newDataSyncId.isNotEmpty() && newDataSyncId != dataSyncId) {
                                 dataSyncId = newDataSyncId
                                 YouTube.dataSyncId = newDataSyncId
+
+                                // Google can rotate the session cookie as part of a channel
+                                // switch. The cookie stored at initial login was never
+                                // refreshed after this point, so it went stale on the NEXT
+                                // switch and every request looked logged-out — forcing a
+                                // full re-login just to get a matching cookie again.
+                                CookieManager.getInstance().getCookie("https://music.youtube.com")
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { freshCookie ->
+                                        innerTubeCookie = freshCookie
+                                        YouTube.cookie = freshCookie
+                                    }
+
                                 switched = true
                                 Toast.makeText(context, context.getString(R.string.switch_channel_success), Toast.LENGTH_SHORT).show()
+
+                                // Refresh the saved-account list so a channel discovered
+                                // through this WebView flow is also available for instant
+                                // tap-to-switch afterwards, without a WebView round-trip.
+                                coroutineScope.launch {
+                                    YouTube.getAccountChannels().getOrNull()
+                                        ?.mapNotNull { c ->
+                                            c.dataSyncId?.let { id ->
+                                                SavedAccount(id, c.name, c.channelHandle, c.thumbnailUrl)
+                                            }
+                                        }
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.let { channels -> savedAccountsJson = channels.toJson() }
+                                }
                             }
                         }
                     }, "Android")

@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+dist/
+
+# Cloudflare API token. Never commit — it can deploy and delete Workers on
+# your account.
+.cf-token
+.dev.vars

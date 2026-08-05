@@ -53,6 +53,7 @@ import com.music.innertube.models.YTItem
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
@@ -65,6 +66,7 @@ import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.YouTubeGridItem
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
@@ -143,20 +145,15 @@ fun YouTubeBrowseScreen(
                 // No bounce here: the top pull drives the hero zoom instead.
                 overscrollEffect = heroZoom.listOverscroll(),
                 modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::refresh).fillMaxSize(),
-                columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
+                columns = rememberGridColumns(),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 browseResult?.let { result ->
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                         Column {
-                            Spacer(Modifier.height(40.dp))
-                            Text(
-                                text = result.title.orEmpty().lowercase(),
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.ExtraBold,
+                            LargeScreenTitle(
+                                title = result.title.orEmpty(),
                                 color = onTint,
-                                fontSize = 42.sp,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                             )
                         }
                     }

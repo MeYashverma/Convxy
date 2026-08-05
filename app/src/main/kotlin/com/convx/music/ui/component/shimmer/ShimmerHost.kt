@@ -35,6 +35,14 @@ fun ShimmerHost(
         verticalArrangement = verticalArrangement,
         modifier =
         modifier
+            // Outer RenderNode so the shimmer sheen's per-frame invalidation stops here.
+            // Without it the animation escaped to the parent, and since these placeholders
+            // live inside the NavHost subtree that carries Modifier.layerBackdrop, every
+            // sheen frame forced a full-screen re-record — measured ~390 frames/6s while a
+            // paginating list was loading more. The graphicsLayer below it is a separate
+            // concern (it forces the offscreen buffer the DstIn mask needs); this one takes
+            // defaults only, so nothing about the rendered result changes.
+            .graphicsLayer()
             .shimmer()
             .graphicsLayer(alpha = 0.99f)
             .drawWithContent {

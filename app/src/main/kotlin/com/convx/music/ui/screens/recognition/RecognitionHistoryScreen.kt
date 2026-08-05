@@ -124,6 +124,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.R
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.ThumbnailCornerRadius
+import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.db.entities.RecognitionHistory
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -456,7 +457,7 @@ private fun RecognitionHistoryItem(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .bounceClick { onClick() },
-        shape = RoundedCornerShape(ThumbnailCornerRadius),
+        shape = ThumbnailRoundedShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
@@ -473,7 +474,7 @@ private fun RecognitionHistoryItem(
                 contentDescription = null,
                 modifier = Modifier
                     .size(60.dp)
-                    .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+                    .clip(ThumbnailRoundedShape),
                 contentScale = ContentScale.Crop
             )
 

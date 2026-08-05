@@ -190,6 +190,7 @@ import com.convx.music.constants.SliderStyleKey
 import com.convx.music.constants.SquigglySliderKey
 import com.convx.music.constants.SwipeLyricsKey
 import com.convx.music.constants.ThumbnailCornerRadius
+import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.UseNewPlayerDesignKey
 import com.convx.music.constants.ShowAudioQualityBadgeKey
 import com.convx.music.db.entities.LyricsEntity
@@ -203,6 +204,7 @@ import com.convx.music.vivimusic.getConnectedBluetoothDeviceName
 import com.convx.music.vivimusic.isBuds
 import com.convx.music.vivimusic.isSpeaker
 import com.convx.music.vivimusic.AudioDeviceBottomSheet
+import com.convx.music.ui.component.DjReadout
 import com.convx.music.ui.component.BottomSheet
 import com.convx.music.ui.component.BottomSheetState
 import com.convx.music.ui.component.LocalBottomSheetPageState
@@ -422,7 +424,11 @@ fun BottomSheetPlayer(
     // Listen Together state (reactive)
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue =RoomRole.NONE)
-    val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
+    // "Guest" here means "may not drive playback", not merely "is not host":
+    // with the room set to everyone-control a member drives playback too, so
+    // keying the UI off the role alone left their controls greyed out.
+    val canControlTogether = listenTogetherManager?.canControl?.collectAsStateWithLifecycle(initialValue = true)
+    val isListenTogetherGuest = canControlTogether?.value == false
     
     // Cast state - safely access castConnectionHandler to prevent crashes during service lifecycle changes
     val castHandler = remember(playerConnection) {
@@ -981,7 +987,16 @@ fun BottomSheetPlayer(
             else MaterialTheme.colorScheme.surfaceContainer
     }
 
-    val backgroundAlpha = state.progress.coerceIn(0f, 1f)
+    // state.progress changes on every frame of a sheet drag or expand/collapse
+    // animation. Reading it here — the top-level body of a ~3000-line composable
+    // — recomposed the entire player once per frame. Every consumer below is a
+    // graphicsLayer lambda, so hand them a getter and let the read happen in the
+    // draw phase. BottomSheet.kt already does it this way.
+    val backgroundAlpha = { state.progress.coerceIn(0f, 1f) }
+    // The canvas-video branch gates composition, so it does need a composition
+    // read — but a derived boolean only invalidates when it crosses the
+    // threshold, not on every frame.
+    val backgroundVisible by remember(state) { derivedStateOf { state.progress > 0.01f } }
 
     // Captures the player's own rendered background (blurred appBackdrop +
     // artwork/mesh/canvas layers below) so the heart/more circular buttons in
@@ -1031,7 +1046,7 @@ fun BottomSheetPlayer(
                             label = "blurBackground"
                         ) { thumbnailUrl ->
                             if (thumbnailUrl != null) {
-                                Box(modifier = Modifier.graphicsLayer { alpha = backgroundAlpha }) {
+                                Box(modifier = Modifier.graphicsLayer { alpha = backgroundAlpha() }) {
                                         AsyncImage(
                                         model = ImageRequest.Builder(context)
                                             .data(thumbnailUrl)
@@ -1078,7 +1093,7 @@ fun BottomSheetPlayer(
                                 Box(
                                     Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer { alpha = backgroundAlpha }
+                                        .graphicsLayer { alpha = backgroundAlpha() }
                                         .background(Brush.verticalGradient(colorStops = gradientColorStops))
                                         .background(Color.Black.copy(alpha = 0.2f))
                                 )
@@ -1110,7 +1125,7 @@ fun BottomSheetPlayer(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer { alpha = backgroundAlpha }
+                                        .graphicsLayer { alpha = backgroundAlpha() }
                                         .drawBehind {
                                             val p = progress.value
                                             val width = size.width
@@ -1252,7 +1267,7 @@ fun BottomSheetPlayer(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer { alpha = backgroundAlpha }
+                                        .graphicsLayer { alpha = backgroundAlpha() }
                                 ) {
                                     // Layer 1: Full-Screen Blurred Background
                                     AsyncImage(
@@ -1311,7 +1326,7 @@ fun BottomSheetPlayer(
                                             modifier = Modifier.fillMaxSize()
                                         )
 
-                                        if (enableCanvas && canvasArtwork != null && backgroundAlpha > 0.01f) {
+                                        if (enableCanvas && canvasArtwork != null && backgroundVisible) {
                                             BackgroundVideoView(
                                                 mediaId = mediaMetadata?.id ?: "",
                                                 videoUrl = canvasArtwork?.animated ?: canvasArtwork?.videoUrl ?: "",
@@ -1402,7 +1417,7 @@ fun BottomSheetPlayer(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer { alpha = backgroundAlpha }
+                                        .graphicsLayer { alpha = backgroundAlpha() }
                                         .graphicsLayer {
                                             // Scale up to avoid showing edges during rotation
                                             scaleX = 1.7f
@@ -1498,7 +1513,7 @@ fun BottomSheetPlayer(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer { alpha = backgroundAlpha }
+                                .graphicsLayer { alpha = backgroundAlpha() }
                                 .background(Color(staticColor))
                         )
                     }
@@ -1506,7 +1521,7 @@ fun BottomSheetPlayer(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer { alpha = backgroundAlpha }
+                                .graphicsLayer { alpha = backgroundAlpha() }
                                 .tiltedGradient(gradientStops, gradientAngle)
                         )
                     }
@@ -1570,7 +1585,7 @@ fun BottomSheetPlayer(
                                 Box(
                                     modifier = Modifier
                                         .size(56.dp)
-                                        .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                                        .clip(ThumbnailRoundedShape)
                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -1587,7 +1602,7 @@ fun BottomSheetPlayer(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
                                         .size(56.dp)
-                                        .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                                        .clip(ThumbnailRoundedShape)
                                         .clickable(enabled = isFullScreen && enableLyricsThumbnailPlayPause) {
                                             playerConnection.togglePlayPause()
                                         }
@@ -1764,6 +1779,8 @@ fun BottomSheetPlayer(
                             }
                         }
                     }
+
+                    DjReadout(modifier = Modifier.padding(top = 2.dp))
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))

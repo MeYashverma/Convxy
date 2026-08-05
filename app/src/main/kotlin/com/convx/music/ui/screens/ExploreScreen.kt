@@ -67,6 +67,7 @@ import com.convx.music.R
 import com.convx.music.constants.ListItemHeight
 import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.YouTubeQueue
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.YouTubeGridItem
@@ -173,13 +174,9 @@ fun ExploreScreen(
                 ),
             )
             
-            Spacer(Modifier.height(40.dp))
-            Text(
-                text = stringResource(R.string.tab_explore),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
+            LargeScreenTitle(
+                title = stringResource(R.string.tab_explore),
                 color = onTint,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
             )
 
             if (isChartsLoading || chartsPage == null || explorePage == null) {

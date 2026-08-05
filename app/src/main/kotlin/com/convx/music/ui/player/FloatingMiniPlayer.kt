@@ -311,7 +311,11 @@ fun FloatingMiniPlayer(
                 // seek bar, play/pause, and forward (skip next).
                 val iconSize = controlSize * 0.5f
                 val playIconSize = controlSize * 0.6f
-                val playbackFraction by rememberPlaybackFraction(playerConnection.player, isPlaying)
+                // Keep the State, don't unwrap it: rememberPlaybackFraction samples
+                // withFrameMillis, so a `by` delegate read here recomposes the whole
+                // mini player every frame while playing. Only the seek bar's progress
+                // lambda below needs the value, and that reads it in the draw phase.
+                val playbackFraction = rememberPlaybackFraction(playerConnection.player, isPlaying)
                 val waveformSeed = remember(mediaMetadata?.id) { mediaMetadata?.id?.hashCode() ?: 0 }
 
                 AsyncImage(
@@ -345,7 +349,7 @@ fun FloatingMiniPlayer(
                 if (miniPlayerWaveform) {
                     Spacer(Modifier.width(8.dp))
                     ScrollingWaveformSeekBar(
-                        progress = { playbackFraction },
+                        progress = { playbackFraction.value },
                         onSeek = { frac ->
                             val duration = playerConnection.player.duration
                             if (duration > 0) {

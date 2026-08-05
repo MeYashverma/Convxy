@@ -75,7 +75,10 @@ import androidx.compose.ui.res.stringResource
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.unit.dp
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
+import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.playback.ExoDownloadService
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import coil3.SingletonImageLoader
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -228,11 +231,15 @@ fun StorageSettings(
             title = stringResource(R.string.clear_all_downloads),
             onDismiss = { clearDownloads = false },
             onConfirm = {
-                coroutineScope.launch(Dispatchers.IO) {
-                    downloadCache.keys.forEach { key ->
-                        downloadCache.removeResource(key)
-                    }
-                }
+                // Route through DownloadService/DownloadManager, not the cache directly:
+                // stomping downloadCache bypasses DownloadManager's own index, which keeps
+                // reporting those songs as downloaded (and can re-trigger them) since it
+                // never saw the removal.
+                DownloadService.sendRemoveAllDownloads(
+                    context,
+                    ExoDownloadService::class.java,
+                    false,
+                )
                 clearDownloads = false
             },
             onCancel = { clearDownloads = false },

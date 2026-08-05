@@ -33,12 +33,28 @@ import com.convx.music.constants.HomeBackgroundAnimateKey
 import com.convx.music.constants.HomeBackgroundBlurKey
 import com.convx.music.constants.HomeBackgroundDimKey
 import com.convx.music.constants.HomeBackgroundEnabledKey
+import com.convx.music.constants.HomeBackgroundIsVideoKey
 import com.convx.music.constants.HomeBackgroundPathKey
 import com.convx.music.utils.rememberPreference
 import java.io.File
 
 /** Process-wide: the intro blur ramp plays only the first time this session. */
 private var blurAnimatedThisSession = false
+
+/**
+ * True when the user has a custom background image set and enabled.
+ *
+ * Screens that draw their own backdrop (blurred album art, theme wash) must check
+ * this and suppress those layers — otherwise they render underneath the custom
+ * image along with their scrims, and the user's picture comes out looking nothing
+ * like it does on a screen that has no backdrop of its own.
+ */
+@Composable
+fun hasCustomHomeBackground(): Boolean {
+    val (enabled) = rememberPreference(HomeBackgroundEnabledKey, false)
+    val (path) = rememberPreference(HomeBackgroundPathKey, "")
+    return enabled && path.isNotEmpty()
+}
 
 /**
  * The user's custom home background image (blurred + dimmed), shared by the Home and
@@ -66,7 +82,15 @@ fun BoxScope.HomeImageBackground(
     val (blur) = rememberPreference(HomeBackgroundBlurKey, 20f)
     val (dim) = rememberPreference(HomeBackgroundDimKey, 0.4f)
     val (animate) = rememberPreference(HomeBackgroundAnimateKey, false)
+    val (isVideo) = rememberPreference(HomeBackgroundIsVideoKey, false)
     if (!enabled || path.isEmpty()) return
+
+    if (isVideo) {
+        // No blur-in animation for video — the loop is already motion, ramping
+        // blur on top of it double-animates for no benefit.
+        HomeVideoBackground(path = path, blur = blur, dim = dim, withGradient = withGradient)
+        return
+    }
 
     // The intro blur ramp plays once per app session, not on every navigation to a screen
     // with this background. `appeared` starts already-true when it has run before, so the

@@ -86,6 +86,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -104,6 +105,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -320,6 +322,17 @@ private val themeColorCache = android.util.LruCache<String, androidx.compose.ui.
  */
 private const val TopBarBackdropScale = 0.45f
 
+/** Fallback unfreeze window for gestures that never deliver onPostFling (e.g. cancelled). */
+private const val BackdropFreezeSafetyNs = 900_000_000L
+
+// DIAGNOSTIC ONLY — keep false. Bypasses the full-screen layerBackdrop pass so the cost of
+// the glass pipeline can be measured against the cost of the content itself. Glass surfaces
+// fall back to their translucent look while this is true, so it must never ship enabled.
+// Measured 2026-08-05 on SM-M346B, Home scroll p50: true => record 1.9ms / issue 4.6ms,
+// false => record 16.9ms / issue 19.7ms. The gap is the forced full-tree re-record in
+// LayerBackdropNode.draw(); the fix is to give the subtree RenderNodes, not to drop glass.
+private const val DIAG_DISABLE_BACKDROP = false
+
 /**
  * Blur radius for that strip. Deliberately moderate — a heavy radius over scrolling
  * content smears each row into the next and reads as a glitch rather than as frost.
@@ -488,8 +501,11 @@ class MainActivity : ComponentActivity() {
             playerConnection?.isPlaying?.value == true &&
             isFinishing
         ) {
+            // onStop() (always called before onDestroy()) already unbound
+            // serviceConnection — unbinding again throws IllegalArgumentException
+            // ("Service not registered"), tearing the audio session down via a
+            // crash instead of a clean stop.
             stopService(Intent(this, MusicService::class.java))
-            unbindService(serviceConnection)
             playerConnection = null
         }
     }
@@ -947,7 +963,7 @@ class MainActivity : ComponentActivity() {
                         // hides there.
                         inSearchInputScreen && !useFloatingNavBar -> false
                         currentRoute?.startsWith("settings/") == true -> false
-                        currentRoute in setOf("login", "equalizer", "wrapped", "update", "listen_together/chat") -> false
+                        currentRoute in setOf("login", "channel_picker", "equalizer", "wrapped", "update", "listen_together/chat") -> false
                         else -> true
                     }
                 }
@@ -1204,6 +1220,49 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 )
+
+                // While the user is scrolling, stop re-recording the backdrop source.
+                // layer.record { drawContent() } cannot reuse unchanged child RenderNodes,
+                // so it re-issues the entire screen every frame — measured at 47ms of the
+                // ~57ms Home scroll frame, against 1.9ms for Compose's ordinary draw path.
+                // The content keeps scrolling live; only the blur sampled by the nav/top
+                // bar holds its last capture until the gesture settles.
+                // The frozen flag is a PLAIN timestamp, deliberately not snapshot state: the
+                // provider below is called during the draw phase, so a snapshot read there
+                // registers a draw dependency and every write re-invalidates the frame. A
+                // first attempt did exactly that and left the app redrawing forever after
+                // any scroll (266 frames/7s at rest). Same trap as LayerBackdrop.contentVersion.
+                val scrollClockNs = remember { longArrayOf(0L) }
+                val backdropFreezeConnection = remember {
+                    object : NestedScrollConnection {
+                        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                            scrollClockNs[0] = System.nanoTime()
+                            return Offset.Zero
+                        }
+
+                        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                            // End of the whole drag+fling sequence, including a drag released
+                            // with no fling. The nav bar's expand animation redraws right
+                            // after this, which is what records the fresh capture — no
+                            // explicit invalidation needed, and adding one cost 237
+                            // recompositions/s at rest.
+                            scrollClockNs[0] = 0L
+                            return Velocity.Zero
+                        }
+                    }
+                }
+                // NOTHING snapshot-backed may be read here: this runs in the draw phase, so a
+                // snapshot read registers a draw dependency and every write re-invalidates the
+                // frame. Plain array read only.
+                val backdropFrozenProvider = remember {
+                    {
+                        val started = scrollClockNs[0]
+                        // The elapsed check is only a safety net for gestures that never
+                        // deliver onPostFling (e.g. cancelled); onPostFling is the normal path.
+                        started != 0L &&
+                            System.nanoTime() - started < BackdropFreezeSafetyNs
+                    }
+                }
 
                 // One provider replaces Android's stretch/glow edge effect with the
                 // iOS rubber-band for every scroll container in the app.
@@ -1850,15 +1909,45 @@ class MainActivity : ComponentActivity() {
                                         // display-list recording per frame on a Galaxy M34, on
                                         // every screen including a plain settings list.
                                         .then(
-                                            if (currentRoute in WebViewRoutes ||
+                                            if (DIAG_DISABLE_BACKDROP ||
+                                                currentRoute in WebViewRoutes ||
                                                 !glassEffectConfig.anyComponentEnabled ||
                                                 !glassAllowed
                                             ) {
                                                 Modifier
                                             } else {
-                                                Modifier.layerBackdrop(appBackdrop)
+                                                // graphicsLayer BEFORE layerBackdrop, not
+                                                // after: the layer must enclose the backdrop
+                                                // node, otherwise that node's draw still
+                                                // re-runs every time anything else in the
+                                                // window redraws. The mini player and nav bar
+                                                // are siblings of the NavHost, yet their
+                                                // per-frame ticks were forcing a full
+                                                // re-record of this subtree — 117ms/frame at
+                                                // idle with a song playing. Defaults only, so
+                                                // nothing about the rendered result changes.
+                                                Modifier
+                                                    // OUTER layer: isolates this subtree from
+                                                    // sibling redraws (mini player waveform,
+                                                    // 10Hz position poll), which were forcing
+                                                    // a full re-record. 117ms -> ~48ms idle
+                                                    // while playing.
+                                                    .graphicsLayer()
+                                                    .layerBackdrop(
+                                                        appBackdrop,
+                                                        frozen = backdropFrozenProvider,
+                                                    )
+                                                    // INNER layer: the content becomes ONE
+                                                    // cached RenderNode, so the backdrop's
+                                                    // layer.record { drawContent() } records a
+                                                    // single drawRenderNode instead of
+                                                    // re-issuing every op in the tree. Compose
+                                                    // keeps that node up to date incrementally
+                                                    // on its normal draw path.
+                                                    .graphicsLayer()
                                             }
                                         )
+                                        .nestedScroll(backdropFreezeConnection)
                                         .nestedScroll(topBarChrome.connection)
                                         .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                                         .then(

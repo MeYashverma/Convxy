@@ -238,7 +238,9 @@ fun Queue(
     // Listen Together state (reactive)
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsState(initial = com.convx.music.listentogether.RoomRole.NONE)
-    val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
+    // See Player.kt: gated on control mode, not on role.
+    val canControlTogether = listenTogetherManager?.canControl?.collectAsState(initial = true)
+    val isListenTogetherGuest = canControlTogether?.value == false
 
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()

@@ -56,6 +56,16 @@ enum class DensityScale(val value: Float, val label: String) {
 val DefaultOpenTabKey = stringPreferencesKey("defaultOpenTab")
 val SlimNavBarKey = booleanPreferencesKey("slimNavBar")
 val GridItemsSizeKey = stringPreferencesKey("gridItemSize")
+/** 0 = auto (GridColumnMinWidth-driven), else a fixed column count for every adaptive grid. */
+val GridColumnsOverrideKey = intPreferencesKey("gridColumnsOverride")
+/** Spacing between grid tiles, in dp. Drives GridItem's per-tile padding in Items.kt. */
+val GridSpacingKey = intPreferencesKey("gridSpacingDp")
+/** 0 = auto (width-tiered), else a fixed column count for the Home Speed Dial grid. */
+val SpeedDialColumnsOverrideKey = intPreferencesKey("speedDialColumnsOverride")
+/** Forces a flat black background (no blurred artwork) on Artist/Album/Playlist/Search hero screens. */
+val PureBlackHeroBackgroundKey = booleanPreferencesKey("pureBlackHeroBackground")
+/** JSON array of ThemePack (see ThemePack.kt) — user-created named theme presets. */
+val SavedThemePacksKey = stringPreferencesKey("savedThemePacks")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")
 val SquigglySliderKey = booleanPreferencesKey("squigglySlider")
 val SwipeToSongKey = booleanPreferencesKey("SwipeToSong")
@@ -209,6 +219,8 @@ val ListenTogetherServerUrlKey = stringPreferencesKey("listenTogetherServerUrl")
 val ListenTogetherUsernameKey = stringPreferencesKey("listenTogetherUsername")
 val EnableListenTogetherKey = booleanPreferencesKey("enableListenTogether")
 val ListenTogetherAutoApprovalKey = booleanPreferencesKey("listenTogetherAutoApproval")
+/** Host-side: land guests' track suggestions in the queue without asking. */
+val ListenTogetherAutoAddSuggestionsKey = booleanPreferencesKey("listenTogetherAutoAddSuggestions")
 val ListenTogetherSyncVolumeKey = booleanPreferencesKey("listenTogetherSyncVolume")
 val ListenTogetherSmartResyncKey = booleanPreferencesKey("listenTogetherSmartResync")
 val ListenTogetherBlockedUsersKey = stringPreferencesKey("listenTogetherBlockedUsers")
@@ -288,6 +300,8 @@ val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
 val ShowLocalPlaylistKey = booleanPreferencesKey("show_local_playlist")
 val ShowAudioQualityBadgeKey = booleanPreferencesKey("show_audio_quality_badge")
 val ShowCommentButtonKey = booleanPreferencesKey("show_comment_button")
+val ShowHistoryButtonKey = booleanPreferencesKey("show_history_button")
+val ShowStatsButtonKey = booleanPreferencesKey("show_stats_button")
 val MiniPlayerWaveformKey = booleanPreferencesKey("mini_player_waveform")
 val BrandFontEnabledKey = booleanPreferencesKey("brandFontEnabled")
 val LibraryIconsOnlyKey = booleanPreferencesKey("libraryIconsOnly")
@@ -515,6 +529,7 @@ val AppleMusicLyricsBlurKey = booleanPreferencesKey("appleMusicLyricsBlur")
 val LyricsStandardBlurKey = booleanPreferencesKey("lyricsStandardBlur")
 
 val LiquidGlassGlobalEnabledKey = booleanPreferencesKey("liquidGlassGlobalEnabled")
+val LiquidGlassAdaptiveContrastKey = booleanPreferencesKey("liquidGlassAdaptiveContrast")
 val LiquidGlassTextColorKey = intPreferencesKey("liquidGlassTextColor")
 val LiquidGlassSurfaceTintColorKey = intPreferencesKey("liquidGlassSurfaceTintColor")
 val LiquidGlassSurfaceOpacityKey = floatPreferencesKey("liquidGlassSurfaceOpacity")
@@ -539,6 +554,12 @@ val SideBarCollapsedKey = booleanPreferencesKey("sideBarCollapsed")
 val PlayerLayoutOrderKey = stringPreferencesKey("playerLayoutOrder")
 val PlayerLayoutHiddenSlotsKey = stringPreferencesKey("playerLayoutHiddenSlots")
 val AutoDjMixingEnabledKey = booleanPreferencesKey("autoDjMixingEnabled")
+
+/** Off by default: Auto-DJ on its own means beatmatching and a transparent mix,
+ *  which is what most listeners want. This adds loop rolls, echo tails and
+ *  turntable brakes on transitions the engine judges would otherwise expose a
+ *  seam. */
+val CreativeTransitionsEnabledKey = booleanPreferencesKey("creativeTransitionsEnabled")
 /** Off (default) = classic two-tap (open inline lyrics, then a separate tap to go fullscreen). On = one tap opens/closes fullscreen lyrics directly. */
 val OneTapFullscreenLyricsKey = booleanPreferencesKey("oneTapFullscreenLyrics")
 /** true (default) = player controls collapse upward (shrink toward the top) when entering full-screen lyrics; false = collapse downward. */
@@ -560,6 +581,8 @@ val HomeBackgroundBlurKey = floatPreferencesKey("homeBackgroundBlur")
 val HomeBackgroundDimKey = floatPreferencesKey("homeBackgroundDim")
 val HomeBackgroundAnimateKey = booleanPreferencesKey("homeBackgroundAnimate")
 val LibraryBackgroundModeKey = stringPreferencesKey("libraryBackgroundMode")
+/** True when HomeBackgroundPathKey points at a video file instead of an image. */
+val HomeBackgroundIsVideoKey = booleanPreferencesKey("homeBackgroundIsVideo")
 val IosOverscrollKey = booleanPreferencesKey("iosOverscroll")
 
 val CustomFontEnabledKey = booleanPreferencesKey("customFontEnabled")
@@ -628,6 +651,9 @@ val AccountNameKey = stringPreferencesKey("accountName")
 val AccountEmailKey = stringPreferencesKey("accountEmail")
 val AccountChannelHandleKey = stringPreferencesKey("accountChannelHandle")
 val UseLoginForBrowse = booleanPreferencesKey("useLoginForBrowse")
+
+/** JSON array of SavedAccount (see SavedAccount.kt) — every channel seen at login, for instant tap-to-switch. */
+val SavedAccountsKey = stringPreferencesKey("savedAccounts")
 
 val LanguageCodeToName =
     mapOf(

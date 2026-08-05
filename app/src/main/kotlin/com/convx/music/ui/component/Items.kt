@@ -121,6 +121,7 @@ import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.models.MediaMetadata
 import com.convx.music.ui.theme.AppleTokens
+import com.convx.music.ui.utils.rememberGridSpacing
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.joinByBullet
 import com.convx.music.utils.makeTimeString
@@ -331,6 +332,7 @@ fun GridItem(
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
     val gridHeight = currentGridThumbnailHeight()
+    val gridSpacing = rememberGridSpacing()
 
     val sizeModifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(gridHeight * thumbnailRatio)
 
@@ -340,8 +342,8 @@ fun GridItem(
             .then(sizeModifier)
             // The tile owns half the gap; the grid's contentPadding owns the
             // other half at the screen edge. Together: AppleTokens.Gutter at the
-            // edge, AppleTokens.ItemGap between neighbours.
-            .padding(AppleTokens.ItemGap / 2)
+            // edge, gridSpacing between neighbours.
+            .padding(gridSpacing / 2)
     ) {
         BoxWithConstraints(
             contentAlignment = Alignment.Center,
@@ -356,7 +358,7 @@ fun GridItem(
             thumbnailContent()
         }
 
-        Spacer(modifier = Modifier.height(AppleTokens.ItemGap / 2))
+        Spacer(modifier = Modifier.height(gridSpacing / 2))
 
         title()
 

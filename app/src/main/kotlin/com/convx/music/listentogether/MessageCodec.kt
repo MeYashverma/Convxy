@@ -289,6 +289,9 @@ class MessageCodec(
             MessageTypes.SUGGESTION_APPROVED -> json.decodeFromString<SuggestionApprovedPayload>(payloadString)
             MessageTypes.SUGGESTION_REJECTED -> json.decodeFromString<SuggestionRejectedPayload>(payloadString)
             MessageTypes.CHAT -> json.decodeFromString<ChatMessagePayload>(payloadString)
+            MessageTypes.CONTROL_MODE_CHANGED -> json.decodeFromString<ControlModeChangedPayload>(payloadString)
+            MessageTypes.ROOM_EXPIRING -> json.decodeFromString<RoomExpiringPayload>(payloadString)
+            MessageTypes.ROOM_CLOSED -> json.decodeFromString<RoomClosedPayload>(payloadString)
             else -> null
         }
     }
@@ -478,6 +481,10 @@ class MessageCodec(
             is ReconnectPayload -> ReconnectPayload.serializer()
             is TransferHostPayload -> TransferHostPayload.serializer()
             is ChatPayload -> ChatPayload.serializer()
+            // Outbound v2 verbs. Adding a payload to decodePayload alone is not
+            // enough — anything the client SENDS also needs a branch here, or it
+            // throws at encode time and the action silently never leaves.
+            is SetControlModePayload -> SetControlModePayload.serializer()
             else -> throw IllegalArgumentException("Unknown type: ${value!!::class.simpleName}")
         } as kotlinx.serialization.KSerializer<T>
     }

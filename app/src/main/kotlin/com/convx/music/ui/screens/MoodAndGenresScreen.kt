@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.HeroBackground
 import com.convx.music.ui.utils.rememberHeroZoom
 import com.convx.music.ui.utils.heroPullZoom
@@ -123,13 +124,9 @@ fun MoodAndGenresScreen(
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item(key = "header") {
-                    Spacer(Modifier.height(40.dp))
-                    Text(
-                        text = stringResource(R.string.mood_and_genres),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
+                    LargeScreenTitle(
+                        title = stringResource(R.string.mood_and_genres),
                         color = onTint,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                     )
                 }
 

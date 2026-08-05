@@ -342,6 +342,10 @@ fun PortraitThemeLayout(
 
         HomeBackgroundControls()
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        ThemePackControls()
+
         Spacer(modifier = Modifier.height(120.dp))
     }
 }
@@ -404,6 +408,10 @@ fun LandscapeThemeLayout(
             Spacer(modifier = Modifier.height(16.dp))
 
             HomeBackgroundControls()
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ThemePackControls()
 
             Spacer(modifier = Modifier.height(80.dp))
         }

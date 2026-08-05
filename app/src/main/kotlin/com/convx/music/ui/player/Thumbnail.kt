@@ -556,7 +556,9 @@ private fun ThumbnailHeader(
 ) {
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsState(initial = RoomRole.NONE)
-    val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
+    // See Player.kt: gated on control mode, not on role.
+    val canControlTogether = listenTogetherManager?.canControl?.collectAsState(initial = true)
+    val isListenTogetherGuest = canControlTogether?.value == false
     Box(
         modifier = modifier
             .fillMaxWidth()

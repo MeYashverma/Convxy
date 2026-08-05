@@ -67,6 +67,7 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.ThumbnailCornerRadius
+import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.db.entities.SpeedDialItem
 import com.convx.music.db.entities.PlaylistEntity
 import com.convx.music.db.entities.PlaylistSongMap
@@ -311,7 +312,7 @@ fun YouTubePlaylistMenu(
                                 contentDescription = null,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+                                    .clip(ThumbnailRoundedShape),
                             )
                         }
                     },

@@ -11,7 +11,6 @@ import androidx.compose.foundation.background
 import com.convx.music.ui.utils.bounceClick
 import com.convx.music.ui.utils.combinedBounceClick
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -26,6 +25,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,13 +53,13 @@ import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.CONTENT_TYPE_LIST
-import com.convx.music.constants.ListItemHeight
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.AlbumListItem
 import com.convx.music.ui.component.ArtistListItem
 import com.convx.music.ui.component.ChipsRow
@@ -68,6 +68,7 @@ import com.convx.music.ui.component.HeroBackground
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.font.FontWeight
 import com.convx.music.ui.component.LocalMenuState
+import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.rememberHeroSource
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
@@ -160,13 +161,9 @@ fun LocalSearchScreen(
                 }
         ) {
             item(key = "search_header") {
-                Spacer(Modifier.height(40.dp))
-                Text(
-                    text = stringResource(R.string.search),
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
+                LargeScreenTitle(
+                    title = stringResource(R.string.search),
                     color = onTint,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                 )
             }
 
@@ -191,47 +188,34 @@ fun LocalSearchScreen(
             }
 
             result.map.forEach { (filter, items) ->
+                // Once per section instead of once per row — see the itemsIndexed below.
+                val distinctItems = items.distinctBy { it.id }
                 if (result.filter == LocalFilter.ALL) {
                     item(key = filter) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(ListItemHeight)
-                                .bounceClick { viewModel.filter.value = filter }
-                                .padding(start = 12.dp, end = 18.dp),
-                        ) {
-                            Text(
-                                text = stringResource(
-                                    when (filter) {
-                                        LocalFilter.SONG -> R.string.filter_songs
-                                        LocalFilter.ALBUM -> R.string.filter_albums
-                                        LocalFilter.ARTIST -> R.string.filter_artists
-                                        LocalFilter.PLAYLIST -> R.string.filter_playlists
-                                        LocalFilter.ALL -> error("")
-                                    }
-                                ),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = onTint,
-                                modifier = Modifier.weight(1f),
-                            )
-
-                            Icon(
-                                painter = painterResource(R.drawable.navigate_next),
-                                contentDescription = null,
-                                tint = onTint
-                            )
-                        }
+                        NavigationTitle(
+                            title = stringResource(
+                                when (filter) {
+                                    LocalFilter.SONG -> R.string.filter_songs
+                                    LocalFilter.ALBUM -> R.string.filter_albums
+                                    LocalFilter.ARTIST -> R.string.filter_artists
+                                    LocalFilter.PLAYLIST -> R.string.filter_playlists
+                                    LocalFilter.ALL -> error("")
+                                }
+                            ),
+                            color = onTint,
+                            onClick = { viewModel.filter.value = filter },
+                        )
                     }
                 }
 
-            items(
-                items = items.distinctBy { it.id },
-                key = { it.id },
-                contentType = { CONTENT_TYPE_LIST },
-            ) { item ->
+            // itemsIndexed so listItemShape can use the index directly. It used to call
+            // items.indexOfFirst { ... } inside every row — a linear scan per row, i.e.
+            // O(n²) per frame — and re-derive the distinct list on each recomposition.
+            itemsIndexed(
+                items = distinctItems,
+                key = { _, it -> it.id },
+                contentType = { _, _ -> CONTENT_TYPE_LIST },
+            ) { itemIndex, item ->
                 when (item) {
                     is Song -> SongListItem(
                         song = item,
@@ -239,7 +223,7 @@ fun LocalSearchScreen(
                         isActive = item.id == mediaMetadata?.id,
                         isPlaying = isPlaying,
                         flat = true,
-                        shape = listItemShape(items.indexOfFirst { it.id == item.id }, items.size),
+                        shape = listItemShape(itemIndex, distinctItems.size),
                         trailingContent = {
                             IconButton(
                                 onClick = {

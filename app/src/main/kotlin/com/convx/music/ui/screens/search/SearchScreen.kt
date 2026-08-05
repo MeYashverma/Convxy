@@ -71,6 +71,7 @@ import com.convx.music.LocalIsPlayerExpanded
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.PauseSearchHistoryKey
 import com.convx.music.constants.SearchSource
 import com.convx.music.db.entities.SearchHistory
@@ -99,6 +100,7 @@ import androidx.compose.foundation.layout.PaddingValues
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.YouTubeGridItem
 import com.convx.music.ui.menu.YouTubeAlbumMenu
@@ -211,14 +213,9 @@ fun SearchScreen(
                 Column(
                     modifier = Modifier.background(Color.Transparent)
                 ) {
-                    Spacer(Modifier.height(40.dp))
-                    Text(
-                        text = stringResource(R.string.search).lowercase(),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.ExtraBold,
+                    LargeScreenTitle(
+                        title = stringResource(R.string.search),
                         color = onTint,
-                        fontSize = 42.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                     )
 
                     AnimatedVisibility(
@@ -444,7 +441,7 @@ fun AlbumsTabContent(
         }
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
+            columns = rememberGridColumns(),
             contentPadding = PaddingValues(
                 start = 12.dp,
                 top = 12.dp,

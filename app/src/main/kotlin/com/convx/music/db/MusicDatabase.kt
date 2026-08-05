@@ -37,6 +37,7 @@ import com.convx.music.db.entities.RelatedSongMap
 import com.convx.music.db.entities.SearchHistory
 import com.convx.music.db.entities.SetVideoIdEntity
 import com.convx.music.db.entities.SongAlbumMap
+import com.convx.music.db.entities.SongAnalysisEntity
 import com.convx.music.db.entities.SongArtistMap
 import com.convx.music.db.entities.SongEntity
 import com.convx.music.db.entities.SpeedDialItem
@@ -108,14 +109,15 @@ class MusicDatabase(
         SetVideoIdEntity::class,
         PlayCountEntity::class,
         RecognitionHistory::class,
-        SpeedDialItem::class
+        SpeedDialItem::class,
+        SongAnalysisEntity::class
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 36,
+    version = 37,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -151,6 +153,7 @@ class MusicDatabase(
         AutoMigration(from = 32, to = 33),
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
+        AutoMigration(from = 36, to = 37),
     ],
 )
 @TypeConverters(Converters::class)

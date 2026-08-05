@@ -433,6 +433,17 @@ class InnerTube {
         }
     }
 
+    /**
+     * Lists every YouTube channel tied to the currently-set [cookie] (a Google
+     * account can have several, and this is the only InnerTube call that
+     * enumerates them without opening YouTube's own UI in a WebView).
+     */
+    suspend fun getAccountSwitcherEndpoint(client: YouTubeClient) = withRetry {
+        httpClient.get("https://music.youtube.com/getAccountSwitcherEndpoint") {
+            ytClient(client, setLogin = true)
+        }
+    }
+
     // Not wrapped in withRetry: a mutation, and an IOException/5xx can happen
     // after the server already applied it — an auto-retry risks double-firing
     // (e.g. liking twice). Let the caller retry explicitly instead.

@@ -47,6 +47,7 @@ import com.convx.music.db.entities.SearchHistory
 import com.convx.music.db.entities.SetVideoIdEntity
 import com.convx.music.db.entities.Song
 import com.convx.music.db.entities.SongAlbumMap
+import com.convx.music.db.entities.SongAnalysisEntity
 import com.convx.music.db.entities.SongArtistMap
 import com.convx.music.db.entities.SongEntity
 import com.convx.music.db.entities.SongWithStats
@@ -638,6 +639,16 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT * FROM format WHERE id = :id")
     fun format(id: String?): Flow<FormatEntity?>
+
+    /** Cached DJ analysis, filtered to the current algorithm version — a grid
+     *  from an older detector is re-analyzed rather than trusted. Callers pass
+     *  `SongAnalysisEntity.CURRENT_ANALYSIS_VERSION`; Room does not reliably
+     *  honour Kotlin default arguments on `@Query` methods. */
+    @Query("SELECT * FROM song_analysis WHERE id = :id AND analysisVersion = :version")
+    suspend fun songAnalysis(id: String, version: Int): SongAnalysisEntity?
+
+    @Query("SELECT * FROM song_analysis WHERE id IN (:ids) AND analysisVersion = :version")
+    suspend fun songAnalyses(ids: List<String>, version: Int): List<SongAnalysisEntity>
 
     @Transaction
     @Query("SELECT * FROM lyrics WHERE id = :id")
@@ -1373,7 +1384,10 @@ interface DatabaseDao {
         .flowOn(Dispatchers.Default)
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY dateDownload")
+    // Local songs are scanned, never downloaded, so dateDownload is NULL for all of
+    // them and ordering by it did nothing. inLibrary holds the file's MediaStore
+    // DATE_ADDED (see LocalAudioScanner).
+    @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY inLibrary")
     fun localSongsByCreateDateAsc(): Flow<List<Song>>
 
     @Transaction
@@ -1872,6 +1886,9 @@ interface DatabaseDao {
 
     @Upsert
     fun upsert(format: FormatEntity)
+
+    @Upsert
+    fun upsert(analysis: SongAnalysisEntity)
 
     @Upsert
     fun upsert(song: SongEntity)

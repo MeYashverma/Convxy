@@ -20,6 +20,15 @@ import kotlinx.coroutines.withContext
 object PlayerColorExtractor {
 
     /**
+     * Fallback for artwork Palette can't extract a usable color from — a solid
+     * black/white/grayscale cover, mostly. NOT a theme color: falling back to
+     * MaterialTheme.colorScheme.primaryContainer painted every neutral cover
+     * the theme's accent color (blue on the M3 baseline scheme) regardless of
+     * the actual artwork, which read as visibly wrong.
+     */
+    val NeutralFallbackColor = Color(0xFF1C1C1E)
+
+    /**
      * Extracts colors from a palette and creates a gradient
      * 
      * @param palette The color palette extracted from album artwork

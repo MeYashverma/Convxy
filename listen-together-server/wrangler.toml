@@ -1,0 +1,31 @@
+name = "convx-sync"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# SQLite-backed Durable Objects are the class available on the Workers Free
+# plan. If you ever switch to `new_classes` you are asking for the key-value
+# backed DO, which requires Workers Paid.
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+# Per-IP throttle. In code rather than a WAF rule because WAF rate limiting
+# needs a zone, and a zone needs a domain you own — this runs on a bare
+# workers.dev subdomain with nothing bought.
+[[durable_objects.bindings]]
+name = "GUARD"
+class_name = "Guard"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room", "Guard"]
+
+[vars]
+# Hours a room stays alive before it is closed and its storage deleted.
+# Rooms are a shared free resource; abandoned ones must not squat forever.
+ROOM_TTL_HOURS = "6"
+# How many times the owner may extend, so a long session is not cut off
+# mid-album but a room still cannot live indefinitely.
+MAX_EXTENSIONS = "2"
+# Cap per room. Protects the free tier and stops one room degrading the rest.
+MAX_MEMBERS = "20"

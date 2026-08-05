@@ -80,6 +80,7 @@ appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat"
 
 coil = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 ucrop = { module = "com.github.yalantis:ucrop", version.ref = "ucrop" }
 
 shimmer = { module = "com.valentinilk.shimmer:compose-shimmer", version.ref = "shimmer" }

@@ -54,6 +54,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.ArtistFilter
 import com.convx.music.constants.ArtistFilterKey
 import com.convx.music.constants.ArtistSortDescendingKey
@@ -68,6 +69,7 @@ import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.YtmSyncKey
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.LibraryArtistGridItem
@@ -79,6 +81,7 @@ import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.LibraryArtistsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.utils.rememberHeroZoom
@@ -167,7 +170,7 @@ fun LibraryArtistsScreen(
     val headerContent = @Composable {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp),
+            modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
         ) {
             SortHeader(
                 sortType = sortType,
@@ -239,6 +242,13 @@ fun LibraryArtistsScreen(
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(
+                        key = "title",
+                        contentType = CONTENT_TYPE_HEADER,
+                    ) {
+                        LargeScreenTitle(title = stringResource(R.string.artists))
+                    }
+
+                    item(
                         key = "filter",
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
@@ -285,12 +295,17 @@ fun LibraryArtistsScreen(
                     state = lazyGridState,
                     overscrollEffect = heroZoom.listOverscroll(),
                     modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::sync),
-                    columns =
-                    GridCells.Adaptive(
-                        minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,
-                    ),
+                    columns = rememberGridColumns(),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
+                    item(
+                        key = "title",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = CONTENT_TYPE_HEADER,
+                    ) {
+                        LargeScreenTitle(title = stringResource(R.string.artists))
+                    }
+
                     item(
                         key = "filter",
                         span = { GridItemSpan(maxLineSpan) },

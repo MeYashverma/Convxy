@@ -26,12 +26,14 @@ import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.SmallGridThumbnailHeight
 import com.convx.music.constants.ThumbnailCornerRadius
+import com.convx.music.constants.ThumbnailRoundedShape
+import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.utils.rememberEnumPreference
 
 @Composable
 fun GridItemPlaceHolder(
     modifier: Modifier = Modifier,
-    thumbnailShape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
+    thumbnailShape: Shape = ThumbnailRoundedShape,
     fillMaxWidth: Boolean = false,
 ) {
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
@@ -41,11 +43,11 @@ fun GridItemPlaceHolder(
         modifier =
         if (fillMaxWidth) {
             modifier
-                .padding(12.dp)
+                .padding(AppleTokens.ItemGap / 2)
                 .fillMaxWidth()
         } else {
             modifier
-                .padding(12.dp)
+                .padding(AppleTokens.ItemGap / 2)
                 .width(gridHeight)
         },
     ) {
@@ -60,7 +62,7 @@ fun GridItemPlaceHolder(
                 .background(MaterialTheme.colorScheme.onSurface),
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(AppleTokens.ItemGap / 2))
 
         TextPlaceholder()
 

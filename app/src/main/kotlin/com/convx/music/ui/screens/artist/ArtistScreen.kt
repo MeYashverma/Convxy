@@ -895,10 +895,12 @@ fun ArtistScreen(
                                 contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues().plusStart(sideInset),
                                 modifier = Modifier.bleedStart(sideInset),
                             ) {
-                                items(
+                                itemsIndexed(
+                                    // indexOf(it) in the key lambda was a linear scan per
+                                    // item; the index is already supplied here.
                                     items = filteredLibraryAlbums,
-                                    key = { "local_album_${it.id}_${filteredLibraryAlbums.indexOf(it)}" }
-                                ) { album ->
+                                    key = { index, it -> "local_album_${it.id}_$index" }
+                                ) { _, album ->
                                     AlbumGridItem(
                                         album = album,
                                         isActive = mediaMetadata?.album?.id == album.id,
@@ -961,15 +963,18 @@ fun ArtistScreen(
                                 )
                             }
                         } else if ((section.items.firstOrNull() as? SongItem)?.album != null) {
+                            // Was also recomputed inside every row's listItemShape(...),
+                            // i.e. a full distinctBy pass per row.
+                            val distinctSongs = section.items.distinctBy { it.id }
                             itemsIndexed(
-                                items = section.items.distinctBy { it.id },
+                                items = distinctSongs,
                                 key = { _, it -> "youtube_song_${it.id}" },
                             ) { index, song ->
                                 YouTubeListItem(
                                     item = song as SongItem,
                                     isActive = mediaMetadata?.id == song.id,
                                     isPlaying = isPlaying,
-                                    shape = listItemShape(index, section.items.distinctBy { it.id }.size),
+                                    shape = listItemShape(index, distinctSongs.size),
                                     flat = true,
                                     trailingContent = {
                                         androidx.compose.material3.IconButton(

@@ -17,6 +17,8 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.disk.directory
+import coil3.gif.AnimatedImageDecoder
+import coil3.gif.GifDecoder
 import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import android.graphics.Bitmap
@@ -245,6 +247,15 @@ class App : Application(), SingletonImageLoader.Factory {
             // Use HARDWARE bitmap configuration for direct zero-copy GPU texture uploads
             allowHardware(true)
             bitmapConfig(Bitmap.Config.HARDWARE)
+            // Animated GIF backgrounds (Home background picker allows GIF): the
+            // platform decoder needs API 28+, GifDecoder covers everything below.
+            components {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    add(AnimatedImageDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+            }
             // Memory cache for fast image loading (prevents network requests on recomposition)
             memoryCache {
                 MemoryCache.Builder()

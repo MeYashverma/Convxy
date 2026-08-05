@@ -93,6 +93,7 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.R
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.CONTENT_TYPE_ALBUM
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.CONTENT_TYPE_HEADER
@@ -156,7 +157,7 @@ fun ArtistAlbumsScreen(
     ) {
         LazyVerticalGrid(
             state = lazyGridState,
-            columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
+            columns = rememberGridColumns(),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
             item(

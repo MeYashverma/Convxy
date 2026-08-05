@@ -124,6 +124,13 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.GridItemSize
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.GridItemsSizeKey
+import com.convx.music.constants.GridColumnsOverrideKey
+import com.convx.music.constants.GridSpacingKey
+import com.convx.music.constants.SpeedDialColumnsOverrideKey
+import com.convx.music.constants.PureBlackHeroBackgroundKey
+import com.convx.music.ui.utils.GridColumnChoices
+import com.convx.music.ui.utils.GridSpacingChoices
+import androidx.compose.material3.Slider
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HidePlayerThumbnailKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -317,6 +324,10 @@ fun AppearanceSettings(
         GridItemsSizeKey,
         defaultValue = GridItemSize.SMALL
     )
+    val (gridColumnsOverride, onGridColumnsOverrideChange) = rememberPreference(GridColumnsOverrideKey, 0)
+    val (gridSpacing, onGridSpacingChange) = rememberPreference(GridSpacingKey, 16)
+    val (speedDialColumnsOverride, onSpeedDialColumnsOverrideChange) = rememberPreference(SpeedDialColumnsOverrideKey, 0)
+    val (pureBlackHeroBackground, onPureBlackHeroBackgroundChange) = rememberPreference(PureBlackHeroBackgroundKey, false)
 
     // Density scale preferences
     val context = activity as Context
@@ -1172,6 +1183,99 @@ fun AppearanceSettings(
                     },
                     onClick = { showDensityScaleDialog = true }
                 )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.grid_and_cards),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.pure_black_hero_background)) },
+                    description = { Text(stringResource(R.string.pure_black_hero_background_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = pureBlackHeroBackground,
+                            onCheckedChange = onPureBlackHeroBackgroundChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (pureBlackHeroBackground) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onPureBlackHeroBackgroundChange(!pureBlackHeroBackground) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.grid_columns)) },
+                    description = {
+                        Column {
+                            Text(
+                                text = if (gridColumnsOverride == 0) {
+                                    stringResource(R.string.auto)
+                                } else {
+                                    gridColumnsOverride.toString()
+                                }
+                            )
+                            Slider(
+                                value = GridColumnChoices.indexOf(gridColumnsOverride).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onGridColumnsOverrideChange(GridColumnChoices[it.roundToInt()])
+                                },
+                                steps = GridColumnChoices.size - 2,
+                                valueRange = 0f..(GridColumnChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.grid_spacing)) },
+                    description = {
+                        Column {
+                            Text(text = "${gridSpacing}dp")
+                            Slider(
+                                value = GridSpacingChoices.indexOf(gridSpacing).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onGridSpacingChange(GridSpacingChoices[it.roundToInt()])
+                                },
+                                steps = GridSpacingChoices.size - 2,
+                                valueRange = 0f..(GridSpacingChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.speed_dial_columns)) },
+                    description = {
+                        val speedDialChoices = remember { listOf(0, 3, 4, 5, 6) }
+                        Column {
+                            Text(
+                                text = if (speedDialColumnsOverride == 0) {
+                                    stringResource(R.string.auto)
+                                } else {
+                                    speedDialColumnsOverride.toString()
+                                }
+                            )
+                            Slider(
+                                value = speedDialChoices.indexOf(speedDialColumnsOverride).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onSpeedDialColumnsOverrideChange(speedDialChoices[it.roundToInt()])
+                                },
+                                steps = speedDialChoices.size - 2,
+                                valueRange = 0f..(speedDialChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
             )
         )
 

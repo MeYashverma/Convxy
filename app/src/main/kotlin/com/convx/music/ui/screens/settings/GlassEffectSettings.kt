@@ -1,13 +1,25 @@
 package com.convx.music.ui.screens.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -20,6 +32,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,15 +42,27 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil3.compose.AsyncImage
 import com.convx.music.LocalPlayerAwareWindowInsets
+import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.constants.HomeBackgroundEnabledKey
+import com.convx.music.constants.HomeBackgroundPathKey
 import com.convx.music.constants.LiquidGlassChromaticAberrationKey
 import com.convx.music.constants.LiquidGlassDepthEffectKey
 import com.convx.music.constants.LiquidGlassBlurRadiusKey
@@ -54,16 +80,29 @@ import com.convx.music.constants.LiquidGlassSidePanelSurfaceOpacityKey
 import com.convx.music.constants.LiquidGlassSidePanelTextColorKey
 import com.convx.music.constants.LiquidGlassSurfaceOpacityKey
 import com.convx.music.constants.LiquidGlassSurfaceTintColorKey
+import com.convx.music.constants.LiquidGlassAdaptiveContrastKey
 import com.convx.music.constants.LiquidGlassTextColorKey
 import com.convx.music.constants.LiquidGlassVibrancyKey
+import com.convx.music.models.MediaMetadata
 import com.convx.music.ui.component.ColorPickerDialog
 import com.convx.music.ui.component.DefaultDialog
+import com.convx.music.ui.component.GlassEffectConfig
+import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.LocalAppleMusicUi
+import com.convx.music.ui.screens.Screens
+import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.convx.music.ui.component.isGlassAllowed
+import com.convx.music.ui.component.liquidGlass
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.component.IconButton as AppIconButton
 import com.convx.music.ui.component.Material3SettingsGroup
 import com.convx.music.ui.component.Material3SettingsItem
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.backToMain
 import com.convx.music.utils.rememberPreference
+import kotlinx.coroutines.flow.MutableStateFlow
+import java.io.File
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,8 +131,12 @@ fun GlassEffectSettings(
     )
     // 0 marks the theme-adaptive default tint (see MainActivity); the picker then
     // shows the color the current theme resolves to.
+    // 0, matching MainActivity. This used to default to a literal dark tint here
+    // while MainActivity defaulted to 0 (the adaptive sentinel), so on a fresh
+    // install the picker showed a fixed dark colour that the app was not actually
+    // using — and reading the two files gave opposite answers about the default.
     val (surfaceTintColorInt, onSurfaceTintColorChange) = rememberPreference(
-        LiquidGlassSurfaceTintColorKey, defaultValue = Color(0xFF1A1A1A).toArgb()
+        LiquidGlassSurfaceTintColorKey, defaultValue = 0
     )
     val adaptiveTintColor = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
         Color(0xFFFAFAFA)
@@ -108,10 +151,20 @@ fun GlassEffectSettings(
     val (surfaceOpacity, onSurfaceOpacityChange) = rememberPreference(
         LiquidGlassSurfaceOpacityKey, defaultValue = 0.5f
     )
+    // 0 marks the theme-adaptive default text color (see MainActivity); the picker
+    // then shows the color the current theme resolves to.
     val (textColorInt, onTextColorChange) = rememberPreference(
-        LiquidGlassTextColorKey, defaultValue = Color.White.toArgb()
+        LiquidGlassTextColorKey, defaultValue = 0
     )
-    val textColor = remember(textColorInt) { Color(textColorInt) }
+    val (adaptiveContrast, onAdaptiveContrastChange) = rememberPreference(
+        LiquidGlassAdaptiveContrastKey, defaultValue = true
+    )
+    val adaptiveTextColor = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
+        Color(0xFF1A1A1A)
+    } else {
+        Color.White
+    }
+    val textColor = if (textColorInt == 0) adaptiveTextColor else Color(textColorInt)
     val (miniPlayerEnabled, onMiniPlayerEnabledChange) = rememberPreference(
         LiquidGlassMiniPlayerEnabledKey, defaultValue = true
     )
@@ -140,9 +193,9 @@ fun GlassEffectSettings(
         LiquidGlassSidePanelSurfaceOpacityKey, defaultValue = 0.5f
     )
     val (sidePanelTextColorInt, onSidePanelTextColorChange) = rememberPreference(
-        LiquidGlassSidePanelTextColorKey, defaultValue = Color.White.toArgb()
+        LiquidGlassSidePanelTextColorKey, defaultValue = 0
     )
-    val sidePanelTextColor = remember(sidePanelTextColorInt) { Color(sidePanelTextColorInt) }
+    val sidePanelTextColor = if (sidePanelTextColorInt == 0) adaptiveTextColor else Color(sidePanelTextColorInt)
     val sidePanelTintColor = if (sidePanelColorInt == 0) adaptiveTintColor else Color(sidePanelColorInt)
 
     // Enabling the side panel override starts it as a copy of the current
@@ -178,12 +231,36 @@ fun GlassEffectSettings(
     var showSidePanelTextColorDialog by rememberSaveable { mutableStateOf(false) }
     var showTextColorDialog by rememberSaveable { mutableStateOf(false) }
 
+    // Live sample of the dials below. Built from the in-screen values rather than
+    // LocalGlassEffectConfig so it updates as the user drags, without waiting for
+    // the app-wide config to round-trip through DataStore.
+    val previewConfig = GlassEffectConfig(
+        vibrancy = vibrancy,
+        blurRadius = blurRadius,
+        lensHeight = lensHeight,
+        lensAmount = lensAmount,
+        chromaticAberration = chromaticAberration,
+        depthEffect = depthEffect,
+        surfaceTintColor = if (surfaceTintColorInt == 0) Color.Unspecified else Color(surfaceTintColorInt),
+        surfaceOpacity = surfaceOpacity,
+        textColor = textColor,
+    )
+
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
+        GlassLivePreview(
+            config = previewConfig,
+            // The settings Column insets everything by 16dp, which left the preview
+            // narrower than the bar it is previewing. Bleed most of that back out.
+            modifier = Modifier
+                .bleedHorizontally(10.dp)
+                .padding(top = 8.dp, bottom = 16.dp),
+        )
+
         Material3SettingsGroup(
             title = stringResource(R.string.liquid_glass_effects),
             items = listOf(
@@ -256,7 +333,7 @@ fun GlassEffectSettings(
 
         Material3SettingsGroup(
             title = stringResource(R.string.liquid_glass_appearance),
-            items = listOf(
+            items = listOfNotNull(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),
                     title = { Text(stringResource(R.string.liquid_glass_surface_tint)) },
@@ -270,11 +347,38 @@ fun GlassEffectSettings(
                     onClick = { showSurfaceOpacityDialog = true }
                 ),
                 Material3SettingsItem(
-                    icon = painterResource(R.drawable.palette),
-                    title = { Text(stringResource(R.string.liquid_glass_text_color)) },
-                    description = { Text(stringResource(R.string.liquid_glass_text_color_desc)) },
-                    onClick = { showTextColorDialog = true }
+                    icon = painterResource(R.drawable.contrast),
+                    title = { Text(stringResource(R.string.liquid_glass_adaptive_contrast)) },
+                    description = { Text(stringResource(R.string.liquid_glass_adaptive_contrast_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = adaptiveContrast,
+                            onCheckedChange = onAdaptiveContrastChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (adaptiveContrast) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onAdaptiveContrastChange(!adaptiveContrast) }
                 ),
+                // Hidden while adaptive contrast is on: a manual colour would be
+                // overridden anyway, so offering it would just look broken.
+                if (adaptiveContrast) {
+                    null
+                } else {
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text(stringResource(R.string.liquid_glass_text_color)) },
+                        description = { Text(stringResource(R.string.liquid_glass_text_color_desc)) },
+                        onClick = { showTextColorDialog = true }
+                    )
+                },
             )
         )
 
@@ -660,4 +764,199 @@ fun GlassEffectSettings(
             }
         }
     )
+}
+
+/**
+ * Live sample of the current glass settings: a mock nav bar over real content.
+ *
+ * The glass surfaces sample [previewBackdrop], which captures ONLY the image panel
+ * they sit over. That sibling relationship is load-bearing, not stylistic: a glass
+ * surface may sample an attached backdrop only when it is NOT inside that backdrop's
+ * layer. Sampling the ambient [LocalAppBackdrop] here would make the app-wide capture
+ * include these pills, which re-enters RenderNode::prepareTreeImpl and hard-crashes
+ * the renderer — the same cycle that used to kill the artist and playlist screens.
+ * So the panel is captured on its own and the bar is drawn next to it, never within it.
+ */
+@Composable
+private fun GlassLivePreview(
+    config: GlassEffectConfig,
+    modifier: Modifier = Modifier,
+) {
+    val previewBackdrop = rememberLayerBackdrop()
+    val pillShape = ContinuousRoundedRectangle(percent = 50)
+    val appleMusicUi = LocalAppleMusicUi.current
+
+    // Same source PlayerThemeScreen previews from: whatever is actually playing.
+    val playerConnection = LocalPlayerConnection.current
+    val mediaMetadata by remember(playerConnection) {
+        playerConnection?.mediaMetadata ?: MutableStateFlow<MediaMetadata?>(null)
+    }.collectAsState()
+
+    // Failing a playing song, the user's own home background — it is literally what
+    // sits behind the real nav bar, so it is the most honest thing to preview over.
+    val (homeBackgroundEnabled) = rememberPreference(HomeBackgroundEnabledKey, false)
+    val (homeBackgroundPath) = rememberPreference(HomeBackgroundPathKey, "")
+    val backgroundModel: Any? = mediaMetadata?.thumbnailUrl
+        ?: homeBackgroundPath.takeIf { homeBackgroundEnabled && it.isNotEmpty() }?.let { File(it) }
+
+    // The real bar's tabs, minus search — that one is the standalone circle beside it.
+    val previewTabs = remember { Screens.MainScreens.filter { it != Screens.Search }.take(4) }
+    val imageScroll = rememberScrollState()
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(190.dp)
+            .clip(RoundedCornerShape(20.dp)),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .matchParentSize()
+                .layerBackdrop(previewBackdrop)
+                // Always drawn: it is the fallback when nothing is playing and no
+                // custom background is set, and the saturated stops give blur,
+                // vibrancy and lens refraction something to visibly act on.
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFFFF2D55),
+                            Color(0xFF5856D6),
+                            Color(0xFF32ADE6),
+                            Color(0xFF34C759),
+                        )
+                    )
+                ),
+        ) {
+            // Read off BoxWithConstraintsScope here: inside the Row below the
+            // implicit receiver is RowScope, which has no maxWidth.
+            val panelWidth = maxWidth
+            if (backgroundModel != null) {
+                // Drag the image under the glass to watch the refraction track it.
+                // The backdrop re-records on each scrolled frame and bumps its
+                // content version, so the pills above pick the movement up live.
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .horizontalScroll(imageScroll),
+                ) {
+                    AsyncImage(
+                        model = backgroundModel,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            // Wider than the panel, so there is something to pan to.
+                            .width(panelWidth * 1.8f),
+                    )
+                }
+            }
+        }
+
+        CompositionLocalProvider(LocalAppBackdrop provides previewBackdrop) {
+            // Built once and applied to both surfaces: a Modifier chain is an
+            // immutable description, and each node it is attached to gets its own
+            // state. Cannot be a local helper function — liquidGlass is @Composable.
+            val previewGlass = if (isGlassAllowed()) {
+                Modifier.liquidGlass(config = config, shape = pillShape, highlightAlpha = 0.3f)
+            } else {
+                // Same fallback every other glass call site uses when the device
+                // can't run the RenderEffect chain.
+                Modifier.background(Color.White.copy(alpha = config.surfaceOpacity), pillShape)
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(bottom = 16.dp)
+                    // Wider than an intrinsic content-fit pill so the preview reads
+                    // like the real bar's footprint, not a cramped tight-wrapped chip.
+                    .fillMaxWidth(0.85f)
+                    .height(IntrinsicSize.Max),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = previewGlass
+                        .weight(1f)
+                        .padding(4.dp),
+                ) {
+                    previewTabs.forEachIndexed { index, screen ->
+                        // First tab reads as selected, so the preview shows both the
+                        // selected and unselected treatments at once.
+                        val selected = index == 0
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy((-2).dp, Alignment.CenterVertically),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        ) {
+                            // Icon and label sizes mirror the real FloatingNavBar so
+                            // the preview reports the bar's true proportions.
+                            Icon(
+                                painter = painterResource(
+                                    screen.icon(appleMusicUi)
+                                ),
+                                contentDescription = null,
+                                tint = if (selected) config.textColor else Color.White,
+                                modifier = Modifier.size(30.dp),
+                            )
+                            Text(
+                                text = stringResource(screen.titleId),
+                                color = if (selected) config.textColor else Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+                }
+
+                // Mirrors the real standalone search tab, including the height-first
+                // aspect ratio — so this preview also shows the bar and the circle
+                // agreeing on height.
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(1f, matchHeightConstraintsFirst = true)
+                        .then(previewGlass),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(Screens.Search.icon(appleMusicUi)),
+                        contentDescription = null,
+                        tint = config.textColor,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Lets a child extend [amount] past its parent's horizontal padding on each side.
+ *
+ * Compose rejects negative padding, and the settings Column pads every child by
+ * 16dp, so widening just this one otherwise means unpicking that padding and
+ * re-adding it to every sibling. This measures the child with the extra width and
+ * then reports the ORIGINAL width back up, so the parent's layout is untouched.
+ */
+private fun Modifier.bleedHorizontally(amount: Dp) = this.layout { measurable, constraints ->
+    val bleedPx = amount.roundToPx()
+    val extra = bleedPx * 2
+    // An unbounded parent has no padding to escape, and adding to Infinity overflows.
+    if (constraints.maxWidth == Constraints.Infinity) {
+        val placeable = measurable.measure(constraints)
+        return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = constraints.minWidth + extra,
+            maxWidth = constraints.maxWidth + extra,
+        )
+    )
+    layout(placeable.width - extra, placeable.height) {
+        placeable.place(-bleedPx, 0)
+    }
 }

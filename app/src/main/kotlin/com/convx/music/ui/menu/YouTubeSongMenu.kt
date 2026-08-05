@@ -68,6 +68,7 @@ import com.convx.music.R
 import com.convx.music.constants.ListItemHeight
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.ThumbnailCornerRadius
+import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.db.entities.SpeedDialItem
 import com.convx.music.db.entities.SongEntity
 import com.convx.music.extensions.toMediaItem
@@ -204,14 +205,14 @@ fun YouTubeSongMenu(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(ListThumbnailSize)
-                    .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                    .clip(ThumbnailRoundedShape)
             ) {
                 AsyncImage(
                     model = song.thumbnail,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                        .clip(ThumbnailRoundedShape)
                 )
             }
         },

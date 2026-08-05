@@ -289,7 +289,17 @@ object YTPlayerUtils {
                                             return@runCatching null
                                         }
                                     }
-                                    val matchedTrack = searchResult.tracks.minByOrNull { track ->
+                                    // minByOrNull on its own always returns something — even a
+                                    // track that matched nothing scores 0 and wins when it is the
+                                    // only result. That is how a completely different song ends up
+                                    // playing. Require a real title hit and a plausible runtime first.
+                                    val matchedTrack = searchResult.tracks.filter { track ->
+                                        val t = track.title.lowercase().trim()
+                                        val q = cleanTitle.lowercase().trim()
+                                        val songDur = currentSong?.duration
+                                        (q in t || t in q) &&
+                                            (songDur == null || (track.duration?.let { Math.abs(it - songDur) <= 10 } ?: true))
+                                    }.minByOrNull { track ->
                                         val t = track.title.lowercase().trim()
                                         val a = track.artist.lowercase().trim()
                                         val q = cleanTitle.lowercase().trim()
@@ -466,6 +476,7 @@ object YTPlayerUtils {
 
                     val wantedTitle = title.lowercase(java.util.Locale.US)
                     val wantedArtists = artistNames.map { it.lowercase(java.util.Locale.US) }
+                    val wantedDuration = currentSong?.duration
                     val customUrl = context.dataStore.get(TidalInstanceUrlKey, "").ifBlank { null }
 
                     val candidates = TidalService.search(query, customUrl)
@@ -476,7 +487,11 @@ object YTPlayerUtils {
                         val artistOk = wantedArtists.isEmpty() || wantedArtists.any { w ->
                             ca.any { it.contains(w) || w.contains(it) }
                         }
-                        titleOk && artistOk
+                        // Substring matching alone lets a short title pull in an
+                        // unrelated track; runtime is the cheap sanity check.
+                        val durationOk = wantedDuration == null ||
+                            (c.duration?.let { kotlin.math.abs(it - wantedDuration) <= 10 } ?: true)
+                        titleOk && artistOk && durationOk
                     } ?: run {
                         Timber.tag(TAG).d("TIDAL: no match for \"$query\" — falling back")
                         return@runCatching null
@@ -573,6 +588,7 @@ object YTPlayerUtils {
                     val albumName = currentSong?.album?.name.orEmpty()
                     val wantedTitleLower = title.lowercase(java.util.Locale.US)
                     val wantedArtistsLower = artistNames.map { it.lowercase(java.util.Locale.US) }
+                    val wantedDurationSec = currentSong?.duration
 
                     val primaryQuery = if (albumName.isNotBlank()) {
                         "$albumName $title $artist"
@@ -605,11 +621,18 @@ object YTPlayerUtils {
                                 }
                             }
                             
-                            val isMatch = titleMatches && artistMatches
+                            // Title matching is substring-based in both directions, so a
+                            // short title matches plenty of unrelated songs. Runtime is
+                            // the cheap tiebreak that stops a different track being
+                            // served as this one.
+                            val durationMatches = wantedDurationSec == null ||
+                                (candidate.duration?.let { kotlin.math.abs(it - wantedDurationSec) <= 10 } ?: true)
+
+                            val isMatch = titleMatches && artistMatches && durationMatches
                             if (isMatch) {
                                 Timber.tag(TAG).d("Saavn: candidate matched: \"${candidate.name}\" on album \"${candidate.album?.name}\" by ${candidate.artists.primary.joinToString { it.name }}")
                             } else {
-                                Timber.tag(TAG).d("Saavn: candidate rejected (name/artist mismatch): \"${candidate.name}\" on album \"${candidate.album?.name}\" by ${candidate.artists.primary.joinToString { it.name }}")
+                                Timber.tag(TAG).d("Saavn: candidate rejected (name/artist/duration mismatch): \"${candidate.name}\" on album \"${candidate.album?.name}\" by ${candidate.artists.primary.joinToString { it.name }}")
                             }
                             isMatch
                         }
@@ -1135,9 +1158,18 @@ object YTPlayerUtils {
     ): PlayerResponse.StreamingData.Format? {
         Timber.tag(logTag).d("Finding format with audioQuality: $audioQuality, network metered: ${connectivityManager.isActiveNetworkMetered}")
 
-        val format = playerResponse.streamingData?.adaptiveFormats
-            ?.filter { it.isAudio && it.isOriginal }
-            ?.maxByOrNull {
+        val audioFormats = playerResponse.streamingData?.adaptiveFormats
+            ?.filter { it.isAudio }
+            .orEmpty()
+        // Some videos (auto-dubs, certain regional content) only serve non-original
+        // audio tracks — requiring isOriginal made those permanently unplayable
+        // (format=null -> thrown as a generic Exception -> ExoPlayer buckets it as
+        // ERROR_CODE_IO_UNSPECIFIED and retries the same doomed resolve forever).
+        val original = audioFormats.filter { it.isOriginal }
+        val candidates = original.ifEmpty { audioFormats }
+
+        val format = candidates
+            .maxByOrNull {
                 it.bitrate * when (audioQuality) {
                     AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
                     AudioQuality.HIGH -> 1

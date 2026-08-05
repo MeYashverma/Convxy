@@ -83,6 +83,8 @@ import com.convx.music.R
 import com.convx.music.constants.ListItemHeight
 import com.convx.music.listentogether.ConnectionState
 import com.convx.music.listentogether.ListenTogetherEvent
+import com.convx.music.listentogether.MAX_ROOM_CODE_LENGTH
+import com.convx.music.listentogether.MIN_ROOM_CODE_LENGTH
 import com.convx.music.models.MediaMetadata
 import com.convx.music.playback.ExoDownloadService
 import com.convx.music.ui.component.BottomSheetState
@@ -151,7 +153,9 @@ fun PlayerMenu(
 
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsState(initial = com.convx.music.listentogether.RoomRole.NONE)
-    val isListenTogetherGuest = listenTogetherRoleState?.value == com.convx.music.listentogether.RoomRole.GUEST
+    // See Player.kt: gated on control mode, not on role.
+    val canControlTogether = listenTogetherManager?.canControl?.collectAsState(initial = true)
+    val isListenTogetherGuest = canControlTogether?.value == false
     val pendingSuggestions by listenTogetherManager?.pendingSuggestions?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
 
     AddToPlaylistDialog(
@@ -1749,7 +1753,7 @@ fun ListenTogetherDialog(
                         
                         OutlinedTextField(
                             value = roomCodeInput,
-                            onValueChange = { roomCodeInput = it.uppercase().filter { c -> c.isLetterOrDigit() }.take(8) },
+                            onValueChange = { roomCodeInput = it.uppercase().filter { c -> c.isLetterOrDigit() }.take(MAX_ROOM_CODE_LENGTH) },
                             label = { Text(stringResource(R.string.room_code)) },
                             placeholder = { Text("ABCD1234") },
                             supportingText = {
@@ -1853,7 +1857,10 @@ fun ListenTogetherDialog(
                                     isCreatingRoom = true
                                     isJoiningRoom = false
                                     joinErrorMessage = null
-                                    listenTogetherManager.connect()
+                                    // createRoom allocates the code and opens the
+                                    // socket against that room itself. A bare
+                                    // connect() first just dials the server root,
+                                    // which 404s and burns a reconnect attempt.
                                     listenTogetherManager.createRoom(finalUsername)
                                 } else {
                                     Toast.makeText(context, R.string.error_username_empty, Toast.LENGTH_SHORT).show()
@@ -1875,7 +1882,7 @@ fun ListenTogetherDialog(
                         }
                         
                         // Join Room button (right side - only visible when room code is complete)
-                        if (roomCodeInput.length == 8) {
+                        if (roomCodeInput.trim().length >= MIN_ROOM_CODE_LENGTH) {
                             Button(
                                 onClick = {
                                     val username = usernameInput.takeIf { it.isNotBlank() } ?: savedUsername
@@ -1890,7 +1897,6 @@ fun ListenTogetherDialog(
                                         isJoiningRoom = true
                                         isCreatingRoom = false
                                         joinErrorMessage = null
-                                        listenTogetherManager.connect()
                                         listenTogetherManager.joinRoom(roomCodeInput, finalUsername)
                                     } else {
                                         Toast.makeText(context, R.string.error_username_empty, Toast.LENGTH_SHORT).show()

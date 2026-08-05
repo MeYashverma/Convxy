@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.convx.music.LocalDatabase
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.SongSortType
 import com.convx.music.ui.utils.bounceClick
 import com.convx.music.ui.utils.combinedBounceClick
@@ -91,6 +92,7 @@ import com.convx.music.constants.ShowUploadedPlaylistKey
 import com.convx.music.constants.YtmSyncKey
 import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.PlaylistEntity
+import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.CreatePlaylistDialog
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.LibraryPlaylistGridItem
@@ -105,6 +107,7 @@ import com.convx.music.viewmodels.LibraryPlaylistsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.utils.rememberHeroZoom
@@ -249,7 +252,7 @@ fun LibraryPlaylistsScreen(
     val headerContent = @Composable {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp),
+            modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
         ) {
             SortHeader(
                 sortType = sortType,
@@ -320,6 +323,13 @@ fun LibraryPlaylistsScreen(
                     modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::sync),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
+                    item(
+                        key = "title",
+                        contentType = CONTENT_TYPE_HEADER,
+                    ) {
+                        LargeScreenTitle(title = stringResource(R.string.playlists))
+                    }
+
                     item(
                         key = "filter",
                         contentType = CONTENT_TYPE_HEADER,
@@ -445,12 +455,17 @@ fun LibraryPlaylistsScreen(
                     state = lazyGridState,
                     overscrollEffect = heroZoom.listOverscroll(),
                     modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::sync),
-                    columns =
-                    GridCells.Adaptive(
-                        minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,
-                    ),
+                    columns = rememberGridColumns(),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
+                    item(
+                        key = "title",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = CONTENT_TYPE_HEADER,
+                    ) {
+                        LargeScreenTitle(title = stringResource(R.string.playlists))
+                    }
+
                     item(
                         key = "filter",
                         span = { GridItemSpan(maxLineSpan) },

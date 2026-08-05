@@ -31,6 +31,7 @@ package com.convx.music.ui.screens
  import com.convx.music.LocalPlayerAwareWindowInsets
  import com.convx.music.LocalPlayerConnection
  import com.convx.music.R
+import com.convx.music.ui.utils.rememberGridColumns
  import com.convx.music.constants.GridItemSize
  import com.convx.music.constants.GridItemsSizeKey
  import com.convx.music.constants.GridThumbnailHeight
@@ -71,7 +72,7 @@ import com.convx.music.utils.rememberEnumPreference
      val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
  
      LazyVerticalGrid(
-         columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
+         columns = rememberGridColumns(),
          contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
      ) {
          items?.let { items ->

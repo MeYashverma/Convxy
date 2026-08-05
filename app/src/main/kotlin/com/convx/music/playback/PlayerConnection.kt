@@ -142,6 +142,9 @@ class PlayerConnection(
             database.format(mediaMetadata?.id)
         }
 
+    /** BPM, key, tier and transition style, straight from the DJ engine. */
+    val djState = service.djState
+
     val queueTitle = MutableStateFlow<String?>(null)
     val queueWindows = MutableStateFlow<List<Timeline.Window>>(emptyList())
     val currentMediaItemIndex = MutableStateFlow(-1)
@@ -333,8 +336,10 @@ class PlayerConnection(
             if (castHandler?.isCasting?.value == true) {
                 castHandler.play()
             } else {
-                if (player.playbackState == Player.STATE_IDLE) {
-                    player.prepare()
+                when (player.playbackState) {
+                    Player.STATE_IDLE -> player.prepare()
+                    Player.STATE_ENDED -> player.seekTo(player.currentMediaItemIndex, 0)
+                    else -> {}
                 }
                 player.playWhenReady = true
             }

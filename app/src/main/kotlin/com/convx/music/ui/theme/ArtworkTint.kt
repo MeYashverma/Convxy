@@ -49,7 +49,7 @@ fun rememberArtworkTint(thumbnailUrl: String?): List<Color> {
     val context = LocalContext.current
     // Neutral dark fallback (NOT the red-derived primaryContainer) so artwork
     // that yields no palette color reads as a dark card, never red.
-    val fallbackColorInt = Color(0xFF1C1C1E).toArgb()
+    val fallbackColorInt = PlayerColorExtractor.NeutralFallbackColor.toArgb()
     // Seed from cache so a revisited image paints its tint immediately (no flash,
     // no re-extract).
     var extractedColors by remember(thumbnailUrl) {

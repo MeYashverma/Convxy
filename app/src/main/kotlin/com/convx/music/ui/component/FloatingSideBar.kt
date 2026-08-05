@@ -622,8 +622,7 @@ private fun SideTabRow(
         ) {
             Icon(
                 painter = painterResource(
-                    if (tab.selected) tab.screen.iconActive(appleMusicUi)
-                    else tab.screen.iconInactive(appleMusicUi)
+                    tab.screen.icon(appleMusicUi)
                 ),
                 contentDescription = stringResource(tab.screen.titleId),
                 tint = contentColor,

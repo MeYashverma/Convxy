@@ -389,11 +389,14 @@ fun OnlineSearchResult(
                                 }
                             }
                         } else {
+                            // Was recomputed inside every row for the count argument,
+                            // i.e. a full distinctBy pass per row.
+                            val distinctItems = itemsPage?.items.orEmpty().distinctBy { it.id }
                             itemsIndexed(
-                                items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                                items = distinctItems,
                                 key = { _, it -> "filtered_${it.id}" },
                             ) { index, item ->
-                                ytItemContent(item, index, itemsPage?.items.orEmpty().distinctBy { it.id }.size)
+                                ytItemContent(item, index, distinctItems.size)
                             }
 
                             if (itemsPage?.continuation != null) {

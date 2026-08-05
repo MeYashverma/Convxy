@@ -50,6 +50,7 @@ import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.GridItemSize
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
@@ -162,6 +163,12 @@ fun ArtistItemsScreen(
             // themselves: they promote items to their own RenderNodes for
             // recycling, which a capture attached directly doesn't flatten.
             Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
+                // Was recomputed once for `items =` and then AGAIN inside every item's
+                // listItemShape(...) call — a full distinctBy pass per row, i.e. O(n²)
+                // plus a list allocation each time, on every frame of a scroll.
+                val distinctItems = remember(itemsPage) {
+                    itemsPage?.items.orEmpty().distinctBy { it.id }
+                }
                 if (itemsPage == null) {
                     ShimmerHost(
                         modifier = Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current),
@@ -181,7 +188,7 @@ fun ArtistItemsScreen(
                         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                     ) {
                         itemsIndexed(
-                            items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                            items = distinctItems,
                             key = { _, it -> it.id },
                         ) { index, item ->
                             YouTubeListItem(
@@ -193,7 +200,7 @@ fun ArtistItemsScreen(
                                     else -> false
                                 },
                                 isPlaying = isPlaying,
-                                shape = listItemShape(index, itemsPage?.items.orEmpty().distinctBy { it.id }.size),
+                                shape = listItemShape(index, distinctItems.size),
                                 trailingContent = {
                                     IconButton(
                                         onClick = {
@@ -273,14 +280,14 @@ fun ArtistItemsScreen(
                 } else {
                     LazyVerticalGrid(
                         state = lazyGridState,
-                        columns = GridCells.Adaptive(minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp),
+                        columns = rememberGridColumns(),
                         // No bounce here: the top pull drives the hero zoom instead.
                         overscrollEffect = heroZoom.listOverscroll(),
                         modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::refresh),
                         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
                     ) {
                         items(
-                            items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                            items = distinctItems,
                             key = { it.id }
                         ) { item ->
                             YouTubeGridItem(

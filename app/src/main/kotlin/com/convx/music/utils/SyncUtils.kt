@@ -46,6 +46,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.time.LocalDateTime
@@ -104,6 +106,7 @@ class SyncUtils @Inject constructor(
 
     private val syncChannel = Channel<SyncOperation>(Channel.BUFFERED)
     private var processingJob: Job? = null
+    private val playlistUploadMutex = Mutex()
 
     private val _syncState = MutableStateFlow(SyncState())
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
@@ -300,6 +303,41 @@ class SyncUtils @Inject constructor(
     fun syncPlaylist(browseId: String, playlistId: String) {
         syncScope.launch {
             executeSyncPlaylist(browseId, playlistId)
+        }
+    }
+
+    /**
+     * Uploads a playlist to the user's YouTube account: creates the remote
+     * playlist when it has no [PlaylistEntity.browseId] yet (persisting the new
+     * id), then adds every [songId] to it. No-op for guests or when sync is
+     * disabled — the playlist stays local, matching pre-existing behavior.
+     */
+    suspend fun uploadPlaylistToYouTube(playlistId: String, songIds: List<String>) = playlistUploadMutex.withLock {
+        if (!isLoggedIn() || !context.isSyncEnabled()) {
+            Timber.w("Skipping playlist upload - user not logged in or sync disabled")
+            return@withLock
+        }
+
+        withContext(Dispatchers.IO) {
+            val freshPlaylist = database.playlist(playlistId).firstOrNull() ?: return@withContext
+
+            var browseId = freshPlaylist.playlist.browseId
+            if (browseId == null) {
+                browseId = withRetry { YouTube.createPlaylist(freshPlaylist.playlist.name) }
+                    .getOrElse { e ->
+                        Timber.e(e, "Failed to create playlist ${freshPlaylist.playlist.name} on YouTube")
+                        return@withContext
+                    }
+                database.update(freshPlaylist.playlist.copy(browseId = browseId))
+            }
+
+            songIds.forEach { songId ->
+                YouTube.addToPlaylist(browseId, songId)
+                    .onFailure { e ->
+                        Timber.e(e, "Failed to add $songId to playlist $browseId")
+                    }
+                delay(DB_OPERATION_DELAY_MS)
+            }
         }
     }
 

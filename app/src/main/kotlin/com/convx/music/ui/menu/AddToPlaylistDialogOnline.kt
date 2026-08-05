@@ -46,6 +46,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.music.innertube.YouTube
 import com.music.innertube.models.SongItem
 import com.convx.music.LocalDatabase
+import com.convx.music.LocalSyncUtils
 import com.convx.music.R
 import com.convx.music.constants.AddToPlaylistSortDescendingKey
 import com.convx.music.constants.AddToPlaylistSortTypeKey
@@ -84,6 +85,7 @@ fun AddToPlaylistDialogOnline(
     viewModel: PlaylistsViewModel = hiltViewModel()
 ) {
     val database = LocalDatabase.current
+    val syncUtils = LocalSyncUtils.current
     val coroutineScope = rememberCoroutineScope()
     val viewStateMap = remember { mutableStateMapOf<String, ItemsPage?>() }
     val (sortType, onSortTypeChange) = rememberEnumPreference(
@@ -272,6 +274,7 @@ fun AddToPlaylistDialogOnline(
                                                                     .e(e.toString())
                                                             }
                                                             database.addSongToPlaylist(playlist, ids)
+                                                            syncUtils.uploadPlaylistToYouTube(playlist.id, ids)
                                                         }
                                                     }
                                                     viewStateMap.clear()

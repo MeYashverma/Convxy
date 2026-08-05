@@ -17,6 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import com.convx.music.LocalDatabase
+import com.convx.music.LocalSyncUtils
 import com.convx.music.R
 import com.convx.music.db.entities.PlaylistEntity
 import com.convx.music.ui.component.TextFieldDialog
@@ -32,6 +33,7 @@ fun ImportPlaylistDialog(
     onDismiss: () -> Unit,
 ) {
     val database = LocalDatabase.current
+    val syncUtils = LocalSyncUtils.current
     val coroutineScope = rememberCoroutineScope()
 
     val textFieldValue by remember { mutableStateOf(TextFieldValue(text = playlistTitle)) }
@@ -58,6 +60,7 @@ fun ImportPlaylistDialog(
                     if (playlist != null) {
                         songIds = onGetSong()
                         database.addSongToPlaylist(playlist, songIds!!)
+                        syncUtils.uploadPlaylistToYouTube(playlist.id, songIds!!)
                     }
 
                     onDismiss()

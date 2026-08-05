@@ -150,7 +150,10 @@ class App : Application(), SingletonImageLoader.Factory {
                 .map { it[VisitorDataKey] }
                 .distinctUntilChanged()
                 .collect { visitorData ->
-                    YouTube.visitorData = visitorData?.takeIf { it != "null" }
+                    // A blank value is not "no account", it is a broken one: it still
+                    // gets sent as an empty X-Goog-Visitor-Id and YouTube rejects every
+                    // request. Treat it as absent so a fresh one is fetched and stored.
+                    YouTube.visitorData = visitorData?.takeIf { it.isNotBlank() && it != "null" }
                         ?: YouTube.visitorData().getOrNull()?.also { newVisitorData ->
                             dataStore.edit { settings ->
                                 settings[VisitorDataKey] = newVisitorData
@@ -164,7 +167,7 @@ class App : Application(), SingletonImageLoader.Factory {
                 .map { it[DataSyncIdKey] }
                 .distinctUntilChanged()
                 .collect { dataSyncId ->
-                    YouTube.dataSyncId = dataSyncId?.let {
+                    YouTube.dataSyncId = dataSyncId?.takeIf { it.isNotBlank() && it != "null" }?.let {
                         it.takeIf { !it.contains("||") }
                             ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")
                             ?: it.substringAfter("||")
@@ -178,7 +181,7 @@ class App : Application(), SingletonImageLoader.Factory {
                 .distinctUntilChanged()
                 .collect { cookie ->
                     try {
-                        YouTube.cookie = cookie
+                        YouTube.cookie = cookie?.takeIf { it.isNotBlank() && it != "null" }
                     } catch (e: Exception) {
                         Timber.e(e, "Could not parse cookie. Clearing existing cookie.")
                         forgetAccount(this@App)
@@ -239,12 +242,13 @@ class App : Application(), SingletonImageLoader.Factory {
         }
         return ImageLoader.Builder(this).apply {
             crossfade(false)
-            bitmapConfig(Bitmap.Config.RGB_565)
-            allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+            // Use HARDWARE bitmap configuration for direct zero-copy GPU texture uploads
+            allowHardware(true)
+            bitmapConfig(Bitmap.Config.HARDWARE)
             // Memory cache for fast image loading (prevents network requests on recomposition)
             memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.25)
+                    .maxSizePercent(context, 0.35)
                     .build()
             }
             if (cacheSize == 0) {

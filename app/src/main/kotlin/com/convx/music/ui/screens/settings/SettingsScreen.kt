@@ -62,144 +62,159 @@ fun SettingsScreen(
     val isUpdateAvailable = getUpdateAvailableState(context) &&
         com.convx.music.vivimusic.updater.getAutoUpdateCheckSetting(context)
 
-    Column(
+    androidx.compose.foundation.lazy.LazyColumn(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal))
-            .verticalScroll(rememberScrollState())
     ) {
-        Spacer(
-            Modifier.windowInsetsPadding(
-                LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)
+        item(key = "top_spacer") {
+            Spacer(
+                Modifier.windowInsetsPadding(
+                    LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)
+                )
             )
-        )
+        }
 
         // Large title (iOS style)
-        Text(
-            text = stringResource(R.string.settings),
-            style = MaterialTheme.typography.displaySmall.copy(
-                fontWeight = FontWeight.SemiBold
-            ),
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 20.dp, top = 24.dp, bottom = 8.dp)
-        )
+        item(key = "title") {
+            Text(
+                text = stringResource(R.string.settings),
+                style = MaterialTheme.typography.displaySmall.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(start = 20.dp, top = 24.dp, bottom = 8.dp)
+            )
+        }
 
         // Section: General
-        SettingsSectionHeader("GENERAL")
-        SettingsSection {
-            SettingsNavItem(
-                icon = painterResource(if (isUpdateAvailable) R.drawable.vivimusicnotification else R.drawable.network_update),
-                iconTint = if (isUpdateAvailable) MaterialTheme.colorScheme.error else Color(0xFF007AFF),
-                title = stringResource(R.string.system_update),
-                badge = if (isUpdateAvailable) stringResource(R.string.update_available) else null,
-                onClick = { navController.navigate("settings/update") },
-            )
-            SettingsDivider()
-            SettingsNavItem(
-                icon = painterResource(R.drawable.palette),
-                iconTint = Color(0xFFAF52DE),
-                title = stringResource(R.string.appearance),
-                onClick = { navController.navigate("settings/appearance") },
-            )
-            SettingsDivider()
-            SettingsNavItem(
-                icon = painterResource(R.drawable.play),
-                iconTint = Color(0xFFFF375F),
-                title = stringResource(R.string.player_and_audio),
-                onClick = { navController.navigate("settings/player") },
-            )
+        item(key = "general_header") { SettingsSectionHeader("GENERAL") }
+        item(key = "general_section") {
+            SettingsSection {
+                SettingsNavItem(
+                    icon = painterResource(if (isUpdateAvailable) R.drawable.vivimusicnotification else R.drawable.network_update),
+                    iconTint = if (isUpdateAvailable) MaterialTheme.colorScheme.error else Color(0xFF007AFF),
+                    title = stringResource(R.string.system_update),
+                    badge = if (isUpdateAvailable) stringResource(R.string.update_available) else null,
+                    onClick = { navController.navigate("settings/update") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.palette),
+                    iconTint = Color(0xFFAF52DE),
+                    title = stringResource(R.string.appearance),
+                    onClick = { navController.navigate("settings/appearance") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.play),
+                    iconTint = Color(0xFFFF375F),
+                    title = stringResource(R.string.player_and_audio),
+                    onClick = { navController.navigate("settings/player") },
+                )
+            }
         }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "spacer_1") { Spacer(Modifier.height(24.dp)) }
 
         // Section: Account
-        SettingsSectionHeader("ACCOUNT")
-        SettingsSection {
-            SettingsNavItem(
-                icon = painterResource(R.drawable.account),
-                iconTint = Color(0xFF34C759),
-                title = stringResource(R.string.account),
-                onClick = { navController.navigate("settings/account") },
-            )
-            SettingsDivider()
-            SettingsNavItem(
-                icon = painterResource(R.drawable.group),
-                iconTint = Color(0xFF5856D6),
-                title = stringResource(R.string.listen_together),
-                onClick = { navController.navigate(Screens.ListenTogether.route) },
-            )
+        item(key = "account_header") { SettingsSectionHeader("ACCOUNT") }
+        item(key = "account_section") {
+            SettingsSection {
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.account),
+                    iconTint = Color(0xFF34C759),
+                    title = stringResource(R.string.account),
+                    onClick = { navController.navigate("settings/account") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.group),
+                    iconTint = Color(0xFF5856D6),
+                    title = stringResource(R.string.listen_together),
+                    onClick = { navController.navigate(Screens.ListenTogether.route) },
+                )
+            }
         }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "spacer_2") { Spacer(Modifier.height(24.dp)) }
 
         // Section: Content
-        SettingsSectionHeader("CONTENT")
-        SettingsSection {
-            SettingsNavItem(
-                icon = painterResource(R.drawable.language),
-                iconTint = Color(0xFF007AFF),
-                title = stringResource(R.string.content),
-                onClick = { navController.navigate("settings/content") },
-            )
-            SettingsDivider()
-            SettingsNavItem(
-                icon = painterResource(R.drawable.link),
-                iconTint = Color(0xFF5856D6),
-                title = stringResource(R.string.modules),
-                onClick = { navController.navigate("settings/modules") },
-            )
-            SettingsDivider()
-            SettingsNavItem(
-                icon = painterResource(R.drawable.translate),
-                iconTint = Color(0xFFFF9500),
-                title = stringResource(R.string.ai_lyrics_translation),
-                onClick = { navController.navigate("settings/ai") },
-            )
+        item(key = "content_header") { SettingsSectionHeader("CONTENT") }
+        item(key = "content_section") {
+            SettingsSection {
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.language),
+                    iconTint = Color(0xFF007AFF),
+                    title = stringResource(R.string.content),
+                    onClick = { navController.navigate("settings/content") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.link),
+                    iconTint = Color(0xFF5856D6),
+                    title = stringResource(R.string.modules),
+                    onClick = { navController.navigate("settings/modules") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.translate),
+                    iconTint = Color(0xFFFF9500),
+                    title = stringResource(R.string.ai_lyrics_translation),
+                    onClick = { navController.navigate("settings/ai") },
+                )
+            }
         }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "spacer_3") { Spacer(Modifier.height(24.dp)) }
 
         // Section: Data & Privacy
-        SettingsSectionHeader("DATA & PRIVACY")
-        SettingsSection {
-            SettingsNavItem(
-                icon = painterResource(R.drawable.security),
-                iconTint = Color(0xFF007AFF),
-                title = stringResource(R.string.privacy),
-                onClick = { navController.navigate("settings/privacy") },
-            )
-            SettingsDivider()
-            SettingsNavItem(
-                icon = painterResource(R.drawable.storage),
-                iconTint = Color(0xFF8E8E93),
-                title = stringResource(R.string.storage),
-                onClick = { navController.navigate("settings/storage") },
-            )
-            SettingsDivider()
-            SettingsNavItem(
-                icon = painterResource(R.drawable.restore),
-                iconTint = Color(0xFF34C759),
-                title = stringResource(R.string.backup_restore),
-                onClick = { navController.navigate("settings/backup_restore") },
-            )
+        item(key = "privacy_header") { SettingsSectionHeader("DATA & PRIVACY") }
+        item(key = "privacy_section") {
+            SettingsSection {
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.security),
+                    iconTint = Color(0xFF007AFF),
+                    title = stringResource(R.string.privacy),
+                    onClick = { navController.navigate("settings/privacy") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.storage),
+                    iconTint = Color(0xFF8E8E93),
+                    title = stringResource(R.string.storage),
+                    onClick = { navController.navigate("settings/storage") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.restore),
+                    iconTint = Color(0xFF34C759),
+                    title = stringResource(R.string.backup_restore),
+                    onClick = { navController.navigate("settings/backup_restore") },
+                )
+            }
         }
 
-        Spacer(Modifier.height(24.dp))
+        item(key = "spacer_4") { Spacer(Modifier.height(24.dp)) }
 
         // Section: About
-        SettingsSection {
-            SettingsNavItem(
-                icon = painterResource(R.drawable.info),
-                iconTint = Color(0xFF007AFF),
-                title = stringResource(R.string.about),
-                onClick = { navController.navigate("settings/about") },
-            )
+        item(key = "about_section") {
+            SettingsSection {
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.info),
+                    iconTint = Color(0xFF007AFF),
+                    title = stringResource(R.string.about),
+                    onClick = { navController.navigate("settings/about") },
+                )
+            }
         }
 
-        Spacer(
-            Modifier
-                .height(50.dp)
-                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom))
-        )
+        item(key = "bottom_spacer") {
+            Spacer(
+                Modifier
+                    .height(50.dp)
+                    .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom))
+            )
+        }
     }
 
     TopAppBar(

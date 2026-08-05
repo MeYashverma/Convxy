@@ -112,6 +112,7 @@ import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.InnerTubeCookieKey
 import com.convx.music.constants.ListItemHeight
+import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.RandomizeHomeOrderKey
 import com.convx.music.constants.SmallGridThumbnailHeight
@@ -228,14 +229,14 @@ fun CommunityPlaylistCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(AppleTokens.Gutter),
+                horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap)
             ) {
                 // 2x2 Grid of thumbnails
                 Box(
                     modifier = Modifier
                         .size(100.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(ThumbnailRoundedShape)
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Row(modifier = Modifier.weight(1f)) {
@@ -301,7 +302,7 @@ fun CommunityPlaylistCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = AppleTokens.Gutter)
             ) {
                 item.songs.take(3).forEachIndexed { idx, song ->
                     if (idx > 0) {
@@ -322,7 +323,7 @@ fun CommunityPlaylistCard(
                             contentDescription = null,
                             modifier = Modifier
                                 .size(56.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(ThumbnailRoundedShape),
                             contentScale = ContentScale.Crop
                         )
                         Column(modifier = Modifier.weight(1f)) {
@@ -348,7 +349,7 @@ fun CommunityPlaylistCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(AppleTokens.Gutter),
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
             ) {
                 IconButton(
@@ -1000,13 +1001,17 @@ fun HomeScreen(
                                 contentPadding = WindowInsets.systemBars
                                     .only(WindowInsetsSides.Horizontal)
                                     .asPaddingValues().plusStart(sideInset),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).bleedStart(sideInset)
+                                horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap / 2),
+                                modifier = Modifier
+                                    .padding(horizontal = AppleTokens.Gutter, vertical = AppleTokens.ItemGap / 2)
+                                    .bleedStart(sideInset)
                             ) {
                                 items(5) {
+                                    // Matches an unselected chip: same height and
+                                    // corner, so nothing shifts when data lands.
                                     TextPlaceholder(
-                                        height = 30.dp,
-                                        shape = RoundedCornerShape(16.dp),
+                                        height = 32.dp,
+                                        shape = RoundedCornerShape(AppleTokens.Artwork),
                                         modifier = Modifier.width(72.dp)
                                     )
                                 }
@@ -1126,7 +1131,7 @@ fun HomeScreen(
                                                                     modifier = Modifier
                                                                         .width(itemWidth)
                                                                         .height(itemWidth)
-                                                                        .padding(4.dp)
+                                                                        .padding(AppleTokens.ItemGap / 2)
                                                                 ) {
                                                                     RandomizeGridItem(
                                                                         isLoading = isRandomizing,
@@ -1156,19 +1161,19 @@ fun HomeScreen(
                                                                 }
                                                             } else if (itemIndex < pageItems.size) {
                                                                 val item = pageItems[itemIndex]
-                                                                val isPinnedFlow = remember(item.id) { database.speedDialDao.isPinned(item.id) }
-                                                                val isPinned by isPinnedFlow.collectAsStateWithLifecycle(initialValue =false)
 
                                                                 Box(
                                                                     modifier = Modifier
                                                                         .width(itemWidth)
                                                                         .height(itemWidth)
-                                                                        .padding(4.dp)
+                                                                        .padding(AppleTokens.ItemGap / 2)
                                                                 ) {
                                                                     SpeedDialGridItem(
                                                                         item = item,
-                                                                        isPinned = isPinned,
-                                                                        isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
+                                                                        isPinned = false,
+                                                                        isActive = remember(item.id, mediaMetadata?.album?.id, mediaMetadata?.id) {
+                                                                            item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id)
+                                                                        },
                                                                         isPlaying = isPlaying,
                                                                         modifier = Modifier
                                                                             .fillMaxSize()
@@ -1459,8 +1464,11 @@ fun HomeScreen(
                                     LazyHorizontalGrid(
                                         state = rememberLazyGridState(),
                                         rows = GridCells.Fixed(rows),
-                                        contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
-                                            .asPaddingValues().plusStart(sideInset),
+                                        // GridItem pads itself by half the gap;
+                                        // this supplies the other half so the
+                                        // first tile lines up on the gutter.
+                                        contentPadding = PaddingValues(horizontal = AppleTokens.ItemGap / 2)
+                                            .plusStart(sideInset),
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height((currentGridHeight + with(LocalDensity.current) {
@@ -1819,7 +1827,13 @@ fun HomeScreen(
                             }
                         }
                         HomeSection.MoodAndGenres -> {
-                            explorePage?.moodAndGenres?.let { moodAndGenres ->
+                            // Deduplicated by title: YouTube can return the same
+                            // genre twice (seen with "Desi Hip-Hop"), and the grid
+                            // below keys on title — a repeat crashed Home outright
+                            // with IllegalArgumentException from the lazy list.
+                            // Rendering it twice would be wrong regardless, so this
+                            // fixes the display and the crash in one place.
+                            explorePage?.moodAndGenres?.distinctBy { it.title }?.let { moodAndGenres ->
                                 item(key = "mood_and_genres_title") {
                                     NavigationTitle(
                                         title = stringResource(R.string.mood_and_genres),
@@ -1832,9 +1846,9 @@ fun HomeScreen(
                                 item(key = "mood_and_genres_list") {
                                     LazyHorizontalGrid(
                                         rows = GridCells.Fixed(4),
-                                        contentPadding = PaddingValues(6.dp).plusStart(sideInset),
+                                        contentPadding = PaddingValues(AppleTokens.ItemGap / 2).plusStart(sideInset),
                                         modifier = Modifier
-                                            .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp)
+                                            .height((MoodAndGenresButtonHeight + AppleTokens.ItemGap) * 4 + AppleTokens.ItemGap)
                                             .animateItem().bleedStart(sideInset)
                                     ) {
                                         items(items = moodAndGenres, key = { it.title }) {
@@ -1844,7 +1858,7 @@ fun HomeScreen(
                                                     navController.navigate("youtube_browse/${it.endpoint.browseId}?params=${it.endpoint.params}")
                                                 },
                                                 modifier = Modifier
-                                                    .padding(6.dp)
+                                                    .padding(AppleTokens.ItemGap / 2)
                                                     .width(180.dp)
                                             )
                                         }
@@ -1865,14 +1879,13 @@ fun HomeScreen(
                                 TextPlaceholder(
                                     height = 36.dp,
                                     modifier = Modifier
-                                        .padding(12.dp)
+                                        .padding(AppleTokens.Gutter)
                                         .width(250.dp),
                                 )
                                 LazyRow(
                                     modifier = Modifier.bleedStart(sideInset),
-                                    contentPadding = WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues().plusStart(sideInset),
+                                    contentPadding = PaddingValues(horizontal = AppleTokens.ItemGap / 2)
+                                        .plusStart(sideInset),
                                 ) {
                                     items(4) {
                                         GridItemPlaceHolder()
@@ -1883,7 +1896,7 @@ fun HomeScreen(
                             TextPlaceholder(
                                 height = 36.dp,
                                 modifier = Modifier
-                                    .padding(vertical = 12.dp, horizontal = 12.dp)
+                                    .padding(AppleTokens.Gutter)
                                     .width(250.dp),
                             )
                             repeat(4) {
@@ -1891,9 +1904,9 @@ fun HomeScreen(
                                     repeat(2) {
                                         TextPlaceholder(
                                             height = MoodAndGenresButtonHeight,
-                                            shape = RoundedCornerShape(6.dp),
+                                            shape = RoundedCornerShape(AppleTokens.Control),
                                             modifier = Modifier
-                                                .padding(horizontal = 12.dp)
+                                                .padding(AppleTokens.ItemGap / 2)
                                                 .width(200.dp)
                                         )
                                     }

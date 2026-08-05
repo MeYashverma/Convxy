@@ -508,12 +508,13 @@ fun AppearanceSettings(
         )
     }
 
-    Column(
+    androidx.compose.foundation.lazy.LazyColumn(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
+        item(key = "all_appearance_settings") {
+            Column {
         Material3SettingsGroup(
             title = stringResource(R.string.theme_colors),
             items = listOf(
@@ -1282,6 +1283,8 @@ fun AppearanceSettings(
             )
         )
         Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
     }
 
     TopAppBar(

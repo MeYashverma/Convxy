@@ -127,69 +127,6 @@ import kotlin.math.abs
 import kotlin.math.sign
 
 
-/**
- * A floating tab bar that can transition between inline and expanded states.
- *
- * @param isInline controls the FloatingTabBar's inline state
- * @param selectedTabKey the key of the currently selected tab
- * @param modifier the modifier to be applied to the tab bar
- * @param colors the colors used by the tab bar components
- * @param shapes the shapes used by the tab bar components
- * @param sizes the sizes and spacing used by the tab bar components
- * @param elevations the elevation values used by the tab bar components
- * @param tabBarContentModifier modifier applied to the tab bar sections containing the grouped tabs and standalone tab.
- * It is applied after the default styling (background, shadow, clip) but before any content padding.
- * @param inlineAccessory the accessory composable that appears in inline state (e.g., compact media player)
- * @param expandedAccessory the accessory composable that appears in expanded state (e.g., full media player)
- * @param contentKey optional key that when changed retriggers the content lambda
- * @param content the content defining the tabs
- */
-@Composable
-fun FloatingTabBar(
-    isInline: Boolean,
-    selectedTabKey: Any?,
-    modifier: Modifier = Modifier,
-    tabBarContentModifier: Modifier = Modifier,
-    inlineAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
-    expandedAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
-    colors: FloatingTabBarColors = FloatingTabBarDefaults.colors(),
-    shapes: FloatingTabBarShapes = FloatingTabBarDefaults.shapes(),
-    sizes: FloatingTabBarSizes = FloatingTabBarDefaults.sizes(),
-    elevations: FloatingTabBarElevations = FloatingTabBarDefaults.elevations(),
-    contentKey: Any? = null,
-    // Vendored addition: when non-null, the expanded selection puck samples this
-    // backdrop for lens refraction and an accent-tinted glass preview of the
-    // selected tab's icon. Null falls back to a flat colored puck.
-    backdrop: Backdrop? = null,
-    accentColor: Color? = null,
-    content: FloatingTabBarScope.() -> Unit
-) {
-    val scrollConnection = rememberFloatingTabBarScrollConnection(
-        initialIsInline = isInline,
-        inlineBehavior = FloatingTabBarInlineBehavior.Never
-    )
-
-    LaunchedEffect(isInline) {
-        if (isInline) scrollConnection.inline() else scrollConnection.expand()
-    }
-
-    FloatingTabBar(
-        selectedTabKey = selectedTabKey,
-        scrollConnection = scrollConnection,
-        modifier = modifier,
-        tabBarContentModifier = tabBarContentModifier,
-        inlineAccessory = inlineAccessory,
-        expandedAccessory = expandedAccessory,
-        colors = colors,
-        shapes = shapes,
-        sizes = sizes,
-        elevations = elevations,
-        contentKey = contentKey,
-        backdrop = backdrop,
-        accentColor = accentColor,
-        content = content
-    )
-}
 
 // Tuning for the gooey merge/split pulse across the inline<->expanded
 // crossfade — see GooeyTransition.kt. Not derived from fadeIn()/fadeOut()'s
@@ -229,7 +166,6 @@ private val SearchBarRowHeight = 48.dp
  * It is applied after the default styling (background, shadow, clip) but before any content padding.
  * @param inlineAccessory the accessory composable that appears in inline state (e.g., compact media player)
  * @param expandedAccessory the accessory composable that appears in expanded state (e.g., full media player)
- * @param contentKey optional key that when changed retriggers the content lambda
  * @param content the content defining the tabs
  */
 @Composable
@@ -244,7 +180,6 @@ fun FloatingTabBar(
     shapes: FloatingTabBarShapes = FloatingTabBarDefaults.shapes(),
     sizes: FloatingTabBarSizes = FloatingTabBarDefaults.sizes(),
     elevations: FloatingTabBarElevations = FloatingTabBarDefaults.elevations(),
-    contentKey: Any? = null,
     // Vendored addition: when non-null, the expanded selection puck samples this
     // backdrop for lens refraction and an accent-tinted glass preview of the
     // selected tab's icon. Null falls back to a flat colored puck.
@@ -266,7 +201,14 @@ fun FloatingTabBar(
     onExpandedWidthChanged: ((Int) -> Unit)? = null,
     content: FloatingTabBarScope.() -> Unit
 ) {
-    val scope = remember(contentKey) { FloatingTabBarScopeImpl().apply { content() } }
+    // Rebuilt every composition, deliberately not remembered. The tabs hold
+    // @Composable lambdas that close over selection state and colours; caching
+    // them behind a key meant every value they captured had to be listed in that
+    // key by hand, and anything forgotten showed up as a stale icon or colour on
+    // one navigation path only. Re-running the builder is a handful of
+    // allocations for a few tabs, and it makes that whole class of bug
+    // unrepresentable.
+    val scope = FloatingTabBarScopeImpl().apply { content() }
 
     val isAccessoryShared = inlineAccessory != null && expandedAccessory != null
 
@@ -312,7 +254,8 @@ fun FloatingTabBar(
             { transition.currentState != transition.targetState }
         }
         CompositionLocalProvider(LocalTabBarBackdropFrozen provides frozenWhileAnimating) {
-        Box(Modifier.gooey { gooeyBlurPx * gooeyProgress }) {
+        val gooeyModifier = if (gooeyProgress > 0.01f) Modifier.gooey { gooeyBlurPx * gooeyProgress } else Modifier
+        Box(gooeyModifier) {
             transition.AnimatedContent(
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 contentAlignment = Alignment.BottomCenter
@@ -383,12 +326,15 @@ internal val LocalTabBarBackdropFrozen = staticCompositionLocalOf<() -> Boolean>
  * A [NestedScrollConnection] that handles scroll events to transition between inline and expanded states.
  *
  * @param initialIsInline Initial state of the tab bar (inline or expanded).
- * @param scrollThresholdPx The minimum scroll distance in pixels required to trigger a state change.
+ * @param scrollThresholdPx The minimum scroll distance in pixels required to collapse to inline.
+ * @param expandThresholdPx The minimum scroll distance in pixels required to expand back. Kept
+ * well below [scrollThresholdPx] so the bar returns as soon as the user scrolls up.
  * @param inlineBehavior Defines when the tab bar should transition to inline state.
  */
 class FloatingTabBarScrollConnection(
     initialIsInline: Boolean = false,
     private val scrollThresholdPx: Float,
+    private val expandThresholdPx: Float = scrollThresholdPx,
     private val inlineBehavior: FloatingTabBarInlineBehavior = FloatingTabBarInlineBehavior.OnScrollDown
 ) : NestedScrollConnection {
     var isInline by mutableStateOf(initialIsInline)
@@ -424,12 +370,18 @@ class FloatingTabBarScrollConnection(
 
         when (inlineBehavior) {
             FloatingTabBarInlineBehavior.OnScrollDown -> {
-                // Check if we've scrolled enough to trigger state change
+                // Asymmetric on purpose. Collapsing wants hysteresis so a jittery
+                // downward scroll can't flicker the bar, and the distance is free
+                // there — the user is already moving away. Expanding is the
+                // opposite: the bar is what they are reaching for, so making them
+                // drag the same distance back reads as the bar being slow to
+                // return. Coming back is near-immediate, with just enough travel
+                // required that a shaky finger mid-scroll can't oscillate it.
                 if (accumulatedScroll <= -scrollThresholdPx && !isInline) {
                     // Scrolling down enough - transition to inline mode
                     isInline = true
                     accumulatedScroll = 0f // Reset after state change
-                } else if (accumulatedScroll >= scrollThresholdPx && isInline) {
+                } else if (accumulatedScroll >= expandThresholdPx && isInline) {
                     // Scrolling up enough - transition to expanded mode
                     isInline = false
                     accumulatedScroll = 0f // Reset after state change
@@ -462,7 +414,10 @@ class FloatingTabBarScrollConnection(
  * Creates and remembers a [FloatingTabBarScrollConnection] instance.
  *
  * @param initialIsInline Initial state of the tab bar (inline or expanded). Default is false.
- * @param scrollThreshold The minimum scroll distance required to trigger a state change. Default is 50.dp.
+ * @param scrollThreshold The scroll distance required to collapse to inline. Default is 50.dp.
+ * @param expandThreshold The scroll distance required to expand back. Default is 8.dp — small
+ * enough that the bar returns immediately on scroll up, large enough that a shaky finger
+ * mid-scroll cannot oscillate it.
  * @param inlineBehavior Defines when the tab bar should transition to inline state. Default is [FloatingTabBarInlineBehavior.OnScrollDown].
  * @return A remembered [FloatingTabBarScrollConnection] instance.
  */
@@ -470,11 +425,18 @@ class FloatingTabBarScrollConnection(
 fun rememberFloatingTabBarScrollConnection(
     initialIsInline: Boolean = false,
     scrollThreshold: Dp = 50.dp,
+    expandThreshold: Dp = 8.dp,
     inlineBehavior: FloatingTabBarInlineBehavior = FloatingTabBarInlineBehavior.OnScrollDown
 ): FloatingTabBarScrollConnection = with(LocalDensity.current) {
     val scrollThresholdPx = scrollThreshold.toPx()
-    remember(scrollThresholdPx, inlineBehavior, initialIsInline) {
-        FloatingTabBarScrollConnection(initialIsInline, scrollThresholdPx, inlineBehavior)
+    val expandThresholdPx = expandThreshold.toPx()
+    remember(scrollThresholdPx, expandThresholdPx, inlineBehavior, initialIsInline) {
+        FloatingTabBarScrollConnection(
+            initialIsInline,
+            scrollThresholdPx,
+            expandThresholdPx,
+            inlineBehavior,
+        )
     }
 }
 
@@ -625,7 +587,11 @@ private fun SharedTransitionScope.InlineBar(
                 modifier = Modifier
                     .defaultMinSize(minHeight = 48.dp)
                     .fillMaxHeight()
-                    .aspectRatio(1f)
+                    // Height-first: aspectRatio resolves from maxWidth by default,
+                    // so on a narrow bar the leftover width — not the row height —
+                    // decided the circle's diameter and it came out smaller than the
+                    // bar beside it.
+                    .aspectRatio(1f, matchHeightConstraintsFirst = true)
             )
         }
     }
@@ -870,8 +836,17 @@ private fun SharedTransitionScope.ExpandedBar(
                     animatedVisibilityScope = animatedVisibilityScope,
                     tabBarContentModifier = tabBarContentModifier,
                     modifier = Modifier
+                        // Same floor the inline row already needed: IntrinsicSize.Max
+                        // can under-report the tab group's real height, and without a
+                        // floor this circle shrinks to that under-reported value while
+                        // the tab pill measures its true (taller) content — which is
+                        // the search pill looking smaller than the nav bar.
+                        .defaultMinSize(minHeight = 48.dp)
                         .fillMaxHeight()
-                        .aspectRatio(1f)
+                        // Height-first, as in the inline row: the default resolves the
+                        // square from maxWidth, so leftover row width could decide the
+                        // diameter instead of the bar height.
+                        .aspectRatio(1f, matchHeightConstraintsFirst = true)
                 )
             }
         }
@@ -1169,12 +1144,28 @@ private fun SharedTransitionScope.ExpandedTabs(
             }
         )
     }
+    // False until this bar has run its selection sync once. Expanding back from
+    // inline builds a brand new ExpandedBar (it is its own AnimatedContent
+    // branch), so everything here re-remembers and this effect fires on first
+    // composition — with the puck ALREADY on the right tab, because
+    // dampedDragAnimation starts at currentIndex. animateToValue would then
+    // press-grow and release the puck without moving it anywhere, launched into a
+    // coroutine under mutatorMutex so it lands a frame or two into the crossfade:
+    // the indicator appears to pop in late and twitch. On that first pass the
+    // position is already correct, so there is nothing to animate.
+    var hasSyncedSelection by remember(tabsCount) { mutableStateOf(false) }
     // Keeps the puck synced when selection changes from a tap (or external
     // navigation) rather than a drag on this bar.
     LaunchedEffect(selectedTabKey, tabsCount) {
         val index = allTabs.indexOfFirst { it.key == selectedTabKey }
         if (index != -1) {
             currentIndex = index
+            if (!hasSyncedSelection) {
+                hasSyncedSelection = true
+                // Pin without the press animation; already in the right place.
+                dampedDragAnimation.updateValue(index.toFloat())
+                return@LaunchedEffect
+            }
             // Re-pin on EVERY selection change, not only when currentIndex differs:
             // the puck's animated value can drift out from under a matching currentIndex
             // (a cancelled drag, an interrupted settle) and strand the indicator on the

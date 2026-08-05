@@ -16,8 +16,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import com.convx.music.ui.component.backdrop.BackdropEffectScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -93,6 +97,15 @@ data class GlassEffectConfig(
             GlassComponent.NAV_BAR -> navBarEnabled
             GlassComponent.SIDE_PANEL -> sidePanelEnabled
         }
+
+    /**
+     * True when at least one surface would render glass. Used to decide whether
+     * capturing the app backdrop is worth anything at all — with every component
+     * off, nothing samples it and recording it is pure cost.
+     */
+    val anyComponentEnabled: Boolean
+        get() = globalEnabled &&
+            (playerEnabled || miniPlayerEnabled || navBarEnabled || sidePanelEnabled)
 }
 
 /** UI surfaces that can individually opt in or out of the liquid glass effect. */
@@ -117,8 +130,22 @@ internal const val LENS_MAX_DP = 48f
  */
 internal const val PLAYER_BLUR_MULTIPLIER = 4f
 
-/** Lowest resolution fraction glass surfaces are rendered at (heavy blur hides it). */
-internal const val MIN_GLASS_RESOLUTION_SCALE = 0.33f
+/**
+ * Lowest resolution fraction glass surfaces are rendered at (heavy blur hides it).
+ *
+ * Measured empirically: flattening this across all surfaces and pushing it to
+ * 0.05 was tried and reverted. Two findings worth not re-deriving. First, the
+ * scale is only safe in proportion to the blur — pixel-sized effect params are
+ * pre-multiplied by it, so at 0.05 the default 2dp blur collapsed to ~0.3px on a
+ * 3x screen and the 20x upscale had nothing smoothing it, which reads as
+ * pixelation, not frost. Second, applying it at zero blur softens surfaces whose
+ * whole look is clear content, for no gain: the surfaces where compression
+ * actually pays (the full screen player, 12x the nav bar's area at 4x the blur)
+ * already reach this floor through the ramp.
+ *
+ * Keep the ramp in [glassResolutionScale] rather than a flat value.
+ */
+internal const val MIN_GLASS_RESOLUTION_SCALE = 0.30f
 
 /** Blur radius (dp) at or above which the minimum resolution scale is safe to use. */
 internal const val FULL_QUALITY_BLUR_DP = 8f
@@ -165,6 +192,32 @@ fun isGlassAllowed(): Boolean = isGlassSupported() && !isLowRamDevice()
  * colors untouched and 2 doubles the saturation.
  */
 fun glassSaturation(vibrancy: Float): Float = 1f + 0.5f * vibrancy.coerceIn(0f, 2f)
+
+/**
+ * A content colour guaranteed to read against the glass it sits on.
+ *
+ * Picking purely from the app theme is not enough: what a glass pill actually
+ * shows is the content behind it, tinted by [tint] at [opacity]. A dark tint at
+ * high opacity is dark even in light mode, and a light tint is light even in
+ * dark mode — so theme-derived text goes invisible at exactly the settings a
+ * user is most likely to reach for. This composites the same two layers the
+ * surface draws and picks from the result.
+ *
+ * @param behind the colour behind the glass — the theme surface, or the screen's
+ * artwork tint where one is known.
+ * @param tint the glass surface tint; [Color.Unspecified] means untinted.
+ * @param opacity how strongly [tint] covers [behind], matching surfaceOpacity.
+ */
+fun glassContentColorFor(behind: Color, tint: Color, opacity: Float): Color {
+    val effective = if (tint.isSpecified) {
+        lerp(behind, tint, opacity.coerceIn(0f, 1f))
+    } else {
+        behind
+    }
+    // Same targets the rest of the app uses for on-surface text, so glass chrome
+    // matches ordinary content rather than being its own special case.
+    return if (effective.luminance() > 0.5f) Color(0xFF1A1A1A) else Color.White
+}
 
 /**
  * Apple's floating pills have a thin, subtle specular line along the top edge — a
@@ -269,20 +322,48 @@ fun Modifier.liquidGlass(
 
     // ponytail: frozen mid-sweep. The drift described at [HighlightAngleMin] was a
     // rememberInfiniteTransition, and because glass surfaces (the nav bar above all)
-    // are on screen permanently, it re-emitted every frame forever. Each emission
-    // invalidated the backdrop draw, and LayerBackdropModifier re-records the whole
-    // screen unconditionally per draw — so a 0.8dp rim highlight cost a measured
+    // are on screen permanently, it re-emitted every frame forever — a measured
     // ~45fps of full-screen capture plus three blur passes and ~400mA, at idle,
     // with nothing on screen moving. Slowing the tween does NOT help: an infinite
     // transition emits per frame regardless of duration.
-    // Upgrade path: gate LayerBackdropModifier's recordLayer() on the source content
-    // actually changing, then restore the transition — the drift becomes ~free.
+    //
+    // The original note here blamed LayerBackdropModifier recording the screen
+    // unconditionally, and proposed gating that. That was a misdiagnosis. The
+    // consumer side was already gated (DrawBackdropNode re-records only on a
+    // backdrop version/offset/size change). The real path was surfaceDirty: the
+    // angle was read during COMPOSITION, so every frame rebuilt this function's
+    // lambdas, made the drawBackdrop element unequal, and update() set
+    // surfaceDirty unconditionally — forcing a full re-capture. Both halves of
+    // that are now fixed (the lambdas below are remembered; update() only dirties
+    // the capture when capture params change).
+    //
+    // Remaining upgrade path, now much smaller: hold the angle as a State and read
+    // it INSIDE the highlight lambda, which HighlightNode already supports (its
+    // highlight param is a lambda and it sets shouldAutoInvalidate = false). The
+    // animation then invalidates only that node's draw — no recomposition, no
+    // element churn, no re-capture. Worth measuring before/after rather than
+    // assuming, since the numbers above were measured and these are not.
     val animatedHighlightAngle = HighlightAngleFrozen
 
-    return drawBackdrop(
-        backdrop = backdrop,
-        shape = { shape },
-        effects = {
+    // Every lambda below is remembered on exactly the values it reads. Freshly
+    // allocated lambdas make the drawBackdrop element unequal, which runs its
+    // update() — and an `effects` change there invalidates the captured backdrop,
+    // costing a full re-sample plus saturation/blur/lens. Since glass sits on
+    // permanently-visible chrome, that turned any unrelated recomposition of the
+    // nav bar into a whole-screen re-capture. Stable identities let the element
+    // compare equal and skip the work entirely.
+    val shapeBlock: () -> Shape = remember(shape) { { shape } }
+
+    val effectsBlock: BackdropEffectScope.() -> Unit = remember(
+        saturation,
+        blurPx,
+        applyEdgeEffects,
+        lensHeightPx,
+        lensAmountPx,
+        config.depthEffect,
+        config.chromaticAberration,
+    ) {
+        {
             if (saturation != 1f) {
                 colorControls(saturation = saturation)
             }
@@ -300,8 +381,11 @@ fun Modifier.liquidGlass(
                     chromaticAberration = config.chromaticAberration,
                 )
             }
-        },
-        highlight = if (applyEdgeEffects) {
+        }
+    }
+
+    val highlightBlock: (() -> Highlight?)? = remember(applyEdgeEffects, highlightAlpha, animatedHighlightAngle) {
+        if (applyEdgeEffects) {
             {
                 Highlight(
                     width = EdgeHighlightWidth,
@@ -313,16 +397,31 @@ fun Modifier.liquidGlass(
             }
         } else {
             null
-        },
-        shadow = if (applyEdgeEffects) ({ Shadow.Default }) else null,
-        onDrawSurface = {
+        }
+    }
+
+    val shadowBlock: (() -> Shadow?)? = remember(applyEdgeEffects) {
+        if (applyEdgeEffects) ({ Shadow.Default }) else null
+    }
+
+    val surfaceBlock: DrawScope.() -> Unit = remember(surfaceTintColor, config.surfaceOpacity) {
+        {
             if (config.surfaceOpacity > 0f) {
                 drawRect(
                     color = surfaceTintColor.copy(alpha = config.surfaceOpacity),
                     size = size,
                 )
             }
-        },
+        }
+    }
+
+    return drawBackdrop(
+        backdrop = backdrop,
+        shape = shapeBlock,
+        effects = effectsBlock,
+        highlight = highlightBlock,
+        shadow = shadowBlock,
+        onDrawSurface = surfaceBlock,
         backdropScale = resolutionScale,
         frozen = frozen,
     )

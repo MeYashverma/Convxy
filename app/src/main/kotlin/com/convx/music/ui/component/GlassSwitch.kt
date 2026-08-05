@@ -8,6 +8,7 @@ package com.convx.music.ui.component
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -18,18 +19,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.SwitchColors
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
-import com.convx.music.ui.component.backdrop.catalog.components.LiquidToggle
 
 /**
  * iOS-style toggle switch with liquid glass track when glass is enabled.
@@ -58,46 +55,44 @@ fun GlassSwitch(
     val thumbPadding = 2.dp
     val maxTravel = trackWidth - thumbSize - thumbPadding * 2
 
-    // Sample an UNATTACHED, switch-local backdrop rather than whatever
-    // LocalAppBackdrop happens to be. These live inside NavHost screens (the
-    // settings lists), and the app root wraps the whole NavHost in
-    // layerBackdrop(appBackdrop) — so a glass surface in here that samples
-    // appBackdrop puts itself inside that capture and native
-    // RenderNode::prepareTreeImpl recurses until it segfaults. Unattached means
-    // drawBackdrop early-returns, so the track renders as frosted translucent
-    // chrome with no self-reference. Same rule as the Artist/Album/Playlist
-    // chrome and HideOnScrollFAB.
-    val switchBackdrop = rememberLayerBackdrop()
-    CompositionLocalProvider(LocalAppBackdrop provides switchBackdrop) {
+    // No liquidGlass here, deliberately. It used to run the full backdrop
+    // pipeline on an UNATTACHED backdrop — which makes drawBackdrop early-return,
+    // so there was never any live content to refract. The old comment admitted as
+    // much ("glass alone rendered as a faint outline, 'on' was all but
+    // indistinguishable from 'off'"), which is why a green wash was painted over
+    // the top to restore the on-state signal.
+    //
+    // So every enabled switch paid for layer allocation, an effect chain, a
+    // highlight and a shadow to produce a faint rim over a colour that was
+    // covering it anyway. Measured on a Galaxy M34: the Appearance screen (~5
+    // switches on) recorded at 49ms/frame against 25ms for the Settings root,
+    // which has none — roughly 5ms per switch, on a 51x31dp control. Preference.kt
+    // routes every preference switch in the app through here, so that cost was
+    // on most settings screens at once.
+    //
+    // The rim is reproduced with a plain border below: same read, no pipeline.
     Box(
         modifier = modifier
             .width(trackWidth)
             .height(trackHeight)
             .clip(trackShape)
+            .background(
+                when {
+                    !enabled -> Color(0xFF39393D).copy(alpha = 0.4f)
+                    checked -> Color(0xFF34C759)
+                    else -> Color(0xFF39393D)
+                }
+            )
             .then(
                 if (useGlass && checked && enabled) {
-                    // Green wash ON TOP of the glass. The backdrop above is
-                    // unattached, so the track has no live content to refract and
-                    // glass alone rendered as a faint outline — "on" was all but
-                    // indistinguishable from "off" at a glance. The wash restores
-                    // the iOS on-state signal while the rim highlight and lens
-                    // still read underneath it.
-                    Modifier
-                        .liquidGlass(
-                            config = glassConfig,
-                            shape = trackShape,
-                            applyEdgeEffects = true,
-                            blurRadiusDp = 4f,
-                        )
-                        .background(Color(0xFF34C759).copy(alpha = 0.55f))
-                } else {
-                    Modifier.background(
-                        when {
-                            !enabled -> Color(0xFF39393D).copy(alpha = 0.4f)
-                            checked -> Color(0xFF34C759)
-                            else -> Color(0xFF39393D)
-                        }
+                    // The specular hint the glass rim used to contribute.
+                    Modifier.border(
+                        width = 0.8.dp,
+                        color = Color.White.copy(alpha = 0.35f),
+                        shape = trackShape,
                     )
+                } else {
+                    Modifier
                 }
             )
             .clickable(enabled = enabled) { onCheckedChange(!checked) },
@@ -111,7 +106,6 @@ fun GlassSwitch(
                 .clip(CircleShape)
                 .background(Color.White),
         )
-    }
     }
 }
 
@@ -137,18 +131,24 @@ fun GlassSwitchCompat(
     enabled: Boolean = true,
     colors: SwitchColors? = null,
 ) {
-    // Unattached outer backdrop on purpose. These toggles live inside NavHost
-    // screens, and a glass surface in there that samples the root appBackdrop ends
-    // up inside its own capture — native RenderNode recursion, SIGSEGV.
-    // [LiquidToggle] does not need it for the effect: the thumb refracts its own
-    // track, via a backdrop the toggle attaches to the track internally and
-    // combines with this one. So the look is unaffected by passing an empty outer
-    // backdrop.
-    val outerBackdrop = rememberLayerBackdrop()
-    LiquidToggle(
-        selected = { checked },
-        onSelect = { if (enabled) onCheckedChange?.invoke(it) },
-        backdrop = outerBackdrop,
-        modifier = modifier.graphicsLayer { alpha = if (enabled) 1f else 0.5f },
+    // Delegates to [GlassSwitch] rather than LiquidToggle. LiquidToggle attaches
+    // its own backdrop to the track so the thumb can refract it — a real glass
+    // pipeline per toggle, and every preference switch in the app comes through
+    // here (Preference.kt aliases this as `Switch`).
+    //
+    // Measured on a Galaxy M34, scrolling: the Appearance screen recorded at
+    // 49ms/frame against 25ms for the Settings root, which has no switches —
+    // about 5ms of display-list recording per visible toggle, for refraction on a
+    // 51x31dp control. That was the single largest per-frame cost found on any
+    // screen, larger than the app-wide backdrop capture (~4ms) and larger than
+    // the nav bar and mini player glass combined.
+    //
+    // Visual change, stated plainly: the thumb no longer refracts the track. The
+    // toggle keeps its iOS shape, motion, green on-state and rim highlight.
+    GlassSwitch(
+        checked = checked,
+        onCheckedChange = { onCheckedChange?.invoke(it) },
+        enabled = enabled,
+        modifier = modifier,
     )
 }

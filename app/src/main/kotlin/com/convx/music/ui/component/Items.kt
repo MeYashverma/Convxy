@@ -95,7 +95,6 @@ import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Size as CoilSize
-import com.music.innertube.YouTube
 import com.music.innertube.models.AlbumItem
 import com.music.innertube.models.ArtistItem
 import com.music.innertube.models.PlaylistItem
@@ -121,16 +120,12 @@ import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.models.MediaMetadata
-import com.convx.music.playback.queues.LocalAlbumRadio
 import com.convx.music.ui.theme.AppleTokens
-import com.convx.music.ui.theme.rememberArtworkTint
-import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.joinByBullet
 import com.convx.music.utils.makeTimeString
 import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.utils.rememberPreference
-import com.convx.music.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -163,16 +158,13 @@ inline fun ListItem(
     flat: Boolean = false,
 ) {
     val onSurface = LocalContentColor.current
-    val isLibraryScreen = modifier.toString().contains("Library", ignoreCase = true) || 
-                         title.lowercase().let { it == "songs" || it == "artists" || it == "albums" || it == "playlists" }
-    
     Column(modifier) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .padding(vertical = 2.dp)
                 .height(ListItemHeight)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = AppleTokens.Gutter)
                 .clip(if (flat) RectangleShape else shape)
                 .background(
                     color = when {
@@ -218,7 +210,7 @@ inline fun ListItem(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium,
                     color = onSurface,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -241,7 +233,7 @@ inline fun ListItem(
         }
         if (flat) {
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
                 color = AppleTokens.Divider,
                 thickness = 0.5.dp,
             )
@@ -267,10 +259,11 @@ fun ListItem(
     subtitle = {
         badges()
         if (subtitle != null) {
+            // Colour comes from the 0.6-alpha LocalContentColor the base
+            // ListItem already provides around its subtitle slot.
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -306,9 +299,9 @@ fun ListItem(
         badges()
 
         if (!subtitle.isNullOrEmpty()) {
+            // Colour inherited — see the AnnotatedString overload above.
             Text(
                 text = subtitle,
-                color = MaterialTheme.colorScheme.secondary,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -334,26 +327,21 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
-    // When set, the whole card gets a colorful fill of this color (the
-    // artwork's dominant tint) instead of the plain transparent layout.
-    containerColor: Color? = null,
+    // Artists are round and centred; everything else is square and left-aligned.
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
     val gridHeight = currentGridThumbnailHeight()
-    val isLibrary = modifier.toString().contains("Library", ignoreCase = true)
-    
+
     val sizeModifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(gridHeight * thumbnailRatio)
-    val cardModifier = if (containerColor != null) {
-        Modifier
-            .padding(8.dp)
-            .background(containerColor.copy(alpha = 0.55f), ContinuousRoundedRectangle(AppleTokens.CardCorner))
-            .padding(8.dp)
-    } else {
-        Modifier.padding(12.dp)
-    }
+
     Column(
+        horizontalAlignment = horizontalAlignment,
         modifier = modifier
             .then(sizeModifier)
-            .then(cardModifier)
+            // The tile owns half the gap; the grid's contentPadding owns the
+            // other half at the screen edge. Together: AppleTokens.Gutter at the
+            // edge, AppleTokens.ItemGap between neighbours.
+            .padding(AppleTokens.ItemGap / 2)
     ) {
         BoxWithConstraints(
             contentAlignment = Alignment.Center,
@@ -363,12 +351,12 @@ fun GridItem(
                 Modifier.height(gridHeight)
             }
                 .aspectRatio(thumbnailRatio)
-                .clip(ContinuousRoundedRectangle(AppleTokens.CardCorner))
+                .clip(ThumbnailRoundedShape)
         ) {
             thumbnailContent()
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(AppleTokens.ItemGap / 2))
 
         title()
 
@@ -389,31 +377,37 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) = GridItem(
     modifier = modifier,
     title = {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Start,
+            textAlign = if (horizontalAlignment == Alignment.CenterHorizontally) {
+                TextAlign.Center
+            } else {
+                TextAlign.Start
+            },
             modifier = Modifier.fillMaxWidth()
         )
     },
     subtitle = {
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalContentColor.current.copy(alpha = 0.6f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     },
     thumbnailContent = thumbnailContent,
     thumbnailRatio = thumbnailRatio,
-    fillMaxWidth = fillMaxWidth
+    fillMaxWidth = fillMaxWidth,
+    horizontalAlignment = horizontalAlignment,
 )
 
 @Composable
@@ -538,8 +532,8 @@ fun SongGridItem(
     title = {
         Text(
             text = song.song.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -551,9 +545,9 @@ fun SongGridItem(
                 song.artists.joinToString { it.name },
                 makeTimeString(song.song.duration * 1000L)
             ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
-            maxLines = 2,
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalContentColor.current.copy(alpha = 0.6f),
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     },
@@ -582,11 +576,6 @@ fun SongGridItem(
                 shape = ThumbnailRoundedShape,
                 modifier = Modifier.size(gridHeight)
             )
-            if (!isActive) {
-                OverlayPlayButton(
-                    visible = true
-                )
-            }
         }
     },
     fillMaxWidth = fillMaxWidth,
@@ -670,6 +659,7 @@ fun ArtistGridItem(
 ) = GridItem(
     title = artist.artist.name,
     subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
+    horizontalAlignment = Alignment.CenterHorizontally,
     badges = badges,
     thumbnailContent = {
         if (showIconOnly) {
@@ -841,8 +831,8 @@ fun AlbumGridItem(
     title = {
         Text(
             text = album.album.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -851,9 +841,9 @@ fun AlbumGridItem(
     subtitle = {
         Text(
             text = album.artists.joinToString { it.name },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
-            maxLines = 2,
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalContentColor.current.copy(alpha = 0.6f),
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     },
@@ -875,34 +865,15 @@ fun AlbumGridItem(
                 )
             }
         } else {
-            val database = LocalDatabase.current
-            val playerConnection = LocalPlayerConnection.current ?: return@GridItem
-            val scope = rememberCoroutineScope()
-
             ItemThumbnail(
                 thumbnailUrl = album.album.thumbnailUrl,
                 isActive = isActive,
                 isPlaying = isPlaying,
                 shape = ThumbnailRoundedShape,
             )
-
-            AlbumPlayButton(
-                visible = !isActive,
-                onClick = {
-                    scope.launch {
-                        val albumWithSongs = withContext(Dispatchers.IO) {
-                            database.albumWithSongs(album.id).firstOrNull()
-                        }
-                        albumWithSongs?.let {
-                            playerConnection.playQueue(LocalAlbumRadio(it))
-                        }
-                    }
-                }
-            )
         }
     },
     fillMaxWidth = fillMaxWidth,
-    containerColor = if (showIconOnly) null else rememberArtworkTint(album.album.thumbnailUrl).getOrNull(0)?.asDeepTint(),
     modifier = modifier
 )
 
@@ -1073,8 +1044,8 @@ fun PlaylistGridItem(
     title = {
         Text(
             text = playlist.playlist.name,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -1100,9 +1071,9 @@ fun PlaylistGridItem(
         }
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
-            maxLines = 2,
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalContentColor.current.copy(alpha = 0.6f),
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     },
@@ -1154,7 +1125,6 @@ fun PlaylistGridItem(
         }
     },
     fillMaxWidth = fillMaxWidth,
-    containerColor = if (showIconOnly) null else rememberArtworkTint(playlist.thumbnails.firstOrNull()).getOrNull(0)?.asDeepTint(),
     modifier = modifier
 )
 
@@ -1316,7 +1286,9 @@ fun YouTubeGridItem(
             Icon.Download(download?.state)
         }
     },
-    thumbnailRatio: Float = if (item is SongItem) 16f / 9 else 1f,
+    // Square like every other tile. Video-backed songs used to come through at
+    // 16:9, which made a single row of results ragged.
+    thumbnailRatio: Float = 1f,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
@@ -1324,8 +1296,8 @@ fun YouTubeGridItem(
     title = {
         Text(
             text = item.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
@@ -1342,50 +1314,20 @@ fun YouTubeGridItem(
         if (subtitle != null) {
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                maxLines = 2,
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalContentColor.current.copy(alpha = 0.6f),
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
     },
     badges = badges,
     thumbnailContent = {
-        val database = LocalDatabase.current
-        val playerConnection = LocalPlayerConnection.current ?: return@GridItem
-        val scope = rememberCoroutineScope()
-
         ItemThumbnail(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
             shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
-        )
-
-        if (item is SongItem && !isActive) {
-            OverlayPlayButton(
-                visible = true
-            )
-        }
-
-        AlbumPlayButton(
-            visible = item is AlbumItem && !isActive,
-            onClick = {
-                scope.launch(Dispatchers.IO) {
-                    var albumWithSongs = database.albumWithSongs(item.id).first()
-                    if (albumWithSongs?.songs.isNullOrEmpty()) {
-                        YouTube.album(item.id).onSuccess { albumPage ->
-                            database.transaction { insert(albumPage) }
-                            albumWithSongs = database.albumWithSongs(item.id).first()
-                        }.onFailure { reportException(it) }
-                    }
-                    albumWithSongs?.let {
-                        withContext(Dispatchers.Main) {
-                            playerConnection.playQueue(LocalAlbumRadio(it))
-                        }
-                    }
-                }
-            }
         )
     },
     thumbnailRatio = thumbnailRatio,
@@ -1755,34 +1697,6 @@ fun PlaylistThumbnail(
 }
 
 @Composable
-fun BoxScope.OverlayPlayButton(
-    visible: Boolean
-) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = Modifier
-            .align(Alignment.Center)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = ActiveBoxAlpha))
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.play),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
 fun BoxScope.OverlayEditButton(
     visible: Boolean,
     onClick: () -> Unit,
@@ -1815,35 +1729,6 @@ fun BoxScope.OverlayEditButton(
     }
 }
 
-@Composable
-fun BoxScope.AlbumPlayButton(
-    visible: Boolean,
-    onClick: () -> Unit,
-) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(8.dp)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = ActiveBoxAlpha))
-                .clickable(onClick = onClick)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.play),
-                contentDescription = null,
-                tint = Color.White
-            )
-        }
-    }
-}
 
 @Composable
 fun SwipeToSongBox(
@@ -1904,7 +1789,7 @@ fun SwipeToSongBox(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
+                    .height(ListItemHeight)
                     .align(Alignment.Center)
                     .background(bg),
                 contentAlignment = align

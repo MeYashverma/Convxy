@@ -21,6 +21,9 @@ val GridColumnChoices = listOf(0, 2, 3, 4, 5, 6)
 /** Discrete dp steps a user can pick for [GridSpacingKey]. */
 val GridSpacingChoices = listOf(4, 8, 12, 16, 20, 24, 32)
 
+/** Discrete dp steps for [GridCardHeightOverrideKey]. 0 = fall back to the Big/Small toggle. */
+val GridCardHeightChoices = listOf(0, 96, 112, 128, 144, 164, 184, 200, 220)
+
 /**
  * Column spec for every vertical grid screen (library/browse/search/artist item
  * grids). Auto (0) keeps today's behavior — [GridCells.Adaptive] sized off

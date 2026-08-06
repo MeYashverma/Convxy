@@ -124,8 +124,10 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.GridItemSize
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.GridItemsSizeKey
+import com.convx.music.constants.GridCardHeightOverrideKey
 import com.convx.music.constants.GridColumnsOverrideKey
 import com.convx.music.constants.GridSpacingKey
+import com.convx.music.ui.utils.GridCardHeightChoices
 import com.convx.music.constants.SpeedDialColumnsOverrideKey
 import com.convx.music.constants.PureBlackHeroBackgroundKey
 import com.convx.music.ui.utils.GridColumnChoices
@@ -325,6 +327,7 @@ fun AppearanceSettings(
         defaultValue = GridItemSize.SMALL
     )
     val (gridColumnsOverride, onGridColumnsOverrideChange) = rememberPreference(GridColumnsOverrideKey, 0)
+    val (gridCardHeightOverride, onGridCardHeightOverrideChange) = rememberPreference(GridCardHeightOverrideKey, 0)
     val (gridSpacing, onGridSpacingChange) = rememberPreference(GridSpacingKey, 16)
     val (speedDialColumnsOverride, onSpeedDialColumnsOverrideChange) = rememberPreference(SpeedDialColumnsOverrideKey, 0)
     val (pureBlackHeroBackground, onPureBlackHeroBackgroundChange) = rememberPreference(PureBlackHeroBackgroundKey, false)
@@ -1231,6 +1234,29 @@ fun AppearanceSettings(
                                 },
                                 steps = GridColumnChoices.size - 2,
                                 valueRange = 0f..(GridColumnChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.grid_card_height)) },
+                    description = {
+                        Column {
+                            Text(
+                                text = if (gridCardHeightOverride == 0) {
+                                    stringResource(R.string.auto)
+                                } else {
+                                    "${gridCardHeightOverride}dp"
+                                }
+                            )
+                            Slider(
+                                value = GridCardHeightChoices.indexOf(gridCardHeightOverride).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onGridCardHeightOverrideChange(GridCardHeightChoices[it.roundToInt()])
+                                },
+                                steps = GridCardHeightChoices.size - 2,
+                                valueRange = 0f..(GridCardHeightChoices.size - 1).toFloat(),
                             )
                         }
                     },

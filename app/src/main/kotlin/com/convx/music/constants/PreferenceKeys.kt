@@ -60,6 +60,8 @@ val GridItemsSizeKey = stringPreferencesKey("gridItemSize")
 val GridColumnsOverrideKey = intPreferencesKey("gridColumnsOverride")
 /** Spacing between grid tiles, in dp. Drives GridItem's per-tile padding in Items.kt. */
 val GridSpacingKey = intPreferencesKey("gridSpacingDp")
+/** 0 = use the Big/Small toggle (GridItemsSizeKey), else an explicit card height in dp. */
+val GridCardHeightOverrideKey = intPreferencesKey("gridCardHeightOverrideDp")
 /** 0 = auto (width-tiered), else a fixed column count for the Home Speed Dial grid. */
 val SpeedDialColumnsOverrideKey = intPreferencesKey("speedDialColumnsOverride")
 /** Forces a flat black background (no blurred artwork) on Artist/Album/Playlist/Search hero screens. */

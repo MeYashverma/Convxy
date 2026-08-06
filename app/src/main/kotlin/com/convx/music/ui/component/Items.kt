@@ -106,6 +106,7 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.CropAlbumArtKey
 import com.convx.music.constants.GridItemSize
+import com.convx.music.constants.GridCardHeightOverrideKey
 import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.ListItemHeight
@@ -139,6 +140,8 @@ const val ActiveBoxAlpha = 0.6f
 
 @Composable
 fun currentGridThumbnailHeight(): Dp {
+    val (heightOverride) = rememberPreference(GridCardHeightOverrideKey, 0)
+    if (heightOverride > 0) return heightOverride.dp
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
     return if (gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
 }

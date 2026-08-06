@@ -298,6 +298,7 @@
     <string name="grid_and_cards">Grid &amp; cards</string>
     <string name="grid_columns">Grid columns</string>
     <string name="grid_columns_desc">Column count for library, search and browse grids</string>
+    <string name="grid_card_height">Card height</string>
     <string name="grid_spacing">Grid spacing</string>
     <string name="speed_dial_columns">Speed Dial columns</string>
     <string name="auto">Auto</string>

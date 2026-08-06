@@ -571,6 +571,16 @@ val AppleMusicUiKey = booleanPreferencesKey("appleMusicUi")
 /** false (default) = simple iOS-style mini bar (thumbnail/title/seek bar/play/forward); true = multi-icon tab-style row. */
 val MiniBarTabStyleKey = booleanPreferencesKey("miniBarTabStyle")
 
+/** true (default) = Home's floating mic (sound search) + shuffle FAB pair shows; false = hidden. */
+val ShowHomeFabKey = booleanPreferencesKey("showHomeFab")
+
+/** 0 (default) = HomeHeroCard's normal 4:3 aspect-ratio height; else explicit dp height. */
+val HomeHeroCardHeightOverrideKey = intPreferencesKey("homeHeroCardHeightOverrideDp")
+/** 0 (default) = SpeedDialGridItem's normal square (height == tile width); else explicit dp height. */
+val SpeedDialCardHeightOverrideKey = intPreferencesKey("speedDialCardHeightOverrideDp")
+/** 0 (default) = each Home card's own default corner radius (12dp tiles, 28dp hero); else a shared dp radius applied to both. */
+val HomeCardCornerRadiusOverrideKey = intPreferencesKey("homeCardCornerRadiusOverrideDp")
+
 /**
  * Forces the tablet sidebar layout on a device that would otherwise get the
  * bottom bar, so the wide layout can be tried out on a phone.

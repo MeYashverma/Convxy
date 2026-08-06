@@ -7,10 +7,12 @@ package com.convx.music.ui.screens.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -27,17 +29,30 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.widget.Toast
 import com.convx.music.R
+import com.convx.music.constants.ThemeCategory
 import com.convx.music.constants.ThemePack
+import com.convx.music.ui.component.DefaultDialog
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.Material3SettingsGroup
 import com.convx.music.ui.component.Material3SettingsItem
 import com.convx.music.ui.component.TextFieldDialog
 import com.convx.music.viewmodels.ThemePackViewModel
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+
+private fun themeCategoryLabelRes(category: ThemeCategory): Int = when (category) {
+    ThemeCategory.COLORS -> R.string.theme_category_colors
+    ThemeCategory.PURE_BLACK -> R.string.theme_category_pure_black
+    ThemeCategory.GRID_SIZING -> R.string.theme_category_grid_sizing
+    ThemeCategory.FONT -> R.string.theme_category_font
+    ThemeCategory.LIBRARY_BACKGROUND -> R.string.theme_category_library_background
+    ThemeCategory.HOME_BACKGROUND -> R.string.theme_category_home_background
+}
 
 /**
  * Named theme presets: save the current accent/grid/font/background settings
@@ -57,6 +72,8 @@ fun ThemePackControls() {
 
     var showSaveDialog by rememberSaveable { mutableStateOf(false) }
     var pendingExportPack by remember { mutableStateOf<ThemePack?>(null) }
+    var pendingApplyPack by remember { mutableStateOf<ThemePack?>(null) }
+    var selectedCategories by remember { mutableStateOf(ThemeCategory.entries.toSet()) }
     val importSuccessMessage = stringResource(R.string.theme_pack_imported)
     val importFailedMessage = stringResource(R.string.theme_pack_import_failed)
 
@@ -80,6 +97,51 @@ fun ThemePackControls() {
                 if (imported != null) importSuccessMessage else importFailedMessage,
                 Toast.LENGTH_SHORT,
             ).show()
+        }
+    }
+
+    pendingApplyPack?.let { pack ->
+        DefaultDialog(
+            onDismiss = { pendingApplyPack = null },
+            title = { Text(stringResource(R.string.theme_pack_apply_title)) },
+            buttons = {
+                TextButton(onClick = { pendingApplyPack = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+                TextButton(onClick = {
+                    viewModel.applyThemePack(context, pack, selectedCategories)
+                    pendingApplyPack = null
+                }) {
+                    Text(stringResource(R.string.theme_pack_apply_button))
+                }
+            },
+        ) {
+            Text(
+                text = stringResource(R.string.theme_pack_apply_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ThemeCategory.entries.forEach { category ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Checkbox(
+                            checked = category in selectedCategories,
+                            onCheckedChange = { checked ->
+                                selectedCategories = if (checked) {
+                                    selectedCategories + category
+                                } else {
+                                    selectedCategories - category
+                                }
+                            },
+                        )
+                        Text(
+                            text = stringResource(themeCategoryLabelRes(category)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -146,7 +208,10 @@ fun ThemePackControls() {
                                 }
                             }
                         },
-                        onClick = { viewModel.applyThemePack(context, pack) },
+                        onClick = {
+                            selectedCategories = ThemeCategory.entries.toSet()
+                            pendingApplyPack = pack
+                        },
                     )
                 )
             }

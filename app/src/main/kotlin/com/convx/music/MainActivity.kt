@@ -1490,30 +1490,11 @@ class MainActivity : ComponentActivity() {
                                             )
                                         },
                                         actions = {
-                                            if (showHistoryButton) {
-                                                IconButton(onClick = { navController.navigate("history") }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.music_history),
-                                                        contentDescription = stringResource(R.string.history)
-                                                    )
-                                                }
-                                            }
-                                            if (showStatsButton) {
-                                                IconButton(onClick = { navController.navigate("stats") }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.stats),
-                                                        contentDescription = stringResource(R.string.stats)
-                                                    )
-                                                }
-                                            }
-                                            if (listenTogetherInTopBar) {
-                                                IconButton(onClick = { navController.navigate("listen_together_from_topbar") }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.group_outlined),
-                                                        contentDescription = stringResource(R.string.together)
-                                                    )
-                                                }
-                                            }
+                                            // History/Stats/Together moved to Settings (see
+                                            // SettingsScreen.kt's ACTIVITY section + the
+                                            // existing ACCOUNT entry) — the top bar now
+                                            // shows only the wordmark and this settings/
+                                            // profile pill, per the simplified-chrome pass.
                                              IconButton(onClick = {
                                                   if (enableSettingsPopup) {
                                                       showSettingDialoge = true
@@ -1527,7 +1508,7 @@ class MainActivity : ComponentActivity() {
                                                             model = accountImageUrl,
                                                             contentDescription = stringResource(R.string.account),
                                                             modifier = Modifier
-                                                                .size(24.dp)
+                                                                .size(34.dp)
                                                                 .clip(CircleShape)
                                                         )
                                                     } else {

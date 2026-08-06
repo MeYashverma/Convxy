@@ -46,6 +46,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.TopAppBarScrollBehavior
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.getValue
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -455,66 +456,41 @@ fun PlayerSettings(
                         onClick = { onCrossfadeGaplessChange(!crossfadeGapless) }
                     ))
                 }
+                // Both temporarily force-disabled — needs more work before shipping.
+                // Also resets any previously-stored true value, so a user who had one
+                // on before this change doesn't keep silently running it while the
+                // switch shows off.
+                LaunchedEffect(autoDjMixingEnabled, creativeTransitionsEnabled) {
+                    if (autoDjMixingEnabled) onAutoDjMixingEnabledChange(false)
+                    if (creativeTransitionsEnabled) onCreativeTransitionsEnabledChange(false)
+                }
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.equalizer),
                     title = { Text(stringResource(R.string.auto_dj_mixing)) },
-                    description = {
-                        Text(
-                            if (crossfadeEnabled) stringResource(R.string.auto_dj_mixing_desc)
-                            else stringResource(R.string.auto_dj_mixing_needs_crossfade)
-                        )
-                    },
-                    enabled = crossfadeEnabled,
+                    description = { Text(stringResource(R.string.feature_needs_more_work)) },
+                    enabled = false,
                     trailingContent = {
                         Switch(
-                            checked = autoDjMixingEnabled && crossfadeEnabled,
-                            enabled = crossfadeEnabled,
-                            onCheckedChange = onAutoDjMixingEnabledChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (autoDjMixingEnabled) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            checked = false,
+                            enabled = false,
+                            onCheckedChange = {},
                         )
                     },
-                    onClick = if (crossfadeEnabled) {
-                        { onAutoDjMixingEnabledChange(!autoDjMixingEnabled) }
-                    } else null
+                    onClick = null
                 ))
-                val creativeAvailable = crossfadeEnabled && autoDjMixingEnabled
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.equalizer),
                     title = { Text(stringResource(R.string.creative_transitions)) },
-                    description = {
-                        Text(
-                            if (creativeAvailable) stringResource(R.string.creative_transitions_desc)
-                            else stringResource(R.string.creative_transitions_needs_dj)
-                        )
-                    },
-                    enabled = creativeAvailable,
+                    description = { Text(stringResource(R.string.feature_needs_more_work)) },
+                    enabled = false,
                     trailingContent = {
                         Switch(
-                            checked = creativeTransitionsEnabled && creativeAvailable,
-                            enabled = creativeAvailable,
-                            onCheckedChange = onCreativeTransitionsEnabledChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (creativeTransitionsEnabled) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
+                            checked = false,
+                            enabled = false,
+                            onCheckedChange = {},
                         )
                     },
-                    onClick = if (creativeAvailable) {
-                        { onCreativeTransitionsEnabledChange(!creativeTransitionsEnabled) }
-                    } else null
+                    onClick = null
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),

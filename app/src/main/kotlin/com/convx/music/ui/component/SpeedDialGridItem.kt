@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,9 +29,11 @@ import com.music.innertube.models.ArtistItem
 import com.music.innertube.models.SongItem
 import com.music.innertube.models.YTItem
 import com.convx.music.R
-import com.convx.music.constants.ThumbnailCornerRadius
-import com.convx.music.constants.ThumbnailRoundedShape
+import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
+import com.convx.music.constants.SpeedDialCardHeightOverrideKey
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
+import com.convx.music.utils.rememberPreference
 
 @Composable
 fun SpeedDialGridItem(
@@ -38,20 +42,37 @@ fun SpeedDialGridItem(
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
+    thumbnailSizePx: Int = 544,
 ) {
+    val (heightOverride) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
+    val (cornerOverride) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
+    // Apple Music's browse tiles read noticeably rounder than the app's general
+    // 12dp thumbnail corner — bumped close to AppleTokens.CardCornerLarge (28dp)
+    // for this tile's default; the corner-radius setting still overrides it.
+    val shape = ContinuousRoundedRectangle((if (cornerOverride > 0) cornerOverride else 24).dp)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1f) // Square aspect ratio
-            .clip(ThumbnailRoundedShape)
+            .then(
+                if (heightOverride > 0) Modifier.height(heightOverride.dp) else Modifier.aspectRatio(1f)
+            )
+            .clip(shape)
     ) {
         // Thumbnail
         ItemThumbnail(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
-            modifier = Modifier.fillMaxSize()
+            shape = if (item is ArtistItem) CircleShape else shape,
+            modifier = Modifier.fillMaxSize(),
+            targetSizePx = thumbnailSizePx,
+            // Always fill the tile edge-to-edge, like Apple Music's browse tiles —
+            // independent of the user's general CropAlbumArtKey preference, which
+            // otherwise defaults to Fit and left the art visibly inset/letterboxed.
+            forceContentScale = ContentScale.Crop,
+            // No static paused-play glyph on the tile — just the animated bars
+            // while it's actually playing.
+            showPausedPlayIcon = false,
         )
 
         // Gradient Overlay for Text Readability and Icon Contrast

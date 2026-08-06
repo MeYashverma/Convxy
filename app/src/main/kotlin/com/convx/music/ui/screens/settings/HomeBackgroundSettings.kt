@@ -68,6 +68,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+/** Caps on a picked background file, so a stray 4K/multi-gigabyte video or GIF
+ *  doesn't get copied into app storage and tank Home's scroll perf. Video gets
+ *  a higher ceiling than image/GIF since it's expected to be the bigger file. */
+private const val MaxHomeBackgroundImageBytes = 20L * 1024 * 1024
+private const val MaxHomeBackgroundVideoBytes = 80L * 1024 * 1024
+
+/** Reads the picked Uri's size via the content resolver without opening the
+ *  whole stream. -1 if the provider doesn't report a size (allowed through —
+ *  can't enforce a cap it can't measure). */
+private fun mediaSizeBytes(context: android.content.Context, uri: Uri): Long {
+    return context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+        val idx = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
+        if (idx >= 0 && cursor.moveToFirst()) cursor.getLong(idx) else -1L
+    } ?: -1L
+}
+
 /** Copies a picked image/video into app storage so the background survives
  *  without a persistable URI permission. Unique filename cache-busts Coil.
  *  Returns the absolute path, or null on failure. */
@@ -121,6 +137,17 @@ fun HomeBackgroundControls() {
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         val video = context.contentResolver.getType(uri)?.startsWith("video/") == true
+        val cap = if (video) MaxHomeBackgroundVideoBytes else MaxHomeBackgroundImageBytes
+        val size = mediaSizeBytes(context, uri)
+        if (size > cap) {
+            val capMb = cap / (1024 * 1024)
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.home_background_too_large, "${capMb}MB"),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return@rememberLauncherForActivityResult
+        }
         if (video) {
             // Video decode/blur runs every frame, unlike a static image — warn
             // before committing since this can visibly cost battery/frame time

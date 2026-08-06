@@ -15,6 +15,17 @@ import org.json.JSONObject
  * (embedded as base64 so a theme file is portable across devices, not just a
  * path that only exists on the device that made it).
  */
+/** Categories a theme pack can be applied by — lets a user import just the
+ *  colors, say, without also overwriting their grid layout or background. */
+enum class ThemeCategory {
+    COLORS,
+    PURE_BLACK,
+    GRID_SIZING,
+    FONT,
+    LIBRARY_BACKGROUND,
+    HOME_BACKGROUND,
+}
+
 data class ThemePack(
     val name: String,
     val accentColor: Int,

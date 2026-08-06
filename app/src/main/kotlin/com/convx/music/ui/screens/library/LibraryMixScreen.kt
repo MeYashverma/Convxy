@@ -233,8 +233,8 @@ fun LibraryMixScreen(
 
     val platformLocale = LocalLocale.current.platformLocale
     val allItems =
-        remember(albums, artists, playlists, sortType, sortDescending, platformLocale) {
-            var items = albums + artists + playlists
+        remember(albums, playlists, sortType, sortDescending, platformLocale) {
+            var items = albums + playlists
             val collator = Collator.getInstance(platformLocale)
             collator.strength = Collator.PRIMARY
             items =

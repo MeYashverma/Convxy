@@ -24,6 +24,12 @@ val GridSpacingChoices = listOf(4, 8, 12, 16, 20, 24, 32)
 /** Discrete dp steps for [GridCardHeightOverrideKey]. 0 = fall back to the Big/Small toggle. */
 val GridCardHeightChoices = listOf(0, 96, 112, 128, 144, 164, 184, 200, 220)
 
+/** Discrete dp steps for HomeHeroCardHeightOverrideKey. 0 = the card's normal 4:3 aspect ratio. */
+val HomeHeroCardHeightChoices = listOf(0, 200, 240, 280, 320, 360, 400, 440, 480)
+
+/** Discrete dp steps for HomeCardCornerRadiusOverrideKey. 0 = each card's own default (12dp tiles, 28dp hero). */
+val HomeCardCornerRadiusChoices = listOf(0, 8, 12, 16, 20, 24, 28, 36)
+
 /**
  * Column spec for every vertical grid screen (library/browse/search/artist item
  * grids). Auto (0) keeps today's behavior — [GridCells.Adaptive] sized off

@@ -1436,14 +1436,21 @@ fun ItemThumbnail(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     isSelected: Boolean = false,
-    thumbnailRatio: Float = 1f
+    thumbnailRatio: Float = 1f,
+    targetSizePx: Int = 544,
+    /** Overrides the global CropAlbumArtKey preference when set — for tiles that
+     *  should always fill edge-to-edge (Apple Music style) regardless of the
+     *  user's general album-art setting, e.g. Home's Speed Dial. */
+    forceContentScale: ContentScale? = null,
+    showPausedPlayIcon: Boolean = true,
 ) {
-    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArtPref by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArt = forceContentScale == ContentScale.Crop || (forceContentScale == null && cropAlbumArtPref)
     val context = LocalContext.current
-    val imageRequest = remember(thumbnailUrl) {
+    val imageRequest = remember(thumbnailUrl, targetSizePx) {
         ImageRequest.Builder(context)
-            .data(thumbnailUrl?.resize(544, 544))
-            .size(CoilSize(544, 544))
+            .data(thumbnailUrl?.resize(targetSizePx, targetSizePx))
+            .size(CoilSize(targetSizePx, targetSizePx))
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1462,9 +1469,7 @@ fun ItemThumbnail(
                 model = imageRequest,
                 contentDescription = null,
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(shape)
+                modifier = Modifier.fillMaxWidth()
             )
         }
 
@@ -1501,6 +1506,7 @@ fun ItemThumbnail(
             isActive = isActive,
             playWhenReady = isPlaying,
             color = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White,
+            showPausedIcon = showPausedPlayIcon,
             modifier = Modifier
                 .fillMaxSize()
                 .background(

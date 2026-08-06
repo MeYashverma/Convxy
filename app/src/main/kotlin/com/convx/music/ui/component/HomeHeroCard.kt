@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -33,9 +34,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.convx.music.R
+import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
+import com.convx.music.constants.HomeHeroCardHeightOverrideKey
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.bounceClick
+import com.convx.music.utils.rememberPreference
 
 /**
  * The "star of the day" card that opens Home.
@@ -55,11 +59,16 @@ fun HomeHeroCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val (heightOverride) = rememberPreference(HomeHeroCardHeightOverrideKey, 0)
+    val (cornerOverride) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
+    val cornerRadius = if (cornerOverride > 0) cornerOverride.dp else AppleTokens.CardCornerLarge
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(4f / 3f)
-            .clip(ContinuousRoundedRectangle(AppleTokens.CardCornerLarge))
+            .then(
+                if (heightOverride > 0) Modifier.height(heightOverride.dp) else Modifier.aspectRatio(4f / 3f)
+            )
+            .clip(ContinuousRoundedRectangle(cornerRadius))
             .bounceClick(onClick = onClick),
     ) {
         AsyncImage(

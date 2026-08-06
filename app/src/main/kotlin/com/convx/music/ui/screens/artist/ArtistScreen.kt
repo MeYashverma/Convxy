@@ -165,6 +165,7 @@ import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.utils.fadingEdge
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.listItemShape
+import com.convx.music.constants.PureBlackHeroBackgroundKey
 import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.ArtistViewModel
 import com.valentinilk.shimmer.shimmer

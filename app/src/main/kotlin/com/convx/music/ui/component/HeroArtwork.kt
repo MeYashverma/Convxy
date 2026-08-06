@@ -194,7 +194,15 @@ fun rememberHeroTint(url: String?): Color {
         animationSpec = androidx.compose.animation.core.tween(1000),
         label = "heroTint"
     )
-    return animatedTint
+    // Root-cause fix, not per-screen: every hero-tinted screen (Artist, Album,
+    // Playlist, Search, ...) reads its background straight off this value, but
+    // only HeroBackground's own separate PureBlackHeroBackgroundKey check
+    // honored the setting — every screen that composes its own tint plane
+    // instead of going through HeroBackground silently ignored it. Applying the
+    // override here fixes every caller at once instead of repeating this check
+    // in 17 files.
+    val (pureBlack) = rememberPreference(PureBlackHeroBackgroundKey, false)
+    return if (pureBlack) Color.Black else animatedTint
 }
 
 /**

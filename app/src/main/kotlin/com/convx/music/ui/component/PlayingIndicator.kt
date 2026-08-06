@@ -102,9 +102,12 @@ fun PlayingIndicatorBox(
     isActive: Boolean,
     playWhenReady: Boolean,
     color: Color = Color.White,
+    // Speed Dial doesn't want the static paused-play glyph on its active tile —
+    // just the animated bars while actually playing.
+    showPausedIcon: Boolean = true,
 ) {
     AnimatedVisibility(
-        visible = isActive,
+        visible = isActive && (playWhenReady || showPausedIcon),
         enter = fadeIn(tween(500)),
         exit = fadeOut(tween(500)),
     ) {

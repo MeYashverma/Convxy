@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.convx.music.ui.component.backdrop.Backdrop
 import com.convx.music.ui.component.backdrop.drawBackdrop
+import com.convx.music.ui.component.backdrop.isRenderEffectSupported
 import com.convx.music.ui.component.backdrop.effects.blur
 import com.convx.music.ui.component.backdrop.effects.colorControls
 import com.convx.music.ui.component.backdrop.effects.lens
@@ -404,9 +405,17 @@ fun Modifier.liquidGlass(
         if (applyEdgeEffects) ({ Shadow.Default }) else null
     }
 
-    val surfaceBlock: DrawScope.() -> Unit = remember(surfaceTintColor, config.surfaceOpacity) {
+    // Below API 31 blur() (in effectsBlock above) is a no-op, so the sampled
+    // backdrop would show through the tint unblurred — sharp scrolling content
+    // behind a half-opaque rect reads as broken, not "glass". Go fully opaque
+    // black instead of trying to fake glass without the blur that makes it read
+    // as glass.
+    val surfaceOpaqueBlack = !isRenderEffectSupported()
+    val surfaceBlock: DrawScope.() -> Unit = remember(surfaceTintColor, config.surfaceOpacity, surfaceOpaqueBlack) {
         {
-            if (config.surfaceOpacity > 0f) {
+            if (surfaceOpaqueBlack) {
+                drawRect(color = Color.Black, size = size)
+            } else if (config.surfaceOpacity > 0f) {
                 drawRect(
                     color = surfaceTintColor.copy(alpha = config.surfaceOpacity),
                     size = size,

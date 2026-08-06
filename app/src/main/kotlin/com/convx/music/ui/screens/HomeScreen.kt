@@ -116,6 +116,8 @@ import com.convx.music.constants.ListItemHeight
 import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.RandomizeHomeOrderKey
+import com.convx.music.constants.ShowHomeFabKey
+import com.convx.music.constants.SpeedDialCardHeightOverrideKey
 import com.convx.music.constants.SpeedDialColumnsOverrideKey
 import com.convx.music.constants.SmallGridThumbnailHeight
 import com.convx.music.constants.ThumbnailCornerRadius
@@ -142,7 +144,6 @@ import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.R
 import com.convx.music.ui.component.AlbumGridItem
 import com.convx.music.ui.component.ArtistGridItem
-import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.HomeHeroCard
 import com.convx.music.ui.component.HomeImageBackground
@@ -191,6 +192,7 @@ import com.convx.music.viewmodels.DailyDiscoverItem
  * matches the survey's "2x2 grid" preference for recent activity and halves that.
  */
 private const val SongGridRows = 2
+private const val QuickPicksGridRows = 4
 private const val MaxSimilarSections = 2
 private const val MaxHomePageSections = 3
 
@@ -1018,48 +1020,6 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
-                item {
-                    // ChipsRow takes a raw List, which Compose treats as unstable, so a
-                    // freshly mapped list here meant it could never skip — every chip
-                    // recomposed whenever this LazyColumn scope did.
-                    val chips = remember(homePage?.chips) {
-                        homePage?.chips?.map { it to it.title } ?: emptyList()
-                    }
-                    ChipsRow(
-                        chips = chips,
-                        currentValue = selectedChip,
-                        onValueUpdate = {
-                            viewModel.toggleChip(it)
-                        }
-                    )
-                }
-
-                if (isLoading && homePage?.chips.isNullOrEmpty()) {
-                    item(key = "chips_shimmer") {
-                        ShimmerHost {
-                            LazyRow(
-                                contentPadding = WindowInsets.systemBars
-                                    .only(WindowInsetsSides.Horizontal)
-                                    .asPaddingValues().plusStart(sideInset),
-                                horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap / 2),
-                                modifier = Modifier
-                                    .padding(horizontal = AppleTokens.Gutter, vertical = AppleTokens.ItemGap / 2)
-                                    .bleedStart(sideInset)
-                            ) {
-                                items(5) {
-                                    // Matches an unselected chip: same height and
-                                    // corner, so nothing shifts when data lands.
-                                    TextPlaceholder(
-                                        height = 32.dp,
-                                        shape = RoundedCornerShape(AppleTokens.Artwork),
-                                        modifier = Modifier.width(72.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
                 if (selectedChip == null) {
                     item(key = "wrapped_card") {
                         AnimatedVisibility(visible = shouldShowWrappedCard) {
@@ -1183,6 +1143,26 @@ fun HomeScreen(
                                     val rows = if (columns >= 6) 1 else if (columns >= 4) 2 else 3
                                     val itemsPerPage = columns * rows
                                     val itemWidth = availableWidth / columns
+                                    // Decode/upload only what the tile actually needs — 544 (the
+                                    // shared ItemThumbnail default, sized for larger art like the
+                                    // hero card) is ~1.6x more pixels than a ~160dp grid tile ever
+                                    // renders, which showed up as extra decode + hardware-bitmap
+                                    // upload cost during Home scroll profiling.
+                                    val speedDialThumbnailSizePx = with(LocalDensity.current) {
+                                        itemWidth.roundToPx().coerceAtLeast(64)
+                                    }
+                                    // The wrapping Boxes below used to hardcode .height(itemWidth),
+                                    // forcing a perfect square no matter what SpeedDialGridItem's own
+                                    // height override/aspect ratio said — that outer fixed height wins
+                                    // over any height logic inside the child, so the override slider
+                                    // (and the taller-than-square Apple Music look) had no effect.
+                                    // Computed once here so the pager's own height stays in sync.
+                                    val (speedDialHeightOverride) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
+                                    val speedDialTileHeight = if (speedDialHeightOverride > 0) {
+                                        speedDialHeightOverride.dp
+                                    } else {
+                                        itemWidth / 0.8f // taller than wide, Apple Music card proportions
+                                    }
 
                                     val pagerState = rememberPagerState(pageCount = { (items.size + itemsPerPage - 1) / itemsPerPage })
 
@@ -1199,7 +1179,7 @@ fun HomeScreen(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
-                                                    .height(itemWidth * rows)
+                                                    .height(speedDialTileHeight * rows)
                                                     .bleedStart(sideInset),
                                         ) { page ->
                                             val pageStartIndex = page * itemsPerPage
@@ -1217,7 +1197,7 @@ fun HomeScreen(
                                                                 Box(
                                                                     modifier = Modifier
                                                                         .width(itemWidth)
-                                                                        .height(itemWidth)
+                                                                        .height(speedDialTileHeight)
                                                                         .padding(AppleTokens.ItemGap / 2)
                                                                 ) {
                                                                     RandomizeGridItem(
@@ -1252,7 +1232,7 @@ fun HomeScreen(
                                                                 Box(
                                                                     modifier = Modifier
                                                                         .width(itemWidth)
-                                                                        .height(itemWidth)
+                                                                        .height(speedDialTileHeight)
                                                                         .padding(AppleTokens.ItemGap / 2)
                                                                 ) {
                                                                     SpeedDialGridItem(
@@ -1262,6 +1242,7 @@ fun HomeScreen(
                                                                             item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id)
                                                                         },
                                                                         isPlaying = isPlaying,
+                                                                        thumbnailSizePx = speedDialThumbnailSizePx,
                                                                         modifier = Modifier
                                                                             .fillMaxSize()
                                                                             .combinedBounceClick(
@@ -1367,13 +1348,13 @@ fun HomeScreen(
                                         remember(quickPicks) { quickPicks.distinctBy { it.id } }
                                     LazyHorizontalGrid(
                                         state = quickPicksLazyGridState,
-                                        rows = GridCells.Fixed(SongGridRows),
+                                        rows = GridCells.Fixed(QuickPicksGridRows),
                                         flingBehavior = rememberSnapFlingBehavior(quickPicksSnapLayoutInfoProvider),
                                         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                                             .asPaddingValues().plusStart(sideInset),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(ListItemHeight * SongGridRows)
+                                            .height(ListItemHeight * QuickPicksGridRows)
                                             .animateItem().bleedStart(sideInset)
                                     ) {
                                         itemsIndexed(
@@ -1391,7 +1372,7 @@ fun HomeScreen(
                                                 isPlaying = isPlaying,
                                                 isSwipeable = false,
                                                 flat = true,
-                                                shape = listItemShape(index = index % SongGridRows, count = SongGridRows),
+                                                shape = listItemShape(index = index % QuickPicksGridRows, count = QuickPicksGridRows),
                                                 trailingContent = {
                                                     IconButton(
                                                         onClick = {
@@ -2022,49 +2003,52 @@ fun HomeScreen(
                 }
             }
 
-            HideOnScrollFAB(
-                visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
-                lazyListState = lazylistState,
-                icon = R.drawable.shuffle,
-                onClick = {
-                    val local = when {
-                        allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
-                        allLocalItems.isNotEmpty() -> true
-                        else -> false
-                    }
-                    scope.launch(Dispatchers.Main) {
-                        if (local) {
-                            when (val luckyItem = allLocalItems.random()) {
-                                is Song -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
-                                is Album -> {
-                                    val albumWithSongs = withContext(Dispatchers.IO) {
-                                        database.albumWithSongs(luckyItem.id).first()
+            val (showHomeFab) = rememberPreference(ShowHomeFabKey, true)
+            if (showHomeFab) {
+                HideOnScrollFAB(
+                    visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
+                    lazyListState = lazylistState,
+                    icon = R.drawable.shuffle,
+                    onClick = {
+                        val local = when {
+                            allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
+                            allLocalItems.isNotEmpty() -> true
+                            else -> false
+                        }
+                        scope.launch(Dispatchers.Main) {
+                            if (local) {
+                                when (val luckyItem = allLocalItems.random()) {
+                                    is Song -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                                    is Album -> {
+                                        val albumWithSongs = withContext(Dispatchers.IO) {
+                                            database.albumWithSongs(luckyItem.id).first()
+                                        }
+                                        albumWithSongs?.let {
+                                            playerConnection.playQueue(LocalAlbumRadio(it))
+                                        }
                                     }
-                                    albumWithSongs?.let {
-                                        playerConnection.playQueue(LocalAlbumRadio(it))
+                                    is Artist -> {}
+                                    is Playlist -> {}
+                                }
+                            } else {
+                                when (val luckyItem = allYtItems.random()) {
+                                    is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                                    is AlbumItem -> playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId))
+                                    is ArtistItem -> luckyItem.radioEndpoint?.let {
+                                        playerConnection.playQueue(YouTubeQueue(it))
                                     }
-                                }
-                                is Artist -> {}
-                                is Playlist -> {}
-                            }
-                        } else {
-                            when (val luckyItem = allYtItems.random()) {
-                                is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
-                                is AlbumItem -> playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId))
-                                is ArtistItem -> luckyItem.radioEndpoint?.let {
-                                    playerConnection.playQueue(YouTubeQueue(it))
-                                }
-                                is PlaylistItem -> luckyItem.playEndpoint?.let {
-                                    playerConnection.playQueue(YouTubeQueue(it))
+                                    is PlaylistItem -> luckyItem.playEndpoint?.let {
+                                        playerConnection.playQueue(YouTubeQueue(it))
+                                    }
                                 }
                             }
                         }
+                    },
+                    onRecognitionClick = {
+                        navController.navigate("recognition")
                     }
-                },
-                onRecognitionClick = {
-                    navController.navigate("recognition")
-                }
-            )
+                )
+            }
         }
     }
 }

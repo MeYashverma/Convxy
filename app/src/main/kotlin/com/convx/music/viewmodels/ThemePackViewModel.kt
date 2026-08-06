@@ -27,6 +27,7 @@ import com.convx.music.constants.SavedThemePacksKey
 import com.convx.music.constants.SelectedFontKey
 import com.convx.music.constants.SelectedThemeColorKey
 import com.convx.music.constants.SpeedDialColumnsOverrideKey
+import com.convx.music.constants.ThemeCategory
 import com.convx.music.constants.ThemePack
 import com.convx.music.constants.fromBase64
 import com.convx.music.constants.toBase64
@@ -103,37 +104,57 @@ class ThemePackViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    /** Writes every field of [pack] back into the live preferences. */
-    fun applyThemePack(context: Context, pack: ThemePack) {
+    /** Writes the selected [categories] of [pack] back into the live preferences.
+     *  Defaults to every category, matching the old all-or-nothing behavior. */
+    fun applyThemePack(
+        context: Context,
+        pack: ThemePack,
+        categories: Set<ThemeCategory> = ThemeCategory.entries.toSet(),
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
-            val newBackgroundPath = pack.homeBackgroundImageBase64?.let { base64 ->
-                runCatching {
-                    val dest = File(context.filesDir, "home_background_${System.currentTimeMillis()}.jpg")
-                    dest.writeBytes(base64.fromBase64())
-                    dest.absolutePath
-                }.getOrNull()
-            }
+            val applyHomeBackground = ThemeCategory.HOME_BACKGROUND in categories
+            val newBackgroundPath = if (applyHomeBackground) {
+                pack.homeBackgroundImageBase64?.let { base64 ->
+                    runCatching {
+                        val dest = File(context.filesDir, "home_background_${System.currentTimeMillis()}.jpg")
+                        dest.writeBytes(base64.fromBase64())
+                        dest.absolutePath
+                    }.getOrNull()
+                }
+            } else null
             val oldBackgroundPath = context.dataStore.get(HomeBackgroundPathKey, "")
 
             context.dataStore.edit { settings ->
-                settings[SelectedThemeColorKey] = pack.accentColor
-                settings[DynamicThemeKey] = pack.dynamicTheme
-                settings[PureBlackHeroBackgroundKey] = pack.pureBlackHeroBackground
-                settings[GridItemsSizeKey] = pack.gridItemSize
-                settings[GridColumnsOverrideKey] = pack.gridColumnsOverride
-                settings[GridSpacingKey] = pack.gridSpacing
-                settings[SpeedDialColumnsOverrideKey] = pack.speedDialColumnsOverride
-                settings[SelectedFontKey] = pack.selectedFont
-                settings[BrandFontEnabledKey] = pack.brandFontEnabled
-                settings[LibraryBackgroundModeKey] = pack.libraryBackgroundMode
-                settings[HomeBackgroundEnabledKey] = pack.homeBackgroundEnabled
-                settings[HomeBackgroundBlurKey] = pack.homeBackgroundBlur
-                settings[HomeBackgroundDimKey] = pack.homeBackgroundDim
-                settings[HomeBackgroundAnimateKey] = pack.homeBackgroundAnimate
-                if (newBackgroundPath != null) {
-                    settings[HomeBackgroundPathKey] = newBackgroundPath
-                } else if (pack.homeBackgroundImageBase64 == null) {
-                    settings[HomeBackgroundPathKey] = ""
+                if (ThemeCategory.COLORS in categories) {
+                    settings[SelectedThemeColorKey] = pack.accentColor
+                    settings[DynamicThemeKey] = pack.dynamicTheme
+                }
+                if (ThemeCategory.PURE_BLACK in categories) {
+                    settings[PureBlackHeroBackgroundKey] = pack.pureBlackHeroBackground
+                }
+                if (ThemeCategory.GRID_SIZING in categories) {
+                    settings[GridItemsSizeKey] = pack.gridItemSize
+                    settings[GridColumnsOverrideKey] = pack.gridColumnsOverride
+                    settings[GridSpacingKey] = pack.gridSpacing
+                    settings[SpeedDialColumnsOverrideKey] = pack.speedDialColumnsOverride
+                }
+                if (ThemeCategory.FONT in categories) {
+                    settings[SelectedFontKey] = pack.selectedFont
+                    settings[BrandFontEnabledKey] = pack.brandFontEnabled
+                }
+                if (ThemeCategory.LIBRARY_BACKGROUND in categories) {
+                    settings[LibraryBackgroundModeKey] = pack.libraryBackgroundMode
+                }
+                if (applyHomeBackground) {
+                    settings[HomeBackgroundEnabledKey] = pack.homeBackgroundEnabled
+                    settings[HomeBackgroundBlurKey] = pack.homeBackgroundBlur
+                    settings[HomeBackgroundDimKey] = pack.homeBackgroundDim
+                    settings[HomeBackgroundAnimateKey] = pack.homeBackgroundAnimate
+                    if (newBackgroundPath != null) {
+                        settings[HomeBackgroundPathKey] = newBackgroundPath
+                    } else if (pack.homeBackgroundImageBase64 == null) {
+                        settings[HomeBackgroundPathKey] = ""
+                    }
                 }
             }
             if (newBackgroundPath != null && oldBackgroundPath.isNotEmpty()) {

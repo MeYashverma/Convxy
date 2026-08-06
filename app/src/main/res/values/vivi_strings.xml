@@ -908,6 +908,8 @@
     <string name="unpin_from_speed_dial">Unpin from Speed dial</string>
     <string name="randomize_home_order">Randomize Home Screen Order</string>
     <string name="randomize_home_order_desc">Randomly reorder home screen sections with weighted priorities</string>
+    <string name="show_home_fab">Show sound search + shuffle button</string>
+    <string name="show_home_fab_desc">Floating mic and shuffle buttons at the bottom of Home</string>
 
     <!-- Daily Discover -->
     <string name="daily_discover_sounds_like">Sounds like %1$s</string>
@@ -1143,6 +1145,7 @@
     <string name="creative_transitions">Creative transitions</string>
     <string name="creative_transitions_desc">On transitions that can\'t be made seamless, cover the join the way a DJ would — a loop roll, an echo tail or a turntable brake, chosen to suit the two tracks. Well-matched tracks are still mixed invisibly</string>
     <string name="creative_transitions_needs_dj">Turn on Auto-DJ Mixing above first</string>
+    <string name="feature_needs_more_work">Needs more work — temporarily disabled</string>
     <string name="dj_readout_analyzing">Auto-DJ · analysing…</string>
     <string name="hide_volume_bar">Hide Volume Bar</string>
     <string name="hide_volume_bar_desc">Hide the volume slider in the player\'s menu</string>

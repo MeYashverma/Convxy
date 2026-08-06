@@ -301,6 +301,9 @@
     <string name="grid_card_height">Card height</string>
     <string name="grid_spacing">Grid spacing</string>
     <string name="speed_dial_columns">Speed Dial columns</string>
+    <string name="home_hero_card_height">Hero card height</string>
+    <string name="speed_dial_card_height">Speed Dial card height</string>
+    <string name="home_card_corner_radius">Home card corner radius</string>
     <string name="auto">Auto</string>
     <string name="pure_black_hero_background">Pure black backgrounds</string>
     <string name="pure_black_hero_background_desc">Flat black instead of blurred artwork on Artist, Album, Playlist and Search</string>
@@ -311,9 +314,19 @@
     <string name="theme_pack_name">Theme name</string>
     <string name="theme_pack_imported">Theme imported</string>
     <string name="theme_pack_import_failed">Could not read that theme file</string>
+    <string name="theme_pack_apply_title">Apply theme</string>
+    <string name="theme_pack_apply_desc">Choose what to bring in from this pack</string>
+    <string name="theme_pack_apply_button">Apply</string>
+    <string name="theme_category_colors">Colors (accent + dynamic theme)</string>
+    <string name="theme_category_pure_black">Pure black background</string>
+    <string name="theme_category_grid_sizing">Grid &amp; card sizing</string>
+    <string name="theme_category_font">Font</string>
+    <string name="theme_category_library_background">Library background style</string>
+    <string name="theme_category_home_background">Home background (image, blur, dim)</string>
     <string name="home_background_video_set">Video set</string>
     <string name="home_background_video_warning">Video backgrounds decode every frame, unlike a still image — this can cost extra battery and may stutter on lower-end devices. Continue?</string>
     <string name="home_background_video_confirm">Use this video</string>
+    <string name="home_background_too_large">That file is too large (max %1$s). Pick a smaller one.</string>
 
     <string name="content">Content</string>
     <string name="action_logout">Log out</string>

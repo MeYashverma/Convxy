@@ -136,6 +136,29 @@ fun SettingsScreen(
             }
         }
 
+        item(key = "spacer_activity") { Spacer(Modifier.height(24.dp)) }
+
+        // Section: Activity — history/stats moved here from the top bar, which now
+        // only shows the logo and this settings/profile pill.
+        item(key = "activity_header") { SettingsSectionHeader("ACTIVITY") }
+        item(key = "activity_section") {
+            SettingsSection {
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.music_history),
+                    iconTint = Color(0xFF32ADE6),
+                    title = stringResource(R.string.history),
+                    onClick = { navController.navigate("history") },
+                )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.stats),
+                    iconTint = Color(0xFFFFCC00),
+                    title = stringResource(R.string.stats),
+                    onClick = { navController.navigate("stats") },
+                )
+            }
+        }
+
         item(key = "spacer_2") { Spacer(Modifier.height(24.dp)) }
 
         // Section: Content

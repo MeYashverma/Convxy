@@ -509,6 +509,12 @@ fun Queue(
                                 .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
                         ),
                 ) {
+                    // Weighted so the flanking buttons' unequal widths (40dp queue
+                    // icon vs 60dp lyrics icon) can't push the middle speaker/sleep
+                    // timer pair off true row-center — SpaceBetween alone distributes
+                    // equal gaps, not equal-width halves, so the asymmetry showed up
+                    // as the middle pair reading visibly off-center.
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     TextButton(
                         onClick = { state.expandSoft() },
                         modifier = Modifier.wrapContentWidth()
@@ -533,6 +539,7 @@ fun Queue(
 //                                modifier = Modifier.basicMarquee()
 //                            )
                         }
+                    }
                     }
 
                     Row(
@@ -608,6 +615,7 @@ fun Queue(
                         }
                     }
 
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                     TextButton(
                         onClick = {
                             onToggleLyrics()
@@ -634,6 +642,7 @@ fun Queue(
 //                                modifier = Modifier.basicMarquee()
 //                            )
                         }
+                    }
                     }
                 }
             }

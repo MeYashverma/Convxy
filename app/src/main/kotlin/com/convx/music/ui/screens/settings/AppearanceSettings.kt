@@ -128,8 +128,14 @@ import com.convx.music.constants.GridCardHeightOverrideKey
 import com.convx.music.constants.GridColumnsOverrideKey
 import com.convx.music.constants.GridSpacingKey
 import com.convx.music.ui.utils.GridCardHeightChoices
+import com.convx.music.ui.utils.HomeHeroCardHeightChoices
+import com.convx.music.ui.utils.HomeCardCornerRadiusChoices
 import com.convx.music.constants.SpeedDialColumnsOverrideKey
+import com.convx.music.constants.HomeHeroCardHeightOverrideKey
+import com.convx.music.constants.SpeedDialCardHeightOverrideKey
+import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
 import com.convx.music.constants.PureBlackHeroBackgroundKey
+import com.convx.music.constants.ShowHomeFabKey
 import com.convx.music.ui.utils.GridColumnChoices
 import com.convx.music.ui.utils.GridSpacingChoices
 import androidx.compose.material3.Slider
@@ -331,6 +337,10 @@ fun AppearanceSettings(
     val (gridSpacing, onGridSpacingChange) = rememberPreference(GridSpacingKey, 16)
     val (speedDialColumnsOverride, onSpeedDialColumnsOverrideChange) = rememberPreference(SpeedDialColumnsOverrideKey, 0)
     val (pureBlackHeroBackground, onPureBlackHeroBackgroundChange) = rememberPreference(PureBlackHeroBackgroundKey, false)
+    val (showHomeFab, onShowHomeFabChange) = rememberPreference(ShowHomeFabKey, defaultValue = true)
+    val (homeHeroCardHeightOverride, onHomeHeroCardHeightOverrideChange) = rememberPreference(HomeHeroCardHeightOverrideKey, 0)
+    val (speedDialCardHeightOverride, onSpeedDialCardHeightOverrideChange) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
+    val (homeCardCornerRadiusOverride, onHomeCardCornerRadiusOverrideChange) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
 
     // Density scale preferences
     val context = activity as Context
@@ -1216,6 +1226,27 @@ fun AppearanceSettings(
                     onClick = { onPureBlackHeroBackgroundChange(!pureBlackHeroBackground) }
                 ),
                 Material3SettingsItem(
+                    icon = painterResource(R.drawable.mic),
+                    title = { Text(stringResource(R.string.show_home_fab)) },
+                    description = { Text(stringResource(R.string.show_home_fab_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = showHomeFab,
+                            onCheckedChange = onShowHomeFabChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showHomeFab) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onShowHomeFabChange(!showHomeFab) }
+                ),
+                Material3SettingsItem(
                     icon = painterResource(R.drawable.grid_view),
                     title = { Text(stringResource(R.string.grid_columns)) },
                     description = {
@@ -1298,6 +1329,75 @@ fun AppearanceSettings(
                                 },
                                 steps = speedDialChoices.size - 2,
                                 valueRange = 0f..(speedDialChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.home_hero_card_height)) },
+                    description = {
+                        Column {
+                            Text(
+                                text = if (homeHeroCardHeightOverride == 0) {
+                                    stringResource(R.string.auto)
+                                } else {
+                                    "${homeHeroCardHeightOverride}dp"
+                                }
+                            )
+                            Slider(
+                                value = HomeHeroCardHeightChoices.indexOf(homeHeroCardHeightOverride).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onHomeHeroCardHeightOverrideChange(HomeHeroCardHeightChoices[it.roundToInt()])
+                                },
+                                steps = HomeHeroCardHeightChoices.size - 2,
+                                valueRange = 0f..(HomeHeroCardHeightChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.speed_dial_card_height)) },
+                    description = {
+                        Column {
+                            Text(
+                                text = if (speedDialCardHeightOverride == 0) {
+                                    stringResource(R.string.auto)
+                                } else {
+                                    "${speedDialCardHeightOverride}dp"
+                                }
+                            )
+                            Slider(
+                                value = GridCardHeightChoices.indexOf(speedDialCardHeightOverride).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onSpeedDialCardHeightOverrideChange(GridCardHeightChoices[it.roundToInt()])
+                                },
+                                steps = GridCardHeightChoices.size - 2,
+                                valueRange = 0f..(GridCardHeightChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.home_card_corner_radius)) },
+                    description = {
+                        Column {
+                            Text(
+                                text = if (homeCardCornerRadiusOverride == 0) {
+                                    stringResource(R.string.auto)
+                                } else {
+                                    "${homeCardCornerRadiusOverride}dp"
+                                }
+                            )
+                            Slider(
+                                value = HomeCardCornerRadiusChoices.indexOf(homeCardCornerRadiusOverride).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onHomeCardCornerRadiusOverrideChange(HomeCardCornerRadiusChoices[it.roundToInt()])
+                                },
+                                steps = HomeCardCornerRadiusChoices.size - 2,
+                                valueRange = 0f..(HomeCardCornerRadiusChoices.size - 1).toFloat(),
                             )
                         }
                     },

@@ -9,9 +9,9 @@ import androidx.compose.ui.graphics.Color
 class GlassEffectConfigTest {
 
     @Test
-    fun `default config has global enabled false`() {
+    fun `default config has global enabled true`() {
         val config = GlassEffectConfig()
-        assertFalse(config.globalEnabled)
+        assertTrue(config.globalEnabled)
     }
 
     @Test
@@ -29,15 +29,15 @@ class GlassEffectConfigTest {
     }
 
     @Test
-    fun `default config has chromatic aberration enabled`() {
+    fun `default config has chromatic aberration disabled`() {
         val config = GlassEffectConfig()
-        assertTrue(config.chromaticAberration)
+        assertFalse(config.chromaticAberration)
     }
 
     @Test
-    fun `default config has depth effect enabled`() {
+    fun `default config has depth effect disabled`() {
         val config = GlassEffectConfig()
-        assertTrue(config.depthEffect)
+        assertFalse(config.depthEffect)
     }
 
     @Test

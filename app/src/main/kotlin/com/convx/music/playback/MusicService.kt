@@ -26,9 +26,11 @@ import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Binder
 import android.os.Build
-import android.util.Log
+import android.os.SystemClock
+
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.getSystemService
@@ -390,6 +392,7 @@ class MusicService :
     private var fadingPlayer: ExoPlayer? = null
     private var isCrossfading = false
     private var crossfadeJob: Job? = null
+    private var duckVolumeRestoreJob: Job? = null
 
     private lateinit var mediaSession: MediaLibrarySession
 
@@ -1036,6 +1039,14 @@ class MusicService :
                         // player.shuffleModeEnabled = playerState.shuffleModeEnabled
                         playerVolume.value = playerState.volume
 
+                        // A snapshot written while muted, audio-ducked, or
+                        // mid-crossfade holds a zero (or near-zero) *effective*
+                        // volume. Restoring it overrides the real PlayerVolumeKey
+                        // value and boots playback silent until the slider moves.
+                        if (playerState.volume > 0f) {
+                            playerVolume.value = playerState.volume
+                        }
+
                         // Restore position if it's still valid
                         if (playerState.currentMediaItemIndex < player.mediaItemCount) {
                             player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
@@ -1085,7 +1096,8 @@ class MusicService :
 
         lateinit var bpmAnalyzerRef: TrackAnalyzerAudioProcessor
         val bpmAnalyzer = TrackAnalyzerAudioProcessor(
-            onAnalysisReady = { djEngine.onAnalysisReady(bpmAnalyzerRef) }
+            onAnalysisReady = { djEngine.onAnalysisReady(bpmAnalyzerRef) },
+            analysisEnabled = { djEngine.enabled },
         )
         bpmAnalyzerRef = bpmAnalyzer
 
@@ -1167,6 +1179,8 @@ class MusicService :
             AudioManager.AUDIOFOCUS_GAIN,
             AudioManager.AUDIOFOCUS_GAIN_TRANSIENT -> {
                 hasAudioFocus = true
+                duckVolumeRestoreJob?.cancel()
+                duckVolumeRestoreJob = null
 
                 if (wasPlayingBeforeAudioFocusLoss && !player.isPlaying && !reentrantFocusGain) {
                     reentrantFocusGain = true
@@ -1211,12 +1225,25 @@ class MusicService :
                 wasPlayingBeforeAudioFocusLoss = player.isPlaying
                 if (player.isPlaying) {
                     player.volume = if (isMuted.value) 0f else (playerVolume.value * 0.2f)
+                    // Safety net: some devices deliver CAN_DUCK and never follow
+                    // up with AUDIOFOCUS_GAIN, leaving volume at 20% indefinitely.
+                    duckVolumeRestoreJob?.cancel()
+                    duckVolumeRestoreJob = scope.launch {
+                        delay(DUCK_RESTORE_MS)
+                        if (isActive && player.isPlaying) {
+                            player.volume = if (isMuted.value) 0f else playerVolume.value
+                            Timber.tag(TAG).w("Restoring volume after unreleased audio duck")
+                        }
+                        duckVolumeRestoreJob = null
+                    }
                 }
                 lastAudioFocusState = focusChange
             }
 
             AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK -> {
                 hasAudioFocus = true
+                duckVolumeRestoreJob?.cancel()
+                duckVolumeRestoreJob = null
                 player.volume = if (isMuted.value) 0f else playerVolume.value
                 lastAudioFocusState = focusChange
             }
@@ -1254,8 +1281,6 @@ class MusicService :
     }
 
     private fun waitOnNetworkError() {
-        if (waitingForNetworkConnection.value) return
-
         // Check if we've exceeded max retry attempts
         if (retryCount >= MAX_RETRY_COUNT) {
             Timber.tag(TAG).w("Max retry count ($MAX_RETRY_COUNT) reached, stopping playback")
@@ -1266,6 +1291,13 @@ class MusicService :
 
         waitingForNetworkConnection.value = true
 
+        // Re-arm instead of early-returning when a retry is already pending: every
+        // recovery handler below shares `retryJob` and cancels it, so a racing
+        // error can leave `waitingForNetworkConnection` true with no live job.
+        // Every later network error would then bail out here and playback would
+        // stay dead until the process is restarted.
+        if (retryJob?.isActive == true) return
+
         // Start a retry timer with exponential backoff
         retryJob?.cancel()
         retryJob = scope.launch {
@@ -1274,9 +1306,14 @@ class MusicService :
             Timber.tag(TAG).d("Waiting ${delayMs}ms before retry attempt ${retryCount + 1}/$MAX_RETRY_COUNT")
             delay(delayMs)
 
-            if (isNetworkConnected.value && waitingForNetworkConnection.value) {
-                retryCount++
+            if (!isActive) return@launch
+            retryCount++
+            if (isNetworkConnected.value) {
                 triggerRetry()
+            } else {
+                // Still offline: keep waiting instead of silently dropping the
+                // retry (that was the "mostly fixed after a reboot" stall).
+                waitOnNetworkError()
             }
         }
     }
@@ -1325,6 +1362,13 @@ class MusicService :
 
     private fun stopOnError() {
         player.pause()
+        // Drop the foreground service so Media3 dismisses its notification
+        // instead of leaving a stale "paused" one that reappears forever after
+        // a swipe-away. Playback is dead here and has to be restarted anyway;
+        // Media3 re-foregrounds automatically the next time audio starts.
+        stopSelf()
+        currentMediaMetadata.value = null
+        updateWidgetUI(false)
     }
 
     private fun updateNotification() {
@@ -2324,6 +2368,45 @@ class MusicService :
     }
 
     /**
+     * Enriches the onPlayerError log so a client report of just "IO unspecified
+     * (2000)" is diagnosable from logcat alone: HTTP status, network state,
+     * retry count, media source, and the full cause chain.
+     */
+    private fun logPlayerErrorDetail(error: PlaybackException, mediaId: String?) {
+        val httpCode = getHttpResponseCode(error)?.toString() ?: "-"
+        val transport = runCatching {
+            val net = connectivityManager.activeNetwork
+            if (net == null) "none"
+            else {
+                val caps = connectivityManager.getNetworkCapabilities(net)
+                when {
+                    caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "WIFI"
+                    caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "CELLULAR"
+                    caps?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true -> "ETHERNET"
+                    else -> "OTHER"
+                }
+            }
+        }.getOrDefault("unknown")
+        val source = player.currentMediaItem?.localConfiguration?.uri?.let { uri ->
+            "${uri.host ?: "?"}(${uri.path?.length ?: 0}p,${uri.query?.length ?: 0}q)"
+        } ?: "?"
+        val retries = mediaId?.let { currentMediaIdRetryCount[it] ?: 0 } ?: 0
+
+        Timber.tag(TAG).w(
+            "Player error detail | mediaId=$mediaId | errorCode=${error.errorCode} | http=$httpCode | " +
+                "net=${if (isNetworkConnected.value) "connected" else "disconnected"}/$transport | " +
+                "retries=$retries | source=$source | state=${player.playbackState}"
+        )
+        var cause = error.cause
+        var depth = 0
+        while (cause != null && depth < 6) {
+            Timber.tag(TAG).w("Player error cause #$depth: ${cause::class.java.simpleName}: ${cause.message}")
+            cause = cause.cause
+            depth++
+        }
+    }
+
+    /**
      * Checks if the error is caused by an expired/forbidden URL (HTTP 403).
      * This typically happens when a YouTube stream URL expires.
      */
@@ -2418,6 +2501,7 @@ class MusicService :
         }
 
         val mediaId = player.currentMediaItem?.mediaId
+        logPlayerErrorDetail(error, mediaId)
         Timber.tag(TAG).w(error, "Player error occurred for $mediaId: errorCode=${error.errorCode}, message=${error.message}")
         reportException(error)
 
@@ -3064,7 +3148,7 @@ class MusicService :
                 losslessOn || spineEnabled -> "$mediaId#flac"
                 else -> mediaId
             }
-            Log.d("SpineDebug", "DataSourceResolver: mediaId=$mediaId spineEnabled=$spineEnabled losslessOn=$losslessOn effKey=$effKey")
+            Timber.tag("SpineDebug").d("DataSourceResolver: mediaId=$mediaId spineEnabled=$spineEnabled losslessOn=$losslessOn effKey=$effKey")
             val spec = if (effKey == mediaId) dataSpec else dataSpec.buildUpon().setKey(effKey).build()
 
             // Check if we need to bypass cache for quality change
@@ -3101,45 +3185,57 @@ class MusicService :
             }
 
             Timber.tag("MusicService").i("FETCHING STREAM: $mediaId | quality=$audioQuality")
-            val playbackData = runBlocking(Dispatchers.IO) {
-                YTPlayerUtils.playerResponseForPlayback(
-                    mediaId,
-                    audioQuality = audioQuality,
-                    connectivityManager = connectivityManager,
-                    context = this@MusicService,
-                    forceStandardAudio = forceStandardAudioMediaIds.contains(mediaId),
-                )
-            }.getOrElse { throwable ->
-                when (throwable) {
-                    is PlaybackException -> throw throwable
-
-                    is java.net.ConnectException, is java.net.UnknownHostException -> {
-                        throw PlaybackException(
-                            getString(R.string.error_no_internet),
-                            throwable,
-                            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
-                        )
-                    }
-
-                    is java.net.SocketTimeoutException -> {
-                        throw PlaybackException(
-                            getString(R.string.error_timeout),
-                            throwable,
-                            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
-                        )
-                    }
-
-                    else -> throw PlaybackException(
-                        getString(R.string.error_unknown),
-                        throwable,
-                        PlaybackException.ERROR_CODE_REMOTE_ERROR
+            val fetchStart = SystemClock.elapsedRealtime()
+            val playbackData = try {
+                runBlocking(Dispatchers.IO) {
+                    YTPlayerUtils.playerResponseForPlayback(
+                        mediaId,
+                        audioQuality = audioQuality,
+                        connectivityManager = connectivityManager,
+                        context = this@MusicService,
+                        forceStandardAudio = forceStandardAudioMediaIds.contains(mediaId),
                     )
+                }.getOrElse { throwable ->
+                    when (throwable) {
+                        is PlaybackException -> throw throwable
+
+                        is java.net.ConnectException, is java.net.UnknownHostException -> {
+                            throw PlaybackException(
+                                getString(R.string.error_no_internet),
+                                throwable,
+                                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+                            )
+                        }
+
+                        is java.net.SocketTimeoutException -> {
+                            throw PlaybackException(
+                                getString(R.string.error_timeout),
+                                throwable,
+                                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
+                            )
+                        }
+
+                        else -> throw PlaybackException(
+                            getString(R.string.error_unknown),
+                            throwable,
+                            PlaybackException.ERROR_CODE_REMOTE_ERROR
+                        )
+                    }
                 }
+            } finally {
+                Timber.tag(TAG).i("Stream fetch for $mediaId took ${SystemClock.elapsedRealtime() - fetchStart}ms")
             }
 
-            val nonNullPlayback = requireNotNull(playbackData) {
-                getString(R.string.error_unknown)
-            }
+            // requireNotNull would escape the data source factory as a raw
+            // IllegalArgumentException that ExoPlayer maps to a generic IO error
+            // with no recoverable error code. Throw a typed PlaybackException so
+            // onPlayerError routes it through handleGenericIOError (cache clear
+            // + retry) instead of the generic fallback.
+            val nonNullPlayback = playbackData ?: throw PlaybackException(
+                getString(R.string.error_unknown),
+                IllegalStateException("playerResponseForPlayback returned null for $mediaId"),
+                PlaybackException.ERROR_CODE_IO_UNSPECIFIED
+            )
             run {
                 val format = nonNullPlayback.format
                 val loudnessDb = nonNullPlayback.audioConfig?.loudnessDb
@@ -3174,7 +3270,7 @@ class MusicService :
                 }
 
                 val streamUrl = nonNullPlayback.streamUrl
-                Log.d("SpineDebug", "DataSourceResolver: resolved mediaId=$mediaId isSpineStream=${nonNullPlayback.isSpineStream} isTidalStream=${nonNullPlayback.isTidalStream} streamUrl=${streamUrl?.take(120)}")
+                Timber.tag("SpineDebug").d("DataSourceResolver: resolved mediaId=$mediaId isSpineStream=${nonNullPlayback.isSpineStream} isTidalStream=${nonNullPlayback.isTidalStream} streamUrl=${streamUrl?.take(120)}")
 
                 if (nonNullPlayback.isTidalStream || nonNullPlayback.isSpineStream) {
                     losslessStreamMediaIds.add(mediaId)
@@ -3446,6 +3542,25 @@ class MusicService :
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
+
+    /**
+     * media3 promotes the service to foreground from its notification path, including from
+     * an async bitmap-load callback (MediaNotificationManager.onNotificationUpdated). If the
+     * app is backgrounded and no FGS start is allowed at that moment, the platform throws
+     * ForegroundServiceStartNotAllowedException and the process dies.
+     *
+     * The throw happens inside ContextImpl, on THIS service used as the Context, so it is
+     * catchable here — an override around onUpdateNotification is not, because the call is
+     * posted and no longer on that frame. Nothing to recover: the OS refused the promotion,
+     * so the notification simply stays unpromoted until playback next starts in foreground.
+     */
+    override fun startForegroundService(service: Intent): ComponentName? =
+        try {
+            super.startForegroundService(service)
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Foreground service start refused by platform")
+            null
+        }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -3930,37 +4045,45 @@ class MusicService :
             val duration = crossfadeDuration.toLong()
             val steps = 20
             val stepTime = duration / steps
-            val startVolume = try { fadingPlayer?.volume ?: 1f } catch(e:Exception) { 1f }
-
-            for (i in 0..steps) {
-                if (!isActive) break
-                // Pause volume ramp if player is paused
-                while (!player.isPlaying && isActive) {
-                    delay(100)
-                }
-
-                val progress = i / steps.toFloat()
-                // Equal-power (constant sum of squares) rather than the old
-                // quadratic pair, which dipped in perceived loudness through
-                // the middle of every crossfade.
-                val fadeIn = sin(progress * (PI / 2.0)).toFloat()
-                val fadeOut = cos(progress * (PI / 2.0)).toFloat()
-
-                try {
-                    player.volume = startVolume * fadeIn
-                    fadingPlayer?.volume = startVolume * fadeOut
-                    // Bass swap runs on the same clock as the volume fade.
-                    djEngine.driveFilterSweep(fadingPlayer, player, progress)
-                } catch (e: Exception) { break }
-
-                delay(stepTime)
-            }
+            // Use the user's intended volume, not the fading player's current
+            // one: a fadingPlayer snapshot taken while audio-ducked or already
+            // mid-fade is near zero, and bootstrapping the new primary player
+            // off it would leave every crossfade permanently quieter (or silent).
+            val startVolume = if (isMuted.value) 0f else playerVolume.value.coerceIn(0f, 1f)
 
             try {
-                fadingPlayer?.volume = 0f
-                player.volume = startVolume
-                cleanupCrossfade()
-            } catch (e: Exception) { }
+                for (i in 0..steps) {
+                    if (!isActive) break
+                    // Pause volume ramp if player is paused
+                    while (!player.isPlaying && isActive) {
+                        delay(100)
+                    }
+
+                    val progress = i / steps.toFloat()
+                    // Equal-power (constant sum of squares) rather than the old
+                    // quadratic pair, which dipped in perceived loudness through
+                    // the middle of every crossfade.
+                    val fadeIn = sin(progress * (PI / 2.0)).toFloat()
+                    val fadeOut = cos(progress * (PI / 2.0)).toFloat()
+
+                    try {
+                        player.volume = startVolume * fadeIn
+                        fadingPlayer?.volume = startVolume * fadeOut
+                        // Bass swap runs on the same clock as the volume fade.
+                        djEngine.driveFilterSweep(fadingPlayer, player, progress)
+                    } catch (e: Exception) { break }
+
+                    delay(stepTime)
+                }
+            } finally {
+                // Unwind the ramp even if the job is cancelled mid-fade (a pause
+                // parks the loop and the service scope can tear down around it):
+                // otherwise the now-primary player keeps the last ramp value —
+                // near zero at the fade-out end — for the rest of the track.
+                runCatching { fadingPlayer?.volume = 0f }
+                runCatching { player.volume = startVolume }
+                runCatching { cleanupCrossfade() }
+            }
         }
     }
 
@@ -4024,6 +4147,10 @@ class MusicService :
         /** Roughly 8-16 beats of tempo glide after a DJ transition. */
         private const val TEMPO_GLIDE_MS = 6_000L
         private const val TEMPO_GLIDE_STEPS = 12
+
+        /** Ceiling on how long an audio duck is allowed to hold the volume at
+         *  20% before it is force-restored (some devices never send the gain). */
+        private const val DUCK_RESTORE_MS = 10_000L
 
         @Volatile
         var isRunning = false

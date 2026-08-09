@@ -31,6 +31,14 @@ import java.nio.ByteOrder
 @UnstableApi
 class TrackAnalyzerAudioProcessor(
     private val onAnalysisReady: () -> Unit,
+    /**
+     * Live read of whether DJ mode is on. Beat tracking and key detection are a
+     * DJ-mode feature, but this processor sits in the chain unconditionally, so
+     * without this gate the full DSP ran on every buffer of every track with DJ
+     * mode switched off. Read per configure/buffer rather than captured, so
+     * toggling the preference takes effect without rebuilding the player.
+     */
+    private val analysisEnabled: () -> Boolean = { true },
 ) : AudioProcessor {
 
     private var channelCount = 0
@@ -69,7 +77,7 @@ class TrackAnalyzerAudioProcessor(
         return inputAudioFormat
     }
 
-    override fun isActive(): Boolean = tracker != null
+    override fun isActive(): Boolean = tracker != null && analysisEnabled()
 
     /**
      * Energy curve for the track analyzed so far, one byte per second, or empty
@@ -96,6 +104,7 @@ class TrackAnalyzerAudioProcessor(
     }
 
     private fun analyze(buffer: ByteBuffer) {
+        if (!analysisEnabled()) return
         val beatTracker = tracker ?: return
         val detector = keyDetector
         buffer.order(ByteOrder.LITTLE_ENDIAN)

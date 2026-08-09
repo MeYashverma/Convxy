@@ -93,9 +93,18 @@ class DjEngine(
 
     /** Mirrors CreativeTransitionsEnabledKey. Off by default: Auto-DJ on its own
      *  means beatmatching and a transparent mix, which is what most listeners
-     *  actually want. */
+     *  actually want.
+     *
+     *  Subordinate to [enabled]: creative transitions are a DJ-mode feature, so with
+     *  Auto-DJ off they must not fire even if the user left this preference on. The
+     *  two prefs are independent in DataStore, and reading them independently let
+     *  filter sweeps and tail effects run on every PLAIN crossfade with DJ mode off. */
     @Volatile
-    var creativeEnabled: Boolean = false
+    private var creativePref: Boolean = false
+
+    var creativeEnabled: Boolean
+        get() = creativePref && enabled
+        set(value) { creativePref = value }
 
     private val analyses = HashMap<String, TrackAnalysis>()
     private val analyzers = HashMap<Player, TrackAnalyzerAudioProcessor>()

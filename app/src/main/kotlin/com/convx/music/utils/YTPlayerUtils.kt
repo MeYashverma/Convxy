@@ -6,7 +6,7 @@
 package com.convx.music.utils
 
 import android.net.ConnectivityManager
-import android.util.Log
+
 import androidx.media3.common.PlaybackException
 import com.music.innertube.NewPipeExtractor
 import com.music.innertube.YouTube
@@ -169,13 +169,13 @@ object YTPlayerUtils {
             // Try enabled 8spine modules for streaming before other sources.
             // Falls through to TIDAL/Saavn/YouTube on ANY failure.
             if (!forceStandardAudio) {
-            Log.d(TAG, "═══ SPINE INTERCEPT START ═══ videoId=$videoId")
+            Timber.tag(TAG).d("═══ SPINE INTERCEPT START ═══ videoId=$videoId")
             val enabledModulesJson = context.dataStore.get(EnabledModulesKey, "[]")
             val moduleSourcesJson = context.dataStore.get(ModuleSourcesKey, "[]")
             val moduleSettingsJson = context.dataStore.get(ModuleSettingsKey, "{}")
-            Log.d(TAG, "  enabledModules: $enabledModulesJson")
-            Log.d(TAG, "  moduleSources: $moduleSourcesJson")
-            Log.d(TAG, "  moduleSettings: $moduleSettingsJson")
+            Timber.tag(TAG).d("  enabledModules: $enabledModulesJson")
+            Timber.tag(TAG).d("  moduleSources: $moduleSourcesJson")
+            Timber.tag(TAG).d("  moduleSettings: $moduleSettingsJson")
             runCatching {
                 val enabledIds = runCatching {
                     val arr = JSONArray(enabledModulesJson)
@@ -197,17 +197,17 @@ object YTPlayerUtils {
                     }
                 }.getOrElse { emptyMap<String, Map<String, String>>() }
 
-                Log.d(TAG, "  Parsed enabledIds: $enabledIds")
-                Log.d(TAG, "  Parsed sourceUrls: $sourceUrls")
-                Log.d(TAG, "  Parsed allModuleSettings: $allModuleSettings")
+                Timber.tag(TAG).d("  Parsed enabledIds: $enabledIds")
+                Timber.tag(TAG).d("  Parsed sourceUrls: $sourceUrls")
+                Timber.tag(TAG).d("  Parsed allModuleSettings: $allModuleSettings")
 
                 if (enabledIds.isEmpty() || sourceUrls.isEmpty()) {
-                    Log.d(TAG, "  SPINE SKIP: enabledIds=${enabledIds.size} sourceUrls=${sourceUrls.size} — falling through")
-                    Log.d(TAG, "═══ SPINE INTERCEPT END (skipped) ═══")
+                    Timber.tag(TAG).d("  SPINE SKIP: enabledIds=${enabledIds.size} sourceUrls=${sourceUrls.size} — falling through")
+                    Timber.tag(TAG).d("═══ SPINE INTERCEPT END (skipped) ═══")
                 }
 
                 if (enabledIds.isNotEmpty() && sourceUrls.isNotEmpty()) {
-                    Log.d(TAG, "  Resolving YouTube metadata for search query...")
+                    Timber.tag(TAG).d("  Resolving YouTube metadata for search query...")
 
                     val (currentSong, meta) = coroutineScope {
                         val nextDeferred = async {
@@ -220,7 +220,7 @@ object YTPlayerUtils {
                     }
 
                     val title = currentSong?.title ?: meta?.videoDetails?.title.orEmpty()
-                    Log.d(TAG, "  Resolved title=\"$title\" from ${if (currentSong != null) "YouTube.next" else "videoDetails"}")
+                    Timber.tag(TAG).d("  Resolved title=\"$title\" from ${if (currentSong != null) "YouTube.next" else "videoDetails"}")
                     if (title.isNotBlank()) {
                         val artistNames: List<String> = if (currentSong?.artists?.isNotEmpty() == true) {
                             currentSong.artists.map { it.name }
@@ -247,35 +247,35 @@ object YTPlayerUtils {
                             .replace("&", " ").replace(",", " ")
                             .replace(Regex("\\s+"), " ").trim()
 
-                        Log.d(TAG, "  Search query: \"$query\" (artists=$artistNames)")
+                        Timber.tag(TAG).d("  Search query: \"$query\" (artists=$artistNames)")
 
                         val moduleManager = ModuleManager()
                         for ((sourceIdx, sourceUrl) in sourceUrls.withIndex()) {
-                            Log.d(TAG, "  ── Source [${sourceIdx + 1}/${sourceUrls.size}]: $sourceUrl")
+                            Timber.tag(TAG).d("  ── Source [${sourceIdx + 1}/${sourceUrls.size}]: $sourceUrl")
                             val modules = moduleManager.fetchIndex(sourceUrl).getOrElse { e ->
-                                Log.e(TAG, "  ✗ Failed to fetch index from $sourceUrl: ${e.message}")
+                                Timber.tag(TAG).e("  ✗ Failed to fetch index from $sourceUrl: ${e.message}")
                                 continue
                             }
-                            Log.d(TAG, "  ✓ Fetched ${modules.size} modules from $sourceUrl")
+                            Timber.tag(TAG).d("  ✓ Fetched ${modules.size} modules from $sourceUrl")
                             for ((modIdx, module) in modules.withIndex()) {
                                 if (module.id !in enabledIds) {
-                                    Log.d(TAG, "    [${modIdx + 1}] SKIP ${module.id} (not enabled)")
+                                    Timber.tag(TAG).d("    [${modIdx + 1}] SKIP ${module.id} (not enabled)")
                                     continue
                                 }
-                                Log.d(TAG, "    [${modIdx + 1}/${modules.size}] TRY ${module.id} — isLossless=${module.isLossless} hasHiRes=${module.hasHiRes} isAtmos=${module.isDolbyAtmos}")
+                                Timber.tag(TAG).d("    [${modIdx + 1}/${modules.size}] TRY ${module.id} — isLossless=${module.isLossless} hasHiRes=${module.hasHiRes} isAtmos=${module.isDolbyAtmos}")
                                 val spineResult = runCatching {
                                     val loadBaseUrl = sourceUrl.substringBeforeLast("/")
-                                    Log.d(TAG, "      Loading module JS from baseUrl=$loadBaseUrl")
+                                    Timber.tag(TAG).d("      Loading module JS from baseUrl=$loadBaseUrl")
                                     val loaded = moduleManager.loadModule(module) { loadBaseUrl }.getOrElse { e ->
-                                        Log.e(TAG, "      ✗ Failed to load module ${module.id}: ${e.message}")
+                                        Timber.tag(TAG).e("      ✗ Failed to load module ${module.id}: ${e.message}")
                                         return@runCatching null
                                     }
 
                                     val moduleSettings = allModuleSettings[module.id] ?: emptyMap()
-                                    Log.d(TAG, "      Module settings: $moduleSettings")
-                                    Log.d(TAG, "      Calling searchTracks(\"$query\", 5, settings)...")
+                                    Timber.tag(TAG).d("      Module settings: $moduleSettings")
+                                    Timber.tag(TAG).d("      Calling searchTracks(\"$query\", 5, settings)...")
                                     var searchResult = moduleManager.searchTracks(loaded, query, 5, moduleSettings).getOrElse { e ->
-                                        Log.e(TAG, "      ✗ Search failed for module ${module.id}: ${e.message}")
+                                        Timber.tag(TAG).e("      ✗ Search failed for module ${module.id}: ${e.message}")
                                         return@runCatching null
                                     }
                                     // Retry with artist-first query if no matches (helps GEOLIER2/Apple fallback)
@@ -283,9 +283,9 @@ object YTPlayerUtils {
                                         val retryQuery = "${artistNames.first()} $cleanTitle"
                                             .replace("&", " ").replace(",", " ")
                                             .replace(Regex("\\s+"), " ").trim()
-                                        Log.d(TAG, "      No results, retrying with artist-first: \"$retryQuery\"")
+                                        Timber.tag(TAG).d("      No results, retrying with artist-first: \"$retryQuery\"")
                                         searchResult = moduleManager.searchTracks(loaded, retryQuery, 5, moduleSettings).getOrElse { e ->
-                                            Log.e(TAG, "      ✗ Retry search failed: ${e.message}")
+                                            Timber.tag(TAG).e("      ✗ Retry search failed: ${e.message}")
                                             return@runCatching null
                                         }
                                     }
@@ -316,30 +316,30 @@ object YTPlayerUtils {
                                         score
                                     }
                                     if (matchedTrack == null) {
-                                        Log.d(TAG, "      ✗ No tracks found by module ${module.id}")
+                                        Timber.tag(TAG).d("      ✗ No tracks found by module ${module.id}")
                                         return@runCatching null
                                     }
 
-                                    Log.d(TAG, "      ✓ Match: \"${matchedTrack.title}\" by \"${matchedTrack.artist}\" id=${matchedTrack.id} quality=${matchedTrack.audioQuality} duration=${matchedTrack.duration}s")
+                                    Timber.tag(TAG).d("      ✓ Match: \"${matchedTrack.title}\" by \"${matchedTrack.artist}\" id=${matchedTrack.id} quality=${matchedTrack.audioQuality} duration=${matchedTrack.duration}s")
 
-                                    Log.d(TAG, "      Calling getStreamUrl(\"${matchedTrack.id}\", settings)...")
+                                    Timber.tag(TAG).d("      Calling getStreamUrl(\"${matchedTrack.id}\", settings)...")
                                     val streamResult = moduleManager.getStreamUrl(loaded, matchedTrack.id, moduleSettings).getOrElse { e ->
-                                        Log.e(TAG, "      ✗ Stream URL fetch failed for module ${module.id} track ${matchedTrack.id}: ${e.message}")
+                                        Timber.tag(TAG).e("      ✗ Stream URL fetch failed for module ${module.id} track ${matchedTrack.id}: ${e.message}")
                                         return@runCatching null
                                     }
                                     val streamUrl = streamResult.streamUrl?.ifBlank { null }
                                     if (streamUrl == null) {
-                                        Log.d(TAG, "      ✗ Empty stream URL from module ${module.id}")
-                                        Log.d(TAG, "      Full streamResult: streamUrl=${streamResult.streamUrl} track=${streamResult.track}")
+                                        Timber.tag(TAG).d("      ✗ Empty stream URL from module ${module.id}")
+                                        Timber.tag(TAG).d("      Full streamResult: streamUrl=${streamResult.streamUrl} track=${streamResult.track}")
                                         return@runCatching null
                                     }
 
-                                    Log.d(TAG, "      ✓ Stream URL: ${streamUrl.take(150)}...")
-                                    Log.d(TAG, "      Track audioQuality: ${streamResult.track?.audioQuality}")
-                                    Log.d(TAG, "      Track mimeType: ${streamResult.track?.mimeType}")
-                                    Log.d(TAG, "      Track audioModes: ${streamResult.track?.audioModes}")
-                                    Log.d(TAG, "      Track bitDepth: ${streamResult.track?.bitDepth}")
-                                    Log.d(TAG, "      Track sampleRate: ${streamResult.track?.sampleRate}")
+                                    Timber.tag(TAG).d("      ✓ Stream URL: ${streamUrl.take(150)}...")
+                                    Timber.tag(TAG).d("      Track audioQuality: ${streamResult.track?.audioQuality}")
+                                    Timber.tag(TAG).d("      Track mimeType: ${streamResult.track?.mimeType}")
+                                    Timber.tag(TAG).d("      Track audioModes: ${streamResult.track?.audioModes}")
+                                    Timber.tag(TAG).d("      Track bitDepth: ${streamResult.track?.bitDepth}")
+                                    Timber.tag(TAG).d("      Track sampleRate: ${streamResult.track?.sampleRate}")
 
                                     val isAtmosSupported = run {
                                         val list = android.media.MediaCodecList(android.media.MediaCodecList.ALL_CODECS)
@@ -352,7 +352,7 @@ object YTPlayerUtils {
                                         streamResult.track?.mimeType?.uppercase()?.contains("EAC3") == true)
 
                                     if (!isAtmosSupported && (streamResult.track?.audioQuality?.uppercase()?.contains("ATMOS") == true)) {
-                                        Log.w(TAG, "      ! Device does not support EAC3/Atmos - will attempt fallback to FLAC/High")
+                                        Timber.tag(TAG).w("      ! Device does not support EAC3/Atmos - will attempt fallback to FLAC/High")
                                     }
 
                                     val isLossless = !isAtmos && (
@@ -362,8 +362,8 @@ object YTPlayerUtils {
                                         streamResult.track?.audioQuality?.uppercase()?.contains("FLAC") == true
                                     )
 
-                                    Log.d(TAG, "      isAtmos=$isAtmos (module.isDolbyAtmos=${module.isDolbyAtmos} audioQuality=${streamResult.track?.audioQuality} audioModes=${streamResult.track?.audioModes} mimeType=${streamResult.track?.mimeType})")
-                                    Log.d(TAG, "      isLossless=$isLossless (module.isLossless=${module.isLossless})")
+                                    Timber.tag(TAG).d("      isAtmos=$isAtmos (module.isDolbyAtmos=${module.isDolbyAtmos} audioQuality=${streamResult.track?.audioQuality} audioModes=${streamResult.track?.audioModes} mimeType=${streamResult.track?.mimeType})")
+                                    Timber.tag(TAG).d("      isLossless=$isLossless (module.isLossless=${module.isLossless})")
 
                                     val mimeType = when {
                                         isAtmos -> "audio/eac3-joc; codecs=ec-3"
@@ -376,7 +376,7 @@ object YTPlayerUtils {
                                         else -> 320_000
                                     }
 
-                                    Log.d(TAG, "      ✓ STREAMING from module ${module.id}: mimeType=$mimeType bitrate=$bitrate itag=${if (isAtmos) 9997 else if (isLossless) 9998 else 9996}")
+                                    Timber.tag(TAG).d("      ✓ STREAMING from module ${module.id}: mimeType=$mimeType bitrate=$bitrate itag=${if (isAtmos) 9997 else if (isLossless) 9998 else 9996}")
                                     PlaybackData(
                                         audioConfig      = meta?.playerConfig?.audioConfig,
                                         videoDetails     = meta?.videoDetails,
@@ -435,9 +435,9 @@ object YTPlayerUtils {
                     }
                 }
             }.onFailure { e ->
-                Log.e(TAG, "═══ SPINE INTERCEPT ERROR ═══", e)
+                Timber.tag(TAG).e(e, "═══ SPINE INTERCEPT ERROR ═══")
             }
-            Log.d(TAG, "═══ SPINE INTERCEPT END ═══")
+            Timber.tag(TAG).d("═══ SPINE INTERCEPT END ═══")
             } // !forceStandardAudio
             // ── End 8spine intercept ───────────────────────────────────────────
 
@@ -848,7 +848,7 @@ object YTPlayerUtils {
         if (isAgeRestrictedFromResponse && isLoggedIn) {
             // Age-restricted: use WEB_CREATOR directly (no NewPipe needed from here)
             Timber.tag(logTag).d("Age-restricted detected, using WEB_CREATOR")
-            Log.i(TAG, "Age-restricted: using WEB_CREATOR for videoId=$videoId")
+            Timber.tag(TAG).i("Age-restricted: using WEB_CREATOR for videoId=$videoId")
             val creatorResponse = YouTube.player(videoId, playlistId, WEB_CREATOR, null, null).getOrNull()
             if (creatorResponse?.playabilityStatus?.status == "OK") {
                 Timber.tag(logTag).d("WEB_CREATOR works for age-restricted content")
@@ -883,7 +883,7 @@ object YTPlayerUtils {
 
         if (isAgeRestricted) {
             Timber.tag(logTag).d("Content is still age-restricted (status: $currentStatus), will try fallback clients")
-            Log.i(TAG, "Age-restricted content detected: videoId=$videoId, status=$currentStatus")
+            Timber.tag(TAG).i("Age-restricted content detected: videoId=$videoId, status=$currentStatus")
         }
 
         // Check if this is a privately owned track (uploaded song)
@@ -1033,7 +1033,7 @@ object YTPlayerUtils {
                     } else {
                         Timber.tag(logTag).d("Using last fallback client without validation: ${STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")
                     }
-                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId, private=$isPrivatelyOwned")
+                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId, private=$isPrivatelyOwned")
                     break
                 }
 
@@ -1042,7 +1042,7 @@ object YTPlayerUtils {
                     Timber.tag(logTag).d("Stream validated successfully with client: ${currentClient.clientName}")
                     PlaybackLogManager.log(PlaybackLogLevel.INFO, "Stream validated", currentClient.clientName)
                     // Log for release builds
-                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId")
+                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId")
                     break
                 } else {
                     Timber.tag(logTag).d("Stream validation failed for client: ${currentClient.clientName}")
@@ -1060,7 +1060,7 @@ object YTPlayerUtils {
                                     Timber.tag(logTag).d("N-transformed URL VALIDATED OK!")
                                     streamUrl = nTransformed
                                     nTransformWorked = true
-                                    Log.i(TAG, "Playback: client=${currentClient.clientName}, videoId=$videoId (cipher n-transform)")
+                                    Timber.tag(TAG).i("Playback: client=${currentClient.clientName}, videoId=$videoId (cipher n-transform)")
                                 }
                             }
                         } catch (e: Exception) {
@@ -1229,7 +1229,7 @@ object YTPlayerUtils {
                     error.cause?.message?.contains("age-restricted", ignoreCase = true) == true
                 if (isAgeRestricted) {
                     Timber.tag(logTag).d("Age-restricted content detected from NewPipe")
-                    Log.i(TAG, "Age-restricted detected early via NewPipe: videoId=$videoId")
+                    Timber.tag(TAG).i("Age-restricted detected early via NewPipe: videoId=$videoId")
                 } else {
                     Timber.tag(logTag).e(error, "Failed to get signature timestamp")
                     reportException(error)

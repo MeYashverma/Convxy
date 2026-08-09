@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.convx.music.R
+import com.convx.music.utils.DebugLogs
 import com.convx.music.utils.PlaybackLogEntry
 import com.convx.music.utils.PlaybackLogLevel
 
@@ -84,6 +85,12 @@ fun PlaybackLogsDialog(
             }
             TextButton(onClick = onClear) {
                 Text(stringResource(R.string.clear))
+            }
+            TextButton(
+                onClick = { DebugLogs.share(context, logs) },
+                enabled = logs.isNotEmpty()
+            ) {
+                Text(stringResource(R.string.crash_share_logs))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(onClick = onDismiss) {

@@ -4,8 +4,7 @@
  */
 
 package com.convx.music.playback
-
-import android.util.Log
+import timber.log.Timber
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -244,9 +243,9 @@ constructor(
                                 null
                             )
                             writer.cache()
-                            Log.d("CanvasDownload", "Successfully cached canvas for $mediaId")
+                            Timber.tag("CanvasDownload").d("Successfully cached canvas for $mediaId")
                         }.onFailure { e ->
-                            Log.e("CanvasDownload", "Failed to cache canvas for $mediaId", e)
+                            Timber.tag("CanvasDownload").e(e, "Failed to cache canvas for $mediaId")
                         }
                     }
                 }

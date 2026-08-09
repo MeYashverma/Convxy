@@ -4,8 +4,7 @@
  */
 
 package com.convx.music.ui.screens.search.suggestions
-
-import android.util.Log
+import timber.log.Timber
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -34,7 +33,7 @@ object AppleMusicScraper {
                 response.body?.string()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error executing GET request for $url", e)
+            Timber.tag(TAG).e(e, "Error executing GET request for $url")
             null
         }
     }
@@ -60,7 +59,7 @@ object AppleMusicScraper {
                 tracks.add(SuggestionTrack(rank, title, artist, artwork, appleUrl))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching Apple Music Top Songs for $countryCode", e)
+            Timber.tag(TAG).e(e, "Error fetching Apple Music Top Songs for $countryCode")
         }
         return tracks
     }
@@ -86,7 +85,7 @@ object AppleMusicScraper {
                 albums.add(SuggestionAlbum(rank, title, artist, artwork, appleUrl))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching Apple Music Top Albums for $countryCode", e)
+            Timber.tag(TAG).e(e, "Error fetching Apple Music Top Albums for $countryCode")
         }
         return albums
     }
@@ -121,7 +120,7 @@ object AppleMusicScraper {
 
             videos.addAll(videoMap.values.sortedBy { it.rank })
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching Apple Music Top Videos for $countryCode", e)
+            Timber.tag(TAG).e(e, "Error fetching Apple Music Top Videos for $countryCode")
         }
         return videos
     }

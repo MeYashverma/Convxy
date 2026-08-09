@@ -18,8 +18,7 @@
  */
 
 package com.convx.music.utils.tidal
-
-import android.util.Log
+import timber.log.Timber
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -185,7 +184,7 @@ object TidalService {
                 (body.api + body.streaming).map { it.url.trimEnd('/') }.filter { it.startsWith("http") }
             }.getOrElse { emptyList() }
             if (hosts.isNotEmpty()) {
-                Log.d(TAG, "live instances (${hosts.size}) via $worker")
+                Timber.tag(TAG).d("live instances (${hosts.size}) via $worker")
                 cachedLive = hosts
                 cachedAt = now
                 return hosts
@@ -220,11 +219,11 @@ object TidalService {
                 data.items.ifEmpty { data.tracks?.items ?: emptyList() }
                     .filter { it.id != 0L && it.title.isNotBlank() }
             }.getOrElse {
-                Log.d(TAG, "search failed on $base: ${it.message}")
+                Timber.tag(TAG).d("search failed on $base: ${it.message}")
                 emptyList()
             }
             if (hits.isNotEmpty()) {
-                Log.d(TAG, "search \"$query\" -> ${hits.size} hits via $base")
+                Timber.tag(TAG).d("search \"$query\" -> ${hits.size} hits via $base")
                 return hits
             }
         }
@@ -251,23 +250,23 @@ object TidalService {
                     headers.append(HttpHeaders.AcceptEncoding, "identity")
                 }
                 if (resp.status != HttpStatusCode.OK) {
-                    Log.d(TAG, "track HTTP ${resp.status.value} on $base id=$trackId body=${resp.bodyAsText().take(200)}")
+                    Timber.tag(TAG).d("track HTTP ${resp.status.value} on $base id=$trackId body=${resp.bodyAsText().take(200)}")
                     return@runCatching null
                 }
                 val data = resp.body<TidalTrackResponse>().data
                 if (data?.manifest == null) {
-                    Log.d(TAG, "track no manifest on $base id=$trackId mime=${data?.manifestMimeType}")
+                    Timber.tag(TAG).d("track no manifest on $base id=$trackId mime=${data?.manifestMimeType}")
                     return@runCatching null
                 }
                 decodeManifestUrl(data.manifest, data.manifestMimeType).also {
-                    if (it == null) Log.d(TAG, "track manifest not decodable on $base mime=${data.manifestMimeType} head=${data.manifest.take(24)}")
+                    if (it == null) Timber.tag(TAG).d("track manifest not decodable on $base mime=${data.manifestMimeType} head=${data.manifest.take(24)}")
                 }
             }.getOrElse {
-                Log.d(TAG, "streamUrl failed on $base: ${it.message}")
+                Timber.tag(TAG).d("streamUrl failed on $base: ${it.message}")
                 null
             }
             if (!url.isNullOrBlank()) {
-                Log.d(TAG, "streamUrl track=$trackId quality=$quality resolved via $base")
+                Timber.tag(TAG).d("streamUrl track=$trackId quality=$quality resolved via $base")
                 return url
             }
         }

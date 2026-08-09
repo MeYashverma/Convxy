@@ -10,7 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.util.Log
+import timber.log.Timber
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -705,7 +705,7 @@ suspend fun checkForUpdate(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("UpdateCheck", "Error checking nightly updates: ${e.message}", e)
+                    Timber.tag("UpdateCheck").e(e, "Error checking nightly updates: ${e.message}")
                 }
             }
 
@@ -851,7 +851,7 @@ suspend fun checkForUpdate(
                 onSuccess(currentVersion, false, emptyList(), "", "", null, null, null)
             }
         } catch (e: Exception) {
-            Log.e("UpdateCheck", "Error checking for updates: ${e.message}", e)
+            Timber.tag("UpdateCheck").e(e, "Error checking for updates: ${e.message}")
             withContext(Dispatchers.Main) { onError() }
         }
     }

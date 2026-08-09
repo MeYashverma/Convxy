@@ -8,6 +8,7 @@ package com.convx.music.ui.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -21,18 +22,23 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.convx.music.R
 import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
 import com.convx.music.constants.HomeHeroCardHeightOverrideKey
@@ -71,12 +77,30 @@ fun HomeHeroCard(
             .clip(ContinuousRoundedRectangle(cornerRadius))
             .bounceClick(onClick = onClick),
     ) {
-        AsyncImage(
-            model = thumbnailUrl,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        // Bound the decode to the card's real on-screen pixels and skip the crossfade:
+        // the hero is a full-bleed artwork card, so a full-size decode + fade costs GPU
+        // time for zero visual gain on every scroll frame where the card re-enters view.
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val context = LocalContext.current
+            val density = LocalDensity.current
+            // LocalContext/LocalDensity are composable reads, so they can't live inside
+            // remember's calculation lambda — read them here, capture into the key set.
+            val request = remember(thumbnailUrl, maxWidth, maxHeight, context, density) {
+                with(density) {
+                    ImageRequest.Builder(context)
+                        .data(thumbnailUrl)
+                        .size(maxWidth.roundToPx(), maxHeight.roundToPx())
+                        .crossfade(false)
+                        .build()
+                }
+            }
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         // Scrim only over the lower half, so the artwork stays legible up top while the
         // title below it keeps contrast regardless of how bright the cover is.

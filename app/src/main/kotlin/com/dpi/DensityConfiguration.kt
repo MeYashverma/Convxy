@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
-import android.util.Log
 import timber.log.Timber
 import kotlin.math.roundToInt
 
@@ -34,7 +33,7 @@ internal class DensityConfiguration(
             originalDensityDpi = config.densityDpi
             updateDensityDpi(config, resources)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to apply configuration", e)
+            Timber.tag(TAG).w(e, "Failed to apply configuration")
         }
     }
 

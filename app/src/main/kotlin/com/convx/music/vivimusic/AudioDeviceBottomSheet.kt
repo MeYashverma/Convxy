@@ -16,7 +16,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import timber.log.Timber
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize

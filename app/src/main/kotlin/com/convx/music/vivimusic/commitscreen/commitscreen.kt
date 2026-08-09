@@ -2,7 +2,7 @@ package com.convx.music.vivimusic.commitscreen
 
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
+import timber.log.Timber
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -145,7 +145,7 @@ fun CommitScreen(
                     hasError = false
                 }
             } catch (e: Exception) {
-                Log.e("CommitScreen", "Error fetching commits: ${e.message}")
+                Timber.tag("CommitScreen").e("Error fetching commits: ${e.message}")
                 withContext(Dispatchers.Main) {
                     hasError = true
                     isLoading = false

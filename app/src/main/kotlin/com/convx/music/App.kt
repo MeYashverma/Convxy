@@ -35,6 +35,7 @@ import com.convx.music.di.ApplicationScope
 import com.convx.music.extensions.toEnum
 import com.convx.music.extensions.toInetSocketAddress
 import com.convx.music.utils.CrashHandler
+import com.convx.music.utils.DebugLogs
 import com.convx.music.utils.cipher.CipherDeobfuscator
 import com.convx.music.utils.dataStore
 import com.convx.music.utils.reportException
@@ -72,6 +73,7 @@ class App : Application(), SingletonImageLoader.Factory {
         CipherDeobfuscator.initialize(this)
 
         Timber.plant(Timber.DebugTree())
+        Timber.plant(DebugLogs.tree(this))
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {

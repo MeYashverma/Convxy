@@ -189,11 +189,7 @@ fun rememberHeroTint(url: String?): Color {
         }
     }
 
-    val animatedTint by androidx.compose.animation.animateColorAsState(
-        targetValue = tint,
-        animationSpec = androidx.compose.animation.core.tween(1000),
-        label = "heroTint"
-    )
+    val animatedTint = tint
     // Root-cause fix, not per-screen: every hero-tinted screen (Artist, Album,
     // Playlist, Search, ...) reads its background straight off this value, but
     // only HeroBackground's own separate PureBlackHeroBackgroundKey check

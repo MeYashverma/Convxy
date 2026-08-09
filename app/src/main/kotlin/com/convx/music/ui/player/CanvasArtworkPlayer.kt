@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -46,6 +49,28 @@ fun CanvasArtworkPlayer(
     val primary = primaryUrl?.takeIf { it.isNotBlank() }
     val fallback = fallbackUrl?.takeIf { it.isNotBlank() }
     val initial = primary ?: fallback ?: return
+
+    // A canvas loop is decorative, so it must never outlive the user looking at it.
+    // Gated here rather than at each call site: this composable stays composed while
+    // the app is in the background, and AlbumScreen passes isPlaying = true
+    // unconditionally, so a hardware video decoder kept running at the forced highest
+    // bitrate with the screen off — battery and heat, not just frames.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var inForeground by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> inForeground = true
+                Lifecycle.Event.ON_STOP -> inForeground = false
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val shouldPlay = isPlaying && inForeground
     var currentUrl by remember(initial) { mutableStateOf(initial) }
     var isVideoReady by remember(initial) { mutableStateOf(false) }
     val currentOnExhausted by rememberUpdatedState(onExhausted)
@@ -127,13 +152,13 @@ fun CanvasArtworkPlayer(
                 )
                 volume = 0f
                 repeatMode = Player.REPEAT_MODE_ONE
-                playWhenReady = isPlaying
+                playWhenReady = false
             }
         }
 
-    LaunchedEffect(isPlaying) {
-        if (exoPlayer.playWhenReady != isPlaying) {
-            exoPlayer.playWhenReady = isPlaying
+    LaunchedEffect(shouldPlay) {
+        if (exoPlayer.playWhenReady != shouldPlay) {
+            exoPlayer.playWhenReady = shouldPlay
         }
     }
 
@@ -196,7 +221,7 @@ fun CanvasArtworkPlayer(
         isVideoReady = false
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
-        exoPlayer.playWhenReady = isPlaying
+        exoPlayer.playWhenReady = shouldPlay
     }
 
     DisposableEffect(exoPlayer) {

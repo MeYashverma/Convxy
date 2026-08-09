@@ -283,9 +283,26 @@ fun HistoryScreen(
                             )
                         }
 
+                        // Keyed by identity, not position. The old key embedded the row
+                        // index, so every keystroke in the search box shifted the indices
+                        // and re-keyed the entire list — Compose threw away and rebuilt
+                        // every row's state on each character typed. The occurrence
+                        // counter only disambiguates a song that genuinely appears twice
+                        // in one section, which is what keeps the key unique without
+                        // making it move when the list is filtered.
+                        // Plain val, not remember: this runs in LazyListScope, which is not
+                        // a composable context. One pass over the section when the item
+                        // provider is built.
+                        val songKeys = buildList(section.songs.size) {
+                            val seen = HashMap<String, Int>()
+                            section.songs.forEach { song ->
+                                val occurrence = seen.merge(song.id, 1, Int::plus)!! - 1
+                                add("${section.title}_${song.id}_$occurrence")
+                            }
+                        }
                         itemsIndexed(
                             items = section.songs,
-                            key = { index, song -> "${section.title}_${song.id}_$index" }
+                            key = { index, _ -> songKeys[index] }
                         ) { index, song ->
                             YouTubeListItem(
                                 item = song,
@@ -339,7 +356,6 @@ fun HistoryScreen(
                                             }
                                         }
                                     )
-                                    .animateItem()
                             )
                         }
                     }
@@ -428,14 +444,13 @@ fun HistoryScreen(
                                             }
                                         }
                                     )
-                                    .animateItem()
                             )
                         }
                     }
                 }
 
                 item(key = "bottom_spacer_history") {
-                    Spacer(modifier = Modifier.height(16.dp).animateItem())
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
 

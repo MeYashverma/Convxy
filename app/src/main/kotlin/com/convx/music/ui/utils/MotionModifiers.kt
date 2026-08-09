@@ -9,11 +9,14 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.OverscrollEffect
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
@@ -22,6 +25,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -215,4 +220,31 @@ fun Modifier.heroPullZoom(
         .onSizeChanged { viewport.floatValue = it.height.toFloat() }
         .graphicsLayer { translationY = zoom.offset }
         .nestedScroll(connection)
+}
+
+/**
+ * [basicMarquee] that only runs while the text is actually on screen.
+ *
+ * A plain `Modifier.basicMarquee()` starts an infinite animation the moment it is
+ * composed and never stops. In a lazy list that means every row Compose keeps
+ * around — including the ones scrolled out of view and the ones prefetched ahead
+ * of the viewport — drives an animation frame forever, so the whole app redraws
+ * every vsync with nothing visible moving. Gating on real visibility keeps the
+ * effect where the user can see it and costs one bounds check per layout pass.
+ *
+ * Visibility is read from the node's bounds in the window rather than a lazy
+ * list's item info, so this works in any container: grids, rows, the player, a
+ * plain Column.
+ */
+@Composable
+fun Modifier.marqueeWhenVisible(): Modifier {
+    var visible by remember { mutableStateOf(false) }
+    return this
+        .onGloballyPositioned { coordinates ->
+            // boundsInWindow() collapses to an empty rect once the node is fully
+            // clipped by an ancestor, which is exactly "scrolled out of sight".
+            val onScreen = coordinates.isAttached && !coordinates.boundsInWindow().isEmpty
+            if (onScreen != visible) visible = onScreen
+        }
+        .then(if (visible) Modifier.basicMarquee() else Modifier)
 }

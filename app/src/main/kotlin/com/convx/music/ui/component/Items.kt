@@ -17,7 +17,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -56,7 +55,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -84,6 +83,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.zIndex
@@ -122,6 +122,7 @@ import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.models.MediaMetadata
 import com.convx.music.ui.theme.AppleTokens
+import com.convx.music.ui.utils.marqueeWhenVisible
 import com.convx.music.ui.utils.rememberGridSpacing
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.joinByBullet
@@ -434,8 +435,14 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id)
-                .collectAsState(initial = null)
+            // Remember the FLOW, not the collection: getDownload() built a new flow on
+            // every recomposition, which resubscribed per row per frame. collectAsState
+            // is a composable call and cannot live inside remember's lambda.
+            val downloadUtil = LocalDownloadUtil.current
+            val downloadFlow = remember(downloadUtil, song.song.id) {
+                downloadUtil.getDownload(song.song.id)
+            }
+            val download by downloadFlow.collectAsState(initial = null)
             Icon.Download(download?.state)
         }
     },
@@ -484,6 +491,7 @@ fun SongListItem(
                         isActive = isActive,
                         isPlaying = isPlaying,
                         shape = ThumbnailRoundedShape,
+                        targetSizePx = thumbnailPx(ListThumbnailSize),
                         modifier = Modifier.size(ListThumbnailSize)
                     )
                 }
@@ -499,8 +507,9 @@ fun SongListItem(
     }
 
     if (isSwipeable && swipeEnabled) {
+        val mediaItem = remember(song.song.id) { song.toMediaItem() }
         SwipeToSongBox(
-            mediaItem = song.toMediaItem(),
+            mediaItem = mediaItem,
             modifier = Modifier.fillMaxWidth()
         ) {
             content()
@@ -541,7 +550,7 @@ fun SongGridItem(
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.marqueeWhenVisible().fillMaxWidth()
         )
     },
     subtitle = {
@@ -724,8 +733,8 @@ fun AlbumListItem(
 
         val allDownloads by downloadUtil.downloads.collectAsState()
 
-        val downloadState by remember(songs, allDownloads) {
-            androidx.compose.runtime.mutableIntStateOf(
+        val downloadState by remember(songs) {
+            derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
                 } else {
@@ -735,7 +744,7 @@ fun AlbumListItem(
                         else -> Download.STATE_STOPPED
                     }
                 }
-            )
+            }
         }
 
         if (showLikedIcon && album.album.bookmarkedAt != null) {
@@ -780,6 +789,7 @@ fun AlbumListItem(
                 isActive = isActive,
                 isPlaying = isPlaying,
                 shape = ThumbnailRoundedShape,
+                targetSizePx = thumbnailPx(ListThumbnailSize),
                 modifier = Modifier.size(ListThumbnailSize)
             )
         }
@@ -806,8 +816,8 @@ fun AlbumGridItem(
 
         val allDownloads by downloadUtil.downloads.collectAsState()
 
-        val downloadState by remember(songs, allDownloads) {
-            androidx.compose.runtime.mutableIntStateOf(
+        val downloadState by remember(songs) {
+            derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
                 } else {
@@ -817,7 +827,7 @@ fun AlbumGridItem(
                         else -> Download.STATE_STOPPED
                     }
                 }
-            )
+            }
         }
 
         if (album.album.bookmarkedAt != null) {
@@ -840,7 +850,7 @@ fun AlbumGridItem(
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.marqueeWhenVisible().fillMaxWidth()
         )
     },
     subtitle = {
@@ -914,8 +924,8 @@ fun PlaylistListItem(
 
         val allDownloads by downloadUtil.downloads.collectAsState()
 
-        val downloadState by remember(songs, allDownloads) {
-            androidx.compose.runtime.mutableIntStateOf(
+        val downloadState by remember(songs) {
+            derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
                 } else {
@@ -925,7 +935,7 @@ fun PlaylistListItem(
                         else -> Download.STATE_STOPPED
                     }
                 }
-            )
+            }
         }
 
         Icon.Download(downloadState)
@@ -1027,8 +1037,8 @@ fun PlaylistGridItem(
 
         val allDownloads by downloadUtil.downloads.collectAsState()
 
-        val downloadState by remember(songs, allDownloads) {
-            mutableIntStateOf(
+        val downloadState by remember(songs) {
+            derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
                 } else {
@@ -1038,7 +1048,7 @@ fun PlaylistGridItem(
                         else -> Download.STATE_STOPPED
                     }
                 }
-            )
+            }
         }
 
         Icon.Download(downloadState)
@@ -1053,7 +1063,7 @@ fun PlaylistGridItem(
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.marqueeWhenVisible().fillMaxWidth()
         )
     },
     subtitle = {
@@ -1173,6 +1183,7 @@ fun MediaMetadataListItem(
                 isActive = isActive,
                 isPlaying = isPlaying,
                 shape = ThumbnailRoundedShape,
+                targetSizePx = thumbnailPx(ListThumbnailSize),
                 modifier = Modifier.size(ListThumbnailSize)
             )
         },
@@ -1185,6 +1196,29 @@ fun MediaMetadataListItem(
 }
 
 
+/** Per-row DB lookup for a badge, used only when the screen did not hoist the data.
+ *  Screens that render many rows should collect a map once and pass it down instead
+ *  — these two exist so that leaving them alone stays correct, not fast. */
+@Composable
+private fun rememberRowSong(item: YTItem): Song? {
+    if (item !is SongItem) return null
+    val database = LocalDatabase.current
+    val song by produceState<Song?>(initialValue = null, item.id) {
+        value = database.song(item.id).firstOrNull()
+    }
+    return song
+}
+
+@Composable
+private fun rememberRowAlbum(item: YTItem): Album? {
+    if (item !is AlbumItem) return null
+    val database = LocalDatabase.current
+    val album by produceState<Album?>(initialValue = null, item.id) {
+        value = database.album(item.id).firstOrNull()
+    }
+    return album
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YouTubeListItem(
@@ -1196,23 +1230,25 @@ fun YouTubeListItem(
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
     trailingContent: @Composable RowScope.() -> Unit = {},
+    /** Pass these from a map the screen already collected to avoid a per-row DB
+     *  query. Left null, the row looks itself up as before — dropping the lookup
+     *  outright silently removed the liked/bookmarked badge everywhere. */
+    song: Song? = null,
+    album: Album? = null,
     badges: @Composable RowScope.() -> Unit = {
-        val database = LocalDatabase.current
-        val song by produceState<Song?>(initialValue = null, item.id) {
-            if (item is SongItem) value = database.song(item.id).firstOrNull()
-        }
-        val album by produceState<Album?>(initialValue = null, item.id) {
-            if (item is AlbumItem) value = database.album(item.id).firstOrNull()
-        }
-
-        if ((item is SongItem && song?.song?.liked == true) ||
-            (item is AlbumItem && album?.album?.bookmarkedAt != null)
+        val resolvedSong = song ?: rememberRowSong(item)
+        val resolvedAlbum = album ?: rememberRowAlbum(item)
+        if ((item is SongItem && resolvedSong?.song?.liked == true) ||
+            (item is AlbumItem && resolvedAlbum?.album?.bookmarkedAt != null)
         ) {
             Icon.Favorite()
         }
         if (item.explicit) Icon.Explicit()
         if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(null)
+            // Flow is remembered; collectAsState is composable and stays outside.
+            val downloadUtil = LocalDownloadUtil.current
+            val downloadFlow = remember(downloadUtil, item.id) { downloadUtil.getDownload(item.id) }
+            val download by downloadFlow.collectAsState(null)
             Icon.Download(download?.state)
         }
     },
@@ -1240,6 +1276,7 @@ fun YouTubeListItem(
                     isActive = isActive,
                     isPlaying = isPlaying,
                     shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
+                    targetSizePx = thumbnailPx(ListThumbnailSize),
                     modifier = Modifier.size(ListThumbnailSize)
                 )
             },
@@ -1254,8 +1291,9 @@ fun YouTubeListItem(
     }
 
     if (item is SongItem && isSwipeable && swipeEnabled) {
+        val mediaItem = remember(item.id) { item.copy(thumbnail = item.thumbnail.resize(544,544)).toMediaItem() }
         SwipeToSongBox(
-            mediaItem = item.copy(thumbnail = item.thumbnail.resize(544,544)).toMediaItem(),
+            mediaItem = mediaItem,
             modifier = Modifier.fillMaxWidth()
         ) {
             content()
@@ -1270,24 +1308,25 @@ fun YouTubeGridItem(
     item: YTItem,
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope? = null,
+    /** See [YouTubeListItem]: hoisted when the screen already has the data, looked
+     *  up per row otherwise so the badge does not silently disappear. */
+    song: Song? = null,
+    album: Album? = null,
     badges: @Composable RowScope.() -> Unit = {
-        val database = LocalDatabase.current
-        val song by produceState<Song?>(initialValue = null, item.id) {
-            if (item is SongItem) value = database.song(item.id).firstOrNull()
-        }
-        val album by produceState<Album?>(initialValue = null, item.id) {
-            if (item is AlbumItem) value = database.album(item.id).firstOrNull()
-        }
-
-        if (item is SongItem && song?.song?.liked == true ||
-            item is AlbumItem && album?.album?.bookmarkedAt != null
+        val resolvedSong = song ?: rememberRowSong(item)
+        val resolvedAlbum = album ?: rememberRowAlbum(item)
+        if (item is SongItem && resolvedSong?.song?.liked == true ||
+            item is AlbumItem && resolvedAlbum?.album?.bookmarkedAt != null
         ) {
             Icon.Favorite()
         }
         if (item.explicit) Icon.Explicit()
         // if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(null)
+            // Flow is remembered; collectAsState is composable and stays outside.
+            val downloadUtil = LocalDownloadUtil.current
+            val downloadFlow = remember(downloadUtil, item.id) { downloadUtil.getDownload(item.id) }
+            val download by downloadFlow.collectAsState(null)
             Icon.Download(download?.state)
         }
     },
@@ -1306,7 +1345,7 @@ fun YouTubeGridItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
+            modifier = Modifier.marqueeWhenVisible().fillMaxWidth()
         )
     },
     subtitle = {
@@ -1427,6 +1466,11 @@ fun LocalAlbumsGrid(
     modifier = modifier
 )
 
+/** Real pixel size of a [dp] box on this device, for sizing an image decode to what
+ *  the layout can actually show. */
+@Composable
+fun thumbnailPx(dp: Dp): Int = with(LocalDensity.current) { dp.roundToPx() }
+
 @Composable
 fun ItemThumbnail(
     thumbnailUrl: String?,
@@ -1437,6 +1481,10 @@ fun ItemThumbnail(
     albumIndex: Int? = null,
     isSelected: Boolean = false,
     thumbnailRatio: Float = 1f,
+    /** Decode size. Grid tiles keep the large default; list rows pass their real
+     *  on-screen size via [thumbnailPx], because decoding a 544px bitmap for a
+     *  48dp row is ~10x the pixels the row can show. Do NOT lower this default:
+     *  the same composable draws the big tiles, and they need every pixel. */
     targetSizePx: Int = 544,
     /** Overrides the global CropAlbumArtKey preference when set — for tiles that
      *  should always fill edge-to-edge (Apple Music style) regardless of the
@@ -1447,10 +1495,11 @@ fun ItemThumbnail(
     val cropAlbumArtPref by rememberPreference(CropAlbumArtKey, false)
     val cropAlbumArt = forceContentScale == ContentScale.Crop || (forceContentScale == null && cropAlbumArtPref)
     val context = LocalContext.current
-    val imageRequest = remember(thumbnailUrl, targetSizePx) {
+    val actualTargetSizePx = targetSizePx
+    val imageRequest = remember(thumbnailUrl, actualTargetSizePx) {
         ImageRequest.Builder(context)
-            .data(thumbnailUrl?.resize(targetSizePx, targetSizePx))
-            .size(CoilSize(targetSizePx, targetSizePx))
+            .data(thumbnailUrl?.resize(actualTargetSizePx, actualTargetSizePx))
+            .size(CoilSize(actualTargetSizePx, actualTargetSizePx))
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)

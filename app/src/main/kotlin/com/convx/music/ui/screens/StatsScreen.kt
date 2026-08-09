@@ -295,7 +295,7 @@ fun StatsScreen(
                     item(key = "mostPlayedSongs") {
                         NavigationTitle(
                             title = "${mostPlayedSongsStats.size} ${stringResource(id = R.string.songs)}",
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier,
                         )
                     }
 
@@ -304,7 +304,7 @@ fun StatsScreen(
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues().plusStart(sideInset),
-                            modifier = Modifier.animateItem().bleedStart(sideInset),
+                            modifier = Modifier.bleedStart(sideInset),
                         ) {
                             itemsIndexed(
                                 items = mostPlayedSongsStats,
@@ -350,8 +350,7 @@ fun StatsScreen(
                                                     )
                                                 }
                                             },
-                                        )
-                                        .animateItem(),
+)
                                 )
                             }
                         }
@@ -362,7 +361,7 @@ fun StatsScreen(
                     item(key = "mostPlayedArtistsTitle") {
                         NavigationTitle(
                             title = "${mostPlayedArtists.size} ${stringResource(id = R.string.artists)}",
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier,
                         )
                     }
 
@@ -371,7 +370,7 @@ fun StatsScreen(
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues().plusStart(sideInset),
-                            modifier = Modifier.animateItem().bleedStart(sideInset),
+                            modifier = Modifier.bleedStart(sideInset),
                         ) {
                             itemsIndexed(
                                 items = mostPlayedArtists,
@@ -405,8 +404,7 @@ fun StatsScreen(
                                                     )
                                                 }
                                             },
-                                        )
-                                        .animateItem(),
+)
                                 )
                             }
                         }
@@ -417,7 +415,7 @@ fun StatsScreen(
                     item(key = "mostPlayedAlbumsTitle") {
                         NavigationTitle(
                             title = "${mostPlayedAlbums.size} ${stringResource(id = R.string.albums)}",
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier,
                         )
                     }
 
@@ -426,7 +424,7 @@ fun StatsScreen(
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues().plusStart(sideInset),
-                            modifier = Modifier.animateItem().bleedStart(sideInset),
+                            modifier = Modifier.bleedStart(sideInset),
                         ) {
                             itemsIndexed(
                                 items = mostPlayedAlbums,
@@ -463,8 +461,7 @@ fun StatsScreen(
                                                     )
                                                 }
                                             },
-                                        )
-                                        .animateItem(),
+)
                                 )
                             }
                         }

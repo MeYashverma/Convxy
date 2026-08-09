@@ -447,6 +447,8 @@
     <string name="standard_lyrics_blur">Standard lyrics blur</string>
     <string name="listen_together_smart_resync">Smart Network Resync</string>
     <string name="listen_together_smart_resync_desc">Automatically catch up with the host after a connection drop</string>
+    <string name="listen_together_host_controls">The host controls playback in this session</string>
+    <string name="listen_together_locked">Host controls playback</string>
 
     <!-- JioSaavn Streaming -->
     <string name="enable_saavn_streaming">Enable JioSaavn Streaming</string>

@@ -505,6 +505,10 @@ export class Room {
     // already the authoritative order; there is nothing to reorder, and no
     // untrusted timestamp that could do it better.
 
+    // Set by the track-changing actions below; drives the buffer window opened
+    // after the broadcast.
+    let startedTrackId: string | null = null;
+
     switch (p.action) {
       case 'play':
         r.is_playing = true;
@@ -523,6 +527,7 @@ export class Room {
       case 'skip_prev':
         if (p.track_info) r.current_track = p.track_info;
         r.position = typeof p.position === 'number' ? p.position : 0;
+        startedTrackId = r.current_track?.id ?? null;
         break;
       case 'queue_add':
         if (p.track_info) r.queue = [...r.queue, p.track_info];
@@ -544,6 +549,42 @@ export class Room {
     // server_time is stamped here so clients can derive their clock offset;
     // without it every guest drifts by however wrong its device clock is.
     this.broadcast(S2C.SYNC_PLAYBACK, { ...p, server_time: now, from_user_id: fromUserId });
+
+    if (startedTrackId) await this.openBufferWindow(startedTrackId, fromUserId);
+  }
+
+  /**
+   * A guest that receives a track change pauses, loads the track, sends
+   * BUFFER_READY and then waits for BUFFER_COMPLETE before it plays. Nothing
+   * used to open this window, so `bufferReady` saw a null buffer, dropped every
+   * report, and no BUFFER_COMPLETE was ever broadcast — the track changed on
+   * every device and none of them ever started playing.
+   *
+   * Everyone except the actor is waited on; the actor is already on the track.
+   * The alarm deadline releases the room if a straggler never reports.
+   */
+  private async openBufferWindow(trackId: string, actorId: string) {
+    const waiting = Object.values(this.members)
+      .filter((m) => m.connected && m.user_id !== actorId)
+      .map((m) => m.user_id);
+
+    if (waiting.length === 0) {
+      // Nobody to wait for: release immediately rather than leaving guests that
+      // join mid-track with no completion to wait on.
+      this.buffer = null;
+      await this.persist();
+      this.broadcast(S2C.BUFFER_COMPLETE, { track_id: trackId });
+      return;
+    }
+
+    this.buffer = {
+      track_id: trackId,
+      waiting_for: waiting,
+      deadline: Date.now() + BUFFER_TIMEOUT_MS,
+    };
+    await this.persist();
+    this.broadcast(S2C.BUFFER_WAIT, { track_id: trackId, waiting_for: waiting });
+    await this.rescheduleAlarm();
   }
 
   private async suggest(fromUserId: string, track: TrackInfo) {

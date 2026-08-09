@@ -222,7 +222,27 @@ class PlayerConnection(
         Timber.tag(TAG).d("Attached to new player instance: $newPlayer")
     }
 
+    /**
+     * Set when a playback change was refused because this device is a Listen
+     * Together guest without control. The UI observes it to say so and resets it;
+     * blocking silently reads as the app being broken.
+     */
+    val playbackBlockedByRoom = MutableStateFlow(false)
+
+    /** True while playback controls must be inert: in a room, without control. */
+    val playbackLockedByRoom: Boolean
+        get() = !allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true
+
     fun playQueue(queue: Queue) {
+        // Every "play this" in the app funnels through here — song rows, album and
+        // playlist headers, search results, Home tiles, radio. It was the one entry
+        // point with no room gate, so an owner-only room still let a guest start its
+        // own local or online playback and desync the whole session.
+        if (playbackLockedByRoom) {
+            Timber.tag(TAG).d("playQueue blocked - Listen Together guest without control")
+            playbackBlockedByRoom.value = true
+            return
+        }
         if (!playerReadinessFlow.value) {
             Timber.tag(TAG).w("playQueue called before player ready; delegating to service")
         }
@@ -255,8 +275,9 @@ class PlayerConnection(
 
     fun playNext(items: List<MediaItem>) {
         // Block if Listen Together guest (unless internal sync)
-        if (!allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true) {
+        if (playbackLockedByRoom) {
             Timber.tag("PlayerConnection").d("playNext blocked - Listen Together guest")
+            playbackBlockedByRoom.value = true
             return
         }
         try {
@@ -271,8 +292,9 @@ class PlayerConnection(
 
     fun addToQueue(items: List<MediaItem>) {
         // Block if Listen Together guest (unless internal sync)
-        if (!allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true) {
+        if (playbackLockedByRoom) {
             Timber.tag("PlayerConnection").d("addToQueue blocked - Listen Together guest")
+            playbackBlockedByRoom.value = true
             return
         }
         try {

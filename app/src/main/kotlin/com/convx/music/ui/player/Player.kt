@@ -2439,6 +2439,21 @@ fun BottomSheetPlayer(
                     slideOutVertically(targetOffsetY = { -it }) + fadeOut()
             ) {
                 Column {
+                    // The transport controls below are already inert for a guest, but
+                    // greyed-out buttons alone read as a bug. Say why, once, above both
+                    // control layouts.
+                    if (isListenTogetherGuest) {
+                        Text(
+                            text = stringResource(R.string.listen_together_locked),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = textButtonColor.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = PlayerHorizontalPadding, vertical = 4.dp),
+                        )
+                    }
                     if (useNewPlayerDesign) {
                         Row(
                             horizontalArrangement = Arrangement.Center,

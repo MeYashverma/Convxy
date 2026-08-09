@@ -5,6 +5,7 @@
 
 package com.convx.music.ui.screens.settings
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -25,7 +26,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import coil3.imageLoader
 import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.toBitmap
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -84,15 +89,61 @@ private fun mediaSizeBytes(context: android.content.Context, uri: Uri): Long {
     } ?: -1L
 }
 
+/** Longest edge the background is ever drawn at — HomeImageBackground requests
+ *  exactly this from Coil, so anything larger on disk is decoded and thrown away
+ *  on every load. */
+private const val BackgroundMaxWidth = 1080
+private const val BackgroundMaxHeight = 1920
+
 /** Copies a picked image/video into app storage so the background survives
  *  without a persistable URI permission. Unique filename cache-busts Coil.
- *  Returns the absolute path, or null on failure. */
-private fun copyBackgroundMedia(context: android.content.Context, source: Uri, isVideo: Boolean): String? = runCatching {
+ *  Returns the absolute path, or null on failure.
+ *
+ *  Images are re-encoded down to [BackgroundMaxWidth]x[BackgroundMaxHeight] first.
+ *  A modern phone camera or a downloaded wallpaper is routinely 20-50 MP, and the
+ *  raw bytes were kept whole even though the renderer never asks for more than
+ *  1080x1920 — so every screen that shows the background paid a full-size decode
+ *  and downsample, and the file sat in app storage at its original size forever.
+ *  Videos are copied as-is: transcoding one is not a per-pick cost worth paying.
+ *
+ *  Decoding through Coil rather than BitmapFactory deliberately: it already
+ *  applies EXIF orientation, so a portrait photo taken sideways does not come out
+ *  rotated the way a hand-rolled decode would.
+ */
+private suspend fun copyBackgroundMedia(
+    context: android.content.Context,
+    source: Uri,
+    isVideo: Boolean,
+): String? = runCatching {
     val ext = if (isVideo) "mp4" else "jpg"
     val dest = File(context.filesDir, "home_background_${System.currentTimeMillis()}.$ext")
-    context.contentResolver.openInputStream(source)?.use { input ->
-        dest.outputStream().use { output -> input.copyTo(output) }
-    } ?: return null
+
+    if (isVideo) {
+        context.contentResolver.openInputStream(source)?.use { input ->
+            dest.outputStream().use { output -> input.copyTo(output) }
+        } ?: return null
+        return@runCatching dest.absolutePath
+    }
+
+    val request = ImageRequest.Builder(context)
+        .data(source)
+        .size(BackgroundMaxWidth, BackgroundMaxHeight)
+        .allowHardware(false) // compress() needs readable pixels
+        .build()
+    val bitmap = (context.imageLoader.execute(request) as? SuccessResult)?.image?.toBitmap()
+
+    if (bitmap == null) {
+        // Decode failed (exotic format, corrupt file). The raw copy still renders
+        // through Coil's own decoders, so fall back rather than losing the pick.
+        context.contentResolver.openInputStream(source)?.use { input ->
+            dest.outputStream().use { output -> input.copyTo(output) }
+        } ?: return null
+        return@runCatching dest.absolutePath
+    }
+
+    dest.outputStream().use { output ->
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)
+    }
     dest.absolutePath
 }.getOrNull()
 

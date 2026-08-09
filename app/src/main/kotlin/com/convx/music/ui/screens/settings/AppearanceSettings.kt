@@ -499,7 +499,9 @@ fun AppearanceSettings(
             },
             title = stringResource(R.string.default_lib_chips),
             current = defaultChip,
-            values = LibraryFilter.entries,
+            // ARTISTS omitted: Library no longer has an Artists chip, so offering it
+            // here would set a default that resolves to the mixed view anyway.
+            values = LibraryFilter.entries.filter { it != LibraryFilter.ARTISTS },
             valueText = {
                 when (it) {
                     LibraryFilter.SONGS -> stringResource(R.string.songs)

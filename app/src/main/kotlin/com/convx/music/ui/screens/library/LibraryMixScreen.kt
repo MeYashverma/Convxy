@@ -359,7 +359,11 @@ fun LibraryMixScreen(
     val pullRefreshState = rememberPullToRefreshState()
 
     HeroBackground(
-        tint = tint,
+        // HeroBackground fills its whole box with this tint, opaquely. LibraryScreen draws
+        // HomeImageBackground BEHIND this composable, so an opaque tint here hid the user's
+        // wallpaper completely — suppressing only the hero artwork (heroArtworkVisible) was
+        // never enough, the flat colour underneath still covered it.
+        tint = if (customBackground) Color.Transparent else tint,
         heroSource = heroSource,
         showDefaultIcon = libraryBackgroundMode != LibraryBackgroundMode.PLAIN && heroArtworkVisible,
         blurArtwork = libraryBackgroundMode == LibraryBackgroundMode.THUMBNAIL_BLUR && heroArtworkVisible,

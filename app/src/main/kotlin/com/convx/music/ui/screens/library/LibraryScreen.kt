@@ -33,7 +33,6 @@ fun LibraryScreen(navController: NavController) {
                     LibraryFilter.PLAYLISTS to stringResource(R.string.filter_playlists),
                     LibraryFilter.SONGS to stringResource(R.string.filter_songs),
                     LibraryFilter.ALBUMS to stringResource(R.string.filter_albums),
-                    LibraryFilter.ARTISTS to stringResource(R.string.filter_artists),
                 ),
                 currentValue = filterType,
                 onValueUpdate = {
@@ -67,9 +66,10 @@ fun LibraryScreen(navController: NavController) {
                 navController,
                 { filterType = LibraryFilter.LIBRARY })
 
-            LibraryFilter.ARTISTS -> LibraryArtistsScreen(
-                navController,
-                { filterType = LibraryFilter.LIBRARY })
+            // Artists are no longer offered in Library, but the stored preference can
+            // still hold ARTISTS from a build that had the chip — fall back to the mixed
+            // view instead of leaving those users on a filter with no chip to leave it by.
+            LibraryFilter.ARTISTS -> LibraryMixScreen(navController, filterContent)
         }
     }
 }

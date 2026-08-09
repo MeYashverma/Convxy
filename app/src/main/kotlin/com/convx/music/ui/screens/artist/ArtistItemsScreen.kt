@@ -39,6 +39,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -65,6 +67,7 @@ import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.YouTubeGridItem
 import com.convx.music.ui.component.YouTubeListItem
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.shimmer.GridItemPlaceHolder
 import com.convx.music.ui.component.shimmer.ListItemPlaceHolder
@@ -129,7 +132,7 @@ fun ArtistItemsScreen(
             { drawRect(bg); drawContent() }
         }
     )
-
+    val backdropFreeze = rememberBackdropFreeze()
     val heroZoom = rememberHeroZoom()
 
     LaunchedEffect(lazyListState) {
@@ -162,7 +165,13 @@ fun ArtistItemsScreen(
             // Capture from a plain Box wrapping the lists, not the lists
             // themselves: they promote items to their own RenderNodes for
             // recycling, which a capture attached directly doesn't flatten.
-            Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
+            Box(modifier = Modifier
+            .nestedScroll(backdropFreeze.connection)
+            .layerBackdrop(listBackdrop, frozen = backdropFreeze.frozen)
+            // Content becomes ONE cached RenderNode, so the backdrop's
+            // layer.record { drawContent() } records a single drawRenderNode
+            // instead of re-issuing every op in the list.
+            .graphicsLayer()) {
                 // Was recomputed once for `items =` and then AGAIN inside every item's
                 // listItemShape(...) call — a full distinctBy pass per row, i.e. O(n²)
                 // plus a list allocation each time, on every frame of a scroll.

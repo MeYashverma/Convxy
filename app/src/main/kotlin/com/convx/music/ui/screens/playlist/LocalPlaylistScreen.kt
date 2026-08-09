@@ -99,6 +99,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -165,6 +167,7 @@ import com.convx.music.ui.component.LocalAppBackdrop
 import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.OverlayEditButton
@@ -589,6 +592,7 @@ fun LocalPlaylistScreen(
             { drawRect(bg); drawContent() }
         }
     )
+    val backdropFreeze = rememberBackdropFreeze()
     val heroZoom = rememberHeroZoom()
 
     val heroSource = rememberHeroSource(
@@ -613,7 +617,13 @@ fun LocalPlaylistScreen(
         // reliably flatten (images came through, text/icons didn't). A plain
         // Box one level up just sees "a fully-drawn child" and captures all of
         // it, same as it would any other already-rendered composable.
-        Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
+        Box(modifier = Modifier
+            .nestedScroll(backdropFreeze.connection)
+            .layerBackdrop(listBackdrop, frozen = backdropFreeze.frozen)
+            // Content becomes ONE cached RenderNode, so the backdrop's
+            // layer.record { drawContent() } records a single drawRenderNode
+            // instead of re-issuing every op in the list.
+            .graphicsLayer()) {
         LazyColumn(
             state = lazyListState,
             // No bounce here: the top pull drives the hero zoom instead.

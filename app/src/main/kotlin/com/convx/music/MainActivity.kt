@@ -13,9 +13,9 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import android.os.IBinder
 import android.os.SystemClock
-import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -105,7 +105,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -148,6 +147,7 @@ import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.toBitmap
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.backdrop.drawPlainBackdrop
 import com.convx.music.ui.component.backdrop.effects.blur
@@ -321,9 +321,6 @@ private val themeColorCache = android.util.LruCache<String, androidx.compose.ui.
  * Affordable now that the strip is one capture per frame rather than two.
  */
 private const val TopBarBackdropScale = 0.45f
-
-/** Fallback unfreeze window for gestures that never deliver onPostFling (e.g. cancelled). */
-private const val BackdropFreezeSafetyNs = 900_000_000L
 
 // DIAGNOSTIC ONLY — keep false. Bypasses the full-screen layerBackdrop pass so the cost of
 // the glass pipeline can be measured against the cost of the content itself. Glass surfaces
@@ -585,16 +582,16 @@ class MainActivity : ComponentActivity() {
                     context = context,
                     onSuccess = { latestVersion, isAvailable, _, _, _, _, _, _ ->
                         val currentVersion = BuildConfig.VERSION_NAME
-                        Log.d("UpdateCheck", "Startup check success. Latest: $latestVersion, Current: $currentVersion, isAvailable: $isAvailable")
+                        Timber.tag("UpdateCheck").d("Startup check success. Latest: $latestVersion, Current: $currentVersion, isAvailable: $isAvailable")
                         saveUpdateAvailableState(context, isAvailable)
                         
                         if (isAvailable && getUpdateNotificationsSetting(context)) {
-                            Log.d("UpdateCheck", "Posting update notification for $latestVersion")
+                            Timber.tag("UpdateCheck").d("Posting update notification for $latestVersion")
                             UpdateNotificationHelper.showUpdateNotification(context, latestVersion)
                         }
                     },
                     onError = {
-                        Log.e("UpdateCheck", "Startup check failed")
+                        Timber.tag("UpdateCheck").e("Startup check failed")
                         // Do not clear the state on error, in case of offline launch
                     }
                 )
@@ -654,6 +651,23 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(selectedThemeColor) {
             if (!enableDynamicTheme) {
                 themeColor = selectedThemeColor
+            }
+        }
+
+        // A guest in an owner-controlled room has every "play this" refused at
+        // PlayerConnection. Refusing silently reads as the app being broken, and the
+        // taps come from anywhere in the app (Home tiles, search, menus), so the
+        // explanation belongs here rather than on each screen.
+        LaunchedEffect(playerConnection) {
+            val connection = playerConnection ?: return@LaunchedEffect
+            connection.playbackBlockedByRoom.collect { blocked ->
+                if (!blocked) return@collect
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.listen_together_host_controls),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                connection.playbackBlockedByRoom.value = false
             }
         }
 
@@ -1232,37 +1246,9 @@ class MainActivity : ComponentActivity() {
                 // registers a draw dependency and every write re-invalidates the frame. A
                 // first attempt did exactly that and left the app redrawing forever after
                 // any scroll (266 frames/7s at rest). Same trap as LayerBackdrop.contentVersion.
-                val scrollClockNs = remember { longArrayOf(0L) }
-                val backdropFreezeConnection = remember {
-                    object : NestedScrollConnection {
-                        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                            scrollClockNs[0] = System.nanoTime()
-                            return Offset.Zero
-                        }
-
-                        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                            // End of the whole drag+fling sequence, including a drag released
-                            // with no fling. The nav bar's expand animation redraws right
-                            // after this, which is what records the fresh capture — no
-                            // explicit invalidation needed, and adding one cost 237
-                            // recompositions/s at rest.
-                            scrollClockNs[0] = 0L
-                            return Velocity.Zero
-                        }
-                    }
-                }
-                // NOTHING snapshot-backed may be read here: this runs in the draw phase, so a
-                // snapshot read registers a draw dependency and every write re-invalidates the
-                // frame. Plain array read only.
-                val backdropFrozenProvider = remember {
-                    {
-                        val started = scrollClockNs[0]
-                        // The elapsed check is only a safety net for gestures that never
-                        // deliver onPostFling (e.g. cancelled); onPostFling is the normal path.
-                        started != 0L &&
-                            System.nanoTime() - started < BackdropFreezeSafetyNs
-                    }
-                }
+                val backdropFreeze = rememberBackdropFreeze()
+                val backdropFreezeConnection = backdropFreeze.connection
+                val backdropFrozenProvider = backdropFreeze.frozen
 
                 // One provider replaces Android's stretch/glow edge effect with the
                 // iOS rubber-band for every scroll container in the app.

@@ -53,6 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -117,8 +119,9 @@ import com.convx.music.ui.theme.HeroTintedContent
 
 import com.convx.music.ui.component.LocalNavSearchState
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
-import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
+import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.backdrop.catalog.components.LiquidBottomTab
 import com.convx.music.ui.component.backdrop.catalog.components.LiquidBottomTabs
 import androidx.compose.ui.text.font.FontWeight
@@ -187,6 +190,7 @@ fun SearchScreen(
         drawRect(tint)
         drawContent()
     }
+    val backdropFreeze = rememberBackdropFreeze()
 
     HeroBackground(
         tint = tint,
@@ -273,7 +277,12 @@ fun SearchScreen(
             
             Box(
                 modifier = Modifier
-                    .layerBackdrop(heroBackdrop)
+                    .nestedScroll(backdropFreeze.connection)
+                    .layerBackdrop(heroBackdrop, frozen = backdropFreeze.frozen)
+                    // Content becomes ONE cached RenderNode, so the backdrop's
+                    // layer.record { drawContent() } records a single
+                    // drawRenderNode instead of re-issuing every op below.
+                    .graphicsLayer()
                     .padding(
                         top = paddingValues.calculateTopPadding(),
                     )

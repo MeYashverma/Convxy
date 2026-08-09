@@ -63,6 +63,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -130,6 +132,7 @@ import com.convx.music.ui.component.liquidGlass
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.component.LocalAppBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.LocalContentColor
@@ -304,7 +307,7 @@ fun TopPlaylistScreen(
             { drawRect(bg); drawContent() }
         }
     )
-
+    val backdropFreeze = rememberBackdropFreeze()
     val heroZoom = rememberHeroZoom()
 
     HeroBackground(
@@ -331,7 +334,13 @@ fun TopPlaylistScreen(
             // LazyColumn's own modifier: LazyColumn promotes its items to their
             // own RenderNodes for scroll recycling, which a capture attached
             // directly to it doesn't reliably flatten.
-            Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
+            Box(modifier = Modifier
+            .nestedScroll(backdropFreeze.connection)
+            .layerBackdrop(listBackdrop, frozen = backdropFreeze.frozen)
+            // Content becomes ONE cached RenderNode, so the backdrop's
+            // layer.record { drawContent() } records a single drawRenderNode
+            // instead of re-issuing every op in the list.
+            .graphicsLayer()) {
             LazyColumn(
                 state = state,
                 // No bounce here: the top pull drives the hero zoom instead.

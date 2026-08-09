@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
 import com.convx.music.ui.component.LargeScreenTitle
@@ -22,6 +24,7 @@ import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.component.HeroSource
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.LocalAppBackdrop
 import androidx.compose.ui.text.font.FontWeight
@@ -100,7 +103,7 @@ fun MoodAndGenresScreen(
             { drawRect(bg); drawContent() }
         }
     )
-
+    val backdropFreeze = rememberBackdropFreeze()
     val heroZoom = rememberHeroZoom()
 
     HeroBackground(
@@ -116,7 +119,13 @@ fun MoodAndGenresScreen(
             // LazyColumn itself: it promotes its items to their own RenderNodes
             // for recycling, which a capture attached directly to it doesn't
             // reliably flatten.
-            Box(modifier = Modifier.layerBackdrop(listBackdrop)) {
+            Box(modifier = Modifier
+            .nestedScroll(backdropFreeze.connection)
+            .layerBackdrop(listBackdrop, frozen = backdropFreeze.frozen)
+            // Content becomes ONE cached RenderNode, so the backdrop's
+            // layer.record { drawContent() } records a single drawRenderNode
+            // instead of re-issuing every op in the list.
+            .graphicsLayer()) {
             LazyColumn(
                 // No bounce here: the top pull drives the hero zoom instead.
                 overscrollEffect = heroZoom.listOverscroll(),

@@ -65,6 +65,7 @@ import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.SongFilter
 import com.convx.music.constants.SongFilterKey
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.SongSortDescendingKey
 import com.convx.music.constants.SongSortType
 import com.convx.music.constants.SongSortTypeKey
@@ -114,7 +115,10 @@ fun LibrarySongsScreen(
     val isScanning by viewModel.isScanning.collectAsState()
     val scanResult by viewModel.scanResult.collectAsState()
 
-    var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIKED)
+    var storedFilter by rememberEnumPreference(SongFilterKey, SongFilter.LIKED)
+    val (localOnly) = rememberPreference(LocalOnlyModeKey, false)
+    // Mirrors what the view model actually queries while local-only mode is on.
+    val filter = if (localOnly) SongFilter.LOCAL else storedFilter
     // Pull-to-refresh only: no hero artwork on this screen, so heroZoom.scale
     // goes unread and the modifier contributes just the rubber-band stretch.
     val heroZoom = rememberHeroZoom()
@@ -210,21 +214,25 @@ fun LibrarySongsScreen(
                             )
                         },
                     )
-                    ChipsRow(
-                        chips =
-                        listOf(
-                            SongFilter.LIKED to stringResource(R.string.filter_liked),
-                            SongFilter.LIBRARY to stringResource(R.string.filter_library),
-                            SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
-                            SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
-                            SongFilter.LOCAL to stringResource(R.string.filter_local),
-                        ),
-                        currentValue = filter,
-                        onValueUpdate = {
-                            filter = it
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
+                    // Local-only mode pins the filter to LOCAL in the view model, so
+                    // the chips would be inert controls promising something else.
+                    if (!localOnly) {
+                        ChipsRow(
+                            chips =
+                            listOf(
+                                SongFilter.LIKED to stringResource(R.string.filter_liked),
+                                SongFilter.LIBRARY to stringResource(R.string.filter_library),
+                                SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
+                                SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
+                                SongFilter.LOCAL to stringResource(R.string.filter_local),
+                            ),
+                            currentValue = filter,
+                            onValueUpdate = {
+                                storedFilter = it
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
 

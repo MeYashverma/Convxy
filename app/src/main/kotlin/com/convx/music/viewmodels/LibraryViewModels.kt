@@ -32,6 +32,7 @@ import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideYoutubeShortsKey
 import com.convx.music.constants.LibraryFilter
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.PlaylistSortDescendingKey
 import com.convx.music.constants.PlaylistSortType
 import com.convx.music.constants.PlaylistSortTypeKey
@@ -88,7 +89,11 @@ constructor(
             .map {
                 Triple(
                     Triple(
-                        it[SongFilterKey].toEnum(SongFilter.LIKED),
+                        // Local-only mode pins every library tab to its LOCAL filter.
+                        // Doing it here rather than in the screen means the stored
+                        // filter is left untouched and comes back when it's turned off.
+                        if (it[LocalOnlyModeKey] == true) SongFilter.LOCAL
+                        else it[SongFilterKey].toEnum(SongFilter.LIKED),
                         it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE),
                         (it[SongSortDescendingKey] ?: true),
                     ),
@@ -151,7 +156,8 @@ constructor(
         context.dataStore.data
             .map {
                 Triple(
-                    it[ArtistFilterKey].toEnum(ArtistFilter.LIKED),
+                    if (it[LocalOnlyModeKey] == true) ArtistFilter.LOCAL
+                    else it[ArtistFilterKey].toEnum(ArtistFilter.LIKED),
                     it[ArtistSortTypeKey].toEnum(ArtistSortType.CREATE_DATE),
                     it[ArtistSortDescendingKey] ?: true,
                 )
@@ -173,6 +179,10 @@ constructor(
             allArtists.collect { artists ->
                 artists
                     .map { it.artist }
+                    // A local artist has no YouTube page to fetch — asking for one is
+                    // a guaranteed round trip to nothing, and in local-only mode it is
+                    // network traffic the mode exists to avoid.
+                    .filter { !it.isLocal }
                     .filter {
                         it.thumbnailUrl == null || Duration.between(
                             it.lastUpdateTime,
@@ -203,7 +213,8 @@ constructor(
             .map {
                 Pair(
                     Triple(
-                        it[AlbumFilterKey].toEnum(AlbumFilter.LIKED),
+                        if (it[LocalOnlyModeKey] == true) AlbumFilter.LOCAL
+                        else it[AlbumFilterKey].toEnum(AlbumFilter.LIKED),
                         it[AlbumSortTypeKey].toEnum(AlbumSortType.CREATE_DATE),
                         it[AlbumSortDescendingKey] ?: true,
                     ),
@@ -229,7 +240,7 @@ constructor(
             allAlbums.collect { albums ->
                 albums
                     .filter {
-                        it.album.songCount == 0
+                        it.album.songCount == 0 && !it.album.isLocal
                     }.forEach { album ->
                         YouTube
                             .album(album.id)
@@ -262,14 +273,24 @@ constructor(
     val allPlaylists =
         context.dataStore.data
             .map {
-                Triple(
-                    it[PlaylistSortTypeKey].toEnum(PlaylistSortType.CREATE_DATE),
-                    it[PlaylistSortDescendingKey] ?: true,
-                    it[HideYoutubeShortsKey] ?: false
+                Pair(
+                    Triple(
+                        it[PlaylistSortTypeKey].toEnum(PlaylistSortType.CREATE_DATE),
+                        it[PlaylistSortDescendingKey] ?: true,
+                        it[HideYoutubeShortsKey] ?: false
+                    ),
+                    it[LocalOnlyModeKey] == true,
                 )
             }.distinctUntilChanged()
-            .flatMapLatest { (sortType, descending, hideYoutubeShorts) ->
-                database.playlists(sortType, descending).map { it.filterYoutubeShorts(hideYoutubeShorts) }
+            .flatMapLatest { (sortAndHide, localOnly) ->
+                val (sortType, descending, hideYoutubeShorts) = sortAndHide
+                database.playlists(sortType, descending).map { playlists ->
+                    // A synced YouTube playlist carries a browseId; the ones the user
+                    // made here don't, and those are the only ones local-only shows.
+                    playlists
+                        .filter { !localOnly || it.playlist.browseId == null }
+                        .filterYoutubeShorts(hideYoutubeShorts)
+                }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun sync() {
@@ -335,23 +356,34 @@ constructor(
         context.dataStore.data
             .map { it[TopSize] ?: "50" }
             .distinctUntilChanged()
-    var artists =
-        database
-            .artistsBookmarked(
-                ArtistSortType.CREATE_DATE,
-                true,
-            ).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    var albums = context.dataStore.data
-        .map { it[HideExplicitKey] ?: false }
+    // The mixed Library view is built from liked/bookmarked YouTube rows; in
+    // local-only mode the same three shelves read the on-device library instead.
+    private val localOnly = context.dataStore.data
+        .map { it[LocalOnlyModeKey] == true }
         .distinctUntilChanged()
-        .flatMapLatest { hideExplicit ->
-            database.albumsLiked(AlbumSortType.CREATE_DATE, true).map { it.filterExplicitAlbums(hideExplicit) }
+
+    var artists = localOnly
+        .flatMapLatest { local ->
+            if (local) database.artistsLocal(ArtistSortType.NAME, false)
+            else database.artistsBookmarked(ArtistSortType.CREATE_DATE, true)
+        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    var albums = context.dataStore.data
+        .map { (it[HideExplicitKey] ?: false) to (it[LocalOnlyModeKey] == true) }
+        .distinctUntilChanged()
+        .flatMapLatest { (hideExplicit, local) ->
+            val source = if (local) database.albumsLocal(AlbumSortType.NAME, false)
+            else database.albumsLiked(AlbumSortType.CREATE_DATE, true)
+            source.map { it.filterExplicitAlbums(hideExplicit) }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     var playlists = context.dataStore.data
-        .map { it[HideYoutubeShortsKey] ?: false }
+        .map { (it[HideYoutubeShortsKey] ?: false) to (it[LocalOnlyModeKey] == true) }
         .distinctUntilChanged()
-        .flatMapLatest { hideYoutubeShorts ->
-            database.playlists(PlaylistSortType.CREATE_DATE, true).map { it.filterYoutubeShorts(hideYoutubeShorts) }
+        .flatMapLatest { (hideYoutubeShorts, local) ->
+            database.playlists(PlaylistSortType.CREATE_DATE, true).map { playlists ->
+                playlists
+                    .filter { !local || it.playlist.browseId == null }
+                    .filterYoutubeShorts(hideYoutubeShorts)
+            }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
@@ -359,7 +391,7 @@ constructor(
             albums.collect { albums ->
                 albums
                     .filter {
-                        it.album.songCount == 0
+                        it.album.songCount == 0 && !it.album.isLocal
                     }.forEach { album ->
                         YouTube
                             .album(album.id)
@@ -382,6 +414,7 @@ constructor(
             artists.collect { artists ->
                 artists
                     .map { it.artist }
+                    .filter { !it.isLocal }
                     .filter {
                         it.thumbnailUrl == null ||
                                 Duration.between(

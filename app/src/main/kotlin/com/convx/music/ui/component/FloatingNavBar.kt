@@ -293,7 +293,12 @@ private fun AppFloatingNavBarChrome(
         // The selection puck's lens/accent-tint effects only make sense when the
         // bar itself is sampling the app backdrop through liquid glass.
         backdrop = if (useGlass) LocalAppBackdrop.current else null,
-        accentColor = selectedContentColor,
+        // The puck tints its whole sampled icon row with this one colour. Feeding it
+        // the glass content colour meant that whenever adaptive contrast resolved
+        // dark (light theme, or a light tint), the entire puck rendered near-black
+        // and read as a dark blob. The app accent is chosen to be visible against
+        // the bar and is what the rail already uses for selected content.
+        accentColor = com.convx.music.ui.theme.LocalAccentColor.current,
         searchMode = searchModeActive,
         searchBarContent = if (searchModeActive) {
             { contentModifier ->
@@ -428,23 +433,25 @@ private fun SearchBarPlaceholder(
                 style = TextStyle(color = contentColor.copy(alpha = 0.6f), fontSize = 15.sp),
             )
         }
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .bounceClick { state.onToggleSource() }
-                .padding(9.dp)
-        ) {
-            Icon(
-                painter = painterResource(
-                    when (state.searchSource) {
-                        SearchSource.LOCAL -> R.drawable.library_music
-                        SearchSource.ONLINE -> R.drawable.globe_search
-                    }
-                ),
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.fillMaxSize(),
-            )
+        if (state.canToggleSource) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .bounceClick { state.onToggleSource() }
+                    .padding(9.dp)
+            ) {
+                Icon(
+                    painter = painterResource(
+                        when (state.searchSource) {
+                            SearchSource.LOCAL -> R.drawable.library_music
+                            SearchSource.ONLINE -> R.drawable.globe_search
+                        }
+                    ),
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }
@@ -583,23 +590,25 @@ fun NavBarSearchInputBar(
                 )
             }
         }
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .bounceClick { state.onToggleSource() }
-                .padding(12.dp)
-        ) {
-            Icon(
-                painter = painterResource(
-                    when (state.searchSource) {
-                        SearchSource.LOCAL -> R.drawable.library_music
-                        SearchSource.ONLINE -> R.drawable.globe_search
-                    }
-                ),
-                contentDescription = null,
-                tint = onTint,
-                modifier = Modifier.fillMaxSize(),
-            )
+        if (state.canToggleSource) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .bounceClick { state.onToggleSource() }
+                    .padding(12.dp)
+            ) {
+                Icon(
+                    painter = painterResource(
+                        when (state.searchSource) {
+                            SearchSource.LOCAL -> R.drawable.library_music
+                            SearchSource.ONLINE -> R.drawable.globe_search
+                        }
+                    ),
+                    contentDescription = null,
+                    tint = onTint,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }

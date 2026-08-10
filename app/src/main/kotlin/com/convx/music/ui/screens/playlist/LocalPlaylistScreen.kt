@@ -168,6 +168,7 @@ import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
+import com.convx.music.ui.component.LocalItemPrefs
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.OverlayEditButton
@@ -183,10 +184,12 @@ import com.convx.music.ui.menu.SelectionSongMenu
 import com.convx.music.ui.menu.SongMenu
 import com.convx.music.ui.screens.settings.DarkMode
 import com.convx.music.ui.component.AlbumStyleHeroImage
+import com.convx.music.LocalTabView
 import com.convx.music.ui.utils.rememberHeroZoom
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.ui.component.HeroBackground
+import com.convx.music.ui.component.HeroCardHeader
 import com.convx.music.ui.component.rememberHeroSource
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
@@ -759,7 +762,7 @@ fun LocalPlaylistScreen(
                         }
                     }
 
-                    val swipeRemoveEnabled by rememberPreference(SwipeToRemoveSongKey, defaultValue = false)
+                    val swipeRemoveEnabled = LocalItemPrefs.current.swipeToRemoveSong
                     val dismissBoxState =
                         rememberSwipeToDismissBoxState(
                             positionalThreshold = { totalDistance -> totalDistance }
@@ -1290,6 +1293,56 @@ fun LocalPlaylistHeader(
                 }
             }
 
+            // Wide layout: bounded artwork card with the name beside it instead of
+            // the full-bleed square, which would fill the fold on a tablet.
+            val tabView = LocalTabView.current
+            val songCount = if (playlist.songCount == 0 && playlist.playlist.remoteSongCount != null) {
+                playlist.playlist.remoteSongCount
+            } else {
+                playlist.songCount
+            }
+            val playlistInfoText = buildString {
+                append(pluralStringResource(R.plurals.n_song, songCount, songCount))
+                if (playlistLength > 0) {
+                    append(" • ")
+                    append(makeTimeString(playlistLength * 1000L))
+                }
+            }
+
+            if (tabView) {
+                HeroCardHeader(
+                    artworkUrl = heroUrl,
+                    title = {
+                        Text(
+                            text = playlist.playlist.name,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = onTint,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    subtitle = playlist.playlist.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                        {
+                            Text(
+                                text = desc,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = onTint.copy(alpha = 0.7f),
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    },
+                    actions = {
+                        Text(
+                            text = playlistInfoText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = onTint.copy(alpha = 0.5f),
+                        )
+                    },
+                )
+            } else {
+
             Box(
                 contentAlignment = Alignment.BottomEnd,
                 modifier = if (editable) {
@@ -1349,22 +1402,12 @@ fun LocalPlaylistHeader(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Metadata - Song Count • Duration
-            val songCount = if (playlist.songCount == 0 && playlist.playlist.remoteSongCount != null) {
-                playlist.playlist.remoteSongCount
-            } else {
-                playlist.songCount
-            }
             Text(
-                text = buildString {
-                    append(pluralStringResource(R.plurals.n_song, songCount, songCount))
-                    if (playlistLength > 0) {
-                        append(" • ")
-                        append(makeTimeString(playlistLength * 1000L))
-                    }
-                },
+                text = playlistInfoText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = onTint.copy(alpha = 0.7f)
             )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

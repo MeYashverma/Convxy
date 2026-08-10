@@ -29,6 +29,8 @@ import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideYoutubeShortsKey
 import com.convx.music.constants.InnerTubeCookieKey
+import com.convx.music.constants.LocalOnlyModeKey
+import com.convx.music.constants.PlaylistSortType
 import com.convx.music.constants.QuickPicks
 import com.convx.music.constants.QuickPicksKey
 import com.convx.music.constants.ShowWrappedCardKey
@@ -36,6 +38,7 @@ import com.convx.music.constants.WrappedSeenKey
 import com.convx.music.db.MusicDatabase
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.LocalItem
+import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.Song
 import com.convx.music.db.entities.SpeedDialItem
 import com.convx.music.extensions.filterVideoSongs
@@ -43,6 +46,8 @@ import com.convx.music.extensions.toEnum
 import com.convx.music.models.SimilarRecommendation
 import com.convx.music.ui.screens.wrapped.WrappedAudioService
 import com.convx.music.ui.screens.wrapped.WrappedManager
+import com.convx.music.utils.LocalAudioScanner
+import com.convx.music.utils.LocalFolderIndex
 import com.convx.music.utils.SyncUtils
 import com.convx.music.utils.dataStore
 import com.convx.music.utils.get
@@ -106,6 +111,26 @@ class HomeViewModel @Inject constructor(
 
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
+
+    /** One switch decides whether Home talks to YouTube at all. */
+    val localOnlyMode: StateFlow<Boolean> = context.dataStore.data
+        .map { it[LocalOnlyModeKey] ?: false }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    // Local-only Home rows. Room-backed, so a rescan updates them without a reload.
+    val localSongs: StateFlow<List<Song>> = database.localSongsByNameAsc()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val localAlbums: StateFlow<List<Album>> = database.albumsLocalByNameAsc()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val localArtists: StateFlow<List<com.convx.music.db.entities.Artist>> = database.artistsLocalByNameAsc()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // Playlists the user made here — a synced YouTube playlist has a browseId.
+    val localPlaylists: StateFlow<List<Playlist>> =
+        database.playlists(PlaylistSortType.CREATE_DATE, true)
+            .map { playlists -> playlists.filter { it.playlist.browseId == null } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val localFolders = MutableStateFlow<List<LocalFolderIndex.Folder>>(emptyList())
 
     val speedDialItems: StateFlow<List<YTItem>> =
         combine(
@@ -593,12 +618,26 @@ class HomeViewModel @Inject constructor(
     private suspend fun load() {
         isLoading.value = true
 
+        // Local-only mode never touches the network — the Room flows above already
+        // feed Home, so the only thing left to fetch is the folder index.
+        if (localOnlyMode.value) {
+            localFolders.value = runCatching { LocalFolderIndex.load(context) }.getOrDefault(emptyList())
+            isLoading.value = false
+            return
+        }
+
         // Phase 1: Local DB only â€” UI renders immediately after this
         loadLocalDataPhase()
         isLoading.value = false
 
         // Phase 2: All network sections in parallel â€” streams in progressively
         loadNetworkDataPhase()
+    }
+
+    /** Pull-to-refresh in local-only mode rescans the device instead of the network. */
+    private suspend fun rescanLocal() {
+        runCatching { LocalAudioScanner.scanAndInsert(context, database) }
+        localFolders.value = runCatching { LocalFolderIndex.load(context) }.getOrDefault(emptyList())
     }
 
     private val _isLoadingMore = MutableStateFlow(false)
@@ -670,11 +709,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 isRefreshing.value = true
-                load()
+                if (localOnlyMode.value) rescanLocal() else load()
             } finally {
                 isRefreshing.value = false
             }
         }
+        if (localOnlyMode.value) return
         // Run sync when user manually refreshes
         viewModelScope.launch(Dispatchers.IO) {
             syncUtils.tryAutoSync()
@@ -683,19 +723,20 @@ class HomeViewModel @Inject constructor(
 
     init {
 
-        // Load home data
+        // Load home data. Re-runs when local-only mode is toggled, so Home swaps
+        // between the YouTube feed and the on-device library without a restart.
         viewModelScope.launch(Dispatchers.IO) {
             context.dataStore.data
                 .map { it[InnerTubeCookieKey] }
                 .distinctUntilChanged()
                 .first()
 
-            load()
+            localOnlyMode.collect { load() }
         }
 
         // Run sync in separate coroutine with cooldown to avoid blocking UI
         viewModelScope.launch(Dispatchers.IO) {
-            syncUtils.tryAutoSync()
+            if (!localOnlyMode.first()) syncUtils.tryAutoSync()
         }
 
         // Prepare wrapped data in background

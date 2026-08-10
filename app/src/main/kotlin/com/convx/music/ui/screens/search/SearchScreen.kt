@@ -75,6 +75,7 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.PauseSearchHistoryKey
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.SearchSource
 import com.convx.music.db.entities.SearchHistory
 import com.convx.music.playback.queues.YouTubeQueue
@@ -150,6 +151,8 @@ fun SearchScreen(
     val pauseSearchHistory by rememberPreference(PauseSearchHistoryKey, defaultValue = false)
 
     var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
+    // The Explore/Suggestions/Albums tabs are all YouTube browse pages.
+    val (localOnly) = rememberPreference(LocalOnlyModeKey, false)
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var showSearchContent by remember { mutableStateOf(false) }
 
@@ -223,7 +226,7 @@ fun SearchScreen(
                     )
 
                     AnimatedVisibility(
-                        visible = navSearch.query.text.isEmpty(),
+                        visible = navSearch.query.text.isEmpty() && !localOnly,
                         enter = expandVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeIn(),
                         exit = shrinkVertically(animationSpec = tween(durationMillis = 245, easing = FastOutSlowInEasing)) + fadeOut()
                     ) {
@@ -288,7 +291,7 @@ fun SearchScreen(
                     )
                     .fillMaxSize()
             ) {
-                if (navSearch.query.text.isEmpty()) {
+                if (navSearch.query.text.isEmpty() && !localOnly) {
                     val tabPadding = PaddingValues(bottom = bottomPadding + 50.dp)
                     when (selectedTabIndex) {
                         0 -> ExploreTabContent(navController = navController, contentPadding = tabPadding)

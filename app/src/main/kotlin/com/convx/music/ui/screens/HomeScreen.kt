@@ -5,6 +5,7 @@
 
 package com.convx.music.ui.screens
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -32,6 +33,10 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.em
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -39,6 +44,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -48,6 +54,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -92,6 +99,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -127,6 +135,8 @@ import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.RandomizeHomeOrderKey
 import com.convx.music.constants.ShowHomeFabKey
 import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
+import com.convx.music.constants.HomeGridColumnsOverrideKey
+import com.convx.music.constants.HomeHeroCardEnabledKey
 import com.convx.music.constants.SpeedDialCardHeightOverrideKey
 import com.convx.music.constants.SpeedDialColumnsOverrideKey
 import com.convx.music.constants.SmallGridThumbnailHeight
@@ -143,10 +153,12 @@ import com.convx.music.extensions.toMediaItem
 import com.convx.music.ui.utils.bleedStart
 import com.convx.music.ui.utils.plusStart
 import com.convx.music.ui.utils.bounceClick
+import com.convx.music.utils.LocalFolderIndex
 import com.convx.music.ui.utils.combinedBounceClick
 import com.convx.music.LocalDatabase
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
+import com.convx.music.LocalTabView
 import com.convx.music.models.MediaMetadata
 import com.convx.music.models.SimilarRecommendation
 import com.convx.music.models.toMediaMetadata
@@ -157,6 +169,9 @@ import com.convx.music.playback.queues.YouTubeAlbumRadio
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.R
 import com.convx.music.ui.component.AlbumGridItem
+import com.convx.music.ui.component.ChipsRow
+import com.convx.music.ui.component.ListItem
+import com.convx.music.ui.component.PlaylistListItem
 import com.convx.music.ui.component.ArtistGridItem
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.HomeHeroCard
@@ -183,7 +198,6 @@ import com.convx.music.ui.menu.YouTubeArtistMenu
 import com.convx.music.ui.menu.YouTubePlaylistMenu
 import com.convx.music.ui.menu.YouTubeSongMenu
 import com.convx.music.ui.utils.SnapLayoutInfoProvider
-import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.listItemShape
@@ -229,6 +243,9 @@ sealed class HomeSection(val id: String, val baseWeight: Int) {
     data object MoodAndGenres : HomeSection("mood_and_genres", 5)
 }
 
+/** The browse categories Home offers while local-only mode is on. */
+enum class LocalCategory { SONGS, ALBUMS, ARTISTS, PLAYLISTS, FOLDERS }
+
 @Composable
 fun CommunityPlaylistCard(
     item: CommunityPlaylistItem,
@@ -254,7 +271,7 @@ fun CommunityPlaylistCard(
         colors = CardDefaults.cardColors(
             containerColor = containerColor
         ),
-        shape = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge),
+        shape = RoundedCornerShape(AppleTokens.CardCornerLarge),
         onClick = onClick
     ) {
         Column(
@@ -499,7 +516,7 @@ fun DailyDiscoverCard(
     Card(
         modifier = modifier
             .fillMaxSize()
-            .clip(ContinuousRoundedRectangle(AppleTokens.CardCornerLarge))
+            .clip(RoundedCornerShape(AppleTokens.CardCornerLarge))
             .combinedBounceClick(
                 onClick = onClick,
                 onLongClick = {
@@ -518,7 +535,7 @@ fun DailyDiscoverCard(
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent,
         ),
-        shape = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge)
+        shape = RoundedCornerShape(AppleTokens.CardCornerLarge)
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
@@ -617,6 +634,18 @@ fun HomeScreen(
 
     val allLocalItems by viewModel.allLocalItems.collectAsStateWithLifecycle()
     val allYtItems by viewModel.allYtItems.collectAsStateWithLifecycle()
+
+    // Local-only mode: same route, same chrome, on-device library instead of the feed.
+    val localOnly by viewModel.localOnlyMode.collectAsStateWithLifecycle()
+    val localSongs by viewModel.localSongs.collectAsStateWithLifecycle()
+    val localAlbums by viewModel.localAlbums.collectAsStateWithLifecycle()
+    val localArtists by viewModel.localArtists.collectAsStateWithLifecycle()
+    val localPlaylists by viewModel.localPlaylists.collectAsStateWithLifecycle()
+    val localFolders by viewModel.localFolders.collectAsStateWithLifecycle()
+    var localCategory by rememberSaveable { mutableStateOf(LocalCategory.SONGS) }
+
+    // Wide layout: Home's recently-played row grows a hero tile (see keepListeningSection).
+    val tabView = LocalTabView.current
     val speedDialItems by viewModel.speedDialItems.collectAsStateWithLifecycle()
     val selectedChip by viewModel.selectedChip.collectAsStateWithLifecycle()
 
@@ -691,7 +720,7 @@ fun HomeScreen(
         snapshotFlow { lazylistState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastVisibleIndex ->
                 val len = lazylistState.layoutInfo.totalItemsCount
-                if (lastVisibleIndex != null && lastVisibleIndex >= len - 3) {
+                if (!localOnly && lastVisibleIndex != null && lastVisibleIndex >= len - 3) {
                     viewModel.loadMoreYouTubeItems(homePage?.continuation)
                 }
             }
@@ -852,7 +881,12 @@ fun HomeScreen(
         )
     }
 
+    val (heroCardEnabled) = rememberPreference(HomeHeroCardEnabledKey, false)
+    val (homeGridColumnsOverride) = rememberPreference(HomeGridColumnsOverrideKey, 0)
+    val keepListeningColumns = if (homeGridColumnsOverride > 0) homeGridColumnsOverride else 2
+
     val homeSections = remember(
+        heroCardEnabled,
         randomizeHomeOrder,
         randomSeed,
         speedDialItems,
@@ -868,7 +902,7 @@ fun HomeScreen(
     ) {
         val list = mutableListOf<HomeSection>()
 
-        if (quickPicks?.isNotEmpty() == true) list.add(HomeSection.Hero)
+        if (heroCardEnabled && quickPicks?.isNotEmpty() == true) list.add(HomeSection.Hero)
         if (speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
         if (quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
         if (communityPlaylists?.isNotEmpty() == true) list.add(HomeSection.FromTheCommunity)
@@ -938,13 +972,17 @@ fun HomeScreen(
                 base + modifier
             }
         } else {
+            // Recently played leads: it is the grid the whole screen is built around,
+            // and the one thing a user opening the app most often wants. Speed Dial
+            // drops below Quick Picks — as the first thing on screen its wall of
+            // tiles buried everything else.
             val defaultOrder = mapOf(
                 HomeSection.Hero to 110,
-                HomeSection.SpeedDial to 100,
+                HomeSection.KeepListening to 100,
                 HomeSection.QuickPicks to 90,
-                HomeSection.FromTheCommunity to 80,
-                HomeSection.DailyDiscover to 70,
-                HomeSection.KeepListening to 60,
+                HomeSection.SpeedDial to 80,
+                HomeSection.FromTheCommunity to 70,
+                HomeSection.DailyDiscover to 60,
                 HomeSection.AccountPlaylists to 50,
                 HomeSection.ForgottenFavorites to 40,
                 HomeSection.MoodAndGenres to 10
@@ -1073,7 +1111,35 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
-                if (selectedChip == null) {
+                // Screen title, scrolled with the content rather than pinned in the
+                // app bar: the bar is transparent chrome here, and a large title that
+                // scrolls away is what gives the first screenful its weight.
+                item(key = "listen_now_title") {
+                    Text(
+                        text = stringResource(if (localOnly) R.string.filter_local else R.string.listen_now),
+                        fontSize = AppleTokens.TitleLarge,
+                        lineHeight = AppleTokens.TitleLargeLineHeight,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.02).em,
+                        color = LocalContentColor.current,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(
+                                WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
+                            )
+                            .padding(
+                                start = AppleTokens.Gutter,
+                                end = AppleTokens.Gutter,
+                                top = AppleTokens.ItemGap,
+                                bottom = AppleTokens.TextGap,
+                            )
+                            .animateItem(),
+                    )
+                }
+
+                if (selectedChip == null && !localOnly) {
                     item(key = "wrapped_card") {
                         AnimatedVisibility(visible = shouldShowWrappedCard) {
                             Card(
@@ -1083,7 +1149,7 @@ fun HomeScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = LocalContentColor.current.copy(alpha = 0.1f),
                                 ),
-                                shape = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge)
+                                shape = RoundedCornerShape(AppleTokens.CardCornerLarge)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -1131,7 +1197,21 @@ fun HomeScreen(
                     }
                 }
 
-                homeSectionsContent(
+                if (localOnly) {
+                    localHomeContent(
+                        deps = deps,
+                        category = localCategory,
+                        onCategoryChange = { localCategory = it },
+                        songs = localSongs,
+                        albums = localAlbums,
+                        artists = localArtists,
+                        playlists = localPlaylists,
+                        folders = localFolders,
+                        mediaMetadata = mediaMetadata,
+                        isPlaying = isPlaying,
+                        columns = keepListeningColumns,
+                    )
+                } else homeSectionsContent(
                     sections = homeSections,
                     deps = deps,
                     speedDialItems = speedDialItems,
@@ -1152,6 +1232,8 @@ fun HomeScreen(
                     forgottenFavoritesSongMap = forgottenFavoritesSongMap,
                     accountName = accountName,
                     url = url,
+                    keepListeningColumns = keepListeningColumns,
+                    tabView = tabView,
                 )
                 // Only while a fetch is actually in flight. The old condition also kept this
                 // composed whenever a continuation merely EXISTED, so parking at the bottom of
@@ -1213,10 +1295,18 @@ fun HomeScreen(
             val (showHomeFab) = rememberPreference(ShowHomeFabKey, true)
             if (showHomeFab) {
                 HideOnScrollFAB(
-                    visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
+                    visible = if (localOnly) localSongs.isNotEmpty()
+                    else allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
                     lazyListState = lazylistState,
                     icon = R.drawable.shuffle,
                     onClick = {
+                        if (localOnly) {
+                            // Nothing to pick a radio from offline — shuffle the library itself.
+                            playerConnection.playQueue(
+                                ListQueue(items = localSongs.shuffled().map { it.toMediaItem() }, startIndex = 0),
+                            )
+                            return@HideOnScrollFAB
+                        }
                         val local = when {
                             allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
                             allLocalItems.isNotEmpty() -> true
@@ -1309,6 +1399,8 @@ private fun LazyListScope.homeSectionsContent(
     forgottenFavoritesSongMap: Map<String, Song>,
     accountName: String,
     url: String?,
+    keepListeningColumns: Int,
+    tabView: Boolean,
 ) {
     sections.forEach { section ->
         when (section) {
@@ -1324,7 +1416,8 @@ private fun LazyListScope.homeSectionsContent(
             HomeSection.QuickPicks -> quickPicksSection(deps, quickPicks, mediaMetadata, isPlaying, quickPicksSongMap)
             HomeSection.FromTheCommunity -> communityPlaylistsSection(deps, communityPlaylists)
             HomeSection.DailyDiscover -> dailyDiscoverSection(deps, dailyDiscover)
-            HomeSection.KeepListening -> keepListeningSection(deps, keepListening, mediaMetadata, isPlaying)
+            HomeSection.KeepListening ->
+                keepListeningSection(deps, keepListening, mediaMetadata, isPlaying, keepListeningColumns, tabView)
             HomeSection.AccountPlaylists -> accountPlaylistsSection(
                 deps = deps,
                 accountPlaylists = accountPlaylists,
@@ -1339,6 +1432,222 @@ private fun LazyListScope.homeSectionsContent(
             )
             is HomeSection.HomePageSection -> homePageSection(section, deps, homePage, mediaMetadata, isPlaying)
             HomeSection.MoodAndGenres -> moodAndGenresSection(deps, explorePage)
+        }
+    }
+}
+
+/**
+ * Home while local-only mode is on: the browse hub a local-first player shows —
+ * songs, albums, artists, playlists, folders — sharing this screen's list, chrome
+ * and pull-to-refresh rather than living on a route of its own.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun LazyListScope.localHomeContent(
+    deps: HomeSectionDeps,
+    category: LocalCategory,
+    onCategoryChange: (LocalCategory) -> Unit,
+    songs: List<Song>,
+    albums: List<Album>,
+    artists: List<Artist>,
+    playlists: List<Playlist>,
+    folders: List<LocalFolderIndex.Folder>,
+    mediaMetadata: MediaMetadata?,
+    isPlaying: Boolean,
+    columns: Int,
+) {
+    item(key = "local_categories") {
+        ChipsRow(
+            chips = listOf(
+                LocalCategory.SONGS to stringResource(R.string.songs),
+                LocalCategory.ALBUMS to stringResource(R.string.albums),
+                LocalCategory.ARTISTS to stringResource(R.string.artists),
+                LocalCategory.PLAYLISTS to stringResource(R.string.playlists),
+                LocalCategory.FOLDERS to stringResource(R.string.folders),
+            ),
+            currentValue = category,
+            onValueUpdate = onCategoryChange,
+            modifier = Modifier.animateItem(),
+        )
+    }
+
+    val isEmpty = when (category) {
+        LocalCategory.SONGS -> songs.isEmpty()
+        LocalCategory.ALBUMS -> albums.isEmpty()
+        LocalCategory.ARTISTS -> artists.isEmpty()
+        LocalCategory.PLAYLISTS -> playlists.isEmpty()
+        LocalCategory.FOLDERS -> folders.isEmpty()
+    }
+    if (isEmpty) {
+        item(key = "local_empty") {
+            Text(
+                text = stringResource(R.string.no_local_files),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(AppleTokens.Gutter),
+            )
+        }
+        return
+    }
+
+    when (category) {
+        LocalCategory.SONGS -> {
+            item(key = "local_shuffle_all") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppleTokens.Gutter),
+                    horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap),
+                ) {
+                    Button(
+                        onClick = {
+                            deps.playerConnection.playQueue(
+                                ListQueue(items = songs.map { it.toMediaItem() }, startIndex = 0),
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.play)) }
+                    Button(
+                        onClick = {
+                            deps.playerConnection.playQueue(
+                                ListQueue(items = songs.shuffled().map { it.toMediaItem() }, startIndex = 0),
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ) { Text(stringResource(R.string.shuffle)) }
+                }
+            }
+
+            itemsIndexed(
+                items = songs,
+                key = { _, song -> "local_song_${song.id}" },
+            ) { index, song ->
+                SongListItem(
+                    song = song,
+                    isActive = song.id == mediaMetadata?.id,
+                    isPlaying = isPlaying,
+                    // Nothing here is liked or downloaded from YouTube — the icons
+                    // would be dead weight on every row.
+                    showLikedIcon = false,
+                    showDownloadIcon = false,
+                    shape = listItemShape(index, songs.size),
+                    trailingContent = {
+                        IconButton(
+                            onClick = {
+                                deps.menuState.show {
+                                    SongMenu(
+                                        originalSong = song,
+                                        navController = deps.navController,
+                                        onDismiss = deps.menuState::dismiss,
+                                    )
+                                }
+                            },
+                        ) {
+                            Icon(painter = painterResource(R.drawable.more_vert), contentDescription = null)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bounceClick {
+                            if (song.id == mediaMetadata?.id) {
+                                deps.playerConnection.togglePlayPause()
+                            } else {
+                                deps.playerConnection.playQueue(
+                                    ListQueue(items = songs.map { it.toMediaItem() }, startIndex = index),
+                                )
+                            }
+                        },
+                )
+            }
+        }
+
+        LocalCategory.ALBUMS -> localItemRows(deps, "local_album", albums, columns)
+        LocalCategory.ARTISTS -> localItemRows(deps, "local_artist", artists, columns)
+
+        LocalCategory.PLAYLISTS -> {
+            itemsIndexed(
+                items = playlists,
+                key = { _, playlist -> "local_playlist_${playlist.id}" },
+            ) { index, playlist ->
+                PlaylistListItem(
+                    playlist = playlist,
+                    shape = listItemShape(index, playlists.size),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bounceClick { deps.navController.navigate("local_playlist/${playlist.id}") },
+                )
+            }
+        }
+
+        LocalCategory.FOLDERS -> {
+            itemsIndexed(
+                items = folders,
+                key = { _, folder -> "local_folder_${folder.path}" },
+            ) { index, folder ->
+                ListItem(
+                    title = folder.name,
+                    subtitle = pluralStringResource(
+                        R.plurals.n_song,
+                        folder.songIds.size,
+                        folder.songIds.size,
+                    ),
+                    thumbnailContent = {
+                        Box(
+                            modifier = Modifier
+                                .size(ListThumbnailSize)
+                                .clip(RoundedCornerShape(AppleTokens.Control))
+                                .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.library_music),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    },
+                    shape = listItemShape(index, folders.size),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bounceClick {
+                            deps.navController.navigate("local_folder/${Uri.encode(folder.path)}")
+                        },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Grid rows of [LocalItem]s laid out as rows of the outer list, the same shape
+ * (and for the same reason) as the recently-played section above.
+ */
+private fun LazyListScope.localItemRows(
+    deps: HomeSectionDeps,
+    keyPrefix: String,
+    items: List<LocalItem>,
+    columns: Int,
+) {
+    items.chunked(columns).forEachIndexed { index, rowItems ->
+        item(key = "${keyPrefix}_row_$index") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppleTokens.Gutter - AppleTokens.ItemGap / 2),
+            ) {
+                rowItems.forEach { localItem ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        deps.localGridItem(localItem)
+                    }
+                }
+                repeat(columns - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }
@@ -1402,7 +1711,8 @@ private fun LazyListScope.speedDialSection(
         item(key = "speed_dial_title") {
             NavigationTitle(
                 title = stringResource(R.string.speed_dial),
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
+                showDivider = true,
             )
         }
 
@@ -1431,7 +1741,8 @@ private fun LazyListScope.speedDialSection(
             val speedDialTileHeight = if (speedDialHeightOverride > 0) {
                 speedDialHeightOverride.dp
             } else {
-                itemWidth / 0.8f // taller than wide, Apple Music card proportions
+                // Square art plus two lines of caption underneath.
+                itemWidth * 1.32f
             }
 
             // Page slicing done once per (items, itemsPerPage) instead of re-drop/
@@ -1515,7 +1826,8 @@ private fun LazyListScope.speedDialSection(
                                                 },
                                                 isPlaying = isPlaying,
                                                 thumbnailSizePx = speedDialThumbnailSizePx,
-                                                cornerRadiusDp = if (speedDialCornerOverride > 0) speedDialCornerOverride else 24,
+                                                // 0 = circular, the new default. A user override still wins.
+                                                cornerRadiusDp = speedDialCornerOverride,
                                                 modifier = Modifier
                                                     .fillMaxSize()
                                                     .combinedBounceClick(
@@ -1620,7 +1932,8 @@ private fun LazyListScope.quickPicksSection(
                             items = quickPicks.distinctBy { it.id }.map { it.toMediaItem() }
                         )
                     )
-                }
+                },
+                showDivider = true,
             )
         }
 
@@ -1710,7 +2023,8 @@ private fun LazyListScope.communityPlaylistsSection(
         item(key = "community_playlists_title") {
             NavigationTitle(
                 title = stringResource(R.string.from_the_community),
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
+                showDivider = true,
             )
         }
 
@@ -1765,7 +2079,8 @@ private fun LazyListScope.dailyDiscoverSection(
                             )
                         )
                     }
-                }
+                },
+                showDivider = true,
             )
         }
         item(key = "daily_discover_content") {
@@ -1815,40 +2130,79 @@ private fun LazyListScope.keepListeningSection(
     keepListening: List<LocalItem>?,
     mediaMetadata: MediaMetadata?,
     isPlaying: Boolean,
+    keepListeningColumns: Int,
+    tabView: Boolean = false,
 ) {
     keepListening?.takeIf { it.isNotEmpty() }?.let { keepListening ->
         item(key = "keep_listening_title") {
             NavigationTitle(
-                title = stringResource(R.string.keep_listening),
-                modifier = Modifier.animateItem()
+                title = stringResource(R.string.recently_played),
+                modifier = Modifier.animateItem(),
+                showDivider = true,
             )
         }
 
-        item(key = "keep_listening_list") {
-            val rows = if (keepListening.size > 6) 2 else 1
-            LazyHorizontalGrid(
-                // Hoisted to the Home composable: an inline rememberLazyGridState()
-                // here dropped and rebuilt the scroll position whenever the grid left
-                // the composition while the user scrolled the Keep Listening row.
-                state = deps.keepListeningGridState,
-                rows = GridCells.Fixed(rows),
-                // GridItem pads itself by half the gap;
-                // this supplies the other half so the
-                // first tile lines up on the gutter.
-                contentPadding = PaddingValues(horizontal = AppleTokens.ItemGap / 2)
-                    .plusStart(deps.sideInset),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height((deps.currentGridHeight + with(LocalDensity.current) {
-                        MaterialTheme.typography.bodyLarge.lineHeight.toDp() * 2 +
-                                MaterialTheme.typography.bodyMedium.lineHeight.toDp() * 2
-                    }) * rows)
-                    .animateItem().bleedStart(deps.sideInset)
-            ) {
-                items(items = keepListening, key = { it.id }) {
-                    deps.localGridItem(it)
+        // Wide layout: the most recent item becomes a hero tile with the next four
+        // stacked beside it in a 2x2, which is the shape of the reference design and
+        // the only way this section fills a tablet's width instead of running a
+        // two-tile row across it.
+        val heroCount = if (tabView && keepListening.size >= 3) 5 else 0
+        if (heroCount > 0) {
+            val hero = keepListening.first()
+            val companions = keepListening.drop(1).take(heroCount - 1)
+            item(key = "keep_listening_hero") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppleTokens.Gutter)
+                        .animateItem(),
+                    horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap),
+                ) {
+                    Box(Modifier.weight(1f)) { deps.localGridItem(hero) }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap),
+                    ) {
+                        companions.chunked(2).forEach { rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap)) {
+                                rowItems.forEach { item ->
+                                    Box(Modifier.weight(1f)) { deps.localGridItem(item) }
+                                }
+                                repeat(2 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
+                    }
                 }
             }
+        }
+
+        // Laid out as rows of the outer LazyColumn rather than a LazyHorizontalGrid:
+        // a horizontal row hides most of the list off-screen, and the whole point of
+        // this section is that everything recently played is reachable by scrolling
+        // the page you are already scrolling. Rows stay lazy — only the visible ones
+        // compose — because each row is its own LazyColumn item.
+        val columns = keepListeningColumns
+        val rows = keepListening.drop(heroCount).chunked(columns)
+        rows.forEachIndexed { index, rowItems ->
+          item(key = "keep_listening_row_$index") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppleTokens.Gutter - AppleTokens.ItemGap / 2)
+                    .animateItem(),
+            ) {
+                rowItems.forEach { localItem ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        deps.localGridItem(localItem)
+                    }
+                }
+                // Keeps a short final row's tiles the same width as a full row's
+                // instead of stretching them across the gutter.
+                repeat(columns - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+          }
         }
     }
 }
@@ -1892,7 +2246,8 @@ private fun LazyListScope.accountPlaylistsSection(
                 onClick = {
                     deps.navController.navigate("account")
                 },
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
+                showDivider = true,
             )
         }
 
@@ -1937,7 +2292,8 @@ private fun LazyListScope.forgottenFavoritesSection(
                             items = forgottenFavorites.distinctBy { it.id }.map { it.toMediaItem() }
                         )
                     )
-                }
+                },
+                showDivider = true,
             )
         }
 
@@ -2057,7 +2413,8 @@ private fun LazyListScope.similarRecommendationsSection(
                         is Playlist -> {}
                     }
                 },
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
+                showDivider = true,
             )
         }
 
@@ -2133,7 +2490,8 @@ private fun LazyListScope.homePageSection(
                         )
                     }
                 } else null,
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
+                showDivider = true,
             )
         }
 
@@ -2243,30 +2601,84 @@ private fun LazyListScope.moodAndGenresSection(
                 onClick = {
                     deps.navController.navigate("mood_and_genres")
                 },
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
+                showDivider = true,
             )
         }
         item(key = "mood_and_genres_list") {
+            // Two rows, two columns per screenful, scrolling sideways — so a 2x2
+            // block is what you see at rest and the next block is one swipe away.
+            // Card width is derived from the real available width rather than fixed,
+            // so the pair lands on the gutters at any screen size.
+            val gap = AppleTokens.ItemGap * 0.75f
+            val cardWidth = (deps.availableWidth - AppleTokens.Gutter * 2 - gap) / 2
+            val cardHeight = 96.dp
             LazyHorizontalGrid(
-                rows = GridCells.Fixed(4),
-                contentPadding = PaddingValues(AppleTokens.ItemGap / 2).plusStart(deps.sideInset),
+                rows = GridCells.Fixed(2),
+                contentPadding = PaddingValues(horizontal = AppleTokens.Gutter)
+                    .plusStart(deps.sideInset),
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalArrangement = Arrangement.spacedBy(gap),
                 modifier = Modifier
-                    .height((MoodAndGenresButtonHeight + AppleTokens.ItemGap) * 4 + AppleTokens.ItemGap)
-                    .animateItem().bleedStart(deps.sideInset)
+                    .fillMaxWidth()
+                    .height(cardHeight * 2 + gap)
+                    .animateItem()
+                    .bleedStart(deps.sideInset),
             ) {
                 items(items = moodAndGenres, key = { it.title }) {
-                    MoodAndGenresButton(
+                    MoodCard(
                         title = it.title,
+                        width = cardWidth,
+                        height = cardHeight,
                         onClick = {
                             deps.navController.navigate("youtube_browse/${it.endpoint.browseId}?params=${it.endpoint.params}")
                         },
-                        modifier = Modifier
-                            .padding(AppleTokens.ItemGap / 2)
-                            .width(180.dp)
                     )
                 }
             }
         }
+    }
+}
+
+/**
+ * A mood/genre tile: a two-stop gradient card with the name across the bottom.
+ *
+ * The gradient comes from the title's own hash rather than from a palette lookup, so
+ * a genre keeps the same colour between sessions and devices without shipping (or
+ * maintaining) a colour table for a list the server can change at any time.
+ */
+@Composable
+private fun MoodCard(
+    title: String,
+    width: Dp,
+    height: Dp,
+    onClick: () -> Unit,
+) {
+    val colors = remember(title) {
+        val hue = ((title.hashCode() % 360) + 360) % 360
+        listOf(
+            Color.hsl(hue.toFloat(), 0.55f, 0.42f),
+            Color.hsl(((hue + 40) % 360).toFloat(), 0.60f, 0.26f),
+        )
+    }
+    Box(
+        contentAlignment = Alignment.BottomStart,
+        modifier = Modifier
+            .size(width = width, height = height)
+            .clip(RoundedCornerShape(AppleTokens.Artwork))
+            .background(Brush.linearGradient(colors))
+            .bounceClick(onClick = onClick)
+            .padding(12.dp),
+    ) {
+        Text(
+            text = title,
+            fontSize = AppleTokens.ItemTitle,
+            lineHeight = AppleTokens.ItemTitleLineHeight,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

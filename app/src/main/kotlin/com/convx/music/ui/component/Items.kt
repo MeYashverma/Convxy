@@ -104,15 +104,11 @@ import com.convx.music.LocalDatabase
 import com.convx.music.LocalDownloadUtil
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
-import com.convx.music.constants.CropAlbumArtKey
 import com.convx.music.constants.GridItemSize
-import com.convx.music.constants.GridCardHeightOverrideKey
-import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.ListItemHeight
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.SmallGridThumbnailHeight
-import com.convx.music.constants.SwipeToSongKey
 import com.convx.music.constants.ThumbnailCornerRadius
 import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.db.entities.Album
@@ -127,8 +123,6 @@ import com.convx.music.ui.utils.rememberGridSpacing
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.joinByBullet
 import com.convx.music.utils.makeTimeString
-import com.convx.music.utils.rememberEnumPreference
-import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -141,10 +135,9 @@ const val ActiveBoxAlpha = 0.6f
 
 @Composable
 fun currentGridThumbnailHeight(): Dp {
-    val (heightOverride) = rememberPreference(GridCardHeightOverrideKey, 0)
-    if (heightOverride > 0) return heightOverride.dp
-    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
-    return if (gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
+    val prefs = LocalItemPrefs.current
+    if (prefs.gridCardHeightOverrideDp > 0) return prefs.gridCardHeightOverrideDp.dp
+    return if (prefs.gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
 }
 
 // Basic list item - optimized with inline to reduce recomposition
@@ -213,7 +206,8 @@ inline fun ListItem(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = AppleTokens.ItemTitle,
+                    lineHeight = AppleTokens.ItemTitleLineHeight,
                     color = onSurface,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -225,7 +219,10 @@ inline fun ListItem(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        CompositionLocalProvider(LocalContentColor provides onSurface.copy(alpha = 0.6f)) {
+                        // Metadata is a fixed grey, not an alpha of the title colour:
+                        // over artwork-tinted screens an alpha step reads as a faded
+                        // version of the tint rather than as a second tier.
+                        CompositionLocalProvider(LocalContentColor provides AppleTokens.Metadata) {
                             subtitle()
                         }
                     }
@@ -268,7 +265,8 @@ fun ListItem(
             // ListItem already provides around its subtitle slot.
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                fontSize = AppleTokens.ItemSubtitle,
+                lineHeight = AppleTokens.ItemSubtitleLineHeight,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -307,7 +305,8 @@ fun ListItem(
             // Colour inherited — see the AnnotatedString overload above.
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                fontSize = AppleTokens.ItemSubtitle,
+                lineHeight = AppleTokens.ItemSubtitleLineHeight,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -389,7 +388,8 @@ fun GridItem(
     title = {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyMedium,
+            fontSize = AppleTokens.ItemTitle,
+            lineHeight = AppleTokens.ItemTitleLineHeight,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -404,8 +404,9 @@ fun GridItem(
     subtitle = {
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = LocalContentColor.current.copy(alpha = 0.6f),
+            fontSize = AppleTokens.ItemSubtitle,
+            lineHeight = AppleTokens.ItemSubtitleLineHeight,
+            color = AppleTokens.Metadata,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -435,15 +436,9 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            // Remember the FLOW, not the collection: getDownload() built a new flow on
-            // every recomposition, which resubscribed per row per frame. collectAsState
-            // is a composable call and cannot live inside remember's lambda.
-            val downloadUtil = LocalDownloadUtil.current
-            val downloadFlow = remember(downloadUtil, song.song.id) {
-                downloadUtil.getDownload(song.song.id)
-            }
-            val download by downloadFlow.collectAsState(initial = null)
-            Icon.Download(download?.state)
+            // One hoisted map, no per-row Flow and no per-row collector. See
+            // [LocalDownloads] for what this replaced.
+            Icon.Download(LocalDownloads.current[song.song.id]?.state)
         }
     },
     isSelected: Boolean = false,
@@ -457,7 +452,7 @@ fun SongListItem(
     flat: Boolean = false,
     showIconOnly: Boolean = false,
 ) {
-    val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
+    val swipeEnabled = LocalItemPrefs.current.swipeToSong
 
     val content: @Composable () -> Unit = {
         ListItem(
@@ -534,7 +529,7 @@ fun SongGridItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
+            val download = LocalDownloads.current[song.id]
             Icon.Download(download?.state)
         }
     },
@@ -1247,8 +1242,7 @@ fun YouTubeListItem(
         if (item is SongItem) {
             // Flow is remembered; collectAsState is composable and stays outside.
             val downloadUtil = LocalDownloadUtil.current
-            val downloadFlow = remember(downloadUtil, item.id) { downloadUtil.getDownload(item.id) }
-            val download by downloadFlow.collectAsState(null)
+            val download = LocalDownloads.current[item.id]
             Icon.Download(download?.state)
         }
     },
@@ -1256,7 +1250,7 @@ fun YouTubeListItem(
     drawHighlight: Boolean = true,
     flat: Boolean = false,
 ) {
-    val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
+    val swipeEnabled = LocalItemPrefs.current.swipeToSong
 
     val content: @Composable () -> Unit = {
         ListItem(
@@ -1325,8 +1319,7 @@ fun YouTubeGridItem(
         if (item is SongItem) {
             // Flow is remembered; collectAsState is composable and stays outside.
             val downloadUtil = LocalDownloadUtil.current
-            val downloadFlow = remember(downloadUtil, item.id) { downloadUtil.getDownload(item.id) }
-            val download by downloadFlow.collectAsState(null)
+            val download = LocalDownloads.current[item.id]
             Icon.Download(download?.state)
         }
     },
@@ -1492,7 +1485,7 @@ fun ItemThumbnail(
     forceContentScale: ContentScale? = null,
     showPausedPlayIcon: Boolean = true,
 ) {
-    val cropAlbumArtPref by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArtPref = LocalItemPrefs.current.cropAlbumArt
     val cropAlbumArt = forceContentScale == ContentScale.Crop || (forceContentScale == null && cropAlbumArtPref)
     val context = LocalContext.current
     val actualTargetSizePx = targetSizePx
@@ -1580,7 +1573,7 @@ fun LocalThumbnail(
     playButtonVisible: Boolean = false,
     thumbnailRatio: Float = 1f
 ) {
-    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArt = LocalItemPrefs.current.cropAlbumArt
     val context = LocalContext.current
     val imageRequest = remember(thumbnailUrl) {
         ImageRequest.Builder(context)
@@ -1691,7 +1684,7 @@ fun PlaylistThumbnail(
     shape: Shape,
     cacheKey: String? = null
 ) {
-    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArt = LocalItemPrefs.current.cropAlbumArt
     val context = LocalContext.current
 
     when (thumbnails.size) {

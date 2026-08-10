@@ -150,8 +150,10 @@ import com.convx.music.ui.component.isGlassAllowed
 import com.convx.music.ui.component.liquidGlass
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.component.HeroBackground
+import com.convx.music.ui.component.HeroCardHeader
 import com.convx.music.ui.component.rememberHeroSource
 import com.convx.music.ui.component.AlbumStyleHeroImage
+import com.convx.music.LocalTabView
 import com.convx.music.ui.utils.rememberHeroZoom
 import com.convx.music.ui.utils.heroPullZoom
 import com.convx.music.ui.utils.listOverscroll
@@ -792,19 +794,48 @@ private fun OnlinePlaylistHeader(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AlbumStyleHeroImage(artworkUrl = heroUrl, heroScale = heroScale)
+            // Wide layout: bounded artwork card with the title beside it instead of
+            // the full-bleed square, which would fill the fold on a tablet.
+            if (LocalTabView.current) {
+                HeroCardHeader(
+                    artworkUrl = heroUrl,
+                    title = {
+                        Text(
+                            text = playlist.title,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = onTint,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    subtitle = playlist.author?.name?.let { author ->
+                        {
+                            Text(
+                                text = author,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = onTint.copy(alpha = 0.7f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    },
+                )
+            } else {
+                AlbumStyleHeroImage(artworkUrl = heroUrl, heroScale = heroScale)
 
-            Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-            // Title
-            Text(
-                text = playlist.title,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = onTint,
-                modifier = Modifier.padding(horizontal = 32.dp)
-            )
+                // Title
+                Text(
+                    text = playlist.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = onTint,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 

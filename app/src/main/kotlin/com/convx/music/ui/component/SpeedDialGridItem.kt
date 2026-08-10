@@ -1,8 +1,8 @@
 package com.convx.music.ui.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,15 +15,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.music.innertube.models.ArtistItem
-import com.music.innertube.models.SongItem
 import com.music.innertube.models.YTItem
 import com.convx.music.R
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
@@ -39,90 +37,64 @@ fun SpeedDialGridItem(
     thumbnailSizePx: Int = 544,
     cornerRadiusDp: Int = 24,
 ) {
-    // Apple Music's browse tiles read noticeably rounder than the app's general
-    // 12dp thumbnail corner — bumped close to AppleTokens.CardCornerLarge (28dp)
-    // for this tile's default. Corner radius + tile height are read once at the
-    // Home grid level and passed in, so no per-tile DataStore subscription.
-    val shape = ContinuousRoundedRectangle(cornerRadiusDp.dp)
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
+    // Round art with the caption underneath, not text burned into a scrim on the
+    // artwork: a circle reads as "a thing to tap" at this size, and the title is
+    // legible on any cover instead of depending on a gradient to survive a bright
+    // one. [cornerRadiusDp] still applies when the user has overridden it — a
+    // non-zero override means they asked for a card, so honour it.
+    val circular = cornerRadiusDp <= 0
+    val shape = if (circular) CircleShape else ContinuousRoundedRectangle(cornerRadiusDp.dp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Thumbnail
-        ItemThumbnail(
-            thumbnailUrl = item.thumbnail,
-            isActive = isActive,
-            isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else shape,
-            modifier = Modifier.fillMaxSize(),
-            targetSizePx = thumbnailSizePx,
-            // Always fill the tile edge-to-edge, like Apple Music's browse tiles —
-            // independent of the user's general CropAlbumArtKey preference, which
-            // otherwise defaults to Fit and left the art visibly inset/letterboxed.
-            forceContentScale = ContentScale.Crop,
-            // No static paused-play glyph on the tile — just the animated bars
-            // while it's actually playing.
-            showPausedPlayIcon = false,
-        )
-
-        // Gradient Overlay for Text Readability and Icon Contrast
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.4f), // Top scrim for icon visibility on bright covers
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.6f),
-                            Color.Black.copy(alpha = 0.9f)
-                        )
-                    )
-                )
-        )
-
-        // Title and Chevron
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(AppleTokens.ItemGap / 2) // Reduced padding for tighter layout
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .weight(1f)
+                .aspectRatio(1f)
+                .clip(shape)
         ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleSmall, // Smaller, punchier font
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+            ItemThumbnail(
+                thumbnailUrl = item.thumbnail,
+                isActive = isActive,
+                isPlaying = isPlaying,
+                shape = shape,
+                modifier = Modifier.fillMaxSize(),
+                targetSizePx = thumbnailSizePx,
+                // Always fill the tile edge-to-edge, like Apple Music's browse tiles —
+                // independent of the user's general CropAlbumArtKey preference, which
+                // otherwise defaults to Fit and left the art visibly inset/letterboxed.
+                forceContentScale = ContentScale.Crop,
+                // No static paused-play glyph on the tile — just the animated bars
+                // while it's actually playing.
+                showPausedPlayIcon = false,
             )
-            
-            // Navigation Chevron for browsable items (Album, Playlist, Artist)
-            if (item !is SongItem) {
+
+            if (isPinned) {
                 Icon(
-                    painter = painterResource(R.drawable.navigate_next),
+                    painter = painterResource(R.drawable.ic_push_pin),
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(AppleTokens.ItemGap / 2)
+                        .size(16.dp)
                 )
-        }
-    }
-        // Pinned Icon
-        if (isPinned) {
-            Icon(
-                painter = painterResource(R.drawable.ic_push_pin),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(AppleTokens.ItemGap / 2)
-                    .size(16.dp)
-            )
+            }
         }
 
-
+        Text(
+            text = item.title,
+            fontSize = AppleTokens.Caption,
+            lineHeight = AppleTokens.CaptionLineHeight,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .padding(top = AppleTokens.TextGap * 3)
+                .fillMaxWidth(),
+        )
     }
 }

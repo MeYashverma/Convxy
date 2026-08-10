@@ -107,13 +107,60 @@ fun vivimusicTheme(
 }
 
 fun Bitmap.extractThemeColor(): Color {
-    val colorsToPopulation = Palette.from(this)
+    val swatches = Palette.from(this)
         .maximumColorCount(8)
         .generate()
         .swatches
-        .associate { it.rgb to it.population }
-    val rankedColors = Score.score(colorsToPopulation)
+
+    // Material's Score falls back to Google Blue (0xff4285f4) when no swatch is
+    // chromatic enough to seed a scheme — which is exactly what a black and white
+    // cover produces. The result was a blue theme for a greyscale sleeve. Detect
+    // that case up front and seed with the artwork's own grey instead, so a
+    // monochrome cover yields a monochrome theme.
+    if (swatches.isAchromatic()) return neutralSeed(swatches)
+
+    val rankedColors = Score.score(swatches.associate { it.rgb to it.population })
     return Color(rankedColors.first())
+}
+
+/** True when the artwork carries no usable hue. Shares the tested rule in
+ *  [com.convx.music.ui.theme.PlayerColorExtractor.isAchromatic]. */
+private fun List<Palette.Swatch>.isAchromatic(): Boolean {
+    if (isEmpty()) return true
+    val hsv = FloatArray(3)
+    val saturations = FloatArray(size)
+    val values = FloatArray(size)
+    val populations = IntArray(size)
+    forEachIndexed { i, swatch ->
+        android.graphics.Color.colorToHSV(swatch.rgb, hsv)
+        saturations[i] = hsv[1]
+        values[i] = hsv[2]
+        populations[i] = swatch.population
+    }
+    return PlayerColorExtractor.isAchromatic(saturations, values, populations)
+}
+
+/** Strips hue from [argb] and pins its brightness, for greyscale gradients. */
+private fun desaturate(argb: Int, value: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(argb, hsv)
+    hsv[1] = 0f
+    hsv[2] = value
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
+/**
+ * A mid grey taken from the artwork's own dominant tone. Used as a scheme seed for
+ * greyscale covers: a pure neutral would give Material nothing to build a tonal
+ * palette from, so keep a trace of chroma while staying visually grey.
+ */
+private fun neutralSeed(swatches: List<Palette.Swatch>): Color {
+    val dominant = swatches.maxByOrNull { it.population }?.rgb ?: return Color(0xFF6E6E6E)
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(dominant, hsv)
+    hsv[1] = 0.04f
+    hsv[2] = hsv[2].coerceIn(0.35f, 0.70f)
+    return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
 /**
@@ -139,11 +186,22 @@ fun extractThemeColorFromVideoFrame(videoUrl: String): Color? {
 }
 
 fun Bitmap.extractGradientColors(): List<Color> {
-    val extractedColors = Palette.from(this)
+    val swatches = Palette.from(this)
         .maximumColorCount(64)
         .generate()
         .swatches
-        .associate { it.rgb to it.population }
+
+    // Same Google-Blue fallback trap as extractThemeColor: on greyscale artwork
+    // Score returns 0xff4285f4 and the gradient comes out blue. Hand back greys
+    // drawn from the image instead.
+    if (swatches.isAchromatic()) {
+        val ordered = swatches.sortedByDescending { Color(it.rgb).luminance() }
+        val light = ordered.firstOrNull()?.rgb?.let { desaturate(it, 0.62f) } ?: Color(0xFF595959)
+        val dark = ordered.lastOrNull()?.rgb?.let { desaturate(it, 0.16f) } ?: Color(0xFF0D0D0D)
+        return listOf(light, dark)
+    }
+
+    val extractedColors = swatches.associate { it.rgb to it.population }
 
     val orderedColors = Score.score(extractedColors, 2, 0xff4285f4.toInt(), true)
         .sortedByDescending { Color(it).luminance() }

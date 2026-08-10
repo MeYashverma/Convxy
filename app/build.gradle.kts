@@ -97,10 +97,11 @@ android {
             // and a leaked release password plus a leaked keystore is an
             // unrecoverable compromise of the app's signing identity.
             // Set STORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD before a release build.
+            // local.properties is gitignored, so it is a safe place to keep them.
             storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("STORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            storePassword = localProperties.getProperty("STORE_PASSWORD") ?: System.getenv("STORE_PASSWORD")
+            keyAlias = localProperties.getProperty("KEY_ALIAS") ?: System.getenv("KEY_ALIAS")
+            keyPassword = localProperties.getProperty("KEY_PASSWORD") ?: System.getenv("KEY_PASSWORD")
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"

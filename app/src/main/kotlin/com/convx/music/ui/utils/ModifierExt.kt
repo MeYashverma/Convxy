@@ -10,7 +10,6 @@ import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
@@ -40,44 +39,36 @@ fun Modifier.pressWobble(
     }
 }
 
-/**
- * A custom clickable modifier that removes the material ripple
- * and provides a slight scale down animation on press.
+/*
+ * The two click modifiers below used to add a spring scale-down on press. That is
+ * gone. It was built on `composed {}`, which the Compose compiler cannot skip and
+ * which defeats modifier reuse, and each instance additionally allocated a
+ * MutableInteractionSource, started a collectIsPressedAsState flow collector,
+ * started an animateFloatAsState, and added a graphicsLayer — per item, rebuilt
+ * every time a row recycled. With ~200 call sites, nearly all of them inside lazy
+ * lists, that was the app's largest per-frame scroll cost. The reference app this
+ * one is compared against uses plain combinedClickable and has no `composed {}`
+ * anywhere.
+ *
+ * These stay as named wrappers rather than being deleted so the ~200 call sites,
+ * and the option of reintroducing the press feedback, both stay in one place. To
+ * bring the bounce back, implement it as a Modifier.Node — not with `composed`.
  */
+
+/** Clickable with no ripple by default. */
 fun Modifier.bounceClick(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
     indication: Indication? = null,
     onClick: () -> Unit
-) = composed {
-    val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    val isPressed by actualInteractionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "bounceClick"
-    )
+): Modifier = clickable(
+    interactionSource = interactionSource,
+    indication = indication,
+    enabled = enabled,
+    onClick = onClick
+)
 
-    this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
-        .clickable(
-            interactionSource = actualInteractionSource,
-            indication = indication,
-            enabled = enabled,
-            onClick = onClick
-        )
-}
-
-/**
- * A custom combinedClickable modifier that removes the material ripple 
- * and provides a slight scale down animation on press.
- */
+/** [combinedClickable] with no ripple by default. */
 fun Modifier.combinedBounceClick(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
@@ -85,29 +76,11 @@ fun Modifier.combinedBounceClick(
     onLongClick: (() -> Unit)? = null,
     onDoubleClick: (() -> Unit)? = null,
     onClick: () -> Unit
-) = composed {
-    val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    val isPressed by actualInteractionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "combinedBounceClick"
-    )
-
-    this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
-        .combinedClickable(
-            interactionSource = actualInteractionSource,
-            indication = indication,
-            enabled = enabled,
-            onLongClick = onLongClick,
-            onDoubleClick = onDoubleClick,
-            onClick = onClick
-        )
-}
+): Modifier = combinedClickable(
+    interactionSource = interactionSource,
+    indication = indication,
+    enabled = enabled,
+    onLongClick = onLongClick,
+    onDoubleClick = onDoubleClick,
+    onClick = onClick
+)

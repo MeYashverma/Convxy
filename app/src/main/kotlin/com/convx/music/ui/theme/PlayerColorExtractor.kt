@@ -39,7 +39,7 @@ object PlayerColorExtractor {
         palette: Palette,
         fallbackColor: Int
     ): List<Color> = withContext(Dispatchers.Default) {
-        
+
         // Extract all available colors with priority for dominant colors
         val colorCandidates = listOfNotNull(
             palette.dominantSwatch, // High priority for dominant color
@@ -56,19 +56,20 @@ object PlayerColorExtractor {
         val fallbackDominant = palette.dominantSwatch?.rgb?.let { Color(it) }
             ?: Color(palette.getDominantColor(fallbackColor))
 
-        val primaryColor = if (bestSwatch != null) {
-            val bestColor = Color(bestSwatch.rgb)
-            // Ensure the color is suitable for use
-            if (isColorVibrant(bestColor)) {
-                enhanceColorVividness(bestColor, 1.3f)
-            } else {
-                // If not vibrant, use dominant color with slight enhancement
-                enhanceColorVividness(fallbackDominant, 1.1f)
-            }
-        } else {
-            enhanceColorVividness(fallbackDominant, 1.1f)
+        val primaryColor = when {
+            // A greyscale cover has to come out greyscale. Every path below this
+            // multiplies saturation, and on a near-neutral image that amplifies
+            // whatever few degrees of colour cast the JPEG happens to carry into a
+            // decisive tint — a black and white photograph came out green or
+            // magenta depending on the encoder. Neutralize instead of amplify.
+            isArtworkAchromatic(palette) -> neutralToneOf(bestSwatch?.rgb?.let(::Color) ?: fallbackDominant)
+
+            bestSwatch != null && isColorVibrant(Color(bestSwatch.rgb)) ->
+                enhanceColorVividness(Color(bestSwatch.rgb), VIBRANT_SATURATION_FACTOR)
+
+            else -> enhanceColorVividness(fallbackDominant, FALLBACK_SATURATION_FACTOR)
         }
-        
+
         // Create sophisticated gradient with 3 color points
         listOf(
             primaryColor, // Start: primary vibrant color
@@ -80,6 +81,84 @@ object PlayerColorExtractor {
             Color.Black // End: black
         )
     }
+
+    /**
+     * True when the artwork carries no meaningful hue — greyscale photography, a
+     * black sleeve, a plain white one, a pencil drawing.
+     *
+     * Judged across the whole palette weighted by population rather than from a
+     * single swatch: Palette will happily hand back a "vibrant" swatch made of
+     * twelve stray pixels, and picking on vibrancy alone is exactly how a
+     * monochrome cover ends up tinted. If the picture is overwhelmingly neutral,
+     * a small saturated region does not make it a coloured picture.
+     */
+    private fun isArtworkAchromatic(palette: Palette): Boolean {
+        val hsv = FloatArray(3)
+        val saturations = FloatArray(palette.swatches.size)
+        val values = FloatArray(palette.swatches.size)
+        val populations = IntArray(palette.swatches.size)
+        palette.swatches.forEachIndexed { i, swatch ->
+            android.graphics.Color.colorToHSV(swatch.rgb, hsv)
+            saturations[i] = hsv[1]
+            values[i] = hsv[2]
+            populations[i] = swatch.population
+        }
+        return isAchromatic(saturations, values, populations)
+    }
+
+    /**
+     * The achromatic decision itself, over raw HSV samples — split out from
+     * [isArtworkAchromatic] so it is reachable from a plain JVM test, where
+     * `android.graphics.Color` is not.
+     *
+     * @return true when the population-weighted mean saturation is below
+     *   [ACHROMATIC_SATURATION_THRESHOLD]. An empty palette counts as achromatic:
+     *   no evidence of colour is not evidence of colour.
+     */
+    internal fun isAchromatic(
+        saturations: FloatArray,
+        values: FloatArray,
+        populations: IntArray,
+    ): Boolean {
+        var weighted = 0.0
+        var total = 0.0
+        for (i in saturations.indices) {
+            // Saturation is meaningless at the extremes of value — near-black and
+            // near-white pixels report erratic hue. Weight them out rather than
+            // letting them decide.
+            val valueWeight = (values[i] * (1f - values[i]) * 4f).coerceIn(0f, 1f)
+            val weight = populations[i].toDouble() * valueWeight
+            weighted += saturations[i] * weight
+            total += weight
+        }
+        if (total <= 0.0) return true
+        return weighted / total < ACHROMATIC_SATURATION_THRESHOLD
+    }
+
+    /**
+     * Strips the hue from [color], keeping its lightness. The result is the grey
+     * the artwork actually is, rather than a grey chosen in advance — a charcoal
+     * sleeve and a newsprint one still read differently.
+     */
+    private fun neutralToneOf(color: Color): Color {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(color.toArgb(), hsv)
+        hsv[1] = 0f
+        hsv[2] = hsv[2].coerceIn(NEUTRAL_VALUE_MIN, NEUTRAL_VALUE_MAX)
+        return Color(android.graphics.Color.HSVToColor(hsv))
+    }
+
+    /** Mean population-weighted saturation below which artwork counts as greyscale. */
+    private const val ACHROMATIC_SATURATION_THRESHOLD = 0.10f
+
+    // Greyscale artwork keeps a wider value range than a tinted one: there is no
+    // hue doing the work, so the tone itself has to carry the difference between a
+    // black sleeve and a white one.
+    private const val NEUTRAL_VALUE_MIN = 0.14f
+    private const val NEUTRAL_VALUE_MAX = 0.72f
+
+    private const val VIBRANT_SATURATION_FACTOR = 1.12f
+    private const val FALLBACK_SATURATION_FACTOR = 1.0f
 
     /**
      * Determines if a color is vibrant enough for use in player UI
@@ -110,12 +189,18 @@ object PlayerColorExtractor {
         val argb = color.toArgb()
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(argb, hsv)
-        
-        // Increase saturation for more vivid colors
-        hsv[1] = (hsv[1] * saturationFactor).coerceAtMost(1.0f)
-        // Adjust brightness for better visibility
-        hsv[2] = (hsv[2] * 0.9f).coerceIn(0.4f, 0.85f)
-        
+
+        // Nudge saturation rather than push it. The old 1.3-1.4x made every cover
+        // arrive at roughly the same poster-paint intensity, which is what read as
+        // "not what Apple does" — theirs stays recognisably the colour of the
+        // sleeve. Cap below full so nothing lands on a pure primary.
+        hsv[1] = (hsv[1] * saturationFactor).coerceAtMost(0.82f)
+        // Value floor was 0.4, which lifted every dark cover to a mid tone and lost
+        // the distinction between a black sleeve and a bright one. Wide range, and
+        // only the top end is pulled in — a background still has to stay behind
+        // white text.
+        hsv[2] = (hsv[2] * 0.92f).coerceIn(0.12f, 0.70f)
+
         return Color(android.graphics.Color.HSVToColor(hsv))
     }
 

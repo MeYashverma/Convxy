@@ -7,9 +7,9 @@ package com.convx.music.constants
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 
 const val CONTENT_TYPE_HEADER = 0
 const val CONTENT_TYPE_LIST = 1
@@ -49,11 +49,11 @@ val AlbumThumbnailSize = 144.dp
 // from :constants which cannot depend on the theme package.
 val ThumbnailCornerRadius = 12.dp
 
-// Continuous (squircle) curvature, not a plain rounded rect — the corner eases
-// in the way iOS/Apple Music artwork does instead of meeting the edge on a
-// circular arc. CornerBasedShape, so it drops into anything that took the old
-// RoundedCornerShape, liquidGlass included.
-val ThumbnailRoundedShape = ContinuousRoundedRectangle(ThumbnailCornerRadius)
+// Plain circular corners. This was a continuous (squircle) curve, which reads
+// closer to iOS artwork but costs a generated Path clip on every thumbnail in
+// every list — the shape all content rows and tiles route through. Reverted for
+// the scroll cost, and because the redesign uses one corner vocabulary.
+val ThumbnailRoundedShape = RoundedCornerShape(ThumbnailCornerRadius)
 
 val PlayerHorizontalPadding = 32.dp
 

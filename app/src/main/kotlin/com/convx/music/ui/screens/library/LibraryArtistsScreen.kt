@@ -57,6 +57,7 @@ import com.convx.music.R
 import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.ArtistFilter
 import com.convx.music.constants.ArtistFilterKey
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.ArtistSortDescendingKey
 import com.convx.music.constants.ArtistSortType
 import com.convx.music.constants.ArtistSortTypeKey
@@ -98,7 +99,10 @@ fun LibraryArtistsScreen(
     val coroutineScope = rememberCoroutineScope()
     var viewType by rememberEnumPreference(ArtistViewTypeKey, LibraryViewType.GRID)
 
-    var filter by rememberEnumPreference(ArtistFilterKey, ArtistFilter.LIKED)
+    var storedFilter by rememberEnumPreference(ArtistFilterKey, ArtistFilter.LIKED)
+    val (localOnly) = rememberPreference(LocalOnlyModeKey, false)
+    // Mirrors what the view model actually queries while local-only mode is on.
+    val filter = if (localOnly) ArtistFilter.LOCAL else storedFilter
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         ArtistSortTypeKey,
         ArtistSortType.CREATE_DATE
@@ -121,19 +125,21 @@ fun LibraryArtistsScreen(
                     Icon(painter = painterResource(R.drawable.close), contentDescription = "")
                 },
             )
-            ChipsRow(
-                chips =
-                listOf(
-                    ArtistFilter.LIKED to stringResource(R.string.filter_liked),
-                    ArtistFilter.LIBRARY to stringResource(R.string.filter_library),
-                    ArtistFilter.LOCAL to stringResource(R.string.filter_local),
-                ),
-                currentValue = filter,
-                onValueUpdate = {
-                    filter = it
-                },
-                modifier = Modifier.weight(1f),
-            )
+            if (!localOnly) {
+                ChipsRow(
+                    chips =
+                    listOf(
+                        ArtistFilter.LIKED to stringResource(R.string.filter_liked),
+                        ArtistFilter.LIBRARY to stringResource(R.string.filter_library),
+                        ArtistFilter.LOCAL to stringResource(R.string.filter_local),
+                    ),
+                    currentValue = filter,
+                    onValueUpdate = {
+                        storedFilter = it
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 

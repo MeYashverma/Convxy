@@ -143,6 +143,7 @@ import com.convx.music.constants.EnablePaxsenixKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.DataSaverEnabledKey
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -242,6 +243,7 @@ fun ContentSettings(
     val (suggestionRegion, onSuggestionRegionChange) = rememberPreference(key = SuggestionRegionKey, defaultValue = "system")
     val (hideExplicit, onHideExplicitChange) = rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (dataSaverEnabled, onDataSaverEnabledChange) = rememberPreference(key = DataSaverEnabledKey, defaultValue = false)
+    val (localOnlyMode, onLocalOnlyModeChange) = rememberPreference(key = LocalOnlyModeKey, defaultValue = false)
     val (hideVideoSongs, onHideVideoSongsChange) = rememberPreference(key = HideVideoSongsKey, defaultValue = false)
 
     val (hideYoutubeShorts, onHideYoutubeShortsChange) = rememberPreference(key = HideYoutubeShortsKey, defaultValue = false)
@@ -808,6 +810,28 @@ fun ContentSettings(
                         )
                     },
                     onClick = { onDataSaverEnabledChange(!dataSaverEnabled) }
+                ),
+
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.local_songs),
+                    title = { Text(stringResource(R.string.local_only_mode)) },
+                    description = { Text(stringResource(R.string.local_only_mode_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = localOnlyMode,
+                            onCheckedChange = onLocalOnlyModeChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (localOnlyMode) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLocalOnlyModeChange(!localOnlyMode) }
                 ),
 
                 Material3SettingsItem(

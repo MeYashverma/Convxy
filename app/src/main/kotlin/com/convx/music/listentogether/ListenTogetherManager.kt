@@ -57,6 +57,11 @@ class ListenTogetherManager @Inject constructor(
         // Large position tolerance - only seek during playback if difference exceeds this
         // This prevents interrupting active playback for small drifts
         private const val PLAYBACK_POSITION_TOLERANCE_MS = 3000L
+
+        /** How long a guest waits for the server's buffer-complete before starting
+         *  on its own. Long enough for a slow guest to finish loading, short enough
+         *  that a lost message is not experienced as "it just stopped working". */
+        private const val BUFFER_COMPLETE_TIMEOUT_MS = 6000L
     }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -106,6 +111,21 @@ class ListenTogetherManager @Inject constructor(
 
     // Track if a buffer-complete arrived before the pending sync was ready
     private var bufferCompleteReceivedForTrack: String? = null
+
+    /**
+     * Fallback for a buffer-complete that never arrives.
+     *
+     * A guest loads the track, pauses, reports ready, and then waits for the
+     * server to say every guest is ready before it starts. If that message never
+     * lands — the server dropped it, another guest never reported, the room moved
+     * on — the guest sits paused at position 0 forever. The symptom is the one
+     * that gets reported: the song changes but never plays.
+     *
+     * Rather than trust the handshake unconditionally, start anyway after this
+     * long. Being a beat out of sync is recoverable (the next sync corrects it);
+     * silently never playing is not.
+     */
+    private var bufferCompleteWatchdog: Job? = null
 
     // Expose client state
     val connectionState = client.connectionState
@@ -740,6 +760,8 @@ class ListenTogetherManager @Inject constructor(
         stopQueueSyncObservation()
         stopHeartbeat()
         stopVolumeSyncObservation()
+        bufferCompleteWatchdog?.cancel()
+        bufferCompleteWatchdog = null
         // Note: Don't clear shouldBlockPlaybackChanges callback - it checks isInRoom dynamically
         lastSyncedIsPlaying = null
         lastSyncedTrackId = null
@@ -804,12 +826,23 @@ class ListenTogetherManager @Inject constructor(
         connection.service.playerVolume.value = target
     }
 
-    private fun applyPendingSyncIfReady() {
+    /**
+     * @param force applies the pending sync even though no buffer-complete arrived
+     *   for it. Set only by [bufferCompleteWatchdog].
+     */
+    private fun applyPendingSyncIfReady(force: Boolean = false) {
         val pending = pendingSyncState ?: return
         val pendingTrackId = pending.currentTrack?.id ?: bufferingTrackId ?: return
         val completeForTrack = bufferCompleteReceivedForTrack
 
-        if (completeForTrack != pendingTrackId) return
+        if (!force && completeForTrack != pendingTrackId) return
+        if (force) {
+            Timber.tag(TAG).w(
+                "Buffer-complete never arrived for $pendingTrackId after ${BUFFER_COMPLETE_TIMEOUT_MS}ms — starting anyway"
+            )
+        }
+        bufferCompleteWatchdog?.cancel()
+        bufferCompleteWatchdog = null
 
         val connection = playerConnection ?: return
         val player = connection.player
@@ -1434,6 +1467,17 @@ class ListenTogetherManager @Inject constructor(
                         // Signal we're ready to play
                         client.sendBufferReady(track.id)
                         Timber.tag(TAG).d("Sent buffer ready for ${track.id}, pending sync stored: pos=$position, play=$shouldPlay")
+
+                        // Nothing below here runs unless the server answers, so arm the
+                        // fallback that starts playback regardless. See the field's docs.
+                        bufferCompleteWatchdog?.cancel()
+                        bufferCompleteWatchdog = scope.launch {
+                            delay(BUFFER_COMPLETE_TIMEOUT_MS)
+                            if (currentTrackGeneration != generation) return@launch
+                            if (pendingSyncState == null) return@launch
+                            if (bufferCompleteReceivedForTrack == track.id) return@launch
+                            applyPendingSyncIfReady(force = true)
+                        }
 
                         // Minimal delay before accepting sync commands
                         delay(100)

@@ -106,6 +106,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.luminance
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.glassResolutionScale
 import com.convx.music.ui.component.backdrop.Backdrop
@@ -1074,6 +1076,17 @@ private fun SharedTransitionScope.ExpandedTabs(
     val isLtr = layoutDirection == LayoutDirection.Ltr
     val animationScope = rememberCoroutineScope()
     val glassConfig = LocalGlassEffectConfig.current
+    // Puck wash. Unset follows the theme rather than assuming a dark bar: a light
+    // scheme gets a light wash, so the pill still reads as a raised surface instead
+    // of a black patch.
+    val puckWash = if (glassConfig.puckColor.isSpecified) {
+        glassConfig.puckColor
+    } else if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
+        Color(0xFFF2F2F2)
+    } else {
+        Color(28, 27, 28)
+    }
+    val puckRestAlpha = glassConfig.puckOpacity.coerceIn(0f, 1f)
 
     val tabWidthPx = with(density) { sizes.tabWidth.toPx() }
     // The row's own content padding insets the tabs from the pill's edges, so
@@ -1411,8 +1424,8 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // sharp real icon from its lensed glass copy, reading
                                 // as a doubled/ghosted icon rather than one warped one.
                                 lens(
-                                    lerp(6f.dp.toPx(), 4f.dp.toPx(), progress),
-                                    lerp(8f.dp.toPx(), 6f.dp.toPx(), progress),
+                                    lerp(32f.dp.toPx(), 4f.dp.toPx(), progress),
+                                    lerp(28f.dp.toPx(), 6f.dp.toPx(), progress),
                                     chromaticAberration = true
                                 )
                             },
@@ -1457,7 +1470,12 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // while pressed.
                                 val progress = dampedDragAnimation.pressProgress
 
-                                drawRect(Color(28, 27, 28, 255).copy(alpha = 0.8f - 0.6f * progress))
+                                // Was a hardcoded near-black at 0.8 alpha, which on a
+                                // dark bar made the whole puck read as a dark blob and
+                                // on a light theme was simply wrong. Colour and resting
+                                // opacity are configurable now, and the unset default
+                                // follows the theme instead of assuming dark.
+                                drawRect(puckWash.copy(alpha = puckRestAlpha * (1f - 0.75f * progress)))
                             },
                             frozen = LocalTabBarBackdropFrozen.current
                         )

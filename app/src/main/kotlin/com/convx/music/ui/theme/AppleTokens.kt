@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Apple Music design tokens — the single source of truth for colors, shapes, and
@@ -25,16 +26,47 @@ object AppleTokens {
     // Dividers
     val Divider = Color(0x1AFFFFFF)
 
+    /**
+     * Metadata text — artist names, subtitles, durations. One step down from
+     * on-surface, never full white: the hierarchy on Home is carried by this
+     * contrast step rather than by size, since title and subtitle share a size.
+     */
+    val Metadata = Color(0xFF8E8E93)
+
     // Spacing — the whole scale. Screens reference these, never a dp literal.
 
     /** Horizontal screen gutter. The only gutter. */
-    val Gutter = 16.dp
+    val Gutter = 20.dp
     /** Gap between siblings in a grid or list. */
     val ItemGap = 16.dp
     /** Gap between a section and the next section's header. */
-    val SectionGap = 28.dp
+    val SectionGap = 24.dp
     /** Gap between stacked text lines inside one item. */
     val TextGap = 2.dp
+
+    // Type scale — Home's headers and tile text. Sizes are fixed rather than
+    // taken from the Material scale: the design pins them to specific values and
+    // the tile grid's alignment depends on title and subtitle matching exactly.
+
+    // Each size carries its own line height. Compose otherwise derives leading from
+    // the font's own metrics, which lands taller than the design at every step and
+    // shows up as sections that drift out of alignment the further down you scroll.
+
+    /** Screen title ("Listen Now"). */
+    val TitleLarge = 34.sp
+    val TitleLargeLineHeight = 41.sp
+    /** Section header ("Recently Played"). */
+    val SectionHeader = 22.sp
+    val SectionHeaderLineHeight = 28.sp
+    /** Tile title and list-row primary text. */
+    val ItemTitle = 15.sp
+    val ItemTitleLineHeight = 20.sp
+    /** Tile subtitle, row metadata. */
+    val ItemSubtitle = 13.sp
+    val ItemSubtitleLineHeight = 18.sp
+    /** Speed dial captions. */
+    val Caption = 12.sp
+    val CaptionLineHeight = 16.sp
 
     // Shapes — four corners, no more. Artwork is the only rounded thing on a
     // content tile; a card corner means the object is genuinely a card.

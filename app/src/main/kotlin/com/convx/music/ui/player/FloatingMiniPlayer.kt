@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -138,8 +139,14 @@ fun FloatingMiniPlayer(
     val animationSpec = remember {
         spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
     }
-    val autoSwipeThreshold = remember(swipeSensitivity, densityScale) {
-        ((600 / (1f + exp(-(-11.44748 * swipeSensitivity + 9.04945)))) * densityScale).roundToInt()
+    // Commit distance for the swipe. The logistic curve this replaces produced
+    // ~400dp — about 1200px at 3x, on a screen 1080px wide — so releasing the pill
+    // never changed track no matter how far it was dragged. Expressed as a fraction
+    // of screen width instead: sensitivity 0 needs 45%, sensitivity 1 needs 12%.
+    val configuration = LocalConfiguration.current
+    val autoSwipeThreshold = remember(swipeSensitivity, configuration.screenWidthDp, densityScale) {
+        val screenWidthPx = configuration.screenWidthDp * densityScale
+        (screenWidthPx * (0.45f - 0.33f * swipeSensitivity.coerceIn(0f, 1f))).roundToInt()
     }
 
     // iOS 26 style press response: the whole glass pill grows slightly while touched.
@@ -213,22 +220,28 @@ fun FloatingMiniPlayer(
                             },
                             onDragEnd = {
                                 val dragDuration = System.currentTimeMillis() - dragStartTime
+                                // Mean velocity over the gesture, px/ms. The old gate wanted
+                                // ~7.4px/ms against a mean of 1-3 for a real swipe, so that
+                                // branch never fired either.
                                 val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
                                 val currentOffset = offsetXAnimatable.value
-                                val minDistanceThreshold = 50f * densityScale
-                                val velocityThreshold = ((swipeSensitivity * -8.25f) + 8.5f) * densityScale
+                                val dragged = abs(currentOffset)
                                 val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
                                 val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
 
-                                val shouldChangeSong =
-                                    (abs(currentOffset) > minDistanceThreshold && velocity > velocityThreshold) ||
-                                        (abs(currentOffset) > autoSwipeThreshold)
+                                // Drag past the commit distance, or flick: a short fast throw
+                                // should not have to cross the whole distance.
+                                val shouldChangeSong = dragged > autoSwipeThreshold ||
+                                    (velocity > 0.55f && dragged > autoSwipeThreshold * 0.25f)
 
                                 if (shouldChangeSong) {
+                                    // Through the connection, not the raw player: the wrapper
+                                    // routes to Cast while casting, re-prepares an ENDED
+                                    // player, and fires the skip callbacks.
                                     if (currentOffset > 0 && canSkipPrevious) {
-                                        playerConnection.player.seekToPreviousMediaItem()
+                                        playerConnection.seekToPrevious()
                                     } else if (currentOffset <= 0 && canSkipNext) {
-                                        playerConnection.player.seekToNext()
+                                        playerConnection.seekToNext()
                                     }
                                 }
                                 coroutineScope.launch {
@@ -379,7 +392,7 @@ fun FloatingMiniPlayer(
                     )
                 }
                 IconButton(
-                    onClick = { playerConnection.player.seekToNext() },
+                    onClick = { playerConnection.seekToNext() },
                     enabled = canSkipNext,
                     modifier = Modifier.size(controlSize),
                 ) {
@@ -411,7 +424,7 @@ fun FloatingMiniPlayer(
                     )
                 }
                 IconButton(
-                    onClick = { playerConnection.player.seekToPreviousMediaItem() },
+                    onClick = { playerConnection.seekToPrevious() },
                     enabled = canSkipPrevious,
                     modifier = Modifier.size(controlSize),
                 ) {
@@ -433,7 +446,7 @@ fun FloatingMiniPlayer(
                     )
                 }
                 IconButton(
-                    onClick = { playerConnection.player.seekToNext() },
+                    onClick = { playerConnection.seekToNext() },
                     enabled = canSkipNext,
                     modifier = Modifier.size(controlSize),
                 ) {

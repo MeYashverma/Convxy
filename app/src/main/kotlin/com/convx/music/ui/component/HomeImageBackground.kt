@@ -61,12 +61,16 @@ fun hasCustomHomeBackground(): Boolean {
  * Library screens. Draws nothing when disabled or unset. Must be placed as a layer
  * behind the screen content inside a [BoxScope] (uses [matchParentSize]).
  *
- * Blur always runs via realtime Modifier.blur. A prior version tried to bake the
- * blur into the decoded bitmap via a Coil Transformation (downscale/upscale) to
- * avoid the per-frame cost — confirmed on-device to render unblurred regardless
- * of algorithm/cache-key/hardware-bitmap fixes, while this path (proven by the
- * "animate" mode using the same Modifier.blur) reliably works. Correctness over
- * the optimization.
+ * Blur runs via realtime Modifier.blur while the intro ramp animates, and off a
+ * file baked by [HomeBackgroundBlurCache] once it settles — the radius is static
+ * from then on, so the live RenderEffect is per-frame work for a picture that
+ * never changes.
+ *
+ * A prior version tried to bake it into the decoded bitmap via a Coil
+ * Transformation and rendered unblurred on-device regardless of
+ * algorithm/cache-key/hardware-bitmap fixes. The bake here does not go through
+ * Coil, and the live blur stays in place until the baked file actually exists, so
+ * that failure mode degrades to the old behaviour instead of to a sharp image.
  *
  * @param withGradient adds the bottom primary-color wash on top of the image.
  * @param contentLoaded when animate is on, the blur eases in once this flips true
@@ -114,9 +118,22 @@ fun BoxScope.HomeImageBackground(
     )
     val effectiveBlur = if (animate) animatedBlur else blur
     val context = LocalContext.current
-    val imageRequest = remember(path) {
+
+    // Once the blur has settled at its target it never changes again, so the live
+    // RenderEffect is the same pixels recomputed on every frame that replays this
+    // layer — including every scroll frame. Swap in a pre-blurred file for that
+    // steady state. `baked` stays null while the ramp is animating and until the
+    // file is ready, and the live blur below covers both, so a bake that fails
+    // degrades to exactly the previous behaviour rather than to a sharp image.
+    val settled = effectiveBlur == blur
+    var baked by remember(path, blur) { mutableStateOf<File?>(null) }
+    LaunchedEffect(path, blur, settled) {
+        if (settled && blur > 0f) baked = HomeBackgroundBlurCache.get(context, path, blur)
+    }
+
+    val imageRequest = remember(path, baked) {
         ImageRequest.Builder(context)
-            .data(File(path))
+            .data(baked ?: File(path))
             .size(1080, 1920)
             .crossfade(false)
             .build()
@@ -128,7 +145,7 @@ fun BoxScope.HomeImageBackground(
         contentScale = ContentScale.Crop,
         modifier = Modifier
             .matchParentSize()
-            .blur(effectiveBlur.dp),
+            .then(if (baked == null) Modifier.blur(effectiveBlur.dp) else Modifier),
     )
     Box(
         modifier = Modifier

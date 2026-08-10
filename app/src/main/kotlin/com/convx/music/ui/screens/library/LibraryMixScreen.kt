@@ -115,6 +115,7 @@ import com.convx.music.ui.utils.bounceClick
 import com.convx.music.ui.utils.combinedBounceClick
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.convx.music.utils.rememberEnumPreference
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.LibraryMixViewModel
 import java.text.Collator
@@ -224,12 +225,20 @@ fun LibraryMixScreen(
         fixedPlaylist(PlaylistEntity.LOCAL_PLAYLIST_ID, localName)
     }
 
-    val (showLiked) = rememberPreference(ShowLikedPlaylistKey, true)
-    val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
-    val (showTop) = rememberPreference(ShowTopPlaylistKey, true)
-    val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
-    val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, true)
+    // Every auto playlist except Local is built from YouTube state (likes, YT
+    // downloads, listening history, uploads), so local-only mode leaves just the one.
+    val (localOnly) = rememberPreference(LocalOnlyModeKey, false)
+    val (showLikedPref) = rememberPreference(ShowLikedPlaylistKey, true)
+    val (showDownloadedPref) = rememberPreference(ShowDownloadedPlaylistKey, true)
+    val (showTopPref) = rememberPreference(ShowTopPlaylistKey, true)
+    val (showCachedPref) = rememberPreference(ShowCachedPlaylistKey, true)
+    val (showUploadedPref) = rememberPreference(ShowUploadedPlaylistKey, true)
     val (showLocal) = rememberPreference(ShowLocalPlaylistKey, true)
+    val showLiked = showLikedPref && !localOnly
+    val showDownloaded = showDownloadedPref && !localOnly
+    val showTop = showTopPref && !localOnly
+    val showCached = showCachedPref && !localOnly
+    val showUploaded = showUploadedPref && !localOnly
 
     val platformLocale = LocalLocale.current.platformLocale
     val allItems =

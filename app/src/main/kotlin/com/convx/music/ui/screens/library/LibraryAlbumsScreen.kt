@@ -58,6 +58,7 @@ import com.convx.music.R
 import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.AlbumFilter
 import com.convx.music.constants.AlbumFilterKey
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.AlbumSortDescendingKey
 import com.convx.music.constants.AlbumSortType
 import com.convx.music.constants.AlbumSortTypeKey
@@ -103,7 +104,10 @@ fun LibraryAlbumsScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
     var viewType by rememberEnumPreference(AlbumViewTypeKey, LibraryViewType.GRID)
-    var filter by rememberEnumPreference(AlbumFilterKey, AlbumFilter.LIKED)
+    var storedFilter by rememberEnumPreference(AlbumFilterKey, AlbumFilter.LIKED)
+    val (localOnly) = rememberPreference(LocalOnlyModeKey, false)
+    // Mirrors what the view model actually queries while local-only mode is on.
+    val filter = if (localOnly) AlbumFilter.LOCAL else storedFilter
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         AlbumSortTypeKey,
         AlbumSortType.CREATE_DATE
@@ -129,20 +133,22 @@ fun LibraryAlbumsScreen(
                     Icon(painter = painterResource(R.drawable.close), contentDescription = "")
                 },
             )
-            ChipsRow(
-                chips =
-                listOf(
-                    AlbumFilter.LIKED to stringResource(R.string.filter_liked),
-                    AlbumFilter.LIBRARY to stringResource(R.string.filter_library),
-                    AlbumFilter.UPLOADED to stringResource(R.string.filter_uploaded),
-                    AlbumFilter.LOCAL to stringResource(R.string.filter_local),
-                ),
-                currentValue = filter,
-                onValueUpdate = {
-                    filter = it
-                },
-                modifier = Modifier.weight(1f),
-            )
+            if (!localOnly) {
+                ChipsRow(
+                    chips =
+                    listOf(
+                        AlbumFilter.LIKED to stringResource(R.string.filter_liked),
+                        AlbumFilter.LIBRARY to stringResource(R.string.filter_library),
+                        AlbumFilter.UPLOADED to stringResource(R.string.filter_uploaded),
+                        AlbumFilter.LOCAL to stringResource(R.string.filter_local),
+                    ),
+                    currentValue = filter,
+                    onValueUpdate = {
+                        storedFilter = it
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 

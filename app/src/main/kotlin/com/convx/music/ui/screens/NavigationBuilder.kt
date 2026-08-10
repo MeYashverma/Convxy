@@ -31,6 +31,7 @@ import com.convx.music.ui.screens.artist.ArtistScreen
 import com.convx.music.ui.screens.artist.ArtistSongsScreen
 import com.convx.music.ui.screens.equalizer.EqScreen
 import com.convx.music.ui.screens.library.LibraryScreen
+import com.convx.music.ui.screens.library.LocalFolderScreen
 import com.convx.music.ui.screens.library.LocalMusicScreen
 import com.convx.music.ui.screens.playlist.AutoPlaylistScreen
 import com.convx.music.ui.screens.playlist.CachePlaylistScreen
@@ -283,6 +284,17 @@ fun NavGraphBuilder.navigationBuilder(
         route = "local_music",
     ) {
         LocalMusicScreen(navController, scrollBehavior)
+    }
+
+    composable(
+        route = "local_folder/{path}",
+        arguments = listOf(
+            navArgument("path") {
+                type = NavType.StringType
+            },
+        ),
+    ) {
+        LocalFolderScreen(navController, it.arguments?.getString("path").orEmpty())
     }
 
     composable(

@@ -2095,20 +2095,26 @@ fun BottomSheetPlayer(
                         SquigglySlider(
                             value = (sliderPosition ?: effectivePosition).toFloat(),
                             valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            // Guest seek is blocked here as it is on every other slider
+                            // style. This branch had no check at all, so picking the wavy
+                            // style was enough to scrub a room out of sync.
+                            enabled = !isListenTogetherGuest,
                             onValueChange = {
-                                sliderPosition = it.toLong()
+                                if (!isListenTogetherGuest) sliderPosition = it.toLong()
                             },
                             onValueChangeFinished = {
-                                sliderPosition?.let {
-                                    if (isCasting) {
-                                        castHandler?.seekTo(it)
-                                        lastManualSeekTime = System.currentTimeMillis()
-                                    } else {
-                                        playerConnection.player.seekTo(it)
+                                if (!isListenTogetherGuest) {
+                                    sliderPosition?.let {
+                                        if (isCasting) {
+                                            castHandler?.seekTo(it)
+                                            lastManualSeekTime = System.currentTimeMillis()
+                                        } else {
+                                            playerConnection.player.seekTo(it)
+                                        }
+                                        position = it
                                     }
-                                    position = it
+                                    sliderPosition = null
                                 }
-                                sliderPosition = null
                             },
                             modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                             colors = PlayerSliderColors.getSliderColors(
@@ -2122,20 +2128,24 @@ fun BottomSheetPlayer(
                         WavySlider(
                             value = (sliderPosition ?: effectivePosition).toFloat(),
                             valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            // See the SquigglySlider branch above — same missing guard.
+                            enabled = !isListenTogetherGuest,
                             onValueChange = {
-                                sliderPosition = it.toLong()
+                                if (!isListenTogetherGuest) sliderPosition = it.toLong()
                             },
                             onValueChangeFinished = {
-                                sliderPosition?.let {
-                                    if (isCasting) {
-                                        castHandler?.seekTo(it)
-                                        lastManualSeekTime = System.currentTimeMillis()
-                                    } else {
-                                        playerConnection.player.seekTo(it)
+                                if (!isListenTogetherGuest) {
+                                    sliderPosition?.let {
+                                        if (isCasting) {
+                                            castHandler?.seekTo(it)
+                                            lastManualSeekTime = System.currentTimeMillis()
+                                        } else {
+                                            playerConnection.player.seekTo(it)
+                                        }
+                                        position = it
                                     }
-                                    position = it
+                                    sliderPosition = null
                                 }
-                                sliderPosition = null
                             },
                             colors = PlayerSliderColors.getSliderColors(
                                 activeColor = if (useNewPlayerDesign) textButtonColor else textButtonColor.copy(alpha = 0.7f),

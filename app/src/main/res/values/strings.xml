@@ -29,6 +29,8 @@
     <string name="quick_picks_empty">Listen to songs to generate your quick picks</string>
     <string name="forgotten_favorites">Forgotten favorites</string>
     <string name="keep_listening">Keep listening</string>
+    <string name="recently_played">Recently Played</string>
+    <string name="listen_now">Listen Now</string>
     <string name="your_youtube_playlists">Your YouTube playlists</string>
     <string name="similar_to">Similar to</string>
     <string name="new_release_albums">New release albums</string>
@@ -302,6 +304,9 @@
     <string name="grid_spacing">Grid spacing</string>
     <string name="speed_dial_columns">Speed Dial columns</string>
     <string name="home_hero_card_height">Hero card height</string>
+    <string name="home_hero_card">Hero card</string>
+    <string name="home_hero_card_desc">Show the large featured card at the top of Home</string>
+    <string name="home_grid_columns">Home grid columns</string>
     <string name="speed_dial_card_height">Speed Dial card height</string>
     <string name="home_card_corner_radius">Home card corner radius</string>
     <string name="auto">Auto</string>
@@ -469,4 +474,19 @@
     <string name="search_prompt_template_artist">Search artist \"%s\"…</string>
     <string name="enable_settings_popup">Enable settings popup</string>
     <string name="enable_settings_popup_desc">Show quick settings popup when tapping the settings button instead of opening settings directly</string>
+    <string name="liquid_glass_highlight_color">Highlight color</string>
+    <string name="liquid_glass_highlight_color_desc">Color of the specular rim along the edge of glass surfaces</string>
+    <string name="liquid_glass_highlight_opacity">Highlight opacity</string>
+    <string name="liquid_glass_highlight_opacity_desc">How bright the specular rim appears</string>
+    <string name="liquid_glass_style">Glass style</string>
+    <string name="liquid_glass_style_liquid">Liquid</string>
+    <string name="liquid_glass_style_liquid_desc">Blur, refraction and a lit edge. The full effect, and the most expensive.</string>
+    <string name="liquid_glass_style_blur">Blur</string>
+    <string name="liquid_glass_style_blur_desc">Frosted blur without refraction or the lit edge. Cheaper.</string>
+    <string name="liquid_glass_style_transparent">Transparent</string>
+    <string name="liquid_glass_style_transparent_desc">A plain translucent tint. Nothing is captured or blurred, so it costs almost nothing.</string>
+    <string name="liquid_glass_puck_color">Selection pill color</string>
+    <string name="liquid_glass_puck_color_desc">Wash painted over the selected tab pill. Reset follows the theme.</string>
+    <string name="liquid_glass_puck_opacity">Selection pill opacity</string>
+    <string name="liquid_glass_puck_opacity_desc">How strong that wash is at rest. It clears while pressed.</string>
 </resources>

@@ -50,6 +50,9 @@
     <string name="no_local_files">No local files found. Tap scan to find audio on your device.</string>
     <string name="local_files_found">Found %1$d local audio files</string>
     <string name="local_audio_permission_needed">Storage permission is needed to access local audio files</string>
+    <string name="local_only_mode">Local-only mode</string>
+    <string name="local_only_mode_desc">Home, Library and Search show only music stored on this device</string>
+    <string name="folders">Folders</string>
     <string name="sync_playlist">Sync playlist</string>
     <string name="syncing_progress">Syncing %1$d of %2$d songs</string>
     <string name="playlist_uploaded">Playlist uploaded successfully</string>
@@ -866,6 +869,7 @@
     <string name="cd_system_mode">System mode</string>
     <string name="cd_palette_item">%1$s palette</string>
     <string name="play_all">Play all</string>
+    <string name="see_all">See All</string>
     <string name="enable_high_refresh_rate">Enable high refresh rate</string>
     <string name="enable_high_refresh_rate_desc">Force the display to run at the highest supported refresh rate (e.g. 120Hz)</string>
 

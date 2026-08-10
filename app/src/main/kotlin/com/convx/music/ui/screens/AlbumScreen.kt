@@ -113,6 +113,7 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.convx.music.LocalDatabase
+import com.convx.music.LocalTabView
 import com.convx.music.LocalDownloadUtil
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
@@ -127,6 +128,7 @@ import com.convx.music.playback.queues.LocalAlbumRadio
 import com.convx.music.ui.component.AlbumGradient
 import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.GlassCircleButton
+import com.convx.music.ui.component.HeroCardHeader
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.LinkSegment
 import com.convx.music.ui.component.LocalAppBackdrop
@@ -366,11 +368,32 @@ fun AlbumScreen(
                 val tintHeader = tint
                 val onTintHeader = com.convx.music.ui.theme.AppleTokens.onColor(tintHeader)
 
+                val albumInfoText = buildString {
+                    append(stringResource(R.string.album_text))
+                    if (albumWithSongs.album.year != null) {
+                        append(" • ${albumWithSongs.album.year}")
+                    }
+                    append(" • ${albumWithSongs.songs.size} Tracks")
+                    val totalDuration = albumWithSongs.songs.sumOf { it.song.duration }
+                    val hours = totalDuration / 3600
+                    val minutes = (totalDuration % 3600) / 60
+                    if (hours > 0) {
+                        append(" • ${hours}h ${minutes}m")
+                    } else {
+                        append(" • ${minutes}m")
+                    }
+                }
+
+                // Wide layout: the full-bleed square would fill the whole fold and
+                // push the track list below it, so the artwork becomes a bounded
+                // card with the title set beside it (same as ArtistScreen).
+                val tabView = LocalTabView.current
+
                 Box(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Album Image with offset (like ArtistScreen)
-                    Box(
+                    if (!tabView) Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(1f)
@@ -423,9 +446,11 @@ fun AlbumScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(
-                                top = LocalContext.current.resources.displayMetrics.widthPixels.let { screenWidth ->
-                                    with(density) {
-                                        ((screenWidth / 1.2f) - 144).toDp()
+                                top = if (tabView) 0.dp else {
+                                    LocalContext.current.resources.displayMetrics.widthPixels.let { screenWidth ->
+                                        with(density) {
+                                            ((screenWidth / 1.2f) - 144).toDp()
+                                        }
                                     }
                                 }
                             )
@@ -433,30 +458,48 @@ fun AlbumScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
 
+                    if (tabView) {
+                        HeroCardHeader(
+                            artworkUrl = albumWithSongs.album.thumbnailUrl,
+                            title = {
+                                Text(
+                                    text = albumWithSongs.album.title,
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = onTint,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            subtitle = {
+                                Text(
+                                    text = albumWithSongs.artists.joinToString { it.name },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = onTint.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            actions = {
+                                Text(
+                                    text = albumInfoText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = onTint.copy(alpha = 0.5f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                        )
+                    }
+
                     // Metadata & Actions Section - Left Aligned
-                    Column(
+                    if (!tabView) Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 32.dp)
                             .padding(bottom = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        val albumInfoText = buildString {
-                            append(stringResource(R.string.album_text))
-                            if (albumWithSongs.album.year != null) {
-                                append(" • ${albumWithSongs.album.year}")
-                            }
-                            append(" • ${albumWithSongs.songs.size} Tracks")
-                            val totalDuration = albumWithSongs.songs.sumOf { it.song.duration }
-                            val hours = totalDuration / 3600
-                            val minutes = (totalDuration % 3600) / 60
-                            if (hours > 0) {
-                                append(" • ${hours}h ${minutes}m")
-                            } else {
-                                append(" • ${minutes}m")
-                            }
-                        }
-
                         if (albumWithSongs.artists.size == 1) {
                             val artist = albumWithSongs.artists.first()
                             Column(

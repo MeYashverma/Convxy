@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -96,12 +96,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.geometry.Offset
@@ -150,9 +146,6 @@ import coil3.toBitmap
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
-import com.convx.music.ui.component.backdrop.drawPlainBackdrop
-import com.convx.music.ui.component.backdrop.effects.blur
-import com.convx.music.ui.component.backdrop.isRenderEffectSupported
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
@@ -167,6 +160,7 @@ import com.convx.music.constants.DefaultOpenTabKey
 import com.convx.music.constants.DisableScreenshotKey
 import com.convx.music.constants.DynamicThemeKey
 import com.convx.music.constants.SearchSource
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.SearchSourceKey
 import com.convx.music.constants.EnableHighRefreshRateKey
 import com.convx.music.constants.EnableSettingsPopupKey
@@ -198,6 +192,11 @@ import com.convx.music.constants.LiquidGlassLensAmountKey
 import com.convx.music.constants.LiquidGlassChromaticAberrationKey
 import com.convx.music.constants.LiquidGlassDepthEffectKey
 import com.convx.music.constants.LiquidGlassSurfaceTintColorKey
+import com.convx.music.constants.LiquidGlassPuckColorKey
+import com.convx.music.constants.LiquidGlassPuckOpacityKey
+import com.convx.music.constants.LiquidGlassStyleKey
+import com.convx.music.constants.LiquidGlassHighlightColorKey
+import com.convx.music.constants.LiquidGlassHighlightOpacityKey
 import com.convx.music.constants.LiquidGlassSurfaceOpacityKey
 import com.convx.music.constants.LiquidGlassAdaptiveContrastKey
 import com.convx.music.constants.LiquidGlassTextColorKey
@@ -224,12 +223,16 @@ import com.convx.music.playback.MusicService.MusicBinder
 import com.convx.music.playback.PlayerConnection
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.AppFloatingNavBar
+import com.convx.music.ui.component.LocalDownloads
+import com.convx.music.ui.component.LocalItemPrefs
 import com.convx.music.ui.component.LocalNavSearchState
+import com.convx.music.ui.component.rememberItemPrefs
 import com.convx.music.ui.component.NavSearchState
 import com.convx.music.ui.component.AppNavigationBar
 import com.convx.music.ui.component.GlassEffectConfig
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.GlassStyle
 import com.convx.music.ui.component.glassContentColorFor
 import com.convx.music.ui.component.LocalAppleMusicUi
 import com.convx.music.ui.component.isGlassAllowed
@@ -315,15 +318,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 private val themeColorCache = android.util.LruCache<String, androidx.compose.ui.graphics.Color>(64)
 
-/**
- * Fraction of the surface resolution the top bar's blur strip records its backdrop
- * at. Higher than the nav bar glass's floor: this strip sits over *moving* content,
- * and at 0.33 the upscaled capture crawled visibly as rows scrolled beneath it.
- * Affordable now that the strip is one capture per frame rather than two.
- */
-private const val TopBarBackdropScale = 0.45f
-
-// DIAGNOSTIC ONLY — keep false. Bypasses the full-screen layerBackdrop pass so the cost of
+// DIAGNOSTIC ONLY â€” keep false. Bypasses the full-screen layerBackdrop pass so the cost of
 // the glass pipeline can be measured against the cost of the content itself. Glass surfaces
 // fall back to their translucent look while this is true, so it must never ship enabled.
 // Measured 2026-08-05 on SM-M346B, Home scroll p50: true => record 1.9ms / issue 4.6ms,
@@ -332,15 +327,8 @@ private const val TopBarBackdropScale = 0.45f
 private const val DIAG_DISABLE_BACKDROP = false
 
 /**
- * Blur radius for that strip. Deliberately moderate — a heavy radius over scrolling
- * content smears each row into the next and reads as a glitch rather than as frost.
- * Legibility is topped up by the scrim gradient below the blur, not by the radius.
- */
-private val TopBarBlurRadius = 26.dp
-
-/**
  * Routes whose whole screen is an `AndroidView` WebView. They opt out of the app
- * backdrop capture — see the NavHost modifier for why.
+ * backdrop capture â€” see the NavHost modifier for why.
  */
 private val WebViewRoutes = setOf(
     "login",
@@ -355,7 +343,7 @@ private val WebViewRoutes = setOf(
  * scroll down into the content. Without this the darkened strip sits over every
  * screen permanently.
  *
- * MainActivity doesn't own any screen's list state — the nested scroll stream is
+ * MainActivity doesn't own any screen's list state â€” the nested scroll stream is
  * the only app-level scroll signal available here, so direction is tracked from
  * the deltas rather than read off a LazyListState.
  */
@@ -414,7 +402,7 @@ class MainActivity : ComponentActivity() {
         private const val NavDebounceMs = 250L
 
         // How long the nav bar's shrink/expand-to-pill animation takes before the
-        // actual navigate()/navigateUp() call for entering/exiting search — keeps
+        // actual navigate()/navigateUp() call for entering/exiting search â€” keeps
         // the animation and the route's own screen transition from overlapping.
         // Comfortably past the crossfade's own ~300ms so it always finishes first.
         private const val SearchNavTransitionDelayMs = 360L
@@ -500,7 +488,7 @@ class MainActivity : ComponentActivity() {
             isFinishing
         ) {
             // onStop() (always called before onDestroy()) already unbound
-            // serviceConnection — unbinding again throws IllegalArgumentException
+            // serviceConnection â€” unbinding again throws IllegalArgumentException
             // ("Service not registered"), tearing the audio session down via a
             // crash instead of a clean stop.
             stopService(Intent(this, MusicService::class.java))
@@ -688,7 +676,7 @@ class MainActivity : ComponentActivity() {
                         try {
                             // Prefer a frame from the song's canvas video over the static
                             // cover art when one's already been fetched/confirmed playing
-                            // (see Player.kt) — canvas videos are often more colorful/
+                            // (see Player.kt) â€” canvas videos are often more colorful/
                             // representative than the plain album art.
                             val canvasVideoUrl = CanvasArtworkPlaybackCache
                                 .get("${song.id}:${canvasSource.name}")
@@ -744,7 +732,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val homeViewModel: HomeViewModel = hiltViewModel()
                 // Pre-warm HistoryViewModel at Activity scope so history data loads
-                // in background immediately — zero lag when user taps the history icon
+                // in background immediately â€” zero lag when user taps the history icon
                 hiltViewModel<HistoryViewModel>()
                 val accountImageUrl by homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -759,10 +747,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
-                // Legacy classic nav bar/mini player removed — floating pill system always on.
+                // Legacy classic nav bar/mini player removed â€” floating pill system always on.
                 val useFloatingNavBar = true
                 val (appleMusicUi) = rememberPreference(AppleMusicUiKey, defaultValue = true)
-                // The Settings tab is exclusive to the floating (iOS-style) tab bar —
+                // The Settings tab is exclusive to the floating (iOS-style) tab bar â€”
                 // the classic nav bar keeps settings behind the top bar icon.
                 val floatingNavigationItems = remember(navigationItems) {
                     navigationItems + Screens.Settings
@@ -778,11 +766,16 @@ class MainActivity : ComponentActivity() {
                 // 0 (fully transparent, unreachable from the color picker) marks the
                 // theme-adaptive default tint.
                 // 0 = theme-adaptive tint (a lighter frosted grey) rather than a
-                // fixed dark chip — the dark default read as a near-black bar (and
+                // fixed dark chip â€” the dark default read as a near-black bar (and
                 // an invisible button surface over a dark hero, e.g. the playlist
                 // action buttons).
                 val (liquidGlassSurfaceTintColorInt) = rememberPreference(LiquidGlassSurfaceTintColorKey, defaultValue = 0)
                 val (liquidGlassSurfaceOpacity) = rememberPreference(LiquidGlassSurfaceOpacityKey, defaultValue = 0.5f)
+                val liquidGlassStyle by rememberEnumPreference(LiquidGlassStyleKey, defaultValue = GlassStyle.LIQUID)
+                val (liquidGlassPuckColorInt) = rememberPreference(LiquidGlassPuckColorKey, defaultValue = 0)
+                val (liquidGlassPuckOpacity) = rememberPreference(LiquidGlassPuckOpacityKey, defaultValue = 0.8f)
+                val (liquidGlassHighlightColorInt) = rememberPreference(LiquidGlassHighlightColorKey, defaultValue = 0)
+                val (liquidGlassHighlightOpacity) = rememberPreference(LiquidGlassHighlightOpacityKey, defaultValue = 0.55f)
                 // 0 (fully transparent, unreachable from the color picker) marks the
                 // theme-adaptive default, same convention as the surface tint above.
                 // A hardcoded white default left the mini player and nav bar text
@@ -793,7 +786,7 @@ class MainActivity : ComponentActivity() {
                     defaultValue = true,
                 )
                 // Theme-only fallback. Correct for an untinted pill, but blind to the
-                // tint the user actually picked — a dark tint at high opacity reads
+                // tint the user actually picked â€” a dark tint at high opacity reads
                 // dark even in light mode, which is where white-on-glass disappears.
                 val themeGlassTextColor = if (useDarkTheme) Color.White else Color(0xFF1A1A1A)
                 val (liquidGlassPlayerEnabled) = rememberPreference(LiquidGlassPlayerEnabledKey, defaultValue = true)
@@ -808,8 +801,8 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassSidePanelSurfaceOpacity) = rememberPreference(LiquidGlassSidePanelSurfaceOpacityKey, defaultValue = 0.5f)
                 val (liquidGlassSidePanelTextColorInt) = rememberPreference(LiquidGlassSidePanelTextColorKey, defaultValue = 0)
 
-                // Content colour derived from what the pill actually composites to —
-                // the surface behind it blended with the chosen tint at its opacity —
+                // Content colour derived from what the pill actually composites to â€”
+                // the surface behind it blended with the chosen tint at its opacity â€”
                 // rather than from the theme alone. Keeps chrome legible for any
                 // tint/opacity/theme combination instead of only the untinted ones.
                 val resolvedGlassTint = if (liquidGlassSurfaceTintColorInt == 0) {
@@ -843,6 +836,8 @@ class MainActivity : ComponentActivity() {
                     liquidGlassLensHeight, liquidGlassLensAmount, liquidGlassChromaticAberration,
                     liquidGlassDepthEffect, liquidGlassSurfaceTintColorInt,
                     liquidGlassSurfaceOpacity, liquidGlassTextColorInt, liquidGlassPlayerEnabled,
+                    liquidGlassHighlightColorInt, liquidGlassHighlightOpacity, liquidGlassStyle,
+                    liquidGlassPuckColorInt, liquidGlassPuckOpacity,
                     liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSidePanelEnabled,
                     liquidGlassSidePanelVibrancy, liquidGlassSidePanelBlurRadius,
                     liquidGlassSidePanelLensHeight, liquidGlassSidePanelLensAmount,
@@ -868,6 +863,11 @@ class MainActivity : ComponentActivity() {
                             Color(liquidGlassSurfaceTintColorInt)
                         },
                         surfaceOpacity = liquidGlassSurfaceOpacity,
+                        highlightColor = if (liquidGlassHighlightColorInt == 0) Color.Unspecified else Color(liquidGlassHighlightColorInt),
+                        highlightOpacity = liquidGlassHighlightOpacity,
+                        style = liquidGlassStyle,
+                        puckColor = if (liquidGlassPuckColorInt == 0) Color.Unspecified else Color(liquidGlassPuckColorInt),
+                        puckOpacity = liquidGlassPuckOpacity,
                         textColor = if (liquidGlassTextColorInt == 0) adaptiveGlassTextColor else Color(liquidGlassTextColorInt),
                         playerEnabled = liquidGlassPlayerEnabled,
                         miniPlayerEnabled = liquidGlassMiniPlayerEnabled,
@@ -910,22 +910,29 @@ class MainActivity : ComponentActivity() {
                 val (query, onQueryChange) = rememberSaveable(stateSaver = TextFieldValue.Saver) {
                     mutableStateOf(TextFieldValue())
                 }
-                // Whether the nav bar's search field currently owns the keyboard — the
+                // Whether the nav bar's search field currently owns the keyboard â€” the
                 // one thing that isn't route-derived (search_input/search/{query} don't
                 // change across the first-tap/second-tap boundary). Reset below whenever
                 // navigation leaves both search routes.
                 var searchKeyboardActive by rememberSaveable { mutableStateOf(false) }
-                var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
+                var storedSearchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
+                val (localOnlyMode) = rememberPreference(LocalOnlyModeKey, false)
+                // Local-only mode pins search to the on-device library; the stored
+                // preference is left alone so it returns when the mode is turned off.
+                val searchSource = if (localOnlyMode) SearchSource.LOCAL else storedSearchSource
                 val searchFocusRequester = remember { FocusRequester() }
                 // Non-null while entering/exiting search overrides the route-derived
                 // visual state, so the shrink/expand animation plays out before the
                 // actual navigation call lands (see enterSearch/exitSearch below).
                 var searchVisualOverride by remember { mutableStateOf<Boolean?>(null) }
 
-                val onSearch: (String) -> Unit = remember {
+                val onSearch: (String) -> Unit = remember(localOnlyMode) {
                     { searchQuery ->
                         if (searchQuery.isNotEmpty()) {
-                            navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}") {
+                            // search/{query} is the YouTube results screen. In local-only
+                            // mode the results are already on screen (search_input renders
+                            // LocalSearchScreen live), so submitting just records history.
+                            if (!localOnlyMode) navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}") {
                                 // No launchSingleTop: it compares destination id, not
                                 // resolved args, so re-submitting a new query while
                                 // already on search/{oldQuery} could get silently
@@ -963,7 +970,7 @@ class MainActivity : ComponentActivity() {
                     if (!inSearchScreen) searchKeyboardActive = false
                 }
                 // The floating nav bar keeps Settings as one of its own tabs (see
-                // floatingNavigationItems above), so it should stay visible there too —
+                // floatingNavigationItems above), so it should stay visible there too â€”
                 // only the classic nav bar treats Settings as a top-bar-only destination.
                 val navigationItemRoutes = remember(navigationItems, floatingNavigationItems, useFloatingNavBar) {
                     (if (useFloatingNavBar) floatingNavigationItems else navigationItems)
@@ -974,7 +981,7 @@ class MainActivity : ComponentActivity() {
                 val shouldShowNavigationBar = remember(currentRoute, inSearchInputScreen, useFloatingNavBar) {
                     when {
                         // The floating nav bar renders its own search-mode chrome on
-                        // search_input instead of hiding — only the classic bar still
+                        // search_input instead of hiding â€” only the classic bar still
                         // hides there.
                         inSearchInputScreen && !useFloatingNavBar -> false
                         currentRoute?.startsWith("settings/") == true -> false
@@ -987,7 +994,7 @@ class MainActivity : ComponentActivity() {
 
                 // The floating liquid-glass nav bar is a centered bottom pill that
                 // works the same in landscape, so don't swap it for the side rail
-                // there — only the classic nav bar falls back to the rail.
+                // there â€” only the classic nav bar falls back to the rail.
                 //
                 // "Tab view" forces the same side layout on any device, including a
                 // phone in portrait, so the tablet sidebar can be tried out without
@@ -1041,7 +1048,7 @@ class MainActivity : ComponentActivity() {
                 // Only reserve space for the docked player accessory on screens where the
                 // floating tab bar is actually visible; other screens (e.g. settings) get
                 // the full height. In search mode the mini player still docks (now part of
-                // the search-expanded/search-inline chrome) — it only drops out once the
+                // the search-expanded/search-inline chrome) â€” it only drops out once the
                 // keyboard takes over the bar entirely.
                 val hasDockedPlayerAccessory =
                     useFloatingNavBar && playerMediaMetadata != null && !showRail && shouldShowNavigationBar &&
@@ -1087,13 +1094,13 @@ class MainActivity : ComponentActivity() {
                 )
 
                 // Shows the top bar's blur/scrim strip only at the top of a list
-                // or while scrolling back up — see TopBarChromeVisibility.
+                // or while scrolling back up â€” see TopBarChromeVisibility.
                 val topBarChrome = remember { TopBarChromeVisibility() }
 
                 // Navigation tracking
                 LaunchedEffect(navBackStackEntry) {
                     // Only the results route (search/{query}) carries a query arg;
-                    // the search_input landing does not — guard against a null arg
+                    // the search_input landing does not â€” guard against a null arg
                     // so tapping search never NPEs.
                     val rawQuery = navBackStackEntry?.arguments?.getString("query")
                     if (inSearchScreen && rawQuery != null) {
@@ -1241,7 +1248,7 @@ class MainActivity : ComponentActivity() {
 
                 // While the user is scrolling, stop re-recording the backdrop source.
                 // layer.record { drawContent() } cannot reuse unchanged child RenderNodes,
-                // so it re-issues the entire screen every frame — measured at 47ms of the
+                // so it re-issues the entire screen every frame â€” measured at 47ms of the
                 // ~57ms Home scroll frame, against 1.9ms for Compose's ordinary draw path.
                 // The content keeps scrolling live; only the blur sampled by the nav/top
                 // bar holds its last capture until the gesture settles.
@@ -1282,7 +1289,7 @@ class MainActivity : ComponentActivity() {
                             // Pop the WHOLE search flow, not a single level. Searching
                             // pushes search_input and then search/{query} on top of it,
                             // so navigateUp() from a results screen landed on the hint
-                            // screen — which renders nothing once the keyboard is closed,
+                            // screen â€” which renders nothing once the keyboard is closed,
                             // and read as "the screen I came from lost all its content".
                             // Cancelling search must return to whatever preceded it.
                             if (!navController.popBackStack(Screens.Search.route, inclusive = true)) {
@@ -1294,7 +1301,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // The nav bar (rendered outside/above search_input and search/{query} in
-                // the tree below) owns the actual search text field now — both screens
+                // the tree below) owns the actual search text field now â€” both screens
                 // just read this to filter/display results.
                 val navSearchState = NavSearchState(
                     visualActive = searchVisualOverride ?: inSearchScreen,
@@ -1304,14 +1311,16 @@ class MainActivity : ComponentActivity() {
                     onSubmit = onSearch,
                     searchSource = searchSource,
                     onToggleSource = {
-                        searchSource = if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
+                        storedSearchSource =
+                            if (storedSearchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
                     },
+                    canToggleSource = !localOnlyMode,
                     onTapSearchIcon = enterSearch,
                     onTapBar = {
                         if (inSearchScreen && !inSearchInputScreen) {
                             // Tapping the bar again from a results screen (search/{query})
                             // pops back to the hint screen (search_input) and opens the
-                            // keyboard there instead — a normal, working search, rather
+                            // keyboard there instead â€” a normal, working search, rather
                             // than trying to resubmit in place.
                             navController.popBackStack(Screens.Search.route, inclusive = false)
                         }
@@ -1342,6 +1351,12 @@ class MainActivity : ComponentActivity() {
                     LocalAppBackdrop provides appBackdrop,
                     LocalAppleMusicUi provides appleMusicUi,
                     LocalRingtoneViewModel provides ringtoneViewModel,
+                    // Read once here instead of inside every list row and grid tile —
+                    // see ItemPrefs for what that was costing on scroll.
+                    LocalItemPrefs provides rememberItemPrefs(),
+                    // One collector for the whole app instead of one per list row —
+                    // see LocalDownloads.
+                    LocalDownloads provides downloadUtil.downloads.collectAsState().value,
                 ) {
 
                     Scaffold(
@@ -1356,18 +1371,15 @@ class MainActivity : ComponentActivity() {
                                     Box(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        // ONE capture layer, masked (DstIn) to fade out over its
-                                        // own height, at a moderate radius. It used to be two
-                                        // stacked captures (light 18dp over heavy 64dp) chasing a
-                                        // true iOS radius ramp; in practice the two low-res
-                                        // captures disagreed frame to frame as content scrolled
-                                        // under them and the seam between their masks crawled —
-                                        // the "glitchy" edge. One capture at a higher record
-                                        // scale is steadier, costs about the same (0.45² for one
-                                        // vs 2 × 0.33² for two), and the vertical mask still
-                                        // gives the sharp-at-the-bottom ramp. Offscreen
-                                        // compositing is required for DstIn to mask just this
-                                        // layer instead of the whole screen underneath.
+                                        // Scrim only â€” no backdrop capture. This was a blurred
+                                        // capture of the screen behind it (once two stacked
+                                        // captures, then one at 0.45 scale), which meant the top
+                                        // bar sampled and re-blurred the full-screen backdrop on
+                                        // top of everything else the scroll frame was already
+                                        // paying for. The gradient below carried most of the
+                                        // legibility anyway, and it fades out on its own, so
+                                        // dropping the blur also drops the DstIn mask and the
+                                        // Offscreen buffer that mask required.
                                         //
                                         // Plain alpha rather than AnimatedVisibility: this sits in
                                         // a Box nested in a Row, so AnimatedVisibility resolves
@@ -1387,71 +1399,30 @@ class MainActivity : ComponentActivity() {
                                             label = "topBarChromeAlpha",
                                         )
                                         if (chromeAlpha > 0.01f) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(AppBarHeight * 1.6f)
-                                                .align(Alignment.TopCenter)
-                                                .graphicsLayer { alpha = chromeAlpha }
-                                                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-                                        ) {
-                                            // The mask holds its value through the title band and
-                                            // only ramps out in the lower part of the strip — a
-                                            // plain two-stop Black->Transparent gradient starts
-                                            // fading from the first pixel, leaving the title over
-                                            // an already half-faded blur.
+                                            // Replaces the blur that used to sit here: one drawn
+                                            // rect, no capture, no layer of its own beyond the
+                                            // alpha fade. Weighted toward the top and held near
+                                            // full opacity across the whole bar rather than
+                                            // falling off immediately — the bar's title and icons
+                                            // sit in the first two thirds, and with the blur gone
+                                            // there is nothing but this gradient separating them
+                                            // from whatever artwork scrolls underneath.
                                             Box(
                                                 modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                                                    .drawWithContent {
-                                                        drawContent()
-                                                        drawRect(
-                                                            brush = Brush.verticalGradient(
-                                                                0f to Color.Black,
-                                                                0.60f to Color.Black,
-                                                                1f to Color.Transparent,
-                                                            ),
-                                                            blendMode = BlendMode.DstIn,
-                                                        )
-                                                    }
-                                                    .drawPlainBackdrop(
-                                                        backdrop = LocalAppBackdrop.current,
-                                                        shape = { RectangleShape },
-                                                        effects = {
-                                                            // blur() takes px, not dp — the raw-float
-                                                            // calls here before were off by the device
-                                                            // density factor (~3x), so bumping the float
-                                                            // barely moved the real radius. Pre-multiplied
-                                                            // by the record scale below, same as
-                                                            // Modifier.liquidGlass does.
-                                                            if (isRenderEffectSupported()) {
-                                                                blur(TopBarBlurRadius.toPx() * TopBarBackdropScale)
-                                                            }
-                                                        },
-                                                        backdropScale = TopBarBackdropScale,
-                                                    )
-                                            )
-
-                                            // Darkening scrim over the blur layer, behind the
-                                            // sharp title/actions drawn by the TopAppBar below.
-                                            // Still light, but doing slightly more of the work
-                                            // than it used to: it now covers the legibility the
-                                            // dropped heavy-blur layer was providing, without
-                                            // painting the strip near-black.
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
+                                                    .fillMaxWidth()
+                                                    .height(AppBarHeight * 1.9f)
+                                                    .align(Alignment.TopCenter)
+                                                    .graphicsLayer { alpha = chromeAlpha }
                                                     .background(
                                                         Brush.verticalGradient(
-                                                            0f to Color.Black.copy(alpha = 0.46f),
-                                                            0.50f to Color.Black.copy(alpha = 0.30f),
-                                                            0.78f to Color.Black.copy(alpha = 0.10f),
+                                                            0f to Color.Black.copy(alpha = 0.82f),
+                                                            0.42f to Color.Black.copy(alpha = 0.70f),
+                                                            0.68f to Color.Black.copy(alpha = 0.38f),
+                                                            0.86f to Color.Black.copy(alpha = 0.14f),
                                                             1f to Color.Transparent,
                                                         )
                                                     )
                                             )
-                                        }
                                         }
                                         TopAppBar(
                                         title = {
@@ -1483,7 +1454,7 @@ class MainActivity : ComponentActivity() {
                                         actions = {
                                             // History/Stats/Together moved to Settings (see
                                             // SettingsScreen.kt's ACTIVITY section + the
-                                            // existing ACCOUNT entry) — the top bar now
+                                            // existing ACCOUNT entry) â€” the top bar now
                                             // shows only the wordmark and this settings/
                                             // profile pill, per the simplified-chrome pass.
                                              IconButton(onClick = {
@@ -1563,7 +1534,7 @@ class MainActivity : ComponentActivity() {
                                         // The debounce below only suppresses a genuine duplicate
                                         // fire for a tab we are still sitting on. Once the user
                                         // has moved anywhere else (tapped a song, opened an
-                                        // artist), the remembered route is stale — leaving it set
+                                        // artist), the remembered route is stale â€” leaving it set
                                         // meant a tab tap within the debounce window was silently
                                         // swallowed and you stayed on the previous screen, which
                                         // is why Home sometimes did nothing.
@@ -1867,7 +1838,7 @@ class MainActivity : ComponentActivity() {
                                         // can sample it, which means the subtree is drawn
                                         // twice per frame. A WebView renders on its own
                                         // hardware canvas and does not survive that second
-                                        // pass intact — the page tears and flickers while
+                                        // pass intact â€” the page tears and flickers while
                                         // still being usable, exactly the reported symptom.
                                         // Those screens are plain full-bleed WebViews with
                                         // their own Material top bar, so they have no glass
@@ -1877,7 +1848,7 @@ class MainActivity : ComponentActivity() {
                                         // glass can't render at all (pre-Android 12, or low-RAM).
                                         // Recording the screen into a GraphicsLayer costs the
                                         // same whether or not anyone reads it, and on those
-                                        // devices nobody ever does — measured at ~25ms of
+                                        // devices nobody ever does â€” measured at ~25ms of
                                         // display-list recording per frame on a Galaxy M34, on
                                         // every screen including a plain settings list.
                                         .then(
@@ -1895,7 +1866,7 @@ class MainActivity : ComponentActivity() {
                                                 // window redraws. The mini player and nav bar
                                                 // are siblings of the NavHost, yet their
                                                 // per-frame ticks were forcing a full
-                                                // re-record of this subtree — 117ms/frame at
+                                                // re-record of this subtree â€” 117ms/frame at
                                                 // idle with a song playing. Defaults only, so
                                                 // nothing about the rendered result changes.
                                                 Modifier
@@ -1972,7 +1943,7 @@ class MainActivity : ComponentActivity() {
                                 // one just duplicated it.
 
                                 // Everything the top bar carries on a phone moves in
-                                // here, plus the user's pinned playlists — the DAO's
+                                // here, plus the user's pinned playlists â€” the DAO's
                                 // playlists() already filters to bookmarkedAt, so this
                                 // is the pinned set, not every local playlist.
                                 val sidebarPlaylists by database
@@ -2069,7 +2040,7 @@ class MainActivity : ComponentActivity() {
                                 )
 
                                 // The phone bar's docked accessory, floating free on
-                                // the opposite edge — same pill, same glass, bottom
+                                // the opposite edge â€” same pill, same glass, bottom
                                 // right rather than centred. Swaps for the real
                                 // search input bar while searching, same slide+fade
                                 // the phone's own AppFloatingNavBar uses to hide its
@@ -2316,7 +2287,7 @@ val LocalListenTogetherManager = staticCompositionLocalOf<com.convx.music.listen
 val LocalIsPlayerExpanded = compositionLocalOf { false }
 
 /**
- * True while the app is laid out for tab view — the vertical floating side bar
+ * True while the app is laid out for tab view â€” the vertical floating side bar
  * instead of the bottom bar. Screens read this to switch their header to the
  * wide arrangement (hero as a card with its title beside it) rather than the
  * phone's full-bleed hero.

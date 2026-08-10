@@ -284,8 +284,16 @@ private fun NewMiniPlayer(
         spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
     }
 
-    val autoSwipeThreshold = remember(swipeSensitivity, density) {
-        ((600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))) * density).roundToInt()
+    // How far the card must travel before releasing changes track.
+    //
+    // This was a logistic curve that produced ~400dp — about 1200px at 3x, on a
+    // 1080px screen. It could never be reached, so releasing the card never
+    // changed the song no matter how far it was dragged. Expressed as a fraction
+    // of the screen instead, so it is reachable on every device: sensitivity 0
+    // needs 45% of the width, sensitivity 1 needs 12%.
+    val autoSwipeThreshold = remember(swipeSensitivity, configuration.screenWidthDp, density) {
+        val screenWidthPx = configuration.screenWidthDp * density
+        (screenWidthPx * (0.45f - 0.33f * swipeSensitivity.coerceIn(0f, 1f))).roundToInt()
     }
 
     val (gradientColors, onGradientColorsChange) = remember { mutableStateOf<List<Color>>(emptyList()) }
@@ -297,7 +305,19 @@ private fun NewMiniPlayer(
     )
     
     // Memoize colors
-    val backgroundColor = if (pureBlack && useDarkTheme) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    val miniPlayerGlass = LocalGlassEffectConfig.current
+    val usesGlassSurface =
+        miniPlayerGlass.isEnabledFor(GlassComponent.MINI_PLAYER) && isGlassAllowed()
+    // With glass on, liquidGlass paints the surface and this must stay clear or the
+    // capture is hidden behind an opaque fill. With glass off it used to paint a
+    // flat surfaceContainer, which over artwork reads as a black blob pasted on the
+    // screen — so fall back to a translucent elevated surface that still lets the
+    // content behind show, rather than an opaque one.
+    val backgroundColor = when {
+        usesGlassSurface -> Color.Transparent
+        pureBlack && useDarkTheme -> Color.Black.copy(alpha = 0.82f)
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f)
+    }
     val isDynamicBackground = miniPlayerBackground != PlayerBackgroundStyle.DEFAULT
 
     val glassConfig = LocalGlassEffectConfig.current
@@ -361,19 +381,27 @@ private fun NewMiniPlayer(
                             },
                             onDragEnd = {
                                 val dragDuration = System.currentTimeMillis() - dragStartTime
+                                // Mean velocity across the gesture, px/ms. The old threshold
+                                // was ~7.4px/ms against a mean that is 1-3px/ms for a real
+                                // swipe, so this branch never fired either.
                                 val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
                                 val currentOffset = offsetXAnimatable.value
-                                val minDistanceThreshold = 50f * density
-                                val velocityThreshold = ((swipeSensitivity * -8.25f) + 8.5f) * density
+                                val dragged = kotlin.math.abs(currentOffset)
 
-                                val shouldChangeSong = (kotlin.math.abs(currentOffset) > minDistanceThreshold && velocity > velocityThreshold) ||
-                                    (kotlin.math.abs(currentOffset) > autoSwipeThreshold)
+                                // Either drag past the commit distance, or flick: a short
+                                // fast throw should not have to cross the full distance.
+                                val shouldChangeSong = dragged > autoSwipeThreshold ||
+                                    (velocity > 0.55f && dragged > autoSwipeThreshold * 0.25f)
 
                                 if (shouldChangeSong) {
+                                    // Through the connection, not player directly: the wrapper
+                                    // is what routes to Cast when casting, re-prepares a player
+                                    // sitting in ENDED/IDLE, and fires the skip callbacks. The
+                                    // raw calls silently did nothing in all of those states.
                                     if (currentOffset > 0 && canSkipPrevious) {
-                                        playerConnection.player.seekToPreviousMediaItem()
+                                        playerConnection.seekToPrevious()
                                     } else if (currentOffset <= 0 && canSkipNext) {
-                                        playerConnection.player.seekToNext()
+                                        playerConnection.seekToNext()
                                     }
                                 }
                                 coroutineScope.launch {
@@ -478,7 +506,10 @@ private fun NewMiniPlayer(
 
                 // Skip next (Accord icon)
                 IconButton(
-                    onClick = { if (canSkipNext) playerConnection.player.seekToNext() },
+                    // Wrapper, not the raw player — same reason as the swipe above:
+                    // this button did nothing while casting, and did not re-prepare
+                    // a player that had reached the end of the queue.
+                    onClick = { if (canSkipNext) playerConnection.seekToNext() },
                     enabled = canSkipNext
                 ) {
                     Icon(
@@ -792,8 +823,16 @@ private fun LegacyMiniPlayer(
         spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
     }
 
-    val autoSwipeThreshold = remember(swipeSensitivity, density) {
-        ((600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))) * density).roundToInt()
+    // How far the card must travel before releasing changes track.
+    //
+    // This was a logistic curve that produced ~400dp — about 1200px at 3x, on a
+    // 1080px screen. It could never be reached, so releasing the card never
+    // changed the song no matter how far it was dragged. Expressed as a fraction
+    // of the screen instead, so it is reachable on every device: sensitivity 0
+    // needs 45% of the width, sensitivity 1 needs 12%.
+    val autoSwipeThreshold = remember(swipeSensitivity, configuration.screenWidthDp, density) {
+        val screenWidthPx = configuration.screenWidthDp * density
+        (screenWidthPx * (0.45f - 0.33f * swipeSensitivity.coerceIn(0f, 1f))).roundToInt()
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -843,19 +882,27 @@ private fun LegacyMiniPlayer(
                             },
                             onDragEnd = {
                                 val dragDuration = System.currentTimeMillis() - dragStartTime
+                                // Mean velocity across the gesture, px/ms. The old threshold
+                                // was ~7.4px/ms against a mean that is 1-3px/ms for a real
+                                // swipe, so this branch never fired either.
                                 val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
                                 val currentOffset = offsetXAnimatable.value
-                                val minDistanceThreshold = 50f * density
-                                val velocityThreshold = ((swipeSensitivity * -8.25f) + 8.5f) * density
+                                val dragged = kotlin.math.abs(currentOffset)
 
-                                val shouldChangeSong = (kotlin.math.abs(currentOffset) > minDistanceThreshold && velocity > velocityThreshold) ||
-                                    (kotlin.math.abs(currentOffset) > autoSwipeThreshold)
+                                // Either drag past the commit distance, or flick: a short
+                                // fast throw should not have to cross the full distance.
+                                val shouldChangeSong = dragged > autoSwipeThreshold ||
+                                    (velocity > 0.55f && dragged > autoSwipeThreshold * 0.25f)
 
                                 if (shouldChangeSong) {
+                                    // Through the connection, not player directly: the wrapper
+                                    // is what routes to Cast when casting, re-prepares a player
+                                    // sitting in ENDED/IDLE, and fires the skip callbacks. The
+                                    // raw calls silently did nothing in all of those states.
                                     if (currentOffset > 0 && canSkipPrevious) {
-                                        playerConnection.player.seekToPreviousMediaItem()
+                                        playerConnection.seekToPrevious()
                                     } else if (currentOffset <= 0 && canSkipNext) {
-                                        playerConnection.player.seekToNext()
+                                        playerConnection.seekToNext()
                                     }
                                 }
                                 coroutineScope.launch { offsetXAnimatable.animateTo(0f, animationSpec) }

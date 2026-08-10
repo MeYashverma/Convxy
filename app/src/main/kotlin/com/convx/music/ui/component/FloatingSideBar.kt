@@ -37,6 +37,8 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -57,12 +59,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.fastCoerceIn
 import coil3.compose.AsyncImage
 import com.convx.music.R
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberCombinedBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
+import com.convx.music.ui.component.backdrop.catalog.utils.DampedDragAnimation
 import com.convx.music.ui.component.backdrop.drawBackdrop
 import com.convx.music.ui.component.backdrop.effects.blur
 import com.convx.music.ui.component.backdrop.effects.lens
@@ -163,8 +167,8 @@ private data class SideTab(
  *
  * The primary tab group inside it is the phone's floating nav bar rebuilt on the
  * vertical axis — same [GlassEffectConfig] glass, the same glass selection puck,
- * and the same [InteractiveHighlight] finger glow. Selection is tap-only here;
- * the phone bar's drag gesture is deliberately not carried over.
+ * the same [InteractiveHighlight] finger glow, and the same draggable puck, on
+ * the vertical axis.
  *
  * The panel floats OVER the content: nothing reserves layout width for it, so
  * screens run full width and scroll underneath its glass.
@@ -268,6 +272,19 @@ fun AppFloatingSideBar(
             )
         }
 
+        // Pinned above the scroll area, not inside it. The puck is dragged
+        // vertically and a scrollable ancestor consumes exactly that gesture —
+        // inside the scroll column the drag was stolen the moment it started.
+        SideNavTabs(
+            navigationItems = navigationItems,
+            currentRoute = currentRoute,
+            onItemClick = onItemClick,
+            useGlass = useGlass,
+            backgroundColor = backgroundColor,
+            collapsed = collapsed,
+            modifier = Modifier.padding(horizontal = 6.dp),
+        )
+
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -277,15 +294,6 @@ fun AppFloatingSideBar(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 6.dp),
         ) {
-            SideNavTabs(
-                navigationItems = navigationItems,
-                currentRoute = currentRoute,
-                onItemClick = onItemClick,
-                useGlass = useGlass,
-                backgroundColor = backgroundColor,
-                collapsed = collapsed,
-            )
-
             // The library sections (playlists, history, ...) need a text label to
             // mean anything — an icon-only rail collapses to just the primary tabs,
             // same as NavigationRail never showing arbitrary link lists either.
@@ -313,11 +321,12 @@ fun AppFloatingSideBar(
 }
 
 /**
- * The phone's floating nav bar, stood on its end.
+ * The phone's floating nav bar, stood on its end — drag puck included.
  *
- * Selection is tap-only — there is no drag gesture. The puck still travels: it
- * springs to whichever row you tapped (or whichever route navigation landed on),
- * so the movement stays, only the finger-dragging is gone.
+ * Same [DampedDragAnimation] the phone bar uses, on the vertical axis: the puck
+ * can be grabbed and dragged down the rail, grows while pressed, springs to the
+ * row it is dropped on, and only then navigates. Tapping a row still works and
+ * moves the puck the same way.
  */
 @Composable
 private fun SideNavTabs(
@@ -327,6 +336,7 @@ private fun SideNavTabs(
     useGlass: Boolean,
     backgroundColor: Color,
     collapsed: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val glassConfig = LocalGlassEffectConfig.current
     val appleMusicUi = LocalAppleMusicUi.current
@@ -354,12 +364,51 @@ private fun SideNavTabs(
     val tabHeightPx = with(density) { SideTabHeight.toPx() }
 
     val selectedIndex = tabs.indexOfFirst { it.selected }.coerceAtLeast(0)
-    // The puck's position, in tab indices. Springs to the selected row rather
-    // than snapping, which is the part of the phone bar's feel worth keeping now
-    // that the drag is gone.
-    val puckPosition = remember { Animatable(selectedIndex.toFloat()) }
-    LaunchedEffect(selectedIndex) {
-        puckPosition.animateTo(selectedIndex.toFloat(), spring(0.8f, 400f, 0.001f))
+    val animationScope = rememberCoroutineScope()
+
+    // The tab list changes identity every recomposition; the drag callbacks are
+    // remembered once, so they read the current list through this holder rather
+    // than capturing a stale one (same trick the phone bar uses).
+    val currentTabs = remember { mutableStateOf(tabs) }
+    currentTabs.value = tabs
+
+    // The puck's position, in tab indices. Dragging updates it live; navigation
+    // fires only when the finger lifts and it settles on a row.
+    val puck = remember(animationScope, tabsCount) {
+        DampedDragAnimation(
+            animationScope = animationScope,
+            initialValue = selectedIndex.toFloat(),
+            valueRange = 0f..(tabsCount - 1).toFloat(),
+            visibilityThreshold = 0.001f,
+            initialScale = 1f,
+            // The phone bar's ratio, kept as a ratio so the grow reads the same
+            // at this row height as it does at that tab width.
+            pressedScale = 78f / 56f,
+            onDragStarted = {},
+            onDragStopped = {
+                val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
+                updateValue(targetIndex.toFloat())
+                currentTabs.value.getOrNull(targetIndex)?.onClick?.invoke()
+            },
+            onDrag = { _, dragAmount ->
+                updateValue(
+                    (targetValue + dragAmount.y / tabHeightPx)
+                        .fastCoerceIn(0f, (tabsCount - 1).toFloat())
+                )
+            },
+        )
+    }
+    // Keeps the puck on the selected row when selection changes from a tap or
+    // from navigation happening elsewhere.
+    var hasSyncedSelection by remember(tabsCount) { mutableStateOf(false) }
+    LaunchedEffect(selectedIndex, tabsCount) {
+        if (!hasSyncedSelection) {
+            hasSyncedSelection = true
+            puck.updateValue(selectedIndex.toFloat())
+            return@LaunchedEffect
+        }
+        // animateToValue, so a tap gets the same press-grow-and-settle a drop does.
+        puck.animateToValue(selectedIndex.toFloat())
     }
 
     // Invisible accent-tinted copy of the tabs, sampled back through the puck's
@@ -367,7 +416,7 @@ private fun SideNavTabs(
     val tabsBackdrop = rememberLayerBackdrop()
 
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .height(SideTabHeight * tabsCount + SideBarContentPadding.calculateTopPadding() * 2)
     ) {
@@ -431,9 +480,14 @@ private fun SideNavTabs(
         Box(
             Modifier
                 .padding(SideBarContentPadding)
-                .graphicsLayer { translationY = puckPosition.value * tabHeightPx }
+                .graphicsLayer {
+                    translationY = puck.value * tabHeightPx
+                    scaleX = puck.scaleX
+                    scaleY = puck.scaleY
+                }
                 .fillMaxWidth()
                 .height(SideTabHeight)
+                .then(puck.modifier)
                 .then(
                     if (backdrop != null) {
                         Modifier.drawBackdrop(
@@ -461,13 +515,17 @@ private fun SideNavTabs(
         // through the glass is necessarily washed by the puck's own tint.
         val puckIndex by remember {
             derivedStateOf {
-                puckPosition.value.fastRoundToInt().coerceIn(0, tabsCount - 1)
+                puck.value.fastRoundToInt().coerceIn(0, tabsCount - 1)
             }
         }
         Box(
             Modifier
                 .padding(SideBarContentPadding)
-                .graphicsLayer { translationY = puckPosition.value * tabHeightPx }
+                .graphicsLayer {
+                    translationY = puck.value * tabHeightPx
+                    scaleX = puck.scaleX
+                    scaleY = puck.scaleY
+                }
                 .fillMaxWidth()
                 .height(SideTabHeight)
                 .clearAndSetSemantics {},
@@ -528,7 +586,8 @@ fun BoxWithConstraintsScope.AppFloatingNowPlayingPill(
 
     FloatingMiniPlayer(
         isInline = false,
-        contentColor = if (useGlass) glassConfig.textColor else Color.White,
+        // See AppNavigation: hardcoded white disappeared on light themes.
+        contentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface,
         onClick = onClick,
         onLyricsClick = onLyricsClick,
         onQueueClick = onQueueClick,

@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -54,6 +56,17 @@ data class GlassEffectConfig(
     val depthEffect: Boolean = false,
     /** [Color.Unspecified] means adaptive: dark grey on dark. */
     val surfaceTintColor: Color = Color(0xFF1A1A1A),
+    /** Specular rim ("pluck") colour. [Color.Unspecified] keeps the default white. */
+    val highlightColor: Color = Color.Unspecified,
+    /** Specular rim opacity, 0..1. */
+    val highlightOpacity: Float = EdgeHighlightAlpha,
+    /** Which rendering style every glass surface uses. */
+    val style: GlassStyle = GlassStyle.LIQUID,
+    /** Wash painted over the nav bar's selection puck. [Color.Unspecified] adapts
+     *  to the theme: a dark wash on dark, a light one on light. */
+    val puckColor: Color = Color.Unspecified,
+    /** Puck wash opacity at rest. It eases toward clear while pressed. */
+    val puckOpacity: Float = 0.8f,
     val surfaceOpacity: Float = 0.5f,
     val textColor: Color = Color.White,
     val playerEnabled: Boolean = true,
@@ -110,6 +123,27 @@ data class GlassEffectConfig(
 }
 
 /** UI surfaces that can individually opt in or out of the liquid glass effect. */
+/**
+ * How a glass surface is rendered.
+ *
+ * The full liquid treatment costs a screen capture plus a RenderEffect chain per
+ * surface. The cheaper styles exist both as a performance escape hatch and as a
+ * look in their own right — and because with glass off entirely the chrome fell
+ * back to an opaque fill, which reads as a black blob over content.
+ */
+enum class GlassStyle {
+    /** Blur + saturation + lens refraction + specular rim. The default. */
+    LIQUID,
+
+    /** Blur and saturation only: no lens, no rim, no chromatic aberration.
+     *  Still captures the backdrop, so it is frosted, just not refractive. */
+    BLUR,
+
+    /** No capture at all — a translucent tinted fill at the configured opacity.
+     *  Cheapest by a wide margin: nothing is sampled, nothing is blurred. */
+    TRANSPARENT,
+}
+
 enum class GlassComponent {
     PLAYER,
     MINI_PLAYER,
@@ -321,6 +355,16 @@ fun Modifier.liquidGlass(
         Color(0xFF4A4A4E)
     }
 
+    // Translucent style short-circuits everything below: no backdrop is sampled and
+    // no RenderEffect runs, so there is nothing to configure. Content behind shows
+    // through the tint directly, which is the point — the alternative when glass is
+    // off is an opaque fill, and that reads as a black blob sitting on the content.
+    if (config.style == GlassStyle.TRANSPARENT) {
+        return this
+            .clip(shape)
+            .background(surfaceTintColor.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f)))
+    }
+
     // ponytail: frozen mid-sweep. The drift described at [HighlightAngleMin] was a
     // rememberInfiniteTransition, and because glass surfaces (the nav bar above all)
     // are on screen permanently, it re-emitted every frame forever — a measured
@@ -355,10 +399,16 @@ fun Modifier.liquidGlass(
     // compare equal and skip the work entirely.
     val shapeBlock: () -> Shape = remember(shape) { { shape } }
 
+    // BLUR keeps the frosted capture but drops the refraction and the rim, which
+    // are the parts that read as "liquid". Cheaper too: the lens is the most
+    // expensive link in the effect chain.
+    val plainBlur = config.style == GlassStyle.BLUR
+
     val effectsBlock: BackdropEffectScope.() -> Unit = remember(
         saturation,
         blurPx,
         applyEdgeEffects,
+        plainBlur,
         lensHeightPx,
         lensAmountPx,
         config.depthEffect,
@@ -371,7 +421,8 @@ fun Modifier.liquidGlass(
             if (blurPx > 0f) {
                 blur(blurPx)
             }
-            if (applyEdgeEffects &&
+            if (!plainBlur &&
+                applyEdgeEffects &&
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 (lensHeightPx > 0f || lensAmountPx > 0f)
             ) {
@@ -385,13 +436,22 @@ fun Modifier.liquidGlass(
         }
     }
 
-    val highlightBlock: (() -> Highlight?)? = remember(applyEdgeEffects, highlightAlpha, animatedHighlightAngle) {
-        if (applyEdgeEffects) {
+    // The rim's own colour, independent of the surface tint: on a tinted pill a
+    // white rim is what reads as "lit glass", but a coloured one is the difference
+    // between chrome and neon, so it is worth exposing rather than assuming.
+    val rimColor = if (config.highlightColor.isSpecified) config.highlightColor else Color.White
+    // Call sites pass a per-component alpha (the nav bar wants a dimmer rim than a
+    // button). Scale the user's setting by it rather than replacing it, so both the
+    // per-component tuning and the preference still mean something.
+    val rimAlpha = (highlightAlpha * (config.highlightOpacity / EdgeHighlightAlpha)).coerceIn(0f, 1f)
+
+    val highlightBlock: (() -> Highlight?)? = remember(applyEdgeEffects, plainBlur, rimColor, rimAlpha, animatedHighlightAngle) {
+        if (applyEdgeEffects && !plainBlur) {
             {
                 Highlight(
                     width = EdgeHighlightWidth,
                     style = HighlightStyle.Default(
-                        color = Color.White.copy(alpha = highlightAlpha),
+                        color = rimColor.copy(alpha = rimAlpha),
                         angle = animatedHighlightAngle,
                     ),
                 )

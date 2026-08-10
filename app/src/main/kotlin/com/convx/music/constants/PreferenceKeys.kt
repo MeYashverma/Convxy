@@ -105,6 +105,11 @@ val EnablePaxsenixKey = booleanPreferencesKey("enablePaxsenix")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoSongsKey = booleanPreferencesKey("hideVideoSongs")
 val DataSaverEnabledKey = booleanPreferencesKey("dataSaverEnabled")
+
+// Local-only mode: one switch that rewires Home, Library and Search to the
+// on-device library. The screens and routes stay exactly where they are — only
+// what they read changes — so turning it off restores the normal app instantly.
+val LocalOnlyModeKey = booleanPreferencesKey("localOnlyMode")
 val ListenBrainzEnabledKey = booleanPreferencesKey("listenbrainz_enabled")
 val ListenBrainzTokenKey = stringPreferencesKey("listenbrainz_token")
 val HideYoutubeShortsKey = booleanPreferencesKey("hideYoutubeShorts")
@@ -538,6 +543,21 @@ val LiquidGlassAdaptiveContrastKey = booleanPreferencesKey("liquidGlassAdaptiveC
 val LiquidGlassTextColorKey = intPreferencesKey("liquidGlassTextColor")
 val LiquidGlassSurfaceTintColorKey = intPreferencesKey("liquidGlassSurfaceTintColor")
 val LiquidGlassSurfaceOpacityKey = floatPreferencesKey("liquidGlassSurfaceOpacity")
+
+/** Specular rim colour as an ARGB int. 0 = default white. */
+/** Which [com.convx.music.ui.component.GlassStyle] every glass surface uses. */
+val LiquidGlassStyleKey = stringPreferencesKey("liquidGlassStyle")
+
+/** Selection puck wash colour as an ARGB int. 0 = adaptive to the theme. */
+val LiquidGlassPuckColorKey = intPreferencesKey("liquidGlassPuckColor")
+
+/** Selection puck wash opacity at rest, 0..1. */
+val LiquidGlassPuckOpacityKey = floatPreferencesKey("liquidGlassPuckOpacity")
+
+val LiquidGlassHighlightColorKey = intPreferencesKey("liquidGlassHighlightColor")
+
+/** Specular rim opacity, 0..1. */
+val LiquidGlassHighlightOpacityKey = floatPreferencesKey("liquidGlassHighlightOpacity")
 val LiquidGlassVibrancyKey = floatPreferencesKey("liquidGlassVibrancy")
 val LiquidGlassBlurRadiusKey = floatPreferencesKey("liquidGlassBlurRadius")
 val LiquidGlassLensHeightKey = floatPreferencesKey("liquidGlassLensHeight")
@@ -583,6 +603,15 @@ val HomeHeroCardHeightOverrideKey = intPreferencesKey("homeHeroCardHeightOverrid
 val SpeedDialCardHeightOverrideKey = intPreferencesKey("speedDialCardHeightOverrideDp")
 /** 0 (default) = each Home card's own default corner radius (12dp tiles, 28dp hero); else a shared dp radius applied to both. */
 val HomeCardCornerRadiusOverrideKey = intPreferencesKey("homeCardCornerRadiusOverrideDp")
+
+/**
+ * The big hero card at the top of Home. Off by default: the vertical grid below
+ * it shows the same content without spending a screen height on one track.
+ */
+val HomeHeroCardEnabledKey = booleanPreferencesKey("homeHeroCardEnabled")
+
+/** Columns in Home's vertical "Keep Listening" grid. 0 (default) = 2. */
+val HomeGridColumnsOverrideKey = intPreferencesKey("homeGridColumnsOverride")
 
 /**
  * Forces the tablet sidebar layout on a device that would otherwise get the

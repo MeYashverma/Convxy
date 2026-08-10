@@ -134,6 +134,8 @@ import com.convx.music.constants.SpeedDialColumnsOverrideKey
 import com.convx.music.constants.HomeHeroCardHeightOverrideKey
 import com.convx.music.constants.SpeedDialCardHeightOverrideKey
 import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
+import com.convx.music.constants.HomeGridColumnsOverrideKey
+import com.convx.music.constants.HomeHeroCardEnabledKey
 import com.convx.music.constants.PureBlackHeroBackgroundKey
 import com.convx.music.constants.ShowHomeFabKey
 import com.convx.music.ui.utils.GridColumnChoices
@@ -341,6 +343,8 @@ fun AppearanceSettings(
     val (homeHeroCardHeightOverride, onHomeHeroCardHeightOverrideChange) = rememberPreference(HomeHeroCardHeightOverrideKey, 0)
     val (speedDialCardHeightOverride, onSpeedDialCardHeightOverrideChange) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
     val (homeCardCornerRadiusOverride, onHomeCardCornerRadiusOverrideChange) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
+    val (homeHeroCardEnabled, onHomeHeroCardEnabledChange) = rememberPreference(HomeHeroCardEnabledKey, false)
+    val (homeGridColumnsOverride, onHomeGridColumnsOverrideChange) = rememberPreference(HomeGridColumnsOverrideKey, 0)
 
     // Density scale preferences
     val context = activity as Context
@@ -1331,6 +1335,42 @@ fun AppearanceSettings(
                                 },
                                 steps = speedDialChoices.size - 2,
                                 valueRange = 0f..(speedDialChoices.size - 1).toFloat(),
+                            )
+                        }
+                    },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.home_hero_card)) },
+                    description = { Text(stringResource(R.string.home_hero_card_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = homeHeroCardEnabled,
+                            onCheckedChange = onHomeHeroCardEnabledChange,
+                        )
+                    },
+                    onClick = { onHomeHeroCardEnabledChange(!homeHeroCardEnabled) },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.grid_view),
+                    title = { Text(stringResource(R.string.home_grid_columns)) },
+                    description = {
+                        val homeGridChoices = remember { listOf(0, 2, 3, 4) }
+                        Column {
+                            Text(
+                                text = if (homeGridColumnsOverride == 0) {
+                                    stringResource(R.string.auto)
+                                } else {
+                                    homeGridColumnsOverride.toString()
+                                }
+                            )
+                            Slider(
+                                value = homeGridChoices.indexOf(homeGridColumnsOverride).coerceAtLeast(0).toFloat(),
+                                onValueChange = {
+                                    onHomeGridColumnsOverrideChange(homeGridChoices[it.roundToInt()])
+                                },
+                                steps = homeGridChoices.size - 2,
+                                valueRange = 0f..(homeGridChoices.size - 1).toFloat(),
                             )
                         }
                     },

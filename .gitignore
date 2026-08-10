@@ -128,3 +128,6 @@ merge_strings.py
 
 # Hermes automation scripts (local only)
 .hermes_tmp/
+
+# Perfetto/systrace captures
+*.trace

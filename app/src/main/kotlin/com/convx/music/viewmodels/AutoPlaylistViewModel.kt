@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.SongSortDescendingKey
 import com.convx.music.constants.SongSortType
 import com.convx.music.constants.SongSortTypeKey
@@ -57,7 +58,7 @@ constructor(
                     it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE) to (it[SongSortDescendingKey]
                         ?: true),
                     it[HideExplicitKey] ?: false,
-                    it[HideVideoSongsKey] ?: false
+                    (it[HideVideoSongsKey] ?: false) || (it[DataSaverEnabledKey] ?: false)
                 )
             }
             .distinctUntilChanged()

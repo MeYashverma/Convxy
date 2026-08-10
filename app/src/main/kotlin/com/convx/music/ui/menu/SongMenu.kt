@@ -109,6 +109,7 @@ fun SongMenu(
     isFromCache: Boolean = false,
 ) {
     val context = LocalContext.current
+    val ringtoneViewModel = com.convx.music.LocalRingtoneViewModel.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val songState = database.song(originalSong.id).collectAsState(initial = originalSong)
@@ -640,6 +641,30 @@ fun SongMenu(
                             )
                         )
                     }
+                    add(
+                        Material3MenuItemData(
+                            title = { Text(text = stringResource(R.string.set_as_ringtone)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.notification),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                if (ringtoneViewModel.hasSettingsPermission(context)) {
+                                    ringtoneViewModel.showTrimmer(
+                                        song.id,
+                                        song.song.title,
+                                        song.artists.joinToString { it.name },
+                                        song.song.duration
+                                    )
+                                } else {
+                                    ringtoneViewModel.requestSettingsPermission(context)
+                                }
+                                onDismiss()
+                            }
+                        )
+                    )
                 }
             )
         }

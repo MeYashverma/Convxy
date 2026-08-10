@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -10,6 +10,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.MyTopFilter
 import com.convx.music.db.MusicDatabase
 import com.convx.music.utils.dataStore
@@ -41,7 +42,7 @@ constructor(
     val topSongs =
         combine(
             topPeriod,
-            context.dataStore.data.map { it[HideVideoSongsKey] ?: false }.distinctUntilChanged()
+            context.dataStore.data.map { (it[HideVideoSongsKey] ?: false) || (it[DataSaverEnabledKey] ?: false) }.distinctUntilChanged()
         ) { period, hideVideoSongs -> period to hideVideoSongs }
             .flatMapLatest { (period, hideVideoSongs) ->
                 database.mostPlayedSongs(period.toTimeMillis(), top.toInt()).map { songs ->

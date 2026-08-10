@@ -53,14 +53,6 @@
         android:supportsRtl="false"
         android:theme="@style/Theme.Convx"
         tools:targetApi="tiramisu">
-        <!-- Lets `am profile` / simpleperf / macrobenchmark attach to a RELEASE
-             build. Without it the minified, AOT-eligible variant cannot be
-             measured at all, and only inflated debug frame times are available.
-             shell="true" grants profiling to adb only, not to other apps. -->
-        <profileable
-            android:shell="true"
-            tools:targetApi="q" />
-
         <uses-library
             android:name="org.apache.http.legacy"
             android:required="false" />

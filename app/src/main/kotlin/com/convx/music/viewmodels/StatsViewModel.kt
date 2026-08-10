@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.music.innertube.YouTube
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.statToPeriod
 import com.convx.music.db.MusicDatabase
 import com.convx.music.ui.screens.OptionStats
@@ -51,7 +52,7 @@ constructor(
         combine(
             selectedOption,
             indexChips,
-            context.dataStore.data.map { it[HideVideoSongsKey] ?: false }.distinctUntilChanged()
+            context.dataStore.data.map { (it[HideVideoSongsKey] ?: false) || (it[DataSaverEnabledKey] ?: false) }.distinctUntilChanged()
         ) { first, second, third -> Triple(first, second, third) }
             .flatMapLatest { (selection, t, hideVideoSongs) ->
                 database
@@ -79,7 +80,7 @@ constructor(
         combine(
             selectedOption,
             indexChips,
-            context.dataStore.data.map { it[HideVideoSongsKey] ?: false }.distinctUntilChanged()
+            context.dataStore.data.map { (it[HideVideoSongsKey] ?: false) || (it[DataSaverEnabledKey] ?: false) }.distinctUntilChanged()
         ) { first, second, third -> Triple(first, second, third) }
             .flatMapLatest { (selection, t, hideVideoSongs) ->
                 database

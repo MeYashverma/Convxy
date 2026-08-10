@@ -42,6 +42,7 @@ import com.convx.music.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -72,12 +73,27 @@ class App : Application(), SingletonImageLoader.Factory {
         // Initialize cipher deobfuscator for WEB_REMIX streaming
         CipherDeobfuscator.initialize(this)
 
-        Timber.plant(Timber.DebugTree())
-        Timber.plant(DebugLogs.tree(this))
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+            Timber.plant(DebugLogs.tree(this))
+        }
+
+        // Load the coil cache size on a background thread so the first image
+        // render never blocks on a DataStore read.
+        applicationScope.launch(Dispatchers.IO) {
+            cachedCoilCacheSize = dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
+        }
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
             initializeSettings()
+
+            // Warm the cipher WebView off the first-play critical path
+            launch(Dispatchers.IO) {
+                delay(1500)
+                CipherDeobfuscator.prewarm()
+            }
+
             observeSettingsChanges()
         }
     }
@@ -240,8 +256,11 @@ class App : Application(), SingletonImageLoader.Factory {
         }
     }
 
+    @Volatile
+    private var cachedCoilCacheSize: Int? = null
+
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = runBlocking {
+        val cacheSize = cachedCoilCacheSize ?: runBlocking {
             dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
         }
         return ImageLoader.Builder(this).apply {

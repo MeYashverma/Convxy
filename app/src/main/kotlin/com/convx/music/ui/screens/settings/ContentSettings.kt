@@ -142,6 +142,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnablePaxsenixKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HideExplicitKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -240,6 +241,7 @@ fun ContentSettings(
     val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = "system")
     val (suggestionRegion, onSuggestionRegionChange) = rememberPreference(key = SuggestionRegionKey, defaultValue = "system")
     val (hideExplicit, onHideExplicitChange) = rememberPreference(key = HideExplicitKey, defaultValue = false)
+    val (dataSaverEnabled, onDataSaverEnabledChange) = rememberPreference(key = DataSaverEnabledKey, defaultValue = false)
     val (hideVideoSongs, onHideVideoSongsChange) = rememberPreference(key = HideVideoSongsKey, defaultValue = false)
 
     val (hideYoutubeShorts, onHideYoutubeShortsChange) = rememberPreference(key = HideYoutubeShortsKey, defaultValue = false)
@@ -785,6 +787,27 @@ fun ContentSettings(
                         )
                     },
                     onClick = { onHideVideoSongsChange(!hideVideoSongs) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.offline),
+                    title = { Text(stringResource(R.string.data_saver_mode)) },
+                    description = { Text(stringResource(R.string.data_saver_mode_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = dataSaverEnabled,
+                            onCheckedChange = onDataSaverEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (dataSaverEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onDataSaverEnabledChange(!dataSaverEnabled) }
                 ),
 
                 Material3SettingsItem(

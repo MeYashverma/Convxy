@@ -453,6 +453,17 @@ fun LocalPlaylistScreen(
     var showDeletePlaylistDialog by remember {
         mutableStateOf(false)
     }
+    var showAiModifyDialog by remember {
+        mutableStateOf(false)
+    }
+    if (showAiModifyDialog && playlist != null) {
+        val currentPlaylist = playlist
+        AiModifyPlaylistDialog(
+            playlistId = currentPlaylist?.playlist?.id ?: return,
+            currentSongs = songs,
+            onDismiss = { showAiModifyDialog = false }
+        )
+    }
     if (showDeletePlaylistDialog) {
         DefaultDialog(
             onDismiss = { showDeletePlaylistDialog = false },
@@ -652,6 +663,7 @@ fun LocalPlaylistScreen(
                                 onShowEditDialog = { showEditDialog = true },
                                 onShowRemoveDownloadDialog = { showRemoveDownloadDialog = true },
                                 onshowDeletePlaylistDialog = { showDeletePlaylistDialog = true },
+                                onModifyWithAi = { showAiModifyDialog = true },
                                 onStartSearch = { isSearching = true },
                                 snackbarHostState = snackbarHostState,
                                 heroScale = heroZoom.scale,
@@ -1083,6 +1095,7 @@ fun LocalPlaylistHeader(
     onShowEditDialog: () -> Unit,
     onShowRemoveDownloadDialog: () -> Unit,
     onshowDeletePlaylistDialog: () -> Unit,
+    onModifyWithAi: () -> Unit,
     onStartSearch: () -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier,
@@ -1440,6 +1453,7 @@ fun LocalPlaylistHeader(
                                         items = songs.map { it.song.toMediaItem() }
                                     )
                                 },
+                                onModifyWithAi = onModifyWithAi,
                                 onDismiss = { menuState.dismiss() }
                             )
                         }

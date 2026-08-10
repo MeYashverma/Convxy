@@ -37,6 +37,7 @@ fun LocalPlaylistMenu(
     onSync: () -> Unit,
     onDelete: () -> Unit,
     onDownload: () -> Unit,
+    onModifyWithAi: () -> Unit,
     onQueue: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -148,6 +149,25 @@ fun LocalPlaylistMenu(
         }
 
         add(downloadMenuItem)
+
+        if (playlist.playlist.isEditable) {
+            add(
+                Material3MenuItemData(
+                    title = { Text(stringResource(R.string.modify_with_ai)) },
+                    description = { Text(stringResource(R.string.modify_with_ai_desc)) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.sparks),
+                            contentDescription = null
+                        )
+                    },
+                    onClick = {
+                        onModifyWithAi()
+                        onDismiss()
+                    }
+                )
+            )
+        }
 
         add(
             Material3MenuItemData(

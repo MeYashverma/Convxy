@@ -100,6 +100,7 @@ fun YouTubeSongMenu(
     onHistoryRemoved: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val ringtoneViewModel = com.convx.music.LocalRingtoneViewModel.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val librarySong by database.song(song.id).collectAsState(initial = null)
@@ -618,6 +619,30 @@ fun YouTubeSongMenu(
                                 bottomSheetPageState.show {
                                     ShowMediaInfo(song.id)
                                 }
+                            }
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            title = { Text(text = stringResource(R.string.set_as_ringtone)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.notification),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                if (ringtoneViewModel.hasSettingsPermission(context)) {
+                                    ringtoneViewModel.showTrimmer(
+                                        song.id,
+                                        song.title,
+                                        song.artists.joinToString { it.name },
+                                        song.duration ?: 0
+                                    )
+                                } else {
+                                    ringtoneViewModel.requestSettingsPermission(context)
+                                }
+                                onDismiss()
                             }
                         )
                     )

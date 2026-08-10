@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -20,6 +20,7 @@ import com.music.innertube.models.filterYoutubeShorts
 import com.music.innertube.pages.SearchSummaryPage
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideYoutubeShortsKey
 import com.convx.music.models.ItemsPage
 import com.convx.music.utils.dataStore
@@ -50,7 +51,7 @@ constructor(
 
     init {
         viewModelScope.launch {
-            // Only fetches what isn't cached yet — switching filters back and forth
+            // Only fetches what isn't cached yet â€” switching filters back and forth
             // must not re-hit the network. refresh() drops the cache entry first.
             filter.collect { load(it) }
         }
@@ -63,7 +64,7 @@ constructor(
                 .searchSummary(query)
                 .onSuccess {
                     val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                    val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                    val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false) || context.dataStore.get(DataSaverEnabledKey, false)
                     val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
                     summaryPage =
                         it.filterExplicit(
@@ -78,7 +79,7 @@ constructor(
                 .search(query, filter)
                 .onSuccess { result ->
                     val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                    val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                    val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false) || context.dataStore.get(DataSaverEnabledKey, false)
                     val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
                     viewStateMap[filter.value] =
                         ItemsPage(
@@ -101,7 +102,7 @@ constructor(
      * Re-runs the current query. Bound to the pull-to-refresh gesture.
      *
      * Clears this filter's cached page first, otherwise [load] short-circuits on
-     * it — and calls [load] directly rather than re-setting [filter], since a
+     * it â€” and calls [load] directly rather than re-setting [filter], since a
      * StateFlow drops a write of the value it already holds.
      */
     fun refresh() {
@@ -120,7 +121,7 @@ constructor(
                 val searchResult =
                     YouTube.searchContinuation(continuation).getOrNull() ?: return@launch
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false) || context.dataStore.get(DataSaverEnabledKey, false)
                 val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
                 val newItems = searchResult.items
                     .filterExplicit(hideExplicit)

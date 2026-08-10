@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.datasource.cache.SimpleCache
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.db.MusicDatabase
 import com.convx.music.db.entities.Song
 import com.convx.music.di.DownloadCache
@@ -43,7 +44,7 @@ class CachePlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false) || context.dataStore.get(DataSaverEnabledKey, false)
                 val cachedIds = playerCache.keys.toSet()
                 val downloadedIds = downloadCache.keys.toSet()
                 val pureCacheIds = cachedIds.subtract(downloadedIds)

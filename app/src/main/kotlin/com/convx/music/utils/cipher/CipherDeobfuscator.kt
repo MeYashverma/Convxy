@@ -16,6 +16,19 @@ object CipherDeobfuscator {
         appContext = context.applicationContext
     }
 
+    /**
+     * Build the cipher WebView before the first stream needs it, so the
+     * player-JS download + WebView spin-up never sits on the first-play path.
+     * Best-effort: any failure just means the lazy path takes over later.
+     */
+    suspend fun prewarm() {
+        try {
+            getOrCreateWebView(forceRefresh = false)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Cipher WebView prewarm failed: ${e.message}")
+        }
+    }
+
     private var cipherWebView: CipherWebView? = null
     private var currentPlayerHash: String? = null
 

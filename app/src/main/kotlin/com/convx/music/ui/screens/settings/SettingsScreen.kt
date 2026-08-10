@@ -28,11 +28,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +54,8 @@ import androidx.navigation.NavController
 import com.convx.music.BuildConfig
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.ui.component.IconButton
+import com.convx.music.ui.component.Material3SettingsGroup
+import com.convx.music.ui.component.Material3SettingsItem
 import com.convx.music.ui.screens.Screens
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -61,6 +71,9 @@ fun SettingsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val isUpdateAvailable = getUpdateAvailableState(context) &&
         com.convx.music.vivimusic.updater.getAutoUpdateCheckSetting(context)
+
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchLower = searchQuery.trim().lowercase()
 
     androidx.compose.foundation.lazy.LazyColumn(
         Modifier
@@ -86,6 +99,37 @@ fun SettingsScreen(
             )
         }
 
+        // Search field — filters the settings catalog and jumps to the matching screen.
+        item(key = "search_field") {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(stringResource(R.string.search)) },
+                leadingIcon = {
+                    Icon(
+                        painter = painterResource(R.drawable.search),
+                        contentDescription = stringResource(R.string.search)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                painter = painterResource(R.drawable.close),
+                                contentDescription = null
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, bottom = 8.dp)
+            )
+        }
+
+        if (searchLower.isEmpty()) {
         // Section: General
         item(key = "general_header") { SettingsSectionHeader("GENERAL") }
         item(key = "general_section") {
@@ -237,6 +281,37 @@ fun SettingsScreen(
                     .height(50.dp)
                     .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom))
             )
+        }
+        } else {
+            item(key = "search_results") {
+                val results = getAllSearchableSettings()
+                    .filter {
+                        it.title.lowercase().contains(searchLower) ||
+                            it.description?.lowercase()?.contains(searchLower) == true
+                    }
+                if (results.isEmpty()) {
+                    Text(
+                        text = "No settings found for \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 32.dp)
+                    )
+                } else {
+                    Material3SettingsGroup(
+                        items = results.map { setting ->
+                            Material3SettingsItem(
+                                icon = painterResource(R.drawable.search),
+                                title = { Text(setting.title) },
+                                description = { Text(setting.category) },
+                                onClick = { navController.navigate(setting.route) }
+                            )
+                        }
+                    )
+                }
+            }
         }
     }
 

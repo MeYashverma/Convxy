@@ -427,6 +427,33 @@
     <string name="scrobble_delay_minutes">Scrobble delay minutes</string>
     <string name="hide_video_songs">Hide video songs</string>
     <string name="hide_youtube_shorts">Hide YouTube Shorts</string>
+    <string name="data_saver_mode">Data Saver Mode (Beta)</string>
+    <string name="data_saver_mode_desc">Hide video-only songs, disable lyrics, canvas, and artist background videos, and force lower audio quality to save data.</string>
+
+    <!-- ListenBrainz -->
+    <string name="listenbrainz_scrobbling">ListenBrainz scrobbling</string>
+    <string name="listenbrainz_scrobbling_desc">Manage ListenBrainz scrobbling settings</string>
+    <string name="listenbrainz_scrobbling_description">Automatically submit your listened tracks to ListenBrainz</string>
+    <string name="set_listenbrainz_token">Set ListenBrainz Token</string>
+    <string name="listenbrainz_token_set">ListenBrainz token set</string>
+
+    <!-- Ringtone -->
+    <string name="set_as_ringtone">Set as Ringtone</string>
+    <string name="trim_ringtone">Trim Ringtone</string>
+    <string name="trim_ringtone_desc">Select the part of \"%1$s\" to use as ringtone. (Max 30s recommended)</string>
+    <string name="selected_duration">Selected duration: %1$s</string>
+    <string name="setting_ringtone">Setting Ringtone...</string>
+    <string name="ringtone_success">Success!</string>
+    <string name="ringtone_failed">Failed</string>
+    <string name="open_settings">Open Settings</string>
+
+    <!-- Ambient Mode -->
+    <string name="ambient_mode">Ambient Mode</string>
+
+    <!-- AI Playlist Modify -->
+    <string name="modify_with_ai">Modify with AI</string>
+    <string name="modify_with_ai_desc">Modify playlist using AI instructions</string>
+    <string name="ai_modify_prompt_hint">e.g., Remove sad songs, add some 90s hits</string>
 
     <string name="details_desc">View the song\'s information</string>
     <string name="edit_desc">Change the title or artist</string>

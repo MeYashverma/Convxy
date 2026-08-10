@@ -65,6 +65,7 @@ import com.convx.music.ui.screens.settings.integrations.DiscordSettings
 import com.convx.music.ui.screens.settings.integrations.IntegrationScreen
 import com.convx.music.ui.screens.settings.integrations.LastFMSettings
 import com.convx.music.ui.screens.settings.integrations.ListenTogetherSettings
+import com.convx.music.ui.screens.ambient.AmbientModeScreen
 import com.convx.music.ui.screens.recognition.RecognitionScreen
 import com.convx.music.ui.screens.recognition.RecognitionHistoryScreen
 import com.convx.music.ui.screens.settings.ModuleSourceScreen
@@ -468,6 +469,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("wrapped") {
         WrappedScreen(navController)
+    }
+
+    composable("ambient_mode") {
+        AmbientModeScreen(navController)
     }
 
     dialog("equalizer") {

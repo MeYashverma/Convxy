@@ -172,6 +172,7 @@ import com.convx.music.utils.rememberPreference
 import com.convx.music.viewmodels.ArtistViewModel
 import com.valentinilk.shimmer.shimmer
 import com.convx.music.artistvideo.ArtistVideo
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.ShowArtistVideoKey
 import com.convx.music.constants.ShowArtistBackgroundVideoKey
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -209,8 +210,11 @@ fun ArtistScreen(
     val showArtistDescription by rememberPreference(key = ShowArtistDescriptionKey, defaultValue = true)
     val showArtistSubscriberCount by rememberPreference(key = ShowArtistSubscriberCountKey, defaultValue = true)
     val showMonthlyListeners by rememberPreference(key = ShowMonthlyListenersKey, defaultValue = true)
-    val showArtistVideo by rememberPreference(key = ShowArtistVideoKey, defaultValue = true)
-    val showArtistBackgroundVideo by rememberPreference(key = ShowArtistBackgroundVideoKey, defaultValue = true)
+    val dataSaverEnabled by rememberPreference(key = DataSaverEnabledKey, defaultValue = false)
+    val showArtistVideoPref by rememberPreference(key = ShowArtistVideoKey, defaultValue = true)
+    val showArtistVideo = if (dataSaverEnabled) false else showArtistVideoPref
+    val showArtistBackgroundVideoPref by rememberPreference(key = ShowArtistBackgroundVideoKey, defaultValue = true)
+    val showArtistBackgroundVideo = if (dataSaverEnabled) false else showArtistBackgroundVideoPref
 
     val lazyListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }

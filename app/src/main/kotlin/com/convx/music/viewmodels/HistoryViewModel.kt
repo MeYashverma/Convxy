@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.music.innertube.YouTube
 import com.music.innertube.pages.HistoryPage
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HistorySource
 import com.convx.music.constants.InnerTubeCookieKey
 import com.music.innertube.utils.parseCookieString
@@ -55,7 +56,7 @@ constructor(
 
     val events =
         context.dataStore.data
-            .map { it[HideVideoSongsKey] ?: false }
+            .map { (it[HideVideoSongsKey] ?: false) || (it[DataSaverEnabledKey] ?: false) }
             .distinctUntilChanged()
             .flatMapLatest { hideVideoSongs ->
                 database

@@ -112,6 +112,7 @@ import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.constants.CanvasSource
 import com.convx.music.constants.CanvasSourceKey
 import com.convx.music.constants.CanvasThumbnailAnimationKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.canvas.TidalCanvasProvider
 import com.convx.music.canvas.CanvasArtwork
 import com.convx.music.extensions.metadata
@@ -662,7 +663,9 @@ private fun ThumbnailItem(
     var skipMultiplier by remember { mutableIntStateOf(1) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
 
-    val canvasThumbnailAnimation by rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true)
+    val dataSaverEnabled by rememberPreference(DataSaverEnabledKey, defaultValue = false)
+    val canvasThumbnailAnimationPref by rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true)
+    val canvasThumbnailAnimation = if (dataSaverEnabled) false else canvasThumbnailAnimationPref
 
     Box(
         modifier = modifier

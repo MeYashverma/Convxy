@@ -114,6 +114,7 @@ fun PlayerMenu(
 ) {
     mediaMetadata ?: return
     val context = LocalContext.current
+    val ringtoneViewModel = com.convx.music.LocalRingtoneViewModel.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val playerVolume = playerConnection.service.playerVolume.collectAsState()
@@ -676,6 +677,48 @@ fun PlayerMenu(
                             )
                         )
                     }
+                    add(
+                        Material3MenuItemData(
+                            title = { Text(text = stringResource(R.string.set_as_ringtone)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.notification),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
+                            onClick = {
+                                if (ringtoneViewModel.hasSettingsPermission(context)) {
+                                    ringtoneViewModel.showTrimmer(
+                                        mediaMetadata.id,
+                                        mediaMetadata.title,
+                                        mediaMetadata.artists.joinToString { it.name },
+                                        mediaMetadata.duration
+                                    )
+                                } else {
+                                    ringtoneViewModel.requestSettingsPermission(context)
+                                }
+                                onDismiss()
+                            }
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            title = { Text(text = stringResource(R.string.ambient_mode)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.fullscreen),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
+                            onClick = {
+                                navController.navigate("ambient_mode")
+                                playerBottomSheetState.collapseSoft()
+                                onDismiss()
+                            }
+                        )
+                    )
                 }
             )
         }

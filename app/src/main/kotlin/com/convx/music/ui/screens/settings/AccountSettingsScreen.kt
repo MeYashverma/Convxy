@@ -117,6 +117,10 @@ fun AccountSettingsScreen(
     val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(UseLoginForBrowse, true)
     val (ytmSync, onYtmSyncChange) = rememberPreference(YtmSyncKey, true)
 
+    val (listenBrainzEnabled, onListenBrainzEnabledChange) = rememberPreference(ListenBrainzEnabledKey, false)
+    val (listenBrainzToken, onListenBrainzTokenChange) = rememberPreference(ListenBrainzTokenKey, "")
+    var showListenBrainzTokenEditor by remember { mutableStateOf(false) }
+
     val homeViewModel: HomeViewModel = hiltViewModel()
     val accountSettingsViewModel: AccountSettingsViewModel = hiltViewModel()
     val accountName by homeViewModel.accountName.collectAsState()
@@ -335,6 +339,49 @@ fun AccountSettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
+            // ListenBrainz Section
+            Material3SettingsGroup(
+                title = stringResource(R.string.listenbrainz_scrobbling),
+                items = listOf(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.edit),
+                        title = { Text(stringResource(R.string.listenbrainz_scrobbling)) },
+                        description = { Text(stringResource(R.string.listenbrainz_scrobbling_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = listenBrainzEnabled,
+                                onCheckedChange = onListenBrainzEnabledChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (listenBrainzEnabled) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onListenBrainzEnabledChange(!listenBrainzEnabled) }
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.edit),
+                        title = {
+                            Text(
+                                if (listenBrainzToken.isBlank()) {
+                                    stringResource(R.string.set_listenbrainz_token)
+                                } else {
+                                    stringResource(R.string.listenbrainz_token_set)
+                                }
+                            )
+                        },
+                        onClick = { showListenBrainzTokenEditor = true }
+                    )
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Quick Links Section
             Material3SettingsGroup(
                 title = stringResource(R.string.integrations),
@@ -403,6 +450,24 @@ fun AccountSettingsScreen(
                 },
                 extraContent = {
                     InfoLabel(text = stringResource(R.string.token_adv_login_description))
+                }
+            )
+        }
+        if (showListenBrainzTokenEditor) {
+            TextFieldDialog(
+                initialTextFieldValue = TextFieldValue(listenBrainzToken),
+                onDone = { data ->
+                    onListenBrainzTokenChange(data)
+                    showListenBrainzTokenEditor = false
+                },
+                onDismiss = { showListenBrainzTokenEditor = false },
+                singleLine = true,
+                maxLines = 1,
+                isInputValid = {
+                    it.isNotEmpty()
+                },
+                extraContent = {
+                    InfoLabel(text = stringResource(R.string.listenbrainz_scrobbling_description))
                 }
             )
         }

@@ -269,6 +269,7 @@ import com.convx.music.canvas.TidalCanvasProvider
 import com.convx.music.constants.CanvasSource
 import com.convx.music.constants.CanvasSourceKey
 import com.convx.music.constants.CanvasThumbnailAnimationKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.extensions.metadata
 import com.convx.music.ui.player.CanvasArtworkPlaybackCache
 import com.convx.music.ui.player.normalizeCanvasArtistName
@@ -316,7 +317,9 @@ fun BottomSheetPlayer(
         if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
     }
 
-    val enableCanvas by rememberPreference(CanvasThumbnailAnimationKey, true)
+    val dataSaverEnabled by rememberPreference(DataSaverEnabledKey, false)
+    val enableCanvasPref by rememberPreference(CanvasThumbnailAnimationKey, true)
+    val enableCanvas = if (dataSaverEnabled) false else enableCanvasPref
     val (canvasSource) = rememberEnumPreference(CanvasSourceKey, defaultValue = CanvasSource.AUTO)
 
     val shouldUseDarkButtonColors = remember(playerBackground, useDarkTheme) {

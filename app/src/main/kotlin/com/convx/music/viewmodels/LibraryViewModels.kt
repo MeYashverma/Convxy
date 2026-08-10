@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -29,6 +29,7 @@ import com.convx.music.constants.ArtistSortType
 import com.convx.music.constants.ArtistSortTypeKey
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideYoutubeShortsKey
 import com.convx.music.constants.LibraryFilter
 import com.convx.music.constants.PlaylistSortDescendingKey
@@ -92,7 +93,7 @@ constructor(
                         (it[SongSortDescendingKey] ?: true),
                     ),
                     it[HideExplicitKey] ?: false,
-                    it[HideVideoSongsKey] ?: false
+                    (it[HideVideoSongsKey] ?: false) || (it[DataSaverEnabledKey] ?: false)
                 )
             }.distinctUntilChanged()
             .flatMapLatest { (filterSort, hideExplicit, hideVideoSongs) ->
@@ -302,7 +303,7 @@ constructor(
                     it[ArtistSongSortTypeKey].toEnum(ArtistSongSortType.CREATE_DATE) to (it[ArtistSongSortDescendingKey]
                         ?: true),
                     it[HideExplicitKey] ?: false,
-                    it[HideVideoSongsKey] ?: false
+                    (it[HideVideoSongsKey] ?: false) || (it[DataSaverEnabledKey] ?: false)
                 )
             }.distinctUntilChanged()
             .flatMapLatest { (sortDesc, hideExplicit, hideVideoSongs) ->

@@ -118,6 +118,7 @@ import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.HideExplicitKey
+import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.constants.AlbumCanvasEnabledKey
 import com.convx.music.db.entities.Album
@@ -185,8 +186,11 @@ fun AlbumScreen(
     val description by viewModel.description.collectAsState()
     val descriptionRuns by viewModel.descriptionRuns.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
-    val hideVideoSongs by rememberPreference(key = HideVideoSongsKey, defaultValue = false)
-    val albumCanvasEnabled by rememberPreference(key = AlbumCanvasEnabledKey, defaultValue = false)
+    val dataSaverEnabled by rememberPreference(key = DataSaverEnabledKey, defaultValue = false)
+    val hideVideoSongsPref by rememberPreference(key = HideVideoSongsKey, defaultValue = false)
+    val hideVideoSongs = if (dataSaverEnabled) true else hideVideoSongsPref
+    val albumCanvasEnabledPref by rememberPreference(key = AlbumCanvasEnabledKey, defaultValue = false)
+    val albumCanvasEnabled = if (dataSaverEnabled) false else albumCanvasEnabledPref
 
     val albumCanvas = rememberAlbumCanvas(
         albumTitle = albumWithSongs?.album?.title,

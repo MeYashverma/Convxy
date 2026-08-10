@@ -133,6 +133,7 @@ import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.coroutineScope
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.navigation.NavHostController
@@ -1182,6 +1183,9 @@ class MainActivity : ComponentActivity() {
                 var showSettingDialoge by remember { mutableStateOf(false) }
                 val (enableSettingsPopup) = rememberPreference(EnableSettingsPopupKey, defaultValue = false)
 
+                val ringtoneViewModel: com.convx.music.ui.screens.settings.RingtoneViewModel = viewModel()
+                val ringtoneUiState by ringtoneViewModel.uiState.collectAsStateWithLifecycle()
+
                 LaunchedEffect(Unit) {
                     if (pendingIntent != null) {
                         handleDeepLinkIntent(pendingIntent!!, navController)
@@ -1337,6 +1341,7 @@ class MainActivity : ComponentActivity() {
                     LocalTabView provides showRail,
                     LocalAppBackdrop provides appBackdrop,
                     LocalAppleMusicUi provides appleMusicUi,
+                    LocalRingtoneViewModel provides ringtoneViewModel,
                 ) {
 
                     Scaffold(
@@ -1598,7 +1603,7 @@ class MainActivity : ComponentActivity() {
                             // Pre-calculate values for graphicsLayer to avoid reading state during composition
                             val navBarTotalHeight = bottomInset + NavigationBarHeight
 
-                            if (!showRail && !showSettingDialoge && currentRoute?.startsWith("settings/") != true && currentRoute !in setOf("wrapped", "update", "listen_together/chat", "login", "equalizer")) {
+                            if (!showRail && !showSettingDialoge && currentRoute?.startsWith("settings/") != true && currentRoute !in setOf("wrapped", "update", "listen_together/chat", "login", "equalizer", "ambient_mode")) {
                                 Box {
                                     // Apple Music-style progressive scrim: content fades out under
                                     // the floating glass bar instead of hard-clipping, so the bar
@@ -1722,7 +1727,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             } else {
-                                if (currentRoute != "wrapped" && currentRoute != "update" && currentRoute != "listen_together/chat") {
+                                if (currentRoute != "wrapped" && currentRoute != "update" && currentRoute != "listen_together/chat" && currentRoute != "ambient_mode") {
                                     BottomSheetPlayer(
                                         state = playerBottomSheetState,
                                         navController = navController,
@@ -1932,6 +1937,28 @@ class MainActivity : ComponentActivity() {
                                         snackbarHostState = snackbarHostState
                                     )
                                 }
+                            }
+
+                            com.convx.music.ui.component.RingtoneTrimmerDialog(
+                                isVisible = ringtoneUiState.showTrimmer,
+                                songId = ringtoneUiState.targetSongId,
+                                songTitle = ringtoneUiState.targetSongTitle,
+                                duration = ringtoneUiState.targetSongDuration,
+                                onDismiss = { ringtoneViewModel.hideTrimmer() },
+                                onResolveStreamUrl = { ringtoneViewModel.getStreamUrl(this@MainActivity, it) },
+                                onConfirm = { start, end -> ringtoneViewModel.setAsRingtone(this@MainActivity, start, end) }
+                            )
+
+                            if (ringtoneUiState.showProgress) {
+                                com.convx.music.ui.component.RingtoneProgressDialog(
+                                    isVisible = ringtoneUiState.showProgress,
+                                    progress = ringtoneUiState.progress,
+                                    statusMessage = ringtoneUiState.statusMessage,
+                                    isComplete = ringtoneUiState.isComplete,
+                                    isSuccess = ringtoneUiState.isSuccess,
+                                    onDismiss = { ringtoneViewModel.dismissProgress() },
+                                    onOpenSettings = { ringtoneViewModel.openRingtoneSettings(this@MainActivity) }
+                                )
                             }
 
                             // Both float OVER the full-width NavHost, exactly as the
@@ -2280,6 +2307,7 @@ class MainActivity : ComponentActivity() {
 }
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }
+val LocalRingtoneViewModel = staticCompositionLocalOf<com.convx.music.ui.screens.settings.RingtoneViewModel> { error("No RingtoneViewModel provided") }
 val LocalPlayerConnection = staticCompositionLocalOf<PlayerConnection?> { error("No PlayerConnection provided") }
 val LocalPlayerAwareWindowInsets = compositionLocalOf<WindowInsets> { error("No WindowInsets provided") }
 val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No DownloadUtil provided") }

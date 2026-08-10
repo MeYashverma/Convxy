@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -116,6 +116,9 @@ import com.convx.music.constants.EnableDiscordRPCKey
 import com.convx.music.constants.EnableLastFMScrobblingKey
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.HideVideoSongsKey
+import com.convx.music.constants.DataSaverEnabledKey
+import com.convx.music.constants.ListenBrainzEnabledKey
+import com.convx.music.constants.ListenBrainzTokenKey
 import com.convx.music.constants.HistoryDuration
 import com.convx.music.constants.LastFMUseNowPlaying
 import com.convx.music.constants.MediaSessionConstants.CommandToggleLike
@@ -294,7 +297,7 @@ class MusicService :
     // Mirrors of settings read at ExoPlayer construction time (initial player +
     // crossfade's secondary player). Kept fresh by the dataStore.data collectors
     // in onCreate so construction never blocks the (Main-dispatcher) service
-    // scope on a DataStore read — critical on the crossfade path, where a
+    // scope on a DataStore read â€” critical on the crossfade path, where a
     // blocking read would stall audio right as the next track needs to start.
     private var cachedSkipSilence = false
     private var cachedSkipSilenceInstant = false
@@ -420,6 +423,11 @@ class MusicService :
 
     private var scrobbleManager: ScrobbleManager? = null
 
+    private var listenBrainzEnabled = false
+    private var listenBrainzToken = ""
+    private var listenBrainzCurrentMediaId: String? = null
+    private var listenBrainzCurrentStartTs: Long = 0L
+
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
     // Tracks the original queue size to distinguish original items from auto-added ones
@@ -443,10 +451,10 @@ class MusicService :
 
     // Tracks which mediaIds resolved to a Tidal/Spine lossless stream, so the
     // stall watchdog only acts on lossless playback (the dropout bug is
-    // lossless-only — confirmed, never happens on plain YouTube audio).
+    // lossless-only â€” confirmed, never happens on plain YouTube audio).
     private val losslessStreamMediaIds = mutableSetOf<String>()
 
-    // Set once a track has stalled/parsing-errored too many times on lossless —
+    // Set once a track has stalled/parsing-errored too many times on lossless â€”
     // the next resolve for this mediaId skips Spine/Tidal and goes straight to
     // the plain YouTube stream (see forceStandardAudio in YTPlayerUtils).
     private val forceStandardAudioMediaIds = mutableSetOf<String>()
@@ -671,9 +679,15 @@ class MusicService :
         var isFirstQualityEmit = true
         scope.launch {
             dataStore.data
-                .map { it[AudioQualityKey]?.let { value ->
-                    com.convx.music.constants.AudioQuality.entries.find { it.name == value }
-                } ?: com.convx.music.constants.AudioQuality.AUTO }
+                .map { prefs ->
+                    if (prefs[DataSaverEnabledKey] ?: false) {
+                        com.convx.music.constants.AudioQuality.LOW
+                    } else {
+                        prefs[AudioQualityKey]?.let { value ->
+                            com.convx.music.constants.AudioQuality.entries.find { it.name == value }
+                        } ?: com.convx.music.constants.AudioQuality.AUTO
+                    }
+                }
                 .distinctUntilChanged()
                 .collect { newQuality ->
                     val oldQuality = audioQuality
@@ -775,7 +789,7 @@ class MusicService :
 
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
-            dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
+            dataStore.data.map { (it[ShowLyricsKey] ?: false) && (it[DataSaverEnabledKey] != true) }.distinctUntilChanged(),
         ) { mediaMetadata, showLyrics ->
             mediaMetadata to showLyrics
         }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
@@ -914,6 +928,20 @@ class MusicService :
             .collectLatest(scope) {
                 scrobbleManager?.useNowPlaying = it
             }
+
+        dataStore.data
+            .map {
+                val listenBrainz = it[ListenBrainzEnabledKey] ?: false
+                val dataSaver = it[DataSaverEnabledKey] ?: false
+                if (dataSaver) false else listenBrainz
+            }
+            .distinctUntilChanged()
+            .collect(scope) { listenBrainzEnabled = it }
+
+        dataStore.data
+            .map { it[ListenBrainzTokenKey] ?: "" }
+            .distinctUntilChanged()
+            .collect(scope) { listenBrainzToken = it }
 
         dataStore.data
             .map { prefs ->
@@ -1106,7 +1134,7 @@ class MusicService :
         val djDelay = DelayAudioProcessor()
 
         // Set initial state from the cached mirrors (kept fresh by the
-        // dataStore.data collectors in onCreate) rather than blocking here —
+        // dataStore.data collectors in onCreate) rather than blocking here â€”
         // this runs on the crossfade path too, where a blocking DataStore read
         // would stall audio right as the next track needs to start.
         silenceProcessor.instantModeEnabled = cachedSkipSilence && cachedSkipSilenceInstant
@@ -1121,12 +1149,11 @@ class MusicService :
             .setLoadControl(
                 androidx.media3.exoplayer.DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                        30_000,   // Min buffer: 30s
-                        120_000,  // Max buffer: 120s
-                        2_500,    // Buffer for playback: 2.5s
-                        5_000     // Buffer for playback after re-buffer: 5s
+                        50_000,   // Min buffer: 50s
+                        50_000,   // Max buffer: 50s
+                        750,      // Buffer for playback: 750ms â€” start audio as soon as we have it
+                        2_000     // Buffer for playback after re-buffer: 2s
                     )
-                    .setPrioritizeTimeOverSizeThresholds(true)
                     .build()
             )
             .setHandleAudioBecomingNoisy(true)
@@ -1511,7 +1538,7 @@ class MusicService :
                 withContext(Dispatchers.IO) {
                     queue.getInitialStatus()
                         .filterExplicit(dataStore.get(HideExplicitKey, false))
-                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false) || dataStore.get(DataSaverEnabledKey, false))
                 }
             if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
             if (initialStatus.title != null) {
@@ -1579,7 +1606,7 @@ class MusicService :
                 val initialStatus = withContext(Dispatchers.IO) {
                     radioQueue.getInitialStatus()
                         .filterExplicit(dataStore.get(HideExplicitKey, false))
-                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false) || dataStore.get(DataSaverEnabledKey, false))
                 }
 
                 if (initialStatus.title != null) {
@@ -1621,7 +1648,7 @@ class MusicService :
                                 .filter { it.id != currentMediaId }
                                 .map { it.toMediaItem() }
                                 .filterExplicit(dataStore.get(HideExplicitKey, false))
-                                .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                                .filterVideoSongs(dataStore.get(HideVideoSongsKey, false) || dataStore.get(DataSaverEnabledKey, false))
 
                             if (radioItems.isNotEmpty()) {
                                 val itemCount = player.mediaItemCount
@@ -1811,7 +1838,7 @@ class MusicService :
                 val finalOrder = IntArray(size)
                 // Tracks which window indices have already been placed, so the
                 // safety-net fill below is an O(1) lookup per slot instead of an
-                // O(n) IntArray.contains scan — O(n^2) on a large queue otherwise.
+                // O(n) IntArray.contains scan â€” O(n^2) on a large queue otherwise.
                 val placed = BooleanArray(size)
                 var pos = 0
                 finalOrder[pos++] = currentIndex
@@ -2068,8 +2095,16 @@ class MusicService :
         discordUpdateJob?.cancel()
 
         scrobbleManager?.onSongStop()
+        checkAndSubmitListenBrainzFinished()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
             scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
+            player.currentMediaItem?.mediaId?.let { mediaId ->
+                if (listenBrainzCurrentMediaId != mediaId) {
+                    listenBrainzCurrentMediaId = mediaId
+                    listenBrainzCurrentStartTs = System.currentTimeMillis()
+                }
+                checkAndSubmitListenBrainzPlayingNow(mediaId)
+            }
         }
 
         // Sync Cast when media changes and Cast is connected
@@ -2100,7 +2135,7 @@ class MusicService :
                 val mediaItems = withContext(Dispatchers.IO) {
                     currentQueue.nextPage()
                         .filterExplicit(dataStore.get(HideExplicitKey, false))
-                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false) || dataStore.get(DataSaverEnabledKey, false))
                 }
                 if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
                     player.addMediaItems(mediaItems)
@@ -2162,6 +2197,7 @@ class MusicService :
 
         if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
             scrobbleManager?.onSongStop()
+            checkAndSubmitListenBrainzFinished()
         }
     }
 
@@ -2243,6 +2279,17 @@ class MusicService :
         // Scrobbling
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
             scrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
+
+            if (player.isPlaying) {
+                player.currentMediaItem?.mediaId?.let { mediaId ->
+                    if (listenBrainzCurrentMediaId != mediaId) {
+                        checkAndSubmitListenBrainzFinished()
+                        listenBrainzCurrentMediaId = mediaId
+                        listenBrainzCurrentStartTs = System.currentTimeMillis()
+                    }
+                    checkAndSubmitListenBrainzPlayingNow(mediaId)
+                }
+            }
         }
 
     }
@@ -2661,7 +2708,7 @@ class MusicService :
         }
 
         // A parsing-unsupported error on a lossless stream is a permanent format
-        // issue, not a transient one — retrying the same Tidal/Spine URL will
+        // issue, not a transient one â€” retrying the same Tidal/Spine URL will
         // never succeed. Skip straight to the standard-audio fallback instead
         // of looping retries against the same broken source.
         if (losslessStreamMediaIds.contains(mediaId)) {
@@ -3029,7 +3076,7 @@ class MusicService :
     private var stallRecoveryJob: Job? = null
 
     /** Lossless/Atmos stream stopped producing audio while position kept
-     *  advancing — no PlaybackException, so onPlayerError never fires for this.
+     *  advancing â€” no PlaybackException, so onPlayerError never fires for this.
      *  Fired from the audio renderer thread; hop to [scope] (Main) before
      *  touching the player. */
     private fun handleLosslessStallDetected() {
@@ -3158,7 +3205,7 @@ class MusicService :
                 // Downloads are always cached under the plain mediaId (see
                 // DownloadRequest.setCustomCacheKey(song.id) at every download call
                 // site) regardless of the lossless/Spine toggles, so they must be
-                // looked up under mediaId — not effKey — or a downloaded song becomes
+                // looked up under mediaId â€” not effKey â€” or a downloaded song becomes
                 // unplayable the moment either toggle is on, since the lookup misses
                 // and falls through to a network re-fetch.
                 if (downloadCache.isCached(
@@ -3550,7 +3597,7 @@ class MusicService :
      * ForegroundServiceStartNotAllowedException and the process dies.
      *
      * The throw happens inside ContextImpl, on THIS service used as the Context, so it is
-     * catchable here — an override around onUpdateNotification is not, because the call is
+     * catchable here â€” an override around onUpdateNotification is not, because the call is
      * posted and no longer on that frame. Nothing to recover: the OS refused the promotion,
      * so the notification simply stays unpromoted until playback next starts in foreground.
      */
@@ -3775,7 +3822,7 @@ class MusicService :
                 // Sanity re-check before actually firing: player.duration read
                 // right after a seek/media-item transition (where this job is
                 // scheduled from) isn't always settled yet, so delayMs can end
-                // up far too short — this fired way earlier than the real
+                // up far too short â€” this fired way earlier than the real
                 // trigger point would, crossfading back into "next" (often the
                 // previous track on a short/looping queue) mid-song instead of
                 // near its end. Re-derive from live state; if we're genuinely
@@ -3823,7 +3870,7 @@ class MusicService :
 
         // Preserve player state before creating the secondary player. The live
         // ExoPlayer instance is always the authoritative, already-in-memory
-        // source of truth for these — reading DataStore here would just be a
+        // source of truth for these â€” reading DataStore here would just be a
         // blocking round-trip to re-derive what `player` already holds, right
         // as the next track needs to start.
         val savedRepeatMode = player.repeatMode
@@ -3840,7 +3887,7 @@ class MusicService :
         val outgoingMediaId = player.currentMediaItem?.mediaId
         val incomingMediaId = player.getMediaItemAt(targetIndex).mediaId
         // Flush the outgoing track's now-complete energy profile before the
-        // player is handed over — this is the only moment its outro exists.
+        // player is handed over â€” this is the only moment its outro exists.
         outgoingMediaId?.let { djEngine.captureEnergyProfile(player, it) }
         val djMixPlan = djEngine.planTransition(
             outgoingMediaId,
@@ -3953,7 +4000,7 @@ class MusicService :
      *
      * This used to be a single `PlaybackParameters(1f, 1f)` at the end of the
      * fade, so a 6 % tempo match dropped 6 % instantly the moment the crossfade
-     * finished — clearly audible, and the exact opposite of what the tempo
+     * finished â€” clearly audible, and the exact opposite of what the tempo
      * match was for. A DJ eases the pitch fader back; so does this.
      */
     private fun glideSpeedBackToNormal() {
@@ -3965,7 +4012,7 @@ class MusicService :
 
         // Below a couple of percent the correction is inaudible, so gliding it
         // buys nothing and costs a burst of playbackParameters writes right at
-        // the end of the transition — each one reaching the playback thread and
+        // the end of the transition â€” each one reaching the playback thread and
         // re-firing listeners, which is audible as a hitch exactly where the mix
         // should be settling. Snap instead.
         if (startSpeed in 0.98f..1.02f && startPitch in 0.999f..1.001f) {
@@ -4078,8 +4125,8 @@ class MusicService :
             } finally {
                 // Unwind the ramp even if the job is cancelled mid-fade (a pause
                 // parks the loop and the service scope can tear down around it):
-                // otherwise the now-primary player keeps the last ramp value —
-                // near zero at the fade-out end — for the rest of the track.
+                // otherwise the now-primary player keeps the last ramp value â€”
+                // near zero at the fade-out end â€” for the rest of the track.
                 runCatching { fadingPlayer?.volume = 0f }
                 runCatching { player.volume = startVolume }
                 runCatching { cleanupCrossfade() }
@@ -4101,13 +4148,81 @@ class MusicService :
         isCrossfading = false
         sleepTimer.notifySongTransition()
 
-        // Tempo correction (if any) was only meant for the transition itself —
+        // Tempo correction (if any) was only meant for the transition itself â€”
         // the now-primary player (former secPlayer) returns to normal speed
         // rather than staying tempo-shifted for the rest of the track.
         if (djEngine.activePlanNeedsSpeedReset) {
             glideSpeedBackToNormal()
         }
         djEngine.clearActivePlan()
+    }
+
+    private fun updateListenBrainz(title: String, artistNames: String, releaseName: String, durationMs: Long, isFinished: Boolean, startMs: Long = 0, endMs: Long = 0, positionMs: Long = 0) {
+        val cleanToken = listenBrainzToken.trim()
+        if (!listenBrainzEnabled || cleanToken.isBlank()) return
+        scope.launch {
+            if (isFinished) {
+                com.convx.music.ui.screens.settings.ListenBrainzManager.submitFinished(
+                    context = this@MusicService,
+                    token = cleanToken,
+                    title = title,
+                    artistNames = artistNames,
+                    releaseName = releaseName,
+                    durationMs = durationMs,
+                    startMs = startMs,
+                    endMs = endMs
+                )
+            } else {
+                com.convx.music.ui.screens.settings.ListenBrainzManager.submitPlayingNow(
+                    context = this@MusicService,
+                    token = cleanToken,
+                    title = title,
+                    artistNames = artistNames,
+                    releaseName = releaseName,
+                    durationMs = durationMs,
+                    positionMs = positionMs
+                )
+            }
+        }
+    }
+
+    private fun checkAndSubmitListenBrainzFinished() {
+        listenBrainzCurrentMediaId?.let { mediaId ->
+            val startTs = listenBrainzCurrentStartTs
+            if (startTs > 0) {
+                scope.launch {
+                    val mediaMetadata = player.mediaItems.find { it.mediaId == mediaId }?.metadata
+                    val dbSong = if (mediaMetadata == null) database.song(mediaId).first() else null
+
+                    val title = mediaMetadata?.title ?: dbSong?.song?.title ?: return@launch
+                    val artistNames = mediaMetadata?.artists?.joinToString(" & ") { it.name }
+                        ?: dbSong?.artists?.joinToString(" & ") { it.name } ?: ""
+                    val releaseName = mediaMetadata?.album?.title ?: dbSong?.album?.title ?: ""
+                    val durationMs = mediaMetadata?.duration?.takeIf { it != -1 }?.times(1000L)
+                        ?: dbSong?.song?.duration?.takeIf { it != -1 }?.times(1000L) ?: 0L
+
+                    updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = true, startMs = startTs, endMs = System.currentTimeMillis())
+                }
+            }
+        }
+        listenBrainzCurrentStartTs = 0L
+        listenBrainzCurrentMediaId = null
+    }
+
+    private fun checkAndSubmitListenBrainzPlayingNow(mediaId: String) {
+        scope.launch {
+            val mediaMetadata = player.mediaItems.find { it.mediaId == mediaId }?.metadata
+            val dbSong = if (mediaMetadata == null) database.song(mediaId).first() else null
+
+            val title = mediaMetadata?.title ?: dbSong?.song?.title ?: return@launch
+            val artistNames = mediaMetadata?.artists?.joinToString(" & ") { it.name }
+                ?: dbSong?.artists?.joinToString(" & ") { it.name } ?: ""
+            val releaseName = mediaMetadata?.album?.title ?: dbSong?.album?.title ?: ""
+            val durationMs = mediaMetadata?.duration?.takeIf { it != -1 }?.times(1000L)
+                ?: dbSong?.song?.duration?.takeIf { it != -1 }?.times(1000L) ?: 0L
+
+            updateListenBrainz(title, artistNames, releaseName, durationMs, isFinished = false)
+        }
     }
 
     companion object {
@@ -4140,7 +4255,7 @@ class MusicService :
         /** Queue entries ahead of the current one to hydrate analysis for. */
         private const val DJ_HYDRATE_LOOKAHEAD = 3
 
-        /** Longest we will hold the incoming track back to land on a beat —
+        /** Longest we will hold the incoming track back to land on a beat â€”
          *  one beat at 60 BPM. Anything longer means the grid is wrong. */
         private const val MAX_BEAT_ALIGN_WAIT_MS = 1_000L
 

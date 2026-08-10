@@ -3,14 +3,11 @@ package com.convx.music.ui.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,11 +26,8 @@ import com.music.innertube.models.ArtistItem
 import com.music.innertube.models.SongItem
 import com.music.innertube.models.YTItem
 import com.convx.music.R
-import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
-import com.convx.music.constants.SpeedDialCardHeightOverrideKey
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
-import com.convx.music.utils.rememberPreference
 
 @Composable
 fun SpeedDialGridItem(
@@ -43,19 +37,16 @@ fun SpeedDialGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     thumbnailSizePx: Int = 544,
+    cornerRadiusDp: Int = 24,
 ) {
-    val (heightOverride) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
-    val (cornerOverride) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
     // Apple Music's browse tiles read noticeably rounder than the app's general
     // 12dp thumbnail corner — bumped close to AppleTokens.CardCornerLarge (28dp)
-    // for this tile's default; the corner-radius setting still overrides it.
-    val shape = ContinuousRoundedRectangle((if (cornerOverride > 0) cornerOverride else 24).dp)
+    // for this tile's default. Corner radius + tile height are read once at the
+    // Home grid level and passed in, so no per-tile DataStore subscription.
+    val shape = ContinuousRoundedRectangle(cornerRadiusDp.dp)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (heightOverride > 0) Modifier.height(heightOverride.dp) else Modifier.aspectRatio(1f)
-            )
             .clip(shape)
     ) {
         // Thumbnail

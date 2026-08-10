@@ -126,6 +126,7 @@ import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.RandomizeHomeOrderKey
 import com.convx.music.constants.ShowHomeFabKey
+import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
 import com.convx.music.constants.SpeedDialCardHeightOverrideKey
 import com.convx.music.constants.SpeedDialColumnsOverrideKey
 import com.convx.music.constants.SmallGridThumbnailHeight
@@ -1426,6 +1427,7 @@ private fun LazyListScope.speedDialSection(
                 itemWidth.roundToPx().coerceAtLeast(64)
             }
             val (speedDialHeightOverride) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
+            val (speedDialCornerOverride) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
             val speedDialTileHeight = if (speedDialHeightOverride > 0) {
                 speedDialHeightOverride.dp
             } else {
@@ -1513,6 +1515,7 @@ private fun LazyListScope.speedDialSection(
                                                 },
                                                 isPlaying = isPlaying,
                                                 thumbnailSizePx = speedDialThumbnailSizePx,
+                                                cornerRadiusDp = if (speedDialCornerOverride > 0) speedDialCornerOverride else 24,
                                                 modifier = Modifier
                                                     .fillMaxSize()
                                                     .combinedBounceClick(

@@ -133,6 +133,7 @@ import com.convx.music.constants.ListItemHeight
 import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.ListThumbnailSize
 import com.convx.music.constants.LocalSongSortDescendingKey
+import com.convx.music.constants.HideHomeFavoriteIconKey
 import com.convx.music.constants.LocalSongSortTypeKey
 import com.convx.music.constants.RandomizeHomeOrderKey
 import com.convx.music.constants.SongSortType
@@ -741,6 +742,8 @@ fun HomeScreen(
         }
     }
 
+    val (hideHomeFavoriteIcon) = rememberPreference(HideHomeFavoriteIconKey, false)
+
     val localGridItem: @Composable (LocalItem) -> Unit = {
         when (it) {
             is Song -> SongGridItem(
@@ -772,6 +775,7 @@ fun HomeScreen(
                     ),
                 isActive = it.id == mediaMetadata?.id,
                 isPlaying = isPlaying,
+                showLikedIcon = !hideHomeFavoriteIcon,
             )
 
             is Album -> AlbumGridItem(
@@ -779,6 +783,7 @@ fun HomeScreen(
                 isActive = it.id == mediaMetadata?.album?.id,
                 isPlaying = isPlaying,
                 coroutineScope = scope,
+                showLikedIcon = !hideHomeFavoriteIcon,
                 modifier = Modifier
                     .fillMaxWidth()
                     .combinedBounceClick(
@@ -1105,6 +1110,7 @@ fun HomeScreen(
                 currentGridHeight = currentGridHeight,
                 localGridItem = localGridItem,
                 ytGridItem = ytGridItem,
+                hideHomeFavoriteIcon = hideHomeFavoriteIcon,
             )
 
             LazyColumn(
@@ -1379,6 +1385,7 @@ private data class HomeSectionDeps(
     val currentGridHeight: Dp,
     val localGridItem: @Composable (LocalItem) -> Unit,
     val ytGridItem: @Composable (YTItem) -> Unit,
+    val hideHomeFavoriteIcon: Boolean,
 )
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -2015,6 +2022,7 @@ private fun LazyListScope.quickPicksSection(
                     SongListItem(
                         song = song,
                         showInLibraryIcon = true,
+                        showLikedIcon = !deps.hideHomeFavoriteIcon,
                         isActive = song.id == mediaMetadata?.id,
                         isPlaying = isPlaying,
                         isSwipeable = false,
@@ -2379,6 +2387,7 @@ private fun LazyListScope.forgottenFavoritesSection(
                     SongListItem(
                         song = song,
                         showInLibraryIcon = true,
+                        showLikedIcon = !deps.hideHomeFavoriteIcon,
                         isActive = song.id == mediaMetadata?.id,
                         isPlaying = isPlaying,
                         isSwipeable = false,

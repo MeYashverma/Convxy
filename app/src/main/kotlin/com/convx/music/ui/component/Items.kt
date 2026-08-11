@@ -798,6 +798,7 @@ fun AlbumGridItem(
     album: Album,
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope,
+    showLikedIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
 
@@ -823,7 +824,7 @@ fun AlbumGridItem(
             }
         }
 
-        if (album.album.bookmarkedAt != null) {
+        if (showLikedIcon && album.album.bookmarkedAt != null) {
             Icon.Favorite()
         }
         if (album.album.explicit) {

@@ -136,6 +136,7 @@ import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
 import com.convx.music.constants.HomeGridColumnsOverrideKey
 import com.convx.music.constants.HomeHeroCardEnabledKey
 import com.convx.music.constants.PureBlackHeroBackgroundKey
+import com.convx.music.constants.HideHomeFavoriteIconKey
 import com.convx.music.constants.ShowHomeFabKey
 import com.convx.music.ui.utils.GridColumnChoices
 import com.convx.music.ui.utils.GridSpacingChoices
@@ -338,6 +339,10 @@ fun AppearanceSettings(
     val (speedDialColumnsOverride, onSpeedDialColumnsOverrideChange) = rememberPreference(SpeedDialColumnsOverrideKey, 0)
     val (pureBlackHeroBackground, onPureBlackHeroBackgroundChange) = rememberPreference(PureBlackHeroBackgroundKey, false)
     val (showHomeFab, onShowHomeFabChange) = rememberPreference(ShowHomeFabKey, defaultValue = true)
+    val (hideHomeFavoriteIcon, onHideHomeFavoriteIconChange) = rememberPreference(
+        HideHomeFavoriteIconKey,
+        defaultValue = false
+    )
     val (homeHeroCardHeightOverride, onHomeHeroCardHeightOverrideChange) = rememberPreference(HomeHeroCardHeightOverrideKey, 0)
     val (speedDialCardHeightOverride, onSpeedDialCardHeightOverrideChange) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
     val (homeCardCornerRadiusOverride, onHomeCardCornerRadiusOverrideChange) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
@@ -1273,6 +1278,27 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onShowHomeFabChange(!showHomeFab) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.favorite_border),
+                    title = { Text(stringResource(R.string.hide_home_favorite_icon)) },
+                    description = { Text(stringResource(R.string.hide_home_favorite_icon_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = hideHomeFavoriteIcon,
+                            onCheckedChange = onHideHomeFavoriteIconChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (hideHomeFavoriteIcon) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onHideHomeFavoriteIconChange(!hideHomeFavoriteIcon) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.grid_view),

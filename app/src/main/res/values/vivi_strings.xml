@@ -1179,6 +1179,8 @@
     <string name="feature_needs_more_work">Needs more work — temporarily disabled</string>
     <string name="compact_player_tab_view">Compact player in tab view</string>
     <string name="compact_player_tab_view_desc">On a tablet or wide screen with the side rail, the expanded player is capped to a phone-like width and centered instead of stretching full-width. The mini player is unaffected.</string>
+    <string name="hide_home_favorite_icon">Hide favorite icon on Home</string>
+    <string name="hide_home_favorite_icon_desc">Hides the heart badge on liked songs and albums in Home\'s rows. Library, search, and playlists are unaffected.</string>
     <string name="saavn_fallback_to_youtube">Retry on YouTube if Saavn fails</string>
     <string name="saavn_fallback_to_youtube_desc">On: if no matching track or stream is found on JioSaavn, plays from YouTube instead. Off: playback fails instead of silently swapping to YouTube audio.</string>
     <string name="support_section">Support</string>

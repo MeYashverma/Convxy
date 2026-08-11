@@ -86,6 +86,9 @@ val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
 /** Tab view only: caps the expanded player to a phone-like width instead of stretching
  *  it across the wide screen. The mini player stays full-width either way. */
 val CompactPlayerInTabViewKey = booleanPreferencesKey("compactPlayerInTabView")
+/** Hides the heart/favorite badge on Home's song and album rows specifically —
+ *  other screens (Library, search, playlists) are unaffected. */
+val HideHomeFavoriteIconKey = booleanPreferencesKey("hideHomeFavoriteIcon")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
 val ThumbnailCornerRadiusKey = floatPreferencesKey("thumbnailCornerRadius")
 val CropAlbumArtKey = booleanPreferencesKey("cropAlbumArt")

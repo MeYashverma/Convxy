@@ -95,6 +95,7 @@ import com.convx.music.constants.CrossfadeDurationKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.AutoDjMixingEnabledKey
 import com.convx.music.constants.CreativeTransitionsEnabledKey
+import com.convx.music.constants.CompactPlayerInTabViewKey
 import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.constants.CrossfadeEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -186,6 +187,10 @@ fun PlayerSettings(
     )
     val (hideVolumeBar, onHideVolumeBarChange) = rememberPreference(
         HideVolumeBarKey,
+        defaultValue = false
+    )
+    val (compactPlayerInTabView, onCompactPlayerInTabViewChange) = rememberPreference(
+        CompactPlayerInTabViewKey,
         defaultValue = false
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
@@ -456,41 +461,79 @@ fun PlayerSettings(
                         onClick = { onCrossfadeGaplessChange(!crossfadeGapless) }
                     ))
                 }
-                // Both temporarily force-disabled — needs more work before shipping.
-                // Also resets any previously-stored true value, so a user who had one
-                // on before this change doesn't keep silently running it while the
-                // switch shows off.
-                LaunchedEffect(autoDjMixingEnabled, creativeTransitionsEnabled) {
-                    if (autoDjMixingEnabled) onAutoDjMixingEnabledChange(false)
-                    if (creativeTransitionsEnabled) onCreativeTransitionsEnabledChange(false)
+                // Auto-DJ Mixing needs crossfade on (it beatmatches into the crossfade
+                // window); Creative Transitions needs Auto-DJ Mixing on (its effects run
+                // inside a DJ-mixed transition). Turning the dependency off cascades down
+                // rather than leaving a switch on that can no longer do anything.
+                LaunchedEffect(crossfadeEnabled) {
+                    if (!crossfadeEnabled && autoDjMixingEnabled) onAutoDjMixingEnabledChange(false)
+                }
+                LaunchedEffect(autoDjMixingEnabled) {
+                    if (!autoDjMixingEnabled && creativeTransitionsEnabled) onCreativeTransitionsEnabledChange(false)
                 }
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.equalizer),
                     title = { Text(stringResource(R.string.auto_dj_mixing)) },
-                    description = { Text(stringResource(R.string.feature_needs_more_work)) },
-                    enabled = false,
-                    trailingContent = {
-                        Switch(
-                            checked = false,
-                            enabled = false,
-                            onCheckedChange = {},
+                    description = {
+                        Text(
+                            stringResource(
+                                if (crossfadeEnabled) R.string.auto_dj_mixing_desc
+                                else R.string.auto_dj_mixing_needs_crossfade
+                            )
                         )
                     },
-                    onClick = null
+                    enabled = crossfadeEnabled,
+                    trailingContent = {
+                        Switch(
+                            checked = autoDjMixingEnabled,
+                            enabled = crossfadeEnabled,
+                            onCheckedChange = onAutoDjMixingEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (autoDjMixingEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = if (crossfadeEnabled) {
+                        { onAutoDjMixingEnabledChange(!autoDjMixingEnabled) }
+                    } else null
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.equalizer),
                     title = { Text(stringResource(R.string.creative_transitions)) },
-                    description = { Text(stringResource(R.string.feature_needs_more_work)) },
-                    enabled = false,
-                    trailingContent = {
-                        Switch(
-                            checked = false,
-                            enabled = false,
-                            onCheckedChange = {},
+                    description = {
+                        Text(
+                            stringResource(
+                                if (autoDjMixingEnabled) R.string.creative_transitions_desc
+                                else R.string.creative_transitions_needs_dj
+                            )
                         )
                     },
-                    onClick = null
+                    enabled = autoDjMixingEnabled,
+                    trailingContent = {
+                        Switch(
+                            checked = creativeTransitionsEnabled,
+                            enabled = autoDjMixingEnabled,
+                            onCheckedChange = onCreativeTransitionsEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (creativeTransitionsEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = if (autoDjMixingEnabled) {
+                        { onCreativeTransitionsEnabledChange(!creativeTransitionsEnabled) }
+                    } else null
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),
@@ -512,6 +555,27 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onHideVolumeBarChange(!hideVolumeBar) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.crop),
+                    title = { Text(stringResource(R.string.compact_player_tab_view)) },
+                    description = { Text(stringResource(R.string.compact_player_tab_view_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = compactPlayerInTabView,
+                            onCheckedChange = onCompactPlayerInTabViewChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (compactPlayerInTabView) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onCompactPlayerInTabViewChange(!compactPlayerInTabView) }
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.history),

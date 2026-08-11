@@ -86,6 +86,7 @@ import com.convx.music.ui.component.LocalNavSearchState
 import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.YouTubeListItem
 import com.convx.music.ui.component.HomeImageBackground
+import com.convx.music.ui.component.hasCustomHomeBackground
 import com.convx.music.ui.component.rememberAppBackgroundTint
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
@@ -279,38 +280,44 @@ fun OnlineSearchResult(
             .fillMaxSize()
             .background(tint)
     ) {
-        // Blurred hero artwork background
-        if (heroUrl != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(heroUrl)
-                    .size(100, 100)
-                    .allowHardware(false)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+        if (hasCustomHomeBackground()) {
+            // Matches Home/Library: the user's own picture, not this screen's
+            // auto-generated hero blur, once a custom background is set.
+            HomeImageBackground(withGradient = true)
+        } else {
+            // Blurred hero artwork background
+            if (heroUrl != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(heroUrl)
+                        .size(100, 100)
+                        .allowHardware(false)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blur(150.dp)
+                )
+            }
+            // Dark overlay for readability
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(150.dp)
+                    .background(Color.Black.copy(alpha = 0.4f))
+            )
+            // Primary-color wash at the bottom
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.55f to Color.Transparent,
+                            1f to MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                        )
+                    )
             )
         }
-        // Dark overlay for readability
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
-        )
-        // Primary-color wash at the bottom
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0.55f to Color.Transparent,
-                        1f to MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                    )
-                )
-        )
 
       HeroTintedContent(tint = tint, backdrop = heroBackdrop) {
         Column(

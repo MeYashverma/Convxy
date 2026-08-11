@@ -33,12 +33,20 @@ class DampedDragAnimation(
     val onDragStarted: DampedDragAnimation.(position: Offset) -> Unit,
     val onDragStopped: DampedDragAnimation.() -> Unit,
     val onDrag: DampedDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit,
+    /**
+     * Damping of the tracked drag velocity, which callers turn into stretch.
+     *
+     * The library's 0.5f is underdamped, so the velocity rings after every change
+     * of speed and anything driven by it wobbles rather than following the finger.
+     * Pass 1f for a stretch that tracks the drag and stops when it stops.
+     */
+    val velocityDampingRatio: Float = 0.5f,
 ) {
 
     private val valueAnimationSpec =
         spring(1f, 1000f, visibilityThreshold)
     private val velocityAnimationSpec =
-        spring(0.5f, 300f, visibilityThreshold * 10f)
+        spring(velocityDampingRatio, 300f, visibilityThreshold * 10f)
     private val pressProgressAnimationSpec =
         spring(1f, 1000f, 0.001f)
     private val scaleXAnimationSpec =

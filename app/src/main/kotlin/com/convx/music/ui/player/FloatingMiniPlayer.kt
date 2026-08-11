@@ -63,6 +63,8 @@ import coil3.compose.AsyncImage
 import com.convx.music.LocalListenTogetherManager
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.player.customize.PlayerGlyph
+import com.convx.music.ui.player.customize.PlayerIconSlot
 import com.convx.music.constants.MiniBarTabStyleKey
 import com.convx.music.constants.MiniPlayerWaveformKey
 import com.convx.music.constants.SwipeSensitivityKey
@@ -396,9 +398,9 @@ fun FloatingMiniPlayer(
                     enabled = canSkipNext,
                     modifier = Modifier.size(controlSize),
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.fast_forward),
-                        contentDescription = null,
+                    PlayerGlyph(
+                        slot = PlayerIconSlot.NEXT,
+                        fallback = R.drawable.fast_forward,
                         tint = if (canSkipNext) contentColor else contentColor.copy(alpha = 0.4f),
                         modifier = Modifier.size(playIconSize),
                     )
@@ -428,9 +430,9 @@ fun FloatingMiniPlayer(
                     enabled = canSkipPrevious,
                     modifier = Modifier.size(controlSize),
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.skip_previous_legacy),
-                        contentDescription = null,
+                    PlayerGlyph(
+                        slot = PlayerIconSlot.PREVIOUS,
+                        fallback = R.drawable.skip_previous_legacy,
                         tint = if (canSkipPrevious) contentColor else contentColor.copy(alpha = 0.4f),
                         modifier = Modifier.size(iconSize),
                     )
@@ -450,9 +452,9 @@ fun FloatingMiniPlayer(
                     enabled = canSkipNext,
                     modifier = Modifier.size(controlSize),
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.fast_forward),
-                        contentDescription = null,
+                    PlayerGlyph(
+                        slot = PlayerIconSlot.NEXT,
+                        fallback = R.drawable.fast_forward,
                         tint = if (canSkipNext) contentColor else contentColor.copy(alpha = 0.4f),
                         modifier = Modifier.size(iconSize),
                     )

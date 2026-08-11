@@ -16,7 +16,18 @@ import java.time.ZoneOffset
 import com.music.innertube.models.IpVersion
 
 val IsFirstRunKey = booleanPreferencesKey("isFirstRun")
-val EnableDynamicIconKey = booleanPreferencesKey("enableDynamicIcon")
+/** Set once, the first time the app ever runs — gates the donation prompt on "used for
+ *  a while" rather than showing it to a brand new install. */
+val FirstLaunchTimestampKey = longPreferencesKey("firstLaunchTimestamp")
+val DonationPromptLastShownKey = longPreferencesKey("donationPromptLastShown")
+val DonationPromptDismissedKey = booleanPreferencesKey("donationPromptDismissed")
+val AppIconKey = stringPreferencesKey("appIcon")
+
+/** JSON map of player-control slot -> user-supplied glyph. See ui/player/customize/PlayerIcons.kt. */
+val PlayerIconsKey = stringPreferencesKey("playerIcons")
+
+/** JSON sticker arrangement drawn over the player. See ui/player/customize/DiyLayout.kt. */
+val DiyLayoutKey = stringPreferencesKey("diyLayout")
 val EnableHighRefreshRateKey = booleanPreferencesKey("enableHighRefreshRate")
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
@@ -66,14 +77,15 @@ val GridCardHeightOverrideKey = intPreferencesKey("gridCardHeightOverrideDp")
 val SpeedDialColumnsOverrideKey = intPreferencesKey("speedDialColumnsOverride")
 /** Forces a flat black background (no blurred artwork) on Artist/Album/Playlist/Search hero screens. */
 val PureBlackHeroBackgroundKey = booleanPreferencesKey("pureBlackHeroBackground")
-/** JSON array of ThemePack (see ThemePack.kt) — user-created named theme presets. */
-val SavedThemePacksKey = stringPreferencesKey("savedThemePacks")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")
 val SquigglySliderKey = booleanPreferencesKey("squigglySlider")
 val SwipeToSongKey = booleanPreferencesKey("SwipeToSong")
 val SwipeToRemoveSongKey = booleanPreferencesKey("SwipeToRemoveSong")
 val UseNewPlayerDesignKey= booleanPreferencesKey("useNewPlayerDesign")
 val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
+/** Tab view only: caps the expanded player to a phone-like width instead of stretching
+ *  it across the wide screen. The mini player stays full-width either way. */
+val CompactPlayerInTabViewKey = booleanPreferencesKey("compactPlayerInTabView")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
 val ThumbnailCornerRadiusKey = floatPreferencesKey("thumbnailCornerRadius")
 val CropAlbumArtKey = booleanPreferencesKey("cropAlbumArt")
@@ -140,6 +152,10 @@ val AudioOffload = booleanPreferencesKey("enableOffload")
 // JioSaavn streaming
 val EnableSaavnStreamingKey = booleanPreferencesKey("enableSaavnStreaming")
 val SaavnAudioQualityKey    = stringPreferencesKey("saavnAudioQuality")
+/** On (default): a JioSaavn miss (no match, no stream URL) falls through to a normal
+ *  YouTube fetch, so playback never just fails. Off: a miss fails the playback attempt
+ *  instead, for a user who wants Saavn-or-nothing rather than a silent audio swap. */
+val SaavnFallbackToYouTubeKey = booleanPreferencesKey("saavnFallbackToYouTube")
 
 // Lossless (TIDAL via hifi-api). Opt-in, off by default. Streaming only for now.
 val EnableTidalStreamingKey = booleanPreferencesKey("enableTidalStreaming")
@@ -265,6 +281,8 @@ val ArtistSortTypeKey = stringPreferencesKey("artistSortType")
 val ArtistSortDescendingKey = booleanPreferencesKey("artistSortDescending")
 val AlbumSortTypeKey = stringPreferencesKey("albumSortType")
 val AlbumSortDescendingKey = booleanPreferencesKey("albumSortDescending")
+val LocalSongSortTypeKey = stringPreferencesKey("localSongSortType")
+val LocalSongSortDescendingKey = booleanPreferencesKey("localSongSortDescending")
 val PlaylistSortTypeKey = stringPreferencesKey("playlistSortType")
 val PlaylistSortDescendingKey = booleanPreferencesKey("playlistSortDescending")
 val AddToPlaylistSortTypeKey = stringPreferencesKey("addToPlaylistSortType")

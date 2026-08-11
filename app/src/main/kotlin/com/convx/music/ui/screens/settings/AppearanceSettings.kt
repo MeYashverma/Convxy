@@ -109,7 +109,6 @@ import com.convx.music.constants.DensityScaleKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.DynamicThemeKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.EnableDynamicIconKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableSettingsPopupKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -242,7 +241,6 @@ fun AppearanceSettings(
     val (_, _) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
     val (miniBarTabStyle, onMiniBarTabStyleChange) = rememberPreference(MiniBarTabStyleKey, defaultValue = false)
     val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
-    val (_, _) = rememberPreference(EnableDynamicIconKey, defaultValue = true)
     val (useNewPlayerDesign, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = false)
     val (showAudioQualityBadge, onShowAudioQualityBadgeChange) = rememberPreference(
         ShowAudioQualityBadgeKey,
@@ -567,6 +565,30 @@ fun AppearanceSettings(
                         Text(fontLabel)
                     },
                     onClick = { navController.navigate("settings/appearance/font") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.convx_logo),
+                    title = { Text(stringResource(R.string.app_icon)) },
+                    description = { Text(stringResource(R.string.app_icon_desc)) },
+                    onClick = { navController.navigate("settings/appearance/appicon") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.palette),
+                    title = { Text(stringResource(R.string.presets)) },
+                    description = { Text(stringResource(R.string.presets_desc)) },
+                    onClick = { navController.navigate("settings/appearance/presets") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text(stringResource(R.string.player_icons)) },
+                    description = { Text(stringResource(R.string.player_icons_desc)) },
+                    onClick = { navController.navigate("settings/appearance/playericons") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.edit),
+                    title = { Text(stringResource(R.string.diy)) },
+                    description = { Text(stringResource(R.string.diy_desc)) },
+                    onClick = { navController.navigate("settings/appearance/diy") }
                 )
             )
         )

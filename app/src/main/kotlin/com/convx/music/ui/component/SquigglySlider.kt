@@ -12,11 +12,14 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
@@ -36,8 +39,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import com.convx.music.ui.player.customize.PlayerIconSlot
+import com.convx.music.ui.player.customize.rememberPlayerIcon
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -55,6 +61,9 @@ fun SquigglySlider(
 ) {
     val primaryColor = colors.activeTrackColor
     val inactiveColor = colors.inactiveTrackColor
+    // Only SliderStyle.SLIM read this before — the vertical-bar thumb below drew unconditionally
+    // and ignored a custom seek-thumb image entirely.
+    val seekThumb = rememberPlayerIcon(PlayerIconSlot.SEEK_THUMB)
 
     var isDragging by remember { mutableStateOf(false) }
     var dragPosition by remember { mutableFloatStateOf(value) }
@@ -289,17 +298,38 @@ fun SquigglySlider(
                 )
             }
 
-            // Vertical Bar Thumb
+            // Vertical Bar Thumb — skipped when a custom seek-thumb image is set; the image is
+            // drawn as a real composable below instead, since a Canvas draw can't show one.
             val barHalfHeight = (lineAmplitude + strokeWidth)
             val barWidth = 5.dp.toPx()
 
-            if (barHalfHeight > 0.5f) {
+            if (!seekThumb.isCustom && barHalfHeight > 0.5f) {
                 drawLine(
                     color = primaryColor,
                     start = Offset(totalProgressPx, centerY - barHalfHeight),
                     end = Offset(totalProgressPx, centerY + barHalfHeight),
                     strokeWidth = barWidth,
                     cap = StrokeCap.Round,
+                )
+            }
+        }
+
+        if (seekThumb.isCustom) {
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                val density = androidx.compose.ui.platform.LocalDensity.current
+                val progress = if (duration > 0f) (position / duration).coerceIn(0f, 1f) else 0f
+                val thumbSize = 18.dp
+                val xPx = with(density) {
+                    maxWidth.toPx() * progress - (thumbSize / 2).toPx()
+                }
+                Image(
+                    painter = seekThumb.painter,
+                    contentDescription = null,
+                    colorFilter = seekThumb.colorFilterFor(primaryColor),
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(thumbSize)
+                        .graphicsLayer { translationX = xPx },
                 )
             }
         }

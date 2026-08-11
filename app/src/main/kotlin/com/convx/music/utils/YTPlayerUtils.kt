@@ -27,6 +27,7 @@ import com.music.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.music.innertube.models.response.PlayerResponse
 import com.convx.music.constants.AudioQuality
 import com.convx.music.constants.EnableSaavnStreamingKey
+import com.convx.music.constants.SaavnFallbackToYouTubeKey
 import com.convx.music.constants.EnableTidalStreamingKey
 import com.convx.music.constants.EnabledModulesKey
 import com.convx.music.constants.ModuleSourcesKey
@@ -177,10 +178,13 @@ object YTPlayerUtils {
             Timber.tag(TAG).d("  moduleSources: $moduleSourcesJson")
             Timber.tag(TAG).d("  moduleSettings: $moduleSettingsJson")
             runCatching {
-                val enabledIds = runCatching {
+                // Stored in the user's chosen priority order (drag-reorder in
+                // ModuleSourceScreen), lowest index tried first.
+                val enabledOrder = runCatching {
                     val arr = JSONArray(enabledModulesJson)
-                    (0 until arr.length()).map { arr.getString(it) }.toSet()
-                }.getOrElse { emptySet<String>() }
+                    (0 until arr.length()).map { arr.getString(it) }
+                }.getOrElse { emptyList<String>() }
+                val enabledIds = enabledOrder.toSet()
 
                 val sourceUrls = runCatching {
                     val arr = JSONArray(moduleSourcesJson)
@@ -257,7 +261,11 @@ object YTPlayerUtils {
                                 continue
                             }
                             Timber.tag(TAG).d("  ✓ Fetched ${modules.size} modules from $sourceUrl")
-                            for ((modIdx, module) in modules.withIndex()) {
+                            // Try in the user's priority order, not the index's own order —
+                            // enabledOrder.indexOf is -1 (sorts first) for anything not enabled,
+                            // but those are skipped by the `!in enabledIds` check below anyway.
+                            val orderedModules = modules.sortedBy { enabledOrder.indexOf(it.id) }
+                            for ((modIdx, module) in orderedModules.withIndex()) {
                                 if (module.id !in enabledIds) {
                                     Timber.tag(TAG).d("    [${modIdx + 1}] SKIP ${module.id} (not enabled)")
                                     continue
@@ -724,6 +732,10 @@ object YTPlayerUtils {
 
                 if (saavnResult != null) {
                     return Result.success(saavnResult)
+                }
+                if (!context.dataStore.get(SaavnFallbackToYouTubeKey, true)) {
+                    Timber.tag(TAG).d("Saavn intercept failed and YouTube fallback is off — failing playback")
+                    return Result.failure(IOException("No matching track found on JioSaavn"))
                 }
                 // Any exception or null → fall through to YouTube below
                 Timber.tag(TAG).d("Saavn intercept failed or returned null — falling back to YouTube")

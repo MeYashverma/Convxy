@@ -13,10 +13,6 @@ enum class TransitionStyle {
      *  not be able to tell where one track ended. */
     TRANSPARENT,
 
-    /** Loop the outgoing track's last bar, shortening it, while the next track
-     *  arrives underneath. */
-    LOOP_ROLL,
-
     /** Cut the outgoing track into a delay line and let the tail ring out. */
     ECHO_FREEZE,
 
@@ -80,7 +76,6 @@ object TransitionSelector {
             ?.takeIf { EnergyProfile.isUsable(it) }
             ?.let { EnergyProfile.introEnergy(it) }
             ?: UNKNOWN_ENERGY
-        val beatConfidence = outgoing.grid.confidence
 
         val scores = mutableMapOf<TransitionStyle, Float>()
 
@@ -93,14 +88,8 @@ object TransitionSelector {
             DjMixTier.PLAIN_CROSSFADE -> 0.20f
         }
 
-        // A loop needs a steady beat to loop and an outro still at full energy;
-        // looping a fade-out just repeats the fade.
-        if (beatConfidence >= MIN_LOOP_CONFIDENCE && outroEnergy >= MIN_LOOP_OUTRO_ENERGY) {
-            scores[TransitionStyle.LOOP_ROLL] = 0.50f + beatConfidence * 0.25f + outroEnergy * 0.20f
-        }
-
-        // The safe one: works on anything, and works best where a loop doesn't,
-        // i.e. where the track is already thinning out.
+        // The safe one: works on anything, and works best where a loop-style
+        // effect wouldn't, i.e. where the track is already thinning out.
         scores[TransitionStyle.ECHO_FREEZE] = 0.58f + (1f - outroEnergy) * 0.25f
 
         // A brake is an ending, not a blend. It earns its place when the tempos
@@ -118,7 +107,7 @@ object TransitionSelector {
     /**
      * The same creative move never lands twice in a row — a hard rule, not a
      * nudge. A soft penalty does not work here: when a track ends at full energy
-     * the loop roll outscores everything else by a wide margin, so back-to-back
+     * one effect can outscore everything else by a wide margin, so back-to-back
      * tracks like that would always produce the identical move, which is exactly
      * the mechanical feel the effects exist to avoid.
      *
@@ -144,8 +133,6 @@ object TransitionSelector {
      *  decision falls back to the tier and the beat confidence. */
     private const val UNKNOWN_ENERGY = 0.5f
 
-    private const val MIN_LOOP_CONFIDENCE = 0.45f
-    private const val MIN_LOOP_OUTRO_ENERGY = 0.6f
     private const val MIN_TAPE_STOP_INTRO_ENERGY = 0.6f
 
     private const val REPEAT_PENALTY_OLDER = 0.10f

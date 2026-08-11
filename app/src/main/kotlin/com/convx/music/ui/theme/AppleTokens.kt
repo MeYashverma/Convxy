@@ -1,6 +1,8 @@
 package com.convx.music.ui.theme
 
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Shapes
+import androidx.compose.runtime.Composable
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -23,8 +25,14 @@ object AppleTokens {
     val Card = Color(0xFF1C1C1E)
     val CardSecondary = Color(0xFF2C2C2E)
 
-    // Dividers
-    val Divider = Color(0x1AFFFFFF)
+    /**
+     * Hairline rule on whatever surface the caller sits on. Derived from the
+     * content colour rather than fixed to white: a constant white rule is
+     * invisible on the light theme, and on an artwork-tinted screen it reads as
+     * a foreign line instead of one belonging to the surface.
+     */
+    val divider: Color
+        @Composable get() = LocalContentColor.current.copy(alpha = 0.12f)
 
     /**
      * Metadata text — artist names, subtitles, durations. One step down from
@@ -129,9 +137,6 @@ object AppleTokens {
         }
         return Color(androidx.core.graphics.ColorUtils.HSLToColor(hsl))
     }
-
-    fun dividerOn(bg: Color): Color =
-        if (bg.luminance() > 0.5f) Color(0x1A000000) else Divider
 }
 
 /**

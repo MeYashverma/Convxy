@@ -21,6 +21,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -84,6 +85,20 @@ private val NavBarShape = ContinuousRoundedRectangle(percent = 50)
 // height, itself matched to the inline mini player's shrunk height) so the
 // bar doesn't visibly resize the moment the keyboard opens.
 private val NavBarSearchBarHeight = 48.dp
+
+// Width the expanded row needs for everything that is NOT a tab slot: the
+// standalone search circle (a square as tall as the row — ~57dp at fontScale 1,
+// more as the label grows) plus the gap before it and the pill's own horizontal
+// content padding. Whatever is left is split between the tabs. Deliberately a
+// couple of dp generous: under-reserving starves the circle, and the Row hands
+// it the leftover width, which is what made the search icon render smaller than
+// the bar it sits beside.
+private val NavBarStandaloneReserve = 80.dp
+
+// Floor for a tab slot. Below this the icon and its label stop reading as one
+// target; a phone narrow enough to hit this floor gets a bar that overflows
+// slightly instead of tabs that are unusable.
+private val NavBarMinTabWidth = 56.dp
 
 // How long the mini player/icon hide transition (AnimatedContent in
 // AppFloatingNavBar) takes to clear the screen before the keyboard pulls up.
@@ -274,114 +289,131 @@ private fun AppFloatingNavBarChrome(
             null
         }
 
-    FloatingTabBar(
-        selectedTabKey = selectedTabKey,
-        scrollConnection = scrollConnection,
-        modifier = modifier,
-        tabBarContentModifier = tabBarContentModifier,
-        inlineAccessory = inlineAccessory,
-        expandedAccessory = expandedAccessory,
-        colors = FloatingTabBarDefaults.colors(
-            backgroundColor = backgroundColor,
-            accessoryBackgroundColor = backgroundColor,
-        ),
-        sizes = FloatingTabBarDefaults.sizes(
-            tabBarContentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
-            tabExpandedContentPadding = PaddingValues(vertical = 4.dp, horizontal = 6.dp),
-            tabInlineContentPadding = PaddingValues(8.dp),
-        ),
-        // The selection puck's lens/accent-tint effects only make sense when the
-        // bar itself is sampling the app backdrop through liquid glass.
-        backdrop = if (useGlass) LocalAppBackdrop.current else null,
-        // The puck tints its whole sampled icon row with this one colour. Feeding it
-        // the glass content colour meant that whenever adaptive contrast resolved
-        // dark (light theme, or a light tint), the entire puck rendered near-black
-        // and read as a dark blob. The app accent is chosen to be visible against
-        // the bar and is what the rail already uses for selected content.
-        accentColor = com.convx.music.ui.theme.LocalAccentColor.current,
-        searchMode = searchModeActive,
-        searchBarContent = if (searchModeActive) {
-            { contentModifier ->
-                SearchBarPlaceholder(
-                    state = navSearch,
-                    contentColor = accessoryContentColor,
-                    modifier = contentModifier,
-                )
-            }
+    // Tab slots are a fixed width so the drag puck can map an offset to an index
+    // (see FloatingTabBarSizes.tabWidth), and at the design's 88dp the pill plus
+    // the search circle overruns anything narrower than ~410dp. The Row measures
+    // the pill first and hands the circle whatever width is left, so on a slim
+    // phone the bar read as oversized with a shrunken search icon beside it.
+    // Fitting the tabs to the width actually available fixes both at once, and
+    // the ceiling keeps wider phones pixel-identical to what they render today.
+    BoxWithConstraints(modifier) {
+        val tabWidth = if (tabScreens.isEmpty()) {
+            FloatingTabBarDefaults.TabWidth
         } else {
-            null
-        },
-        expandedContentWidthPx = expandedContentWidthPx,
-        onExpandedWidthChanged = { expandedContentWidthPx = it },
-    ) {
-        tabScreens.forEach { screen ->
-            val isSelected = screen.route == selectedTabKey
-            tab(
-                key = screen.route,
-                title = {
-                    Text(
-                        text = stringResource(screen.titleId),
-                        color = if (isSelected) selectedContentColor else unselectedContentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 10.sp,
-                    )
-                },
-                icon = {
-                    Icon(
-                        painter = painterResource(
-                            screen.icon(appleMusicUi)
-                        ),
-                        contentDescription = stringResource(screen.titleId),
-                        tint = if (isSelected) selectedContentColor else unselectedContentColor,
-                        modifier = Modifier.size(30.dp),
-                    )
-                },
-                onClick = {
-                    // In search mode this is the shrunk current-screen icon —
-                    // tapping it exits (animate back, then navigate) rather than
-                    // re-navigating to itself.
-                    if (searchModeActive) {
-                        navSearch.onExit()
-                    } else {
-                        onItemClick(screen, isRouteSelected(currentRoute, screen.route, navigationItems))
-                    }
-                },
-            )
+            ((maxWidth - NavBarStandaloneReserve) / tabScreens.size)
+                .coerceIn(NavBarMinTabWidth, FloatingTabBarDefaults.TabWidth)
         }
 
-        if (searchScreen != null) {
-            val screen = searchScreen
-            val isSelected = screen.route == selectedTabKey
-            standaloneTab(
-                key = screen.route,
-                title = {
-                    Text(
-                        text = stringResource(screen.titleId),
-                        color = if (isSelected) selectedContentColor else unselectedContentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 10.sp,
+        FloatingTabBar(
+            selectedTabKey = selectedTabKey,
+            scrollConnection = scrollConnection,
+            modifier = Modifier.fillMaxWidth(),
+            tabBarContentModifier = tabBarContentModifier,
+            inlineAccessory = inlineAccessory,
+            expandedAccessory = expandedAccessory,
+            colors = FloatingTabBarDefaults.colors(
+                backgroundColor = backgroundColor,
+                accessoryBackgroundColor = backgroundColor,
+            ),
+            sizes = FloatingTabBarDefaults.sizes(
+                tabBarContentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
+                tabExpandedContentPadding = PaddingValues(vertical = 4.dp, horizontal = 6.dp),
+                tabInlineContentPadding = PaddingValues(8.dp),
+                tabWidth = tabWidth,
+            ),
+            // The selection puck's lens/accent-tint effects only make sense when the
+            // bar itself is sampling the app backdrop through liquid glass.
+            backdrop = if (useGlass) LocalAppBackdrop.current else null,
+            // The puck tints its whole sampled icon row with this one colour. Feeding it
+            // the glass content colour meant that whenever adaptive contrast resolved
+            // dark (light theme, or a light tint), the entire puck rendered near-black
+            // and read as a dark blob. The app accent is chosen to be visible against
+            // the bar and is what the rail already uses for selected content.
+            accentColor = com.convx.music.ui.theme.LocalAccentColor.current,
+            searchMode = searchModeActive,
+            searchBarContent = if (searchModeActive) {
+                { contentModifier ->
+                    SearchBarPlaceholder(
+                        state = navSearch,
+                        contentColor = accessoryContentColor,
+                        modifier = contentModifier,
                     )
-                },
-                icon = {
-                    Icon(
-                        painter = painterResource(
-                            screen.icon(appleMusicUi)
-                        ),
-                        contentDescription = stringResource(screen.titleId),
-                        tint = if (isSelected) selectedContentColor else unselectedContentColor,
-                        modifier = Modifier.size(30.dp),
-                    )
-                },
-                onClick = {
-                    if (searchModeActive) {
-                        navSearch.onTapBar()
-                    } else {
-                        navSearch.onTapSearchIcon()
-                    }
-                },
-            )
+                }
+            } else {
+                null
+            },
+            expandedContentWidthPx = expandedContentWidthPx,
+            onExpandedWidthChanged = { expandedContentWidthPx = it },
+        ) {
+            tabScreens.forEach { screen ->
+                val isSelected = screen.route == selectedTabKey
+                tab(
+                    key = screen.route,
+                    title = {
+                        Text(
+                            text = stringResource(screen.titleId),
+                            color = if (isSelected) selectedContentColor else unselectedContentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 10.sp,
+                        )
+                    },
+                    icon = {
+                        Icon(
+                            painter = painterResource(
+                                screen.icon(appleMusicUi)
+                            ),
+                            contentDescription = stringResource(screen.titleId),
+                            tint = if (isSelected) selectedContentColor else unselectedContentColor,
+                            modifier = Modifier.size(30.dp),
+                        )
+                    },
+                    onClick = {
+                        // In search mode this is the shrunk current-screen icon —
+                        // tapping it exits (animate back, then navigate) rather than
+                        // re-navigating to itself.
+                        if (searchModeActive) {
+                            navSearch.onExit()
+                        } else {
+                            onItemClick(screen, isRouteSelected(currentRoute, screen.route, navigationItems))
+                        }
+                    },
+                )
+            }
+
+            if (searchScreen != null) {
+                val screen = searchScreen
+                val isSelected = screen.route == selectedTabKey
+                standaloneTab(
+                    key = screen.route,
+                    title = {
+                        Text(
+                            text = stringResource(screen.titleId),
+                            color = if (isSelected) selectedContentColor else unselectedContentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 10.sp,
+                        )
+                    },
+                    icon = {
+                        Icon(
+                            painter = painterResource(
+                                screen.icon(appleMusicUi)
+                            ),
+                            contentDescription = stringResource(screen.titleId),
+                            tint = if (isSelected) selectedContentColor else unselectedContentColor,
+                            modifier = Modifier.size(30.dp),
+                        )
+                    },
+                    onClick = {
+                        if (searchModeActive) {
+                            navSearch.onTapBar()
+                        } else {
+                            navSearch.onTapSearchIcon()
+                        }
+                    },
+                )
+            }
         }
     }
 }

@@ -425,7 +425,7 @@ fun SuggestionItem(
         }
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 16.dp),
-            color = AppleTokens.Divider,
+            color = AppleTokens.divider,
         )
     }
 }

@@ -34,7 +34,7 @@ class TransitionSelectorTest {
     }
 
     @Test
-    fun `a mismatched pair ending at full energy gets the loop roll`() {
+    fun `a mismatched pair ending at full energy gets echoed`() {
         val style = TransitionSelector.select(
             tier = DjMixTier.SMART_CROSSFADE,
             outgoing = analysis(confidence = 0.9f, profile = loudThroughout()),
@@ -43,7 +43,7 @@ class TransitionSelectorTest {
             creativeEnabled = true,
         )
 
-        assertEquals(TransitionStyle.LOOP_ROLL, style)
+        assertEquals(TransitionStyle.ECHO_FREEZE, style)
     }
 
     @Test
@@ -88,7 +88,7 @@ class TransitionSelectorTest {
     }
 
     @Test
-    fun `the same move does not land twice in a row when another fits nearly as well`() {
+    fun `the same move does not land twice in a row`() {
         val args = { recent: List<TransitionStyle> ->
             TransitionSelector.select(
                 tier = DjMixTier.SMART_CROSSFADE,
@@ -103,7 +103,7 @@ class TransitionSelectorTest {
         val first = args(emptyList())
         val second = args(listOf(first))
 
-        assertEquals(TransitionStyle.LOOP_ROLL, first)
+        assertEquals(TransitionStyle.ECHO_FREEZE, first)
         assertNotEquals(first, second)
     }
 
@@ -137,15 +137,15 @@ class TransitionSelectorTest {
 
         // An effect one transition ago locks the next few out entirely — an
         // effect on every song is a plugin, not a DJ.
-        val justUsed = listOf(TransitionStyle.LOOP_ROLL)
+        val justUsed = listOf(TransitionStyle.ECHO_FREEZE)
         assertEquals(TransitionStyle.TRANSPARENT, select(justUsed))
         assertEquals(
             TransitionStyle.TRANSPARENT,
-            select(listOf(TransitionStyle.TRANSPARENT, TransitionStyle.LOOP_ROLL)),
+            select(listOf(TransitionStyle.TRANSPARENT, TransitionStyle.ECHO_FREEZE)),
         )
 
         // Once enough transparent transitions have gone by, effects return.
-        val cooledDown = List(4) { TransitionStyle.TRANSPARENT } + TransitionStyle.LOOP_ROLL
+        val cooledDown = List(4) { TransitionStyle.TRANSPARENT } + TransitionStyle.ECHO_FREEZE
         assertNotEquals(TransitionStyle.TRANSPARENT, select(cooledDown))
     }
 

@@ -226,6 +226,7 @@ import com.convx.music.ui.component.AppFloatingNavBar
 import com.convx.music.ui.component.LocalDownloads
 import com.convx.music.ui.component.LocalItemPrefs
 import com.convx.music.ui.component.LocalNavSearchState
+import com.convx.music.ui.component.rememberAppBackgroundTint
 import com.convx.music.ui.component.rememberItemPrefs
 import com.convx.music.ui.component.NavSearchState
 import com.convx.music.ui.component.AppNavigationBar
@@ -513,8 +514,12 @@ class MainActivity : ComponentActivity() {
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // Initialize Listen Together manager
-        listenTogetherManager.initialize()
+        // Listen Together temporarily disabled — same "needs more work before shipping"
+        // treatment PlayerSettings.kt already gives DJ mixing/creative transitions. Skipping
+        // initialize() keeps the client from ever connecting or reconnecting to a persisted
+        // room in the background; the CompositionLocal below is also nulled so every UI entry
+        // point falls back to its existing "manager not available" state instead.
+        // listenTogetherManager.initialize()
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             val locale = dataStore[AppLanguageKey]
@@ -1345,7 +1350,10 @@ class MainActivity : ComponentActivity() {
                     LocalDownloadUtil provides downloadUtil,
                     LocalShimmerTheme provides ShimmerTheme,
                     LocalSyncUtils provides syncUtils,
-                    LocalListenTogetherManager provides listenTogetherManager,
+                    // Temporarily disabled — see the initialize() comment in onCreate. Every
+                    // current entry point (PlayerMenu's ListenTogetherDialog, ListenTogetherScreen)
+                    // already has a null-manager fallback, so this alone turns the whole feature off.
+                    LocalListenTogetherManager provides null,
                     LocalGlassEffectConfig provides glassEffectConfig,
                     LocalTabView provides showRail,
                     LocalAppBackdrop provides appBackdrop,
@@ -1398,6 +1406,15 @@ class MainActivity : ComponentActivity() {
                                             ),
                                             label = "topBarChromeAlpha",
                                         )
+                                        // The scrim is the screen's OWN background faded
+                                        // out, not a fixed black: hardcoded black read as
+                                        // a dark band across the top of every light-theme
+                                        // screen. Same expression the top-level screens
+                                        // paint behind their content, so it honours the
+                                        // picked theme colour when dynamic colour is off.
+                                        val scrimColor = rememberAppBackgroundTint(
+                                            MaterialTheme.colorScheme.background
+                                        )
                                         if (chromeAlpha > 0.01f) {
                                             // Replaces the blur that used to sit here: one drawn
                                             // rect, no capture, no layer of its own beyond the
@@ -1415,10 +1432,10 @@ class MainActivity : ComponentActivity() {
                                                     .graphicsLayer { alpha = chromeAlpha }
                                                     .background(
                                                         Brush.verticalGradient(
-                                                            0f to Color.Black.copy(alpha = 0.82f),
-                                                            0.42f to Color.Black.copy(alpha = 0.70f),
-                                                            0.68f to Color.Black.copy(alpha = 0.38f),
-                                                            0.86f to Color.Black.copy(alpha = 0.14f),
+                                                            0f to scrimColor.copy(alpha = 0.82f),
+                                                            0.42f to scrimColor.copy(alpha = 0.70f),
+                                                            0.68f to scrimColor.copy(alpha = 0.38f),
+                                                            0.86f to scrimColor.copy(alpha = 0.14f),
                                                             1f to Color.Transparent,
                                                         )
                                                     )
@@ -1932,11 +1949,20 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            com.convx.music.ui.component.DonationPromptHost()
+
                             // Both float OVER the full-width NavHost, exactly as the
                             // bottom bar does on a phone: nothing reserves layout
                             // width for them, so content runs underneath instead of
                             // being clipped short of them.
-                            if (showRail) {
+                            //
+                            // Ambient mode forces landscape orientation (see AmbientModeScreen's
+                            // DisposableEffect), which alone flips showRail true on a phone that
+                            // would never otherwise qualify for the rail layout — excluded here
+                            // the same way ambient_mode is already excluded from the bottom/
+                            // floating nav bar above, or the rail floats over its full-screen
+                            // visualizer with no route-based reason to.
+                            if (showRail && currentRoute != "ambient_mode") {
                                 // No global floating Back here anymore: each screen's own
                                 // back button (TopAppBar nav icon or floating chrome row)
                                 // now insets clear of the side panel, so a second global

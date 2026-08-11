@@ -5,132 +5,72 @@
 
 package com.convx.music.ui.screens.settings
 
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.Image
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.background
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.border
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.bounceClick
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.combinedBounceClick
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Arrangement
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Box
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Column
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Row
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Spacer
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.height
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.only
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.padding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.size
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.width
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.rememberScrollState
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.shape.CircleShape
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.verticalScroll
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material.icons.Icons
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material.icons.filled.BugReport
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material.icons.filled.Favorite
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material.icons.filled.History
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Icon
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.IconButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.MaterialShapes
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.MaterialTheme
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Surface
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Text
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.TopAppBar
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.TopAppBarScrollBehavior
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.toShape
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.Composable
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.remember
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Alignment
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Modifier
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.draw.clip
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.graphics.BlendMode
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.graphics.ColorFilter
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.layout.ContentScale
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.platform.LocalContext
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.platform.LocalUriHandler
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.res.painterResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.res.stringResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.text.font.FontWeight
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.unit.dp
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.unit.sp
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.navigation.NavController
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.BuildConfig
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.LocalPlayerAwareWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.DonationKofiUrl
+import com.convx.music.constants.DonationUpiId
+import com.convx.music.constants.DonationUpiUri
 import com.convx.music.R
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.IconButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.Material3SettingsGroup
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.Material3SettingsItem
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.backToMain
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.safeOpenUri
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import java.text.SimpleDateFormat
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import java.util.Date
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -193,7 +133,7 @@ fun AboutScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Image(
-                    painter = painterResource(R.drawable.vivimusicnotification),
+                    painter = painterResource(R.drawable.convx_logo),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
                     colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
@@ -242,6 +182,26 @@ fun AboutScreen(
             )
         )
 
+        Spacer(modifier = Modifier.height(27.dp))
+
+        // Support Section
+        Material3SettingsGroup(
+            title = stringResource(R.string.support_section),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.favorite),
+                    title = { Text(stringResource(R.string.support_upi)) },
+                    description = { Text(DonationUpiId) },
+                    onClick = { uriHandler.safeOpenUri(context, DonationUpiUri) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.favorite),
+                    title = { Text(stringResource(R.string.support_kofi)) },
+                    description = { Text(stringResource(R.string.support_kofi_desc)) },
+                    onClick = { uriHandler.safeOpenUri(context, DonationKofiUrl) }
+                ),
+            )
+        )
         Spacer(modifier = Modifier.height(27.dp))
 
         // App Information Section

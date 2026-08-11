@@ -132,7 +132,10 @@ import com.convx.music.constants.InnerTubeCookieKey
 import com.convx.music.constants.ListItemHeight
 import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.ListThumbnailSize
+import com.convx.music.constants.LocalSongSortDescendingKey
+import com.convx.music.constants.LocalSongSortTypeKey
 import com.convx.music.constants.RandomizeHomeOrderKey
+import com.convx.music.constants.SongSortType
 import com.convx.music.constants.ShowHomeFabKey
 import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
 import com.convx.music.constants.HomeGridColumnsOverrideKey
@@ -187,6 +190,7 @@ import com.convx.music.ui.component.shimmer.ShimmerHost
 import com.convx.music.ui.component.shimmer.TextPlaceholder
 import com.convx.music.ui.component.SongGridItem
 import com.convx.music.ui.component.SongListItem
+import com.convx.music.ui.component.SortHeader
 import com.convx.music.ui.component.SpeedDialGridItem
 import com.convx.music.ui.component.YouTubeGridItem
 import com.convx.music.ui.component.YouTubeListItem
@@ -360,7 +364,7 @@ fun CommunityPlaylistCard(
                     if (idx > 0) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 68.dp),
-                            color = AppleTokens.Divider,
+                            color = AppleTokens.divider,
                         )
                     }
                     Row(
@@ -1493,6 +1497,30 @@ private fun LazyListScope.localHomeContent(
 
     when (category) {
         LocalCategory.SONGS -> {
+            item(key = "local_songs_sort") {
+                val (sortType, onSortTypeChange) = rememberEnumPreference(
+                    LocalSongSortTypeKey,
+                    SongSortType.NAME,
+                )
+                val (sortDescending, onSortDescendingChange) =
+                    rememberPreference(LocalSongSortDescendingKey, false)
+                SortHeader(
+                    sortType = sortType,
+                    sortDescending = sortDescending,
+                    onSortTypeChange = onSortTypeChange,
+                    onSortDescendingChange = onSortDescendingChange,
+                    sortTypeText = {
+                        when (it) {
+                            SongSortType.CREATE_DATE -> R.string.sort_by_create_date
+                            SongSortType.NAME -> R.string.sort_by_name
+                            SongSortType.ARTIST -> R.string.sort_by_artist
+                            SongSortType.PLAY_TIME -> R.string.sort_by_play_time
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
+                )
+            }
+
             item(key = "local_shuffle_all") {
                 Row(
                     modifier = Modifier
@@ -1584,10 +1612,23 @@ private fun LazyListScope.localHomeContent(
         }
 
         LocalCategory.FOLDERS -> {
+            // Built once for the whole category, not per row — a per-row scan over every
+            // local song to find a folder's thumbnail is the same "expensive work in a
+            // LazyColumn row" mistake as a per-row DB query.
+            //
+            // No `remember` here: this branch runs in localHomeContent's own (non-@Composable)
+            // function body, not inside an item{}/itemsIndexed{} composable lambda — remember
+            // isn't callable at this scope. It's still built once per localHomeContent call
+            // rather than once per row, which is what actually mattered.
+            val songById = songs.associateBy { it.id }
+
             itemsIndexed(
                 items = folders,
                 key = { _, folder -> "local_folder_${folder.path}" },
             ) { index, folder ->
+                val thumbnailUrl = remember(folder, songById) {
+                    folder.songIds.firstNotNullOfOrNull { songById[it]?.song?.thumbnailUrl }
+                }
                 ListItem(
                     title = folder.name,
                     subtitle = pluralStringResource(
@@ -1596,18 +1637,29 @@ private fun LazyListScope.localHomeContent(
                         folder.songIds.size,
                     ),
                     thumbnailContent = {
-                        Box(
-                            modifier = Modifier
-                                .size(ListThumbnailSize)
-                                .clip(RoundedCornerShape(AppleTokens.Control))
-                                .background(LocalContentColor.current.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.library_music),
+                        if (thumbnailUrl != null) {
+                            AsyncImage(
+                                model = thumbnailUrl,
                                 contentDescription = null,
-                                modifier = Modifier.size(24.dp),
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(ListThumbnailSize)
+                                    .clip(RoundedCornerShape(AppleTokens.Control)),
                             )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(ListThumbnailSize)
+                                    .clip(RoundedCornerShape(AppleTokens.Control))
+                                    .background(LocalContentColor.current.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.library_music),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
                         }
                     },
                     shape = listItemShape(index, folders.size),
@@ -1725,7 +1777,10 @@ private fun LazyListScope.speedDialSection(
             } else {
                 (availableWidth / targetItemSize).toInt().coerceAtLeast(3)
             }
-            val rows = if (columns >= 6) 1 else if (columns >= 4) 2 else 3
+            // Tab view's side rail leaves a typical tablet at 4-5 columns, one short of
+            // the >=6 threshold below — that forced a second, cramped row where the width
+            // was already there for one wide one. Lower the bar once the rail is showing.
+            val rows = if (columns >= 6 || (LocalTabView.current && columns >= 4)) 1 else if (columns >= 4) 2 else 3
             val itemsPerPage = columns * rows
             val itemWidth = availableWidth / columns
             // Decode/upload only what the tile actually needs — 544 (the

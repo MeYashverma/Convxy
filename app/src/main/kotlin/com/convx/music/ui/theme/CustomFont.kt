@@ -20,7 +20,7 @@ import com.convx.music.utils.rememberPreference
 import java.io.File
 
 /** Where installed custom fonts live, one file per install (old one is deleted on replace). */
-private fun customFontDir(context: Context) = File(context.filesDir, "custom_fonts").apply { mkdirs() }
+internal fun customFontDir(context: Context) = File(context.filesDir, "custom_fonts").apply { mkdirs() }
 
 /**
  * Copies a user-picked font file into app storage so it survives without a

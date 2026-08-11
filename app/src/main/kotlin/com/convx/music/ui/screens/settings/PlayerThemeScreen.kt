@@ -616,8 +616,8 @@ private fun SlotPreviewBlock(slot: PlayerSlot, artworkUrl: String?) {
                     model = artworkUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    fallback = painterResource(R.drawable.vivi_music_icon),
-                    error = painterResource(R.drawable.vivi_music_icon),
+                    fallback = painterResource(R.drawable.convx_logo),
+                    error = painterResource(R.drawable.convx_logo),
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -775,27 +775,30 @@ private fun PlayerPreview(
             .padding(12.dp),
     ) {
         Spacer(Modifier.height(8.dp))
+        // Real player: APPLE_MUSIC draws full-bleed unclipped artwork in portrait, ignoring the
+        // artwork-style shape entirely — a VINYL/CLOVER style must not preview as a circle here.
+        val previewShape = if (background == PlayerBackgroundStyle.APPLE_MUSIC) {
+            RoundedCornerShape(0.dp)
+        } else when (artworkStyle) {
+            PlayerArtworkStyle.CARD -> ContinuousRoundedRectangle(10.dp)
+            else -> CircleShape
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .clip(
-                    when (artworkStyle) {
-                        PlayerArtworkStyle.CARD -> ContinuousRoundedRectangle(10.dp)
-                        else -> CircleShape
-                    }
-                ),
+                .clip(previewShape),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
                 model = artworkUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                fallback = painterResource(R.drawable.vivi_music_icon),
-                error = painterResource(R.drawable.vivi_music_icon),
+                fallback = painterResource(R.drawable.convx_logo),
+                error = painterResource(R.drawable.convx_logo),
                 modifier = Modifier.fillMaxSize(),
             )
-            if (artworkStyle == PlayerArtworkStyle.VINYL) {
+            if (previewShape == CircleShape && artworkStyle == PlayerArtworkStyle.VINYL) {
                 Canvas(Modifier.fillMaxSize()) {
                     val r = size.minDimension / 2f
                     drawCircle(

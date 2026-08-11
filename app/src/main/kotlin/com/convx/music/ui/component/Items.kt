@@ -236,7 +236,7 @@ inline fun ListItem(
         if (flat) {
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
-                color = AppleTokens.Divider,
+                color = AppleTokens.divider,
                 thickness = 0.5.dp,
             )
         }
@@ -717,7 +717,6 @@ fun AlbumListItem(
     flat: Boolean = false,
     showLikedIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
 
         val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
@@ -726,9 +725,9 @@ fun AlbumListItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsState()
+        val allDownloads = LocalDownloads.current
 
-        val downloadState by remember(songs) {
+        val downloadState by remember(songs, allDownloads) {
             derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
@@ -800,7 +799,6 @@ fun AlbumGridItem(
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope,
     badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
 
         val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
@@ -809,9 +807,9 @@ fun AlbumGridItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsState()
+        val allDownloads = LocalDownloads.current
 
-        val downloadState by remember(songs) {
+        val downloadState by remember(songs, allDownloads) {
             derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
@@ -908,7 +906,6 @@ fun PlaylistListItem(
     thumbnailOverrideUrl: String? = null,
     flat: Boolean = false,
     badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
 
         val songs by produceState<List<Song>>(initialValue = emptyList(), playlist.id) {
@@ -917,9 +914,9 @@ fun PlaylistListItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsState()
+        val allDownloads = LocalDownloads.current
 
-        val downloadState by remember(songs) {
+        val downloadState by remember(songs, allDownloads) {
             derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
@@ -1021,7 +1018,6 @@ fun PlaylistGridItem(
     // first-song artwork URL) instead of the playlist thumbnails / auto icon.
     thumbnailOverrideUrl: String? = null,
     badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
 
         val songs by produceState<List<Song>>(initialValue = emptyList(), playlist.id) {
@@ -1030,9 +1026,9 @@ fun PlaylistGridItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsState()
+        val allDownloads = LocalDownloads.current
 
-        val downloadState by remember(songs) {
+        val downloadState by remember(songs, allDownloads) {
             derivedStateOf {
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED

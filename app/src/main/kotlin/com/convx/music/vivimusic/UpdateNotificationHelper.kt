@@ -42,7 +42,7 @@ object UpdateNotificationHelper {
         val pending = PendingIntent.getActivity(context, NOTIFICATION_ID, intent, flags)
 
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.vivimusicnotification)
+            .setSmallIcon(R.drawable.convx_notification)
             .setContentTitle(context.getString(R.string.update_available_title))
             .setContentText(versionName)
             .setContentIntent(pending)

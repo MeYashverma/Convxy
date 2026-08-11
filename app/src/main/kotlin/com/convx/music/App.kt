@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.edit
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.svg.SvgDecoder
 import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.gif.AnimatedImageDecoder
@@ -276,6 +277,9 @@ class App : Application(), SingletonImageLoader.Factory {
                 } else {
                     add(GifDecoder.Factory())
                 }
+                // User-supplied SVGs (player icons, DIY stickers). Vectors rasterise at the
+                // size they are drawn at, so a custom icon never goes soft when scaled up.
+                add(SvgDecoder.Factory())
             }
             // Memory cache for fast image loading (prevents network requests on recomposition)
             memoryCache {

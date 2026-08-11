@@ -1154,7 +1154,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                 animationScope.launch {
                     offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
                 }
-            }
+            },
+            // Critically damped, so the stretch tracks the drag instead of ringing
+            // after it: the library's underdamped default is what made the puck
+            // wobble as it crossed each tab.
+            velocityDampingRatio = 1f,
         )
     }
     // False until this bar has run its selection sync once. Expanding back from
@@ -1423,8 +1427,8 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // time the bend is at full strength there is only one
                                 // copy left to warp.
                                 lens(
-                                    lerp(4f.dp.toPx(), 32f.dp.toPx(), progress),
-                                    lerp(6f.dp.toPx(), 28f.dp.toPx(), progress),
+                                    lerp(0f.dp.toPx(), 10f.dp.toPx(), progress),
+                                    lerp(0f.dp.toPx(), 12f.dp.toPx(), progress),
                                     // Dispersion is a drag-only flourish. It costs a
                                     // second, heavier shader, so a puck sitting still
                                     // should not be paying for it.
@@ -1798,13 +1802,21 @@ data class FloatingTabBarSizes(
     // Vendored addition: fixed width of one expanded tab slot. The drag-puck
     // indicator needs a known per-tab width to map drag offset to tab index,
     // so expanded tabs are equal-width instead of sized to their content.
-    val tabWidth: Dp = 88.dp,
+    val tabWidth: Dp = FloatingTabBarDefaults.TabWidth,
 )
 
 /**
  * Contains the default values used by [FloatingTabBar].
  */
 object FloatingTabBarDefaults {
+    /**
+     * Width of one expanded tab slot at full size. Callers that have to fit the
+     * pill plus the standalone tab into a narrow screen shrink below this — see
+     * [com.convx.music.ui.component.AppFloatingNavBar] — so it is the ceiling,
+     * not a guarantee.
+     */
+    val TabWidth: Dp = 88.dp
+
     /**
      * Creates a [FloatingTabBarColors] that represents the default colors used in a [FloatingTabBar].
      *
@@ -1864,7 +1876,7 @@ object FloatingTabBarDefaults {
         tabExpandedContentPadding: PaddingValues = PaddingValues(vertical = 6.dp, horizontal = 6.dp),
         componentSpacing: Dp = 8.dp,
         tabSpacing: Dp = 0.dp,
-        tabWidth: Dp = 88.dp,
+        tabWidth: Dp = TabWidth,
     ): FloatingTabBarSizes = FloatingTabBarSizes(
         tabBarContentPadding = tabBarContentPadding,
         tabInlineContentPadding = tabInlineContentPadding,

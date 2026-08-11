@@ -5,92 +5,50 @@
 
 package com.convx.music.ui.screens.settings
 
-import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.animation.animateColorAsState
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Arrangement
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Column
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Row
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.Spacer
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.height
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.only
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.padding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.layout.windowInsetsPadding
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.rememberScrollState
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.verticalScroll
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Card
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.CardDefaults
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Icon
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.MaterialTheme
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.RadioButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Text
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.TopAppBar
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.TopAppBarScrollBehavior
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.Composable
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.getValue
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Alignment
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Modifier
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.res.painterResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.res.stringResource
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.unit.dp
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.navigation.NavController
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.LocalPlayerAwareWindowInsets
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.R
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.EnableSaavnStreamingKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.SaavnAudioQuality
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.SaavnAudioQualityKey
-import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.SaavnFallbackToYouTubeKey
 import com.convx.music.ui.component.IconButton
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.Material3SettingsGroup
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.Material3SettingsItem
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.ModernSwitch
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.backToMain
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.utils.rememberEnumPreference
-import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.utils.rememberPreference
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -106,6 +64,10 @@ fun JioSettings(
     val (saavnQuality, onSaavnQualityChange) = rememberEnumPreference(
         SaavnAudioQualityKey,
         defaultValue = SaavnAudioQuality.QUALITY_320
+    )
+    val (fallbackToYouTube, onFallbackToYouTubeChange) = rememberPreference(
+        SaavnFallbackToYouTubeKey,
+        defaultValue = true
     )
 
     Column(
@@ -216,6 +178,26 @@ fun JioSettings(
                     enabled = saavnEnabled,
                     onClick = { onSaavnQualityChange(SaavnAudioQuality.QUALITY_96) }
                 )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Material3SettingsGroup(
+            items = listOf(
+                Material3SettingsItem(
+                    title = { Text(stringResource(R.string.saavn_fallback_to_youtube)) },
+                    description = { Text(stringResource(R.string.saavn_fallback_to_youtube_desc)) },
+                    enabled = saavnEnabled,
+                    trailingContent = {
+                        ModernSwitch(
+                            checked = fallbackToYouTube,
+                            enabled = saavnEnabled,
+                            onCheckedChange = onFallbackToYouTubeChange,
+                        )
+                    },
+                    onClick = { onFallbackToYouTubeChange(!fallbackToYouTube) }
+                ),
             )
         )
 

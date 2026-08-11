@@ -7,12 +7,15 @@ package com.convx.music.ui.component
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ProgressIndicatorDefaults
@@ -30,10 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.convx.music.ui.player.customize.PlayerIconSlot
+import com.convx.music.ui.player.customize.rememberPlayerIcon
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -137,16 +143,35 @@ fun WavySlider(
             waveSpeed = waveSpeed
         )
         
-        // Draw circular thumb - synced with progress indicator position
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val thumbX = size.width * displayValue
-            val thumbY = size.height / 2
-            
-            drawCircle(
-                color = thumbColor,
-                radius = thumbRadiusPx,
-                center = Offset(thumbX, thumbY)
-            )
+        // Thumb, synced with progress indicator position: the user's custom seek-thumb image
+        // when one is set (SLIM already draws it; WAVY drew a hardcoded circle and ignored it
+        // entirely), otherwise the stock circle.
+        val seekThumb = rememberPlayerIcon(PlayerIconSlot.SEEK_THUMB)
+        if (seekThumb.isCustom) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val widthPx = with(density) { maxWidth.toPx() }
+                val xPx = widthPx * displayValue - thumbRadiusPx
+                Image(
+                    painter = seekThumb.painter,
+                    contentDescription = null,
+                    colorFilter = seekThumb.colorFilterFor(thumbColor),
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(thumbRadius * 2)
+                        .graphicsLayer { translationX = xPx },
+                )
+            }
+        } else {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val thumbX = size.width * displayValue
+                val thumbY = size.height / 2
+
+                drawCircle(
+                    color = thumbColor,
+                    radius = thumbRadiusPx,
+                    center = Offset(thumbX, thumbY)
+                )
+            }
         }
     }
 }

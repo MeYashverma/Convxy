@@ -114,11 +114,17 @@ private suspend fun copyBackgroundMedia(
     context: android.content.Context,
     source: Uri,
     isVideo: Boolean,
+    isGif: Boolean = false,
 ): String? = runCatching {
-    val ext = if (isVideo) "mp4" else "jpg"
+    val ext = if (isVideo) "mp4" else if (isGif) "gif" else "jpg"
     val dest = File(context.filesDir, "home_background_${System.currentTimeMillis()}.$ext")
 
-    if (isVideo) {
+    if (isVideo || isGif) {
+        // Raw copy, no bake: decoding a GIF down to one frame and re-encoding it as a JPEG
+        // (the still-image path below) throws the animation away permanently. Coil already
+        // has a GIF decoder registered (App.kt), so the file plays as-is once HomeImageBackground
+        // points AsyncImage at it — animation is only lost again if blur bakes it to a static
+        // file, which is an intentional perf tradeoff there, not this copy step's problem.
         context.contentResolver.openInputStream(source)?.use { input ->
             dest.outputStream().use { output -> input.copyTo(output) }
         } ?: return null
@@ -170,10 +176,10 @@ fun HomeBackgroundControls() {
     var showDimDialog by rememberSaveable { mutableStateOf(false) }
     var pendingVideoUri by remember { mutableStateOf<Uri?>(null) }
 
-    fun applyPickedMedia(uri: Uri, video: Boolean) {
+    fun applyPickedMedia(uri: Uri, video: Boolean, gif: Boolean = false) {
         val previous = path
         scope.launch {
-            val newPath = withContext(Dispatchers.IO) { copyBackgroundMedia(context, uri, video) }
+            val newPath = withContext(Dispatchers.IO) { copyBackgroundMedia(context, uri, video, gif) }
             if (newPath != null) {
                 onPathChange(newPath)
                 onIsVideoChange(video)
@@ -187,7 +193,9 @@ fun HomeBackgroundControls() {
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        val video = context.contentResolver.getType(uri)?.startsWith("video/") == true
+        val mimeType = context.contentResolver.getType(uri)
+        val video = mimeType?.startsWith("video/") == true
+        val gif = mimeType == "image/gif"
         val cap = if (video) MaxHomeBackgroundVideoBytes else MaxHomeBackgroundImageBytes
         val size = mediaSizeBytes(context, uri)
         if (size > cap) {
@@ -205,7 +213,7 @@ fun HomeBackgroundControls() {
             // on lower-end devices.
             pendingVideoUri = uri
         } else {
-            applyPickedMedia(uri, video = false)
+            applyPickedMedia(uri, video = false, gif = gif)
         }
     }
 

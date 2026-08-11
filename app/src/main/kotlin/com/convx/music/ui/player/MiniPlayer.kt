@@ -118,6 +118,8 @@ import com.convx.music.LocalDatabase
 import com.convx.music.LocalListenTogetherManager
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.player.customize.PlayerGlyph
+import com.convx.music.ui.player.customize.PlayerIconSlot
 import com.convx.music.constants.CropAlbumArtKey
 import com.convx.music.constants.DarkModeKey
 import com.convx.music.constants.MiniPlayerBackgroundStyleKey
@@ -700,13 +702,19 @@ private fun NewMiniPlayerPlayButton(
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.4f), CircleShape)
                     )
-                    Icon(
-                        painter = painterResource(
-                            if (isListenTogetherGuest) {
-                                if (isMuted) R.drawable.volume_off else R.drawable.volume_up
-                            } else if (playbackState == Player.STATE_ENDED) R.drawable.replay else R.drawable.play
-                        ),
-                        contentDescription = null,
+                    PlayerGlyph(
+                        slot = when {
+                            isListenTogetherGuest -> null
+                            playbackState == Player.STATE_ENDED -> PlayerIconSlot.REPLAY
+                            else -> PlayerIconSlot.PLAY
+                        },
+                        fallback = if (isListenTogetherGuest) {
+                            if (isMuted) R.drawable.volume_off else R.drawable.volume_up
+                        } else if (playbackState == Player.STATE_ENDED) {
+                            R.drawable.replay
+                        } else {
+                            R.drawable.play
+                        },
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )

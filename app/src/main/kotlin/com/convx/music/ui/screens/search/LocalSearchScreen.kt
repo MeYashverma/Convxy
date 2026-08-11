@@ -108,6 +108,10 @@ fun LocalSearchScreen(
     val searchFilter by viewModel.filter.collectAsState()
     val result by viewModel.result.collectAsState()
 
+    LaunchedEffect(query) {
+        viewModel.query.value = query
+    }
+
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val lazyListState = rememberLazyListState()

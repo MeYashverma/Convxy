@@ -34,7 +34,13 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.convx.music.ui.player.customize.PlayerIconSlot
+import com.convx.music.ui.player.customize.rememberPlayerIcon
 
+/**
+ * @param slot when non-null, the button honours the user's custom glyph for that player control
+ *   and falls back to [icon] when none is set. Leave it null everywhere outside the player.
+ */
 @Composable
 fun ResizableIconButton(
     @DrawableRes icon: Int,
@@ -42,12 +48,14 @@ fun ResizableIconButton(
     color: Color = MaterialTheme.colorScheme.onSurface,
     enabled: Boolean = true,
     indication: Indication? = null,
+    slot: PlayerIconSlot? = null,
     onClick: () -> Unit = {},
 ) {
+    val custom = if (slot != null) rememberPlayerIcon(slot) else null
     Image(
-        painter = painterResource(icon),
+        painter = custom?.painter ?: painterResource(icon),
         contentDescription = null,
-        colorFilter = ColorFilter.tint(color),
+        colorFilter = if (custom == null) ColorFilter.tint(color) else custom.colorFilterFor(color),
         modifier = modifier
             .clickable(
                 indication = indication ?: ripple(bounded = false),

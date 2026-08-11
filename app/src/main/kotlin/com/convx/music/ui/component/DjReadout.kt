@@ -78,13 +78,11 @@ private fun DjState.describe(): String? {
 
 private fun DjState.tierLabel(): String? = when (tier) {
     DjMixTier.FULL_DJ -> when (style) {
-        TransitionStyle.LOOP_ROLL -> "loop"
         TransitionStyle.ECHO_FREEZE -> "echo"
         TransitionStyle.TAPE_STOP -> "brake"
         else -> "beatmatched"
     }
     DjMixTier.SMART_CROSSFADE -> when (style) {
-        TransitionStyle.LOOP_ROLL -> "loop"
         TransitionStyle.ECHO_FREEZE -> "echo"
         TransitionStyle.TAPE_STOP -> "brake"
         else -> "tempo matched"
@@ -92,7 +90,6 @@ private fun DjState.tierLabel(): String? = when (tier) {
     DjMixTier.PLAIN_CROSSFADE -> when (style) {
         TransitionStyle.TAPE_STOP -> "brake"
         TransitionStyle.ECHO_FREEZE -> "echo"
-        TransitionStyle.LOOP_ROLL -> "loop"
         else -> "crossfade"
     }
     null -> null

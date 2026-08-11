@@ -140,6 +140,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
@@ -163,11 +164,14 @@ import com.convx.music.LocalDatabase
 import com.convx.music.LocalDownloadUtil
 import com.convx.music.LocalListenTogetherManager
 import com.convx.music.LocalPlayerConnection
+import com.convx.music.LocalTabView
 import com.convx.music.R
 import com.convx.music.constants.AudioQuality
 import com.convx.music.constants.AudioQualityKey
 import com.convx.music.constants.CropAlbumArtKey
 import com.convx.music.constants.DarkModeKey
+import com.convx.music.constants.CompactPlayerInTabViewKey
+import com.convx.music.constants.CompactPlayerMaxWidth
 import com.convx.music.constants.HidePlayerThumbnailKey
 import com.convx.music.constants.EnableLyricsThumbnailPlayPauseKey
 import com.convx.music.constants.KeepScreenOn
@@ -212,6 +216,13 @@ import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.Lyrics
 import com.convx.music.ui.component.PlayerSliderTrack
 import com.convx.music.ui.component.ResizableIconButton
+import com.convx.music.ui.player.customize.DiyDesignCanvas
+import com.convx.music.ui.player.customize.DiyOrientation
+import com.convx.music.ui.player.customize.DiyStickerLayer
+import com.convx.music.ui.player.customize.PlayerGlyph
+import com.convx.music.ui.player.customize.PlayerIconSlot
+import com.convx.music.ui.player.customize.rememberDiyLayout
+import com.convx.music.ui.player.customize.rememberPlayerIcon
 import com.convx.music.ui.component.SquigglySlider
 import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
@@ -302,6 +313,14 @@ fun BottomSheetPlayer(
     )
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(HidePlayerThumbnailKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val (compactPlayerInTabView) = rememberPreference(CompactPlayerInTabViewKey, false)
+    // Mini player is unaffected — only the expanded content gets width-capped, and only
+    // when the side rail is actually showing (tab view / wide screen).
+    val playerContentMaxWidth = if (LocalTabView.current && compactPlayerInTabView) {
+        CompactPlayerMaxWidth
+    } else {
+        Dp.Unspecified
+    }
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.APPLE_MUSIC
@@ -1010,9 +1029,15 @@ fun BottomSheetPlayer(
     // content are sibling slots of BottomSheet, not ancestor/descendant.
     val playerBackdrop = rememberLayerBackdrop()
 
+    val diyLayout = rememberDiyLayout()
+    val diyOrientation = if (LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    ) DiyOrientation.LANDSCAPE else DiyOrientation.PORTRAIT
+
     BottomSheet(
         state = state,
         modifier = modifier,
+        contentMaxWidth = playerContentMaxWidth,
         background = {
             val glassConfig = LocalGlassEffectConfig.current
             val glassActive = isGlassAllowed()
@@ -1549,6 +1574,28 @@ fun BottomSheetPlayer(
                             )
                         )
                 )
+
+                // DIY stickers with a negative z sit here: above the artwork blur and the Canvas
+                // video, below everything the player actually draws. The Canvas keeps the very
+                // bottom of the stack — nothing is allowed behind it.
+                //
+                // Wrapped in the editor's own fixed design canvas so a sticker's normalised
+                // position resolves against the same rectangle here as it did in the editor —
+                // the real player's actual bounds are a different aspect ratio otherwise, and a
+                // sticker placed there would land in the wrong spot on screen.
+                //
+                // Gated on lyrics NOT being shown: this sits in the same artwork Box the inline
+                // lyrics swap into (AnimatedContent below), so with no gate a sticker bleeds over
+                // the lyrics text the same way it bled over the expanded queue sheet.
+                if (!showInlineLyrics) {
+                    DiyDesignCanvas(orientation = diyOrientation, modifier = Modifier.fillMaxSize()) {
+                        DiyStickerLayer(
+                            layout = diyLayout,
+                            orientation = diyOrientation,
+                            zFilter = { it < 0 },
+                        )
+                    }
+                }
             }
         },
         onDismiss = {
@@ -1629,12 +1676,11 @@ fun BottomSheetPlayer(
                                             enter = fadeIn(),
                                             exit = fadeOut()
                                         ) {
-                                            Icon(
-                                                painter = painterResource(
-                                                    if (playbackState == Player.STATE_ENDED) R.drawable.replay
-                                                    else R.drawable.play_applemusic
-                                                ),
-                                                contentDescription = null,
+                                            PlayerGlyph(
+                                                slot = if (playbackState == Player.STATE_ENDED)
+                                                    PlayerIconSlot.REPLAY else PlayerIconSlot.PLAY,
+                                                fallback = if (playbackState == Player.STATE_ENDED)
+                                                    R.drawable.replay else R.drawable.play_applemusic,
                                                 tint = Color.White,
                                                 modifier = Modifier.size(24.dp)
                                             )
@@ -1922,9 +1968,10 @@ fun BottomSheetPlayer(
                                     ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_horiz),
-                                        contentDescription = null,
+                                    PlayerGlyph(
+                                        slot = PlayerIconSlot.MORE,
+                                        fallback = R.drawable.more_horiz,
+                                        tint = LocalContentColor.current,
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
@@ -1938,13 +1985,12 @@ fun BottomSheetPlayer(
                                     ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (currentSong?.song?.liked == true)
-                                                R.drawable.favorite
-                                            else R.drawable.favorite_border
-                                        ),
-                                        contentDescription = null,
+                                    PlayerGlyph(
+                                        slot = if (currentSong?.song?.liked == true)
+                                            PlayerIconSlot.LIKED else PlayerIconSlot.LIKE,
+                                        fallback = if (currentSong?.song?.liked == true)
+                                            R.drawable.favorite else R.drawable.favorite_border,
+                                        tint = LocalContentColor.current,
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
@@ -2023,9 +2069,10 @@ fun BottomSheetPlayer(
                                     }
                                 },
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_horiz),
-                                    contentDescription = null,
+                                PlayerGlyph(
+                                    slot = PlayerIconSlot.MORE,
+                                    fallback = R.drawable.more_horiz,
+                                    tint = LocalContentColor.current,
                                     modifier = Modifier.size(24.dp),
                                 )
                             }
@@ -2033,13 +2080,11 @@ fun BottomSheetPlayer(
                             GlassCircleButton(
                                 onClick = playerConnection::toggleLike,
                             ) {
-                                Icon(
-                                    painter = painterResource(
-                                        if (currentSong?.song?.liked == true)
-                                            R.drawable.favorite
-                                        else R.drawable.favorite_border
-                                    ),
-                                    contentDescription = null,
+                                PlayerGlyph(
+                                    slot = if (currentSong?.song?.liked == true)
+                                        PlayerIconSlot.LIKED else PlayerIconSlot.LIKE,
+                                    fallback = if (currentSong?.song?.liked == true)
+                                        R.drawable.favorite else R.drawable.favorite_border,
                                     tint = if (currentSong?.song?.liked == true) MaterialTheme.colorScheme.error else LocalContentColor.current,
                                     modifier = Modifier.size(24.dp),
                                 )
@@ -2197,7 +2242,21 @@ fun BottomSheetPlayer(
                         },
                         enabled = !isListenTogetherGuest,
                         interactionSource = trackInteractionSource,
-                        thumb = { Spacer(modifier = Modifier.size(0.dp)) },
+                        // The stock design has no visible handle; a custom one only appears
+                        // once the user actually supplies an image for the slot.
+                        thumb = {
+                            val seekThumb = rememberPlayerIcon(PlayerIconSlot.SEEK_THUMB)
+                            if (seekThumb.isCustom) {
+                                Image(
+                                    painter = seekThumb.painter,
+                                    contentDescription = null,
+                                    colorFilter = seekThumb.colorFilterFor(textButtonColor),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(0.dp))
+                            }
+                        },
                         track = { sliderState ->
                             PlayerSliderTrack(
                                 sliderState = sliderState,
@@ -2523,9 +2582,10 @@ fun BottomSheetPlayer(
                                     .height(68.dp)
                                     .weight(backButtonWeight)
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.skip_previous_legacy),
-                                    contentDescription = null,
+                                PlayerGlyph(
+                                    slot = PlayerIconSlot.PREVIOUS,
+                                    fallback = R.drawable.skip_previous_legacy,
+                                    tint = LocalContentColor.current,
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
@@ -2565,14 +2625,20 @@ fun BottomSheetPlayer(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (isListenTogetherGuest) {
-                                                if (isMuted) R.drawable.volume_off else R.drawable.volume_down
-                                            } else {
-                                                if (effectiveIsPlaying) R.drawable.pause_applemusic else R.drawable.play_applemusic
-                                            }
-                                        ),
+                                    PlayerGlyph(
+                                        // Guests get a mute toggle in this position rather than
+                                        // transport, and that button is not a customisable slot.
+                                        slot = when {
+                                            isListenTogetherGuest -> null
+                                            effectiveIsPlaying -> PlayerIconSlot.PAUSE
+                                            else -> PlayerIconSlot.PLAY
+                                        },
+                                        fallback = if (isListenTogetherGuest) {
+                                            if (isMuted) R.drawable.volume_off else R.drawable.volume_down
+                                        } else {
+                                            if (effectiveIsPlaying) R.drawable.pause_applemusic else R.drawable.play_applemusic
+                                        },
+                                        tint = LocalContentColor.current,
                                         contentDescription = if (isListenTogetherGuest) {
                                             if (isMuted) stringResource(R.string.unmute) else stringResource(R.string.mute)
                                         } else {
@@ -2608,10 +2674,11 @@ fun BottomSheetPlayer(
                                     .weight(nextButtonWeight
                                     )
                             ) {
-                                Icon(
-                                painter = painterResource(R.drawable.fast_forward),
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp)
+                                PlayerGlyph(
+                                    slot = PlayerIconSlot.NEXT,
+                                    fallback = R.drawable.fast_forward,
+                                    tint = LocalContentColor.current,
+                                    modifier = Modifier.size(32.dp)
                                 )
                             }
                         }
@@ -2645,6 +2712,7 @@ fun BottomSheetPlayer(
 
                             Box(modifier = Modifier.weight(1f)) {
                                 ResizableIconButton(
+                                    slot = PlayerIconSlot.PREVIOUS,
                                     icon = R.drawable.skip_previous_legacy,
                                     enabled = canSkipPrevious && !isListenTogetherGuest,
                                     color = TextBackgroundColor,
@@ -2683,23 +2751,23 @@ fun BottomSheetPlayer(
                                         }
                                     },
                             ) {
-                                Image(
-                                    painter =
-                                    painterResource(
-                                        if (isListenTogetherGuest) {
-                                            if (isMuted) R.drawable.volume_mute else R.drawable.volume_down
-                                        } else if (playbackState ==
-                                            STATE_ENDED
-                                        ) {
-                                            R.drawable.replay
-                                        } else if (effectiveIsPlaying) {
-                                            R.drawable.pause_applemusic
-                                        } else {
-                                            R.drawable.play_applemusic
-                                        },
-                                    ),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(TextBackgroundColor),
+                                PlayerGlyph(
+                                    slot = when {
+                                        isListenTogetherGuest -> null
+                                        playbackState == STATE_ENDED -> PlayerIconSlot.REPLAY
+                                        effectiveIsPlaying -> PlayerIconSlot.PAUSE
+                                        else -> PlayerIconSlot.PLAY
+                                    },
+                                    fallback = if (isListenTogetherGuest) {
+                                        if (isMuted) R.drawable.volume_mute else R.drawable.volume_down
+                                    } else if (playbackState == STATE_ENDED) {
+                                        R.drawable.replay
+                                    } else if (effectiveIsPlaying) {
+                                        R.drawable.pause_applemusic
+                                    } else {
+                                        R.drawable.play_applemusic
+                                    },
+                                    tint = TextBackgroundColor,
                                     modifier =
                                     Modifier
                                         .align(Alignment.Center)
@@ -2711,6 +2779,7 @@ fun BottomSheetPlayer(
 
                             Box(modifier = Modifier.weight(1f)) {
                                 ResizableIconButton(
+                                    slot = PlayerIconSlot.NEXT,
                                     icon = R.drawable.fast_forward,
                                     enabled = canSkipNext && !isListenTogetherGuest,
                                     color = TextBackgroundColor,
@@ -3072,6 +3141,30 @@ fun BottomSheetPlayer(
             },
             )
         }
+
+        // The rest of the stickers, over the player content. The layer takes no pointer input,
+        // so a sticker can cover a control without ever swallowing a tap meant for it.
+        //
+        // ponytail: only two z bands, not three — everything at z >= 0 draws over the transport
+        // controls as well as the artwork, so a sticker parked on the play button hides it (the
+        // button still responds). A real "above artwork, below controls" band needs controlsContent
+        // hoisted out of its Column into a sibling overlay of this Box, in all three layout
+        // branches; this is the only place with full-player bounds to insert into.
+        //
+        // Gated on the queue sheet NOT being expanded: this layer is a sibling of the Queue
+        // bottom sheet in the same Box, so with no gate it paints on top of the expanded sheet too.
+        // Also gated on lyrics NOT being shown, for the same reason as the z < 0 layer above.
+        if (!queueSheetState.isExpanded && !showInlineLyrics) {
+            // Same fixed design canvas as the z < 0 layer above and the editor itself — see the
+            // comment there for why a plain fillMaxSize bounds would misplace stickers.
+            DiyDesignCanvas(orientation = diyOrientation, modifier = Modifier.fillMaxSize()) {
+                DiyStickerLayer(
+                    layout = diyLayout,
+                    orientation = diyOrientation,
+                    zFilter = { it >= 0 },
+                )
+            }
+        }
     }
 }
 
@@ -3229,7 +3322,7 @@ private fun PlayerMoreMenuButton(
             },
     ) {
         Image(
-            painter = painterResource(R.drawable.more_horiz),
+            painter = rememberPlayerIcon(PlayerIconSlot.MORE).painter,
             contentDescription = null,
             colorFilter = ColorFilter.tint(iconButtonColor),
         )

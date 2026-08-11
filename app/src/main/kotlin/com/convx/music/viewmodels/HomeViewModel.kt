@@ -30,7 +30,10 @@ import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideYoutubeShortsKey
 import com.convx.music.constants.InnerTubeCookieKey
 import com.convx.music.constants.LocalOnlyModeKey
+import com.convx.music.constants.LocalSongSortDescendingKey
+import com.convx.music.constants.LocalSongSortTypeKey
 import com.convx.music.constants.PlaylistSortType
+import com.convx.music.constants.SongSortType
 import com.convx.music.constants.QuickPicks
 import com.convx.music.constants.QuickPicksKey
 import com.convx.music.constants.ShowWrappedCardKey
@@ -55,11 +58,13 @@ import com.convx.music.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.async
@@ -81,6 +86,7 @@ data class CommunityPlaylistItem(
     val songs: List<SongItem>
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
@@ -119,7 +125,12 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     // Local-only Home rows. Room-backed, so a rescan updates them without a reload.
-    val localSongs: StateFlow<List<Song>> = database.localSongsByNameAsc()
+    val localSongs: StateFlow<List<Song>> = context.dataStore.data
+        .map { prefs ->
+            (prefs[LocalSongSortTypeKey].toEnum(SongSortType.NAME)) to (prefs[LocalSongSortDescendingKey] ?: false)
+        }
+        .distinctUntilChanged()
+        .flatMapLatest { (sortType, descending) -> database.localSongs(sortType, descending) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val localAlbums: StateFlow<List<Album>> = database.albumsLocalByNameAsc()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

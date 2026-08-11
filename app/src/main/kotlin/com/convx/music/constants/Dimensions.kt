@@ -57,6 +57,11 @@ val ThumbnailRoundedShape = RoundedCornerShape(ThumbnailCornerRadius)
 
 val PlayerHorizontalPadding = 32.dp
 
+/** Expanded player's width cap in tab view when "Compact player in tab view" is on —
+ *  roughly a large phone's width, so the player reads the same as it does on mobile
+ *  instead of stretching across the wide screen. */
+val CompactPlayerMaxWidth = 480.dp
+
 val NavigationBarAnimationSpec = spring<Dp>(
     dampingRatio = Spring.DampingRatioMediumBouncy,
     stiffness = Spring.StiffnessLow

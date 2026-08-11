@@ -109,7 +109,7 @@ fun SettingDialoge(
                         .padding(start = 4.dp, top = 10.dp, end = 4.dp, bottom = 10.dp)
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.icon),
+                        painter = painterResource(id = R.drawable.convx_logo),
                         contentDescription = "App Icon",
                         modifier = Modifier
                             .size(24.dp)
@@ -118,7 +118,7 @@ fun SettingDialoge(
                     
                     Text(
                         modifier = Modifier.wrapContentWidth(),
-                        text = "VIVI MUSIC",
+                        text = "CONVX",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
@@ -196,7 +196,7 @@ fun SettingDialoge(
                                 text = if (isLoggedIn) {
                                     accountEmail.ifEmpty { "Logged In" }
                                 } else {
-                                    "vivimusictest@gmail.com"
+                                    "Not signed in"
                                 },
                                 fontWeight = FontWeight.Light,
                                 color = onSecondaryColor,
@@ -314,7 +314,7 @@ fun SettingDialoge(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally)
                 ) {
-                    TextButton(onClick = { uriHandler.openUri("https://vivimusicapp.netlify.app/privacy") }) {
+                    TextButton(onClick = { uriHandler.openUri("https://cosmictaser.de5.net") }) {
                         Text(
                             text = "Privacy Policy",
                             fontWeight = FontWeight.Light,
@@ -326,7 +326,7 @@ fun SettingDialoge(
                     }
                 
                     Text(text = "•", color = onPrimaryColor)
-                    TextButton(onClick = { uriHandler.openUri("https://vivimusicapp.netlify.app/terms") }) {
+                    TextButton(onClick = { uriHandler.openUri("https://cosmictaser.de5.net") }) {
                         Text(
                             text = "Terms of Service",
                             fontWeight = FontWeight.Light,

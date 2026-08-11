@@ -8,6 +8,7 @@ package com.convx.music.ui.screens.settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,11 +46,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
@@ -88,12 +94,15 @@ fun ModuleSourceScreen(
         }.getOrElse { emptyList() }
     }
 
-    val enabledIds = remember(enabledJson) {
+    // Stored in the user's chosen priority order (drag-reorder below) — this is what
+    // YTPlayerUtils reads to decide which module to try first at playback time.
+    val enabledOrder = remember(enabledJson) {
         runCatching {
             val arr = JSONArray(enabledJson)
-            (0 until arr.length()).map { arr.getString(it) }.toSet()
-        }.getOrElse { emptySet<String>() }
+            (0 until arr.length()).map { arr.getString(it) }
+        }.getOrElse { emptyList() }
     }
+    val enabledIds = remember(enabledOrder) { enabledOrder.toSet() }
 
     var showAddDialog by remember { mutableStateOf(false) }
     val (fetchedModulesJson, onFetchedModulesJsonChange) = rememberPreference(FetchedModulesKey, defaultValue = "[]")
@@ -101,6 +110,9 @@ fun ModuleSourceScreen(
         runCatching {
             json.decodeFromString<List<SpineModule>>(fetchedModulesJson)
         }.getOrElse { emptyList() }
+    }
+    val availableModules = remember(fetchedModules, enabledIds) {
+        fetchedModules.filter { it.id !in enabledIds }
     }
     var isLoading by remember { mutableStateOf(false) }
     var loadingSource by remember { mutableStateOf<String?>(null) }
@@ -112,12 +124,19 @@ fun ModuleSourceScreen(
         onSourcesJsonChange(arr.toString())
     }
 
-    fun toggleModule(moduleId: String) {
-        val current = enabledIds.toMutableSet()
-        if (current.contains(moduleId)) current.remove(moduleId) else current.add(moduleId)
+    fun saveEnabledOrder(order: List<String>) {
         val arr = JSONArray()
-        current.forEach { arr.put(it) }
+        order.forEach { arr.put(it) }
         onEnabledJsonChange(arr.toString())
+    }
+
+    fun toggleModule(moduleId: String) {
+        // Disabling drops it from the priority list; enabling appends it to the end
+        // (lowest priority until the user drags it up) rather than rebuilding from
+        // a Set, which would throw away any order the user already set.
+        saveEnabledOrder(
+            if (moduleId in enabledOrder) enabledOrder - moduleId else enabledOrder + moduleId
+        )
     }
 
     fun removeSource(url: String) {
@@ -278,7 +297,28 @@ fun ModuleSourceScreen(
                 }
             }
 
-            if (fetchedModules.isNotEmpty()) {
+            if (enabledOrder.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "ENABLED — DRAG TO SET PRIORITY",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                item {
+                    val modulesById = remember(fetchedModules) { fetchedModules.associateBy { it.id } }
+                    EnabledModulesPriorityList(
+                        enabledOrder = enabledOrder,
+                        modulesById = modulesById,
+                        onReorder = ::saveEnabledOrder,
+                        onDisable = ::toggleModule,
+                        onClick = { moduleId -> navController.navigate("settings/modules/$moduleId") },
+                    )
+                }
+            }
+
+            if (availableModules.isNotEmpty()) {
                 item {
                     Text(
                         text = "AVAILABLE MODULES",
@@ -288,11 +328,10 @@ fun ModuleSourceScreen(
                     )
                 }
 
-                items(fetchedModules, key = { it.id }) { module ->
-                    val isEnabled = enabledIds.contains(module.id)
+                items(availableModules, key = { it.id }) { module ->
                     ModuleItem(
                         module = module,
-                        isEnabled = isEnabled,
+                        isEnabled = false,
                         onToggle = { toggleModule(module.id) },
                         onClick = {
                             navController.navigate("settings/modules/${module.id}")
@@ -377,6 +416,142 @@ fun ModuleSourceScreen(
             }
         },
     )
+}
+
+/**
+ * Enabled modules only, in the exact order YTPlayerUtils tries them at playback time —
+ * drag the handle to reorder. Fixed row height keeps the drag math (which row a given
+ * offset lands on) simple and exact, rather than measuring variable-height rows.
+ */
+@Composable
+private fun EnabledModulesPriorityList(
+    enabledOrder: List<String>,
+    modulesById: Map<String, SpineModule>,
+    onReorder: (List<String>) -> Unit,
+    onDisable: (String) -> Unit,
+    onClick: (String) -> Unit,
+) {
+    val density = LocalDensity.current
+    val rowHeight = 64.dp
+    val rowHeightPx = with(density) { rowHeight.toPx() }
+
+    // Local copy so a drag can reorder live, frame by frame, without waiting for the
+    // DataStore write + recomposition round trip on every row swap. Committed back to
+    // the caller (and so to the preference) once, on drag end.
+    var order by remember(enabledOrder) { mutableStateOf(enabledOrder) }
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(AppleTokens.CardCorner))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        order.forEachIndexed { index, moduleId ->
+            val module = modulesById[moduleId] ?: return@forEachIndexed
+            if (index > 0) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 64.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    thickness = 0.5.dp,
+                )
+            }
+            val isDragging = draggingId == moduleId
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(rowHeight)
+                    .zIndex(if (isDragging) 1f else 0f)
+                    .graphicsLayer {
+                        translationY = if (isDragging) dragOffset else 0f
+                    }
+                    .clickable { onClick(moduleId) }
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${index + 1}",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.width(24.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = module.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = module.author,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                IconButton(
+                    onClick = { onDisable(moduleId) },
+                    onLongClick = { onDisable(moduleId) },
+                ) {
+                    Icon(
+                        painterResource(R.drawable.close),
+                        contentDescription = stringResource(R.string.remove),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Icon(
+                    painter = painterResource(R.drawable.drag_handle),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .pointerInput(moduleId) {
+                            detectDragGestures(
+                                onDragStart = {
+                                    draggingId = moduleId
+                                    dragOffset = 0f
+                                },
+                                onDragEnd = {
+                                    draggingId = null
+                                    dragOffset = 0f
+                                    onReorder(order)
+                                },
+                                onDragCancel = {
+                                    draggingId = null
+                                    dragOffset = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffset += dragAmount.y
+                                    val current = order.indexOf(moduleId)
+                                    if (dragOffset > rowHeightPx / 2 && current < order.size - 1) {
+                                        order = order.toMutableList().apply {
+                                            val swapped = this[current + 1]
+                                            this[current + 1] = this[current]
+                                            this[current] = swapped
+                                        }
+                                        dragOffset -= rowHeightPx
+                                    } else if (dragOffset < -rowHeightPx / 2 && current > 0) {
+                                        order = order.toMutableList().apply {
+                                            val swapped = this[current - 1]
+                                            this[current - 1] = this[current]
+                                            this[current] = swapped
+                                        }
+                                        dragOffset += rowHeightPx
+                                    }
+                                },
+                            )
+                        },
+                )
+            }
+        }
+    }
 }
 
 @Composable

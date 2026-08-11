@@ -20,9 +20,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -33,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
@@ -45,6 +48,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import com.convx.music.constants.NavigationBarAnimationSpec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -62,10 +66,16 @@ fun BottomSheet(
     onDismiss: (() -> Unit)? = null,
     collapsedContent: @Composable BoxScope.() -> Unit,
     isExpandable: Boolean = true,
+    /** Caps the expanded content AND its background wash to this width, centered
+     *  horizontally, so the whole expanded player reads as one phone-shaped panel
+     *  instead of a phone-width foreground floating on a full-bleed backdrop. The
+     *  collapsed/mini content (a full-width dock regardless) is unaffected.
+     *  [Dp.Unspecified] (default) lets both fill the sheet exactly as before. */
+    contentMaxWidth: Dp = Dp.Unspecified,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val density = LocalDensity.current
-    
+
     Box(
         modifier = modifier
             .graphicsLayer {
@@ -73,8 +83,19 @@ fun BottomSheet(
                 alpha = (1.4f * (state.progress.coerceAtLeast(0.1f) - 0.1f).pow(0.5f)).coerceIn(0f, 1f)
             }
             .fillMaxSize(),
-        content = background
-    )
+    ) {
+        Box(
+            modifier = if (contentMaxWidth.isSpecified) {
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxHeight()
+                    .widthIn(max = contentMaxWidth)
+            } else {
+                Modifier.fillMaxSize()
+            },
+            content = background,
+        )
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -123,8 +144,21 @@ fun BottomSheet(
                     .graphicsLayer {
                         alpha = ((state.progress - 0.15f) * 4).coerceIn(0f, 1f)
                     },
-                content = content
-            )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxHeight()
+                        .then(
+                            if (contentMaxWidth.isSpecified) {
+                                Modifier.widthIn(max = contentMaxWidth)
+                            } else {
+                                Modifier.fillMaxWidth()
+                            }
+                        ),
+                    content = content,
+                )
+            }
         }
 
         if (!state.isExpanded && (onDismiss == null || !state.isDismissed)) {

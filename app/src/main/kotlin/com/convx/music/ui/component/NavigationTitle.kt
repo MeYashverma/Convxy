@@ -58,7 +58,7 @@ fun NavigationTitle(
     if (showDivider) {
         HorizontalDivider(
             thickness = Dp.Hairline,
-            color = AppleTokens.Divider,
+            color = AppleTokens.divider,
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                 .padding(

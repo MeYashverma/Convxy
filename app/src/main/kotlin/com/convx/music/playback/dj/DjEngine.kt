@@ -459,35 +459,8 @@ class DjEngine(
         val beatMs = analysisFor(outgoing.currentMediaItem?.mediaId)?.grid?.beatMs
             ?.takeIf { it > 0f } ?: return
 
-        val grid = analysisFor(outgoing.currentMediaItem?.mediaId)?.grid
-
         when (activeStyle) {
             TransitionStyle.TRANSPARENT -> Unit
-
-            TransitionStyle.LOOP_ROLL -> {
-                val tail = tails[outgoing] ?: return
-                // Wait for the next beat before capturing. Starting mid-beat
-                // captures a bar that is offset from the music, and the loop
-                // then fights the incoming track instead of sitting under it.
-                val alignMs = grid
-                    ?.let { (it.beatAtOrAfter(outgoing.currentPosition) - outgoing.currentPosition).toLong() }
-                    ?.coerceIn(0L, beatMs.toLong()) ?: 0L
-                Timber.tag(TAG).d(
-                    "Loop roll: ${LOOP_BEATS.toInt()} beats (${(beatMs * LOOP_BEATS).toLong()}ms), " +
-                        "aligning in ${alignMs}ms"
-                )
-                tailJob = scope.launch {
-                    if (alignMs > 0L) delay(alignMs)
-                    // No halvings. Shortening the loop 4 -> 2 -> 1 is a stutter
-                    // build: it draws attention to itself, which is the opposite
-                    // of covering a seam.
-                    tail.startLoop(loopMs = (beatMs * LOOP_BEATS).toLong(), halvings = 0)
-                    // Thin the loop out with a rising high-pass so it recedes
-                    // behind the incoming track rather than competing with it —
-                    // and so the two tracks' bass never overlap.
-                    driveLoopFilter(outgoing, crossfadeMs - alignMs)
-                }
-            }
 
             TransitionStyle.TAPE_STOP -> {
                 Timber.tag(TAG).d("Tape stop over ${(beatMs * TAPE_STOP_BEATS).toLong()}ms")
@@ -510,25 +483,6 @@ class DjEngine(
                     echo.frozen = true
                 }
             }
-        }
-    }
-
-    /**
-     * Rides the loop's high-pass up over the remaining fade. The loop keeps its
-     * rhythm but loses its body, so it reads as a texture under the arriving
-     * track rather than as a second song playing at once.
-     */
-    private suspend fun driveLoopFilter(outgoing: Player, remainingMs: Long) {
-        val filter = filterFor(outgoing) ?: return
-        val steps = LOOP_FILTER_STEPS
-        val stepMs = (remainingMs / steps).coerceAtLeast(1L)
-        for (step in 1..steps) {
-            filter.highPassHz = logLerp(
-                DjFilterAudioProcessor.OPEN_HIGH_PASS_HZ,
-                LOOP_HIGH_PASS_HZ,
-                step / steps.toFloat(),
-            )
-            delay(stepMs)
         }
     }
 
@@ -672,13 +626,7 @@ class DjEngine(
         /** Always leave this much track after the transition point. */
         private const val MIN_TAIL_MS = 1_000L
 
-        private const val LOOP_BEATS = 4f
         private const val TAPE_STOP_BEATS = 1.5f
-
-        /** Where the loop's high-pass ends up: enough to clear the incoming
-         *  track's low end without making the loop sound like a telephone. */
-        private const val LOOP_HIGH_PASS_HZ = 420f
-        private const val LOOP_FILTER_STEPS = 24
         private const val ECHO_WET_MIX = 0.55f
 
         /** Fraction of the crossfade at which the echo stops taking new input.

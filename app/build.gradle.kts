@@ -256,10 +256,12 @@ dependencies {
     implementation(libs.materialKolor)
 
     implementation(libs.appcompat)
+    implementation(libs.exifinterface)
 
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
     implementation(libs.coil.gif)
+    implementation(libs.coil.svg)
 
     implementation(libs.ucrop)
 

@@ -1414,22 +1414,21 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 //
                                 blur(3f.dp.toPx() * (1f - progress))
 
-                                // Refraction DEEPENS while the puck is held and
-                                // dragged: a moving puck is the one moment the glass
-                                // should look like it is bending what it slides over.
-                                //
-                                // Gated behind the crisp overlay icon's exit, though.
-                                // That copy is drawn sharp on top and fades over the
-                                // first third of the press ramp; bending the sampled
-                                // copy underneath while both are on screen is exactly
-                                // what used to read as a doubled/ghosted icon. So the
-                                // bend holds at its resting value until the overlay is
-                                // gone, then grows over the rest of the gesture.
-                                val bend = ((progress - 0.34f) / 0.66f).fastCoerceIn(0f, 1f)
+                                // Refraction is weakest at REST and deepens while the
+                                // puck is held and dragged: at rest the sharp overlay
+                                // icon sits on top at full alpha, and any real bend
+                                // there splits it from its lensed copy underneath —
+                                // the doubled/ghosted icon. That overlay fades out
+                                // over the first third of the press ramp, so by the
+                                // time the bend is at full strength there is only one
+                                // copy left to warp.
                                 lens(
-                                    lerp(32f.dp.toPx(), 52f.dp.toPx(), bend),
-                                    lerp(28f.dp.toPx(), 46f.dp.toPx(), bend),
-                                    chromaticAberration = true
+                                    lerp(4f.dp.toPx(), 32f.dp.toPx(), progress),
+                                    lerp(6f.dp.toPx(), 28f.dp.toPx(), progress),
+                                    // Dispersion is a drag-only flourish. It costs a
+                                    // second, heavier shader, so a puck sitting still
+                                    // should not be paying for it.
+                                    chromaticAberration = progress > 0.01f
                                 )
                             },
                             highlight = {

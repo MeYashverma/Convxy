@@ -5,6 +5,7 @@
 
 package com.convx.music.ui.component
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -32,20 +33,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.isSpecified
@@ -53,28 +49,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.fastRoundToInt
-import androidx.compose.ui.util.fastCoerceIn
-import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
 import com.convx.music.R
-import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
-import com.convx.music.ui.component.backdrop.backdrops.rememberCombinedBackdrop
-import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
-import com.convx.music.ui.component.backdrop.catalog.utils.DampedDragAnimation
 import com.convx.music.ui.component.backdrop.drawBackdrop
 import com.convx.music.ui.component.backdrop.effects.blur
 import com.convx.music.ui.component.backdrop.effects.lens
-import com.convx.music.ui.component.backdrop.effects.vibrancy
 import com.convx.music.ui.component.backdrop.highlight.Highlight
-import com.convx.music.ui.component.backdrop.shadow.InnerShadow
 import com.convx.music.ui.component.backdrop.shadow.Shadow
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.player.FloatingMiniPlayer
@@ -176,9 +162,8 @@ private data class SideTab(
  * out under both so rows slide beneath rather than being cut off.
  *
  * The primary tab group inside it is the phone's floating nav bar rebuilt on the
- * vertical axis — same [GlassEffectConfig] glass, the same glass selection puck,
- * the same [InteractiveHighlight] finger glow, and the same draggable puck, on
- * the vertical axis.
+ * vertical axis — same [GlassEffectConfig] glass, the same glass selection puck
+ * and the same [InteractiveHighlight] finger glow.
  *
  * The panel floats OVER the content: nothing reserves layout width for it, so
  * screens run full width and scroll underneath its glass.
@@ -224,17 +209,19 @@ fun AppFloatingSideBar(
     // tab rows/puck) reads as a pill, where the expanded panel's fixed 28dp
     // corner radius would look like a barely-rounded rectangle instead.
     val panelShape = if (collapsed) SideRowShape else SideBarShape
+    // The fold is a width animation on the app's largest glass surface:
+    // re-capturing and re-blurring the whole screen on every frame of it is what
+    // makes the collapse stutter. Hold the last capture until the width settles —
+    // the panel is moving, so a frame-old backdrop behind it is not perceptible.
+    // Shared with the tab group below, which draws two more backdrops of its own
+    // and was re-capturing both through the whole fold.
+    val backdropFrozen: () -> Boolean = { panelWidth != targetPanelWidth }
     val panelSurface = if (useGlass) {
         Modifier.liquidGlass(
             config = glassConfig.forSidePanel(),
             shape = panelShape,
             highlightAlpha = 0.3f,
-            // The fold is a width animation on the app's largest glass surface:
-            // re-capturing and re-blurring the whole screen on every frame of it
-            // is what makes the collapse stutter. Hold the last capture until the
-            // width settles — the panel is moving, so a frame-old backdrop behind
-            // it is not perceptible.
-            frozen = { panelWidth != targetPanelWidth },
+            frozen = backdropFrozen,
         )
     } else {
         Modifier
@@ -282,9 +269,8 @@ fun AppFloatingSideBar(
             )
         }
 
-        // Pinned above the scroll area, not inside it. The puck is dragged
-        // vertically and a scrollable ancestor consumes exactly that gesture —
-        // inside the scroll column the drag was stolen the moment it started.
+        // Pinned above the scroll area: the primary tabs stay reachable however
+        // far the library list below them is scrolled.
         SideNavTabs(
             navigationItems = navigationItems,
             currentRoute = currentRoute,
@@ -292,6 +278,7 @@ fun AppFloatingSideBar(
             useGlass = useGlass,
             backgroundColor = backgroundColor,
             collapsed = collapsed,
+            frozen = backdropFrozen,
             modifier = Modifier.padding(horizontal = 6.dp),
         )
 
@@ -331,12 +318,12 @@ fun AppFloatingSideBar(
 }
 
 /**
- * The phone's floating nav bar, stood on its end — drag puck included.
+ * The phone's floating nav bar, stood on its end — plain glass puck, no gestures.
  *
- * Same [DampedDragAnimation] the phone bar uses, on the vertical axis: the puck
- * can be grabbed and dragged down the rail, grows while pressed, springs to the
- * row it is dropped on, and only then navigates. Tapping a row still works and
- * moves the puck the same way.
+ * The puck springs to whichever row is selected and nothing else drives it. It
+ * also draws UNDER the icons instead of sampling a hidden tinted copy of them, so
+ * every row has exactly one icon on screen: sampling icon art through a lens at
+ * this row width read as a smeared ghost, not as material.
  */
 @Composable
 private fun SideNavTabs(
@@ -346,6 +333,7 @@ private fun SideNavTabs(
     useGlass: Boolean,
     backgroundColor: Color,
     collapsed: Boolean,
+    frozen: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     // Deliberately the global config, not forSidePanel(): the tab group is the
@@ -357,7 +345,6 @@ private fun SideNavTabs(
 
     val selectedContentColor = glassConfig.textColor
     val unselectedContentColor = glassConfig.textColor.copy(alpha = 0.75f)
-    val accentColor = selectedContentColor
 
     // Same wash the phone puck uses: the configured colour, or one that follows
     // the theme rather than assuming a dark bar.
@@ -389,61 +376,11 @@ private fun SideNavTabs(
     val tabHeightPx = with(density) { SideTabHeight.toPx() }
 
     val selectedIndex = tabs.indexOfFirst { it.selected }.coerceAtLeast(0)
-    val animationScope = rememberCoroutineScope()
 
-    // The tab list changes identity every recomposition; the drag callbacks are
-    // remembered once, so they read the current list through this holder rather
-    // than capturing a stale one (same trick the phone bar uses).
-    val currentTabs = remember { mutableStateOf(tabs) }
-    currentTabs.value = tabs
-
-    // The puck's position, in tab indices. Dragging updates it live; navigation
-    // fires only when the finger lifts and it settles on a row.
-    val puck = remember(animationScope, tabsCount) {
-        DampedDragAnimation(
-            animationScope = animationScope,
-            initialValue = selectedIndex.toFloat(),
-            valueRange = 0f..(tabsCount - 1).toFloat(),
-            visibilityThreshold = 0.001f,
-            initialScale = 1f,
-            // The phone bar's ratio, kept as a ratio so the grow reads the same
-            // at this row height as it does at that tab width.
-            pressedScale = 78f / 56f,
-            onDragStarted = {},
-            onDragStopped = {
-                val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
-                updateValue(targetIndex.toFloat())
-                currentTabs.value.getOrNull(targetIndex)?.onClick?.invoke()
-            },
-            onDrag = { _, dragAmount ->
-                updateValue(
-                    (targetValue + dragAmount.y / tabHeightPx)
-                        .fastCoerceIn(0f, (tabsCount - 1).toFloat())
-                )
-            },
-        )
-    }
-    // Keeps the puck on the selected row when selection changes from a tap or
-    // from navigation happening elsewhere.
-    var hasSyncedSelection by remember(tabsCount) { mutableStateOf(false) }
-    LaunchedEffect(selectedIndex, tabsCount) {
-        if (!hasSyncedSelection) {
-            hasSyncedSelection = true
-            puck.updateValue(selectedIndex.toFloat())
-            return@LaunchedEffect
-        }
-        // animateToValue, so a tap gets the same press-grow-and-settle a drop does.
-        puck.animateToValue(selectedIndex.toFloat())
-    }
-
-    // Invisible accent-tinted copy of the tabs, sampled back through the puck's
-    // glass so the selected row shows inside it.
-    val tabsBackdrop = rememberLayerBackdrop()
-
-    // Which row the puck currently covers. Derived state, so crossing into a new
-    // row recomposes the overlay instead of every frame of a drag doing it.
-    val puckIndex by remember(tabsCount) {
-        derivedStateOf { puck.value.fastRoundToInt().coerceIn(0, tabsCount - 1) }
+    // The puck's position, in tab indices. Nothing drives it but the selection.
+    val puckPosition = remember { Animatable(selectedIndex.toFloat()) }
+    LaunchedEffect(selectedIndex) {
+        puckPosition.animateTo(selectedIndex.toFloat(), spring(0.9f, 400f, 0.001f))
     }
 
     Box(
@@ -451,168 +388,65 @@ private fun SideNavTabs(
             .fillMaxWidth()
             .height(SideTabHeight * tabsCount + SideBarContentPadding.calculateTopPadding() * 2)
     ) {
+        // Drawn FIRST, so the icons sit on top of it. The phone bar has to sample
+        // a hidden copy of its row because its puck covers the icon; putting this
+        // one underneath gets the same look with one icon instead of three.
+        Box(
+            Modifier
+                .padding(SideBarContentPadding)
+                .graphicsLayer { translationY = puckPosition.value * tabHeightPx }
+                .fillMaxWidth()
+                .height(SideTabHeight)
+                .then(
+                    if (backdrop != null) {
+                        Modifier.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { SideRowShape },
+                            effects = {
+                                // The panel's own blur, not the global one: the puck
+                                // is cut from the panel it sits in, and reading the
+                                // shared radius made it a window onto sharper content
+                                // than the frost around it.
+                                blur(glassConfig.sidePanelBlurRadius.dp.toPx())
+                                lens(
+                                    32f.dp.toPx(),
+                                    28f.dp.toPx(),
+                                    chromaticAberration = true,
+                                )
+                            },
+                            highlight = {
+                                Highlight.Default.copy(alpha = PuckRestHighlightAlpha)
+                            },
+                            shadow = { Shadow(alpha = PuckRestShadowAlpha) },
+                            onDrawSurface = { drawRect(puckWash.copy(alpha = puckRestAlpha)) },
+                            frozen = frozen,
+                        )
+                    } else {
+                        Modifier
+                            .shadow(shape = SideRowShape, elevation = 3.dp)
+                            .background(backgroundColor.copy(alpha = 0.5f), SideRowShape)
+                            .clip(SideRowShape)
+                    }
+                )
+        )
+
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(SideBarContentPadding),
         ) {
-            tabs.forEachIndexed { index, tab ->
+            tabs.forEach { tab ->
                 SideTabRow(
                     tab = tab,
                     appleMusicUi = appleMusicUi,
                     contentColor = if (tab.selected) selectedContentColor else unselectedContentColor,
                     alpha = if (tab.selected) 1f else 0.6f,
                     collapsed = collapsed,
-                    contentScale = { if (index == puckIndex) lerp(1f, 1.12f, puck.pressProgress) else 1f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(SideTabHeight)
                         .clip(SideRowShape)
                         .tapClickable(onClick = tab.onClick),
-                )
-            }
-        }
-
-        if (backdrop != null) {
-            val tabsBackdropScale = glassResolutionScale(1f)
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .clearAndSetSemantics {}
-                    .alpha(0f)
-                    .layerBackdrop(tabsBackdrop)
-                    .padding(SideBarContentPadding)
-                    // Not a flat tinted cutout: a real blurred, lensed sample of
-                    // what sits behind the panel. That is what makes the puck read
-                    // as cut from the panel's own material instead of as a third
-                    // sharp copy of the row stacked over it.
-                    .drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { SideRowShape },
-                        effects = {
-                            val progress = puck.pressProgress
-                            vibrancy()
-                            blur(glassConfig.blurRadius.dp.toPx() * tabsBackdropScale)
-                            lens(
-                                15f.dp.toPx() * progress * tabsBackdropScale,
-                                18f.dp.toPx() * progress * tabsBackdropScale,
-                            )
-                        },
-                        highlight = { Highlight.Default.copy(alpha = puck.pressProgress) },
-                        onDrawSurface = { drawRect(backgroundColor) },
-                        backdropScale = tabsBackdropScale,
-                    )
-                    .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    SideTabRow(
-                        tab = tab,
-                        appleMusicUi = appleMusicUi,
-                        contentColor = unselectedContentColor,
-                        alpha = 1f,
-                        collapsed = collapsed,
-                        // Must track the visible row's zoom exactly: this is what the
-                        // puck samples, so drift shows up as a ghosted double icon.
-                        contentScale = { if (index == puckIndex) lerp(1f, 1.12f, puck.pressProgress) else 1f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(SideTabHeight),
-                    )
-                }
-            }
-        }
-
-        // The selection puck, same recipe as the phone bar's: refraction strongest
-        // at rest, easing back while pressed so the moving puck stays legible.
-        Box(
-            Modifier
-                .padding(SideBarContentPadding)
-                .graphicsLayer { translationY = puck.value * tabHeightPx }
-                .fillMaxWidth()
-                .height(SideTabHeight)
-                .then(puck.modifier)
-                .then(
-                    if (backdrop != null) {
-                        Modifier.drawBackdrop(
-                            backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
-                            shape = { SideRowShape },
-                            effects = {
-                                val progress = puck.pressProgress
-                                blur(3f.dp.toPx() * (1f - progress))
-                                lens(
-                                    lerp(32f.dp.toPx(), 4f.dp.toPx(), progress),
-                                    lerp(28f.dp.toPx(), 6f.dp.toPx(), progress),
-                                    chromaticAberration = true,
-                                )
-                            },
-                            highlight = {
-                                Highlight.Default.copy(
-                                    alpha = lerp(PuckRestHighlightAlpha, 1f, puck.pressProgress)
-                                )
-                            },
-                            shadow = { Shadow(alpha = lerp(PuckRestShadowAlpha, 1f, puck.pressProgress)) },
-                            innerShadow = {
-                                InnerShadow(radius = 8f.dp * puck.pressProgress, alpha = puck.pressProgress)
-                            },
-                            layerBlock = {
-                                scaleX = puck.scaleX
-                                scaleY = puck.scaleY
-                                // Squash along the axis of travel, which is Y here.
-                                val velocity = puck.velocity / 10f
-                                scaleY /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                                scaleX *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                            },
-                            onDrawSurface = {
-                                // Lands ON TOP of the sampled icon, so it can only ever
-                                // be a wash - anything opaque crushes what shows through.
-                                drawRect(
-                                    puckWash.copy(
-                                        alpha = puckRestAlpha * (1f - 0.75f * puck.pressProgress)
-                                    )
-                                )
-                            },
-                        )
-                    } else {
-                        Modifier
-                            .graphicsLayer {
-                                scaleX = puck.scaleX
-                                scaleY = puck.scaleY
-                            }
-                            .shadow(shape = SideRowShape, elevation = 6.dp * puck.pressProgress)
-                            .background(
-                                backgroundColor.copy(alpha = 0.5f + 0.5f * puck.pressProgress),
-                                SideRowShape,
-                            )
-                            .clip(SideRowShape)
-                    }
-                )
-        )
-
-        // The selected row redrawn above the puck, and ONLY while settled. What
-        // shows through the puck is the sampled copy, which the wash necessarily
-        // dims; this keeps it crisp at rest. It fades about three times faster
-        // than the press ramp, so a drag shows two layers, never three.
-        Box(
-            Modifier
-                .padding(SideBarContentPadding)
-                .graphicsLayer {
-                    translationY = puck.value * tabHeightPx
-                    scaleX = puck.scaleX
-                    scaleY = puck.scaleY
-                    alpha = (1f - puck.pressProgress * 3f).fastCoerceIn(0f, 1f)
-                }
-                .fillMaxWidth()
-                .height(SideTabHeight)
-                .clearAndSetSemantics {},
-        ) {
-            tabs.getOrNull(puckIndex)?.let { tab ->
-                SideTabRow(
-                    tab = tab,
-                    appleMusicUi = appleMusicUi,
-                    contentColor = selectedContentColor,
-                    alpha = 1f,
-                    collapsed = collapsed,
-                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -742,20 +576,12 @@ private fun SideTabRow(
     alpha: Float,
     modifier: Modifier = Modifier,
     collapsed: Boolean = false,
-    // A lambda, not a value: read in the draw phase so a press does not
-    // recompose the row on every frame.
-    contentScale: () -> Float = { 1f },
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start,
         modifier = modifier
-            .graphicsLayer {
-                this.alpha = alpha
-                val scale = contentScale()
-                scaleX = scale
-                scaleY = scale
-            }
+            .graphicsLayer { this.alpha = alpha }
             .padding(horizontal = if (collapsed) 0.dp else 16.dp),
     ) {
         Box(

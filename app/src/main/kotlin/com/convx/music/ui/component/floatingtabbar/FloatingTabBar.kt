@@ -1414,18 +1414,21 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 //
                                 blur(3f.dp.toPx() * (1f - progress))
 
-                                // Refraction is strongest at REST: that is when the
-                                // puck is static glass and can afford to bend what is
-                                // under it. Pressing eases it back to the previous
-                                // values so the moving puck stays legible.
-                                // Toned down from the source lib's 16/22dp — the real
-                                // icon underneath stays at full alpha (see the icon
-                                // Box above), so that much bend visibly split the
-                                // sharp real icon from its lensed glass copy, reading
-                                // as a doubled/ghosted icon rather than one warped one.
+                                // Refraction DEEPENS while the puck is held and
+                                // dragged: a moving puck is the one moment the glass
+                                // should look like it is bending what it slides over.
+                                //
+                                // Gated behind the crisp overlay icon's exit, though.
+                                // That copy is drawn sharp on top and fades over the
+                                // first third of the press ramp; bending the sampled
+                                // copy underneath while both are on screen is exactly
+                                // what used to read as a doubled/ghosted icon. So the
+                                // bend holds at its resting value until the overlay is
+                                // gone, then grows over the rest of the gesture.
+                                val bend = ((progress - 0.34f) / 0.66f).fastCoerceIn(0f, 1f)
                                 lens(
-                                    lerp(32f.dp.toPx(), 4f.dp.toPx(), progress),
-                                    lerp(28f.dp.toPx(), 6f.dp.toPx(), progress),
+                                    lerp(32f.dp.toPx(), 52f.dp.toPx(), bend),
+                                    lerp(28f.dp.toPx(), 46f.dp.toPx(), bend),
                                     chromaticAberration = true
                                 )
                             },

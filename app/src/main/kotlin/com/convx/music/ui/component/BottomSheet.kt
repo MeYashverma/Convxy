@@ -54,6 +54,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.pow
 
+/** Mirrors BackdropFreeze.kt's identical constant: a safety net for drags that
+ *  never deliver onDragEnd/onDragCancel (e.g. gesture stolen elsewhere). */
+private const val BackdropFreezeSafetyNs = 900_000_000L
+
 /**
  * Bottom Sheet
  * Modified from [ViMusic](https://github.com/vfsfitvnm/ViMusic)
@@ -112,14 +116,17 @@ fun BottomSheet(
 
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
+                        state.dragClockNs[0] = System.nanoTime()
                         velocityTracker.addPointerInputChange(change)
                         state.dispatchRawDelta(dragAmount)
                     },
                     onDragCancel = {
+                        state.dragClockNs[0] = 0L
                         velocityTracker.resetTracking()
                         state.snapTo(state.collapsedBound)
                     },
                     onDragEnd = {
+                        state.dragClockNs[0] = 0L
                         val velocity = -velocityTracker.calculateVelocity().y
                         velocityTracker.resetTracking()
                         state.performFling(velocity, onDismiss)
@@ -187,6 +194,20 @@ class BottomSheetState(
     private val onAnchorChanged: (Int) -> Unit,
     val collapsedBound: Dp,
 ) : DraggableState by draggableState {
+    // Same technique as BackdropFreeze.kt: a plain array, not snapshot state,
+    // read during the draw phase by a sampling glass surface's `frozen`
+    // provider. A snapshot read there would register a draw dependency and
+    // every write would re-invalidate the frame forever (the trap documented
+    // at MainActivity.kt:1253 and BackdropFreeze.kt:21-23).
+    internal val dragClockNs = longArrayOf(0L)
+
+    /** Pass to a `background` slot's [layerBackdrop] to skip re-recording it
+     *  while this sheet is being dragged, mirroring [BackdropFreeze]. */
+    val backdropFrozen: () -> Boolean = {
+        val started = dragClockNs[0]
+        started != 0L && System.nanoTime() - started < BackdropFreezeSafetyNs
+    }
+
     val dismissedBound: Dp
         get() = animatable.lowerBound!!
 
@@ -325,6 +346,7 @@ class BottomSheetState(
                 }
 
                 return if (isTopReached && available.y < 0 && source == NestedScrollSource.UserInput) {
+                    dragClockNs[0] = System.nanoTime()
                     dispatchRawDelta(available.y)
                     available
                 } else {
@@ -342,6 +364,7 @@ class BottomSheetState(
                 }
 
                 return if (isTopReached && source == NestedScrollSource.UserInput) {
+                    dragClockNs[0] = System.nanoTime()
                     dispatchRawDelta(available.y)
                     available
                 } else {
@@ -362,6 +385,7 @@ class BottomSheetState(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 isTopReached = false
+                dragClockNs[0] = 0L
                 return Velocity.Zero
             }
         }

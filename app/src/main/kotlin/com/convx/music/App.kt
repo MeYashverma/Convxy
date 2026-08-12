@@ -188,11 +188,12 @@ class App : Application(), SingletonImageLoader.Factory {
                 .map { it[DataSyncIdKey] }
                 .distinctUntilChanged()
                 .collect { dataSyncId ->
-                    YouTube.dataSyncId = dataSyncId?.takeIf { it.isNotBlank() && it != "null" }?.let {
-                        it.takeIf { !it.contains("||") }
-                            ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")
-                            ?: it.substringAfter("||")
-                    }
+                    // Kept whole, not truncated at "||" — that suffix is what
+                    // distinguishes a brand/second channel from the account's
+                    // primary identity (see LoginScreen.kt). Truncating it here
+                    // silently reverted every channel switch back to primary,
+                    // since this collector re-fires on every DataStore write.
+                    YouTube.dataSyncId = dataSyncId?.takeIf { it.isNotBlank() && it != "null" }
                 }
         }
 

@@ -556,7 +556,13 @@ class DjEngine(
         // clamp enforces the same rule: the transition may start earlier than
         // the flat point, never later.
         val snapped = grid.phraseAtOrBeforeMs(target).toLong()
-        val result = snapped.coerceIn(flat - MAX_OUTRO_PULL_MS, flat).coerceAtLeast(0L)
+        // flat already leaves crossfadeMs of tail, but a short configured
+        // crossfade (e.g. well under a second) could otherwise let the
+        // transition land with almost nothing left to play after it.
+        // MIN_TAIL_MS is an independent floor for that case.
+        val maxResult = minOf(flat, durationMs - MIN_TAIL_MS).coerceAtLeast(0L)
+        val minResult = (flat - MAX_OUTRO_PULL_MS).coerceAtMost(maxResult)
+        val result = snapped.coerceIn(minResult, maxResult)
         Timber.tag(TAG).d(
             "MIXOUT $mediaId | duration=${durationMs}ms flat=${flat}ms " +
                 "outroDrop=${if (target != flat) "${target}ms" else "none"} -> ${result}ms " +

@@ -755,7 +755,16 @@ fun Queue(
 
         LaunchedEffect(reorderableState.isAnyItemDragging) {
             if (!reorderableState.isAnyItemDragging) {
-                dragInfo?.let { (from, to) ->
+                // Cleared up front, not after the commit below: if queueWindows
+                // shrank between drag-start and drag-end (coerceIn on an empty
+                // list throws) or the move otherwise fails, leaving dragInfo set
+                // would make the NEXT drag's onMove silently reuse this stale
+                // "from" index instead of the new gesture's real one — read as
+                // the reorder getting stuck.
+                val info = dragInfo
+                dragInfo = null
+                if (info != null && queueWindows.isNotEmpty()) {
+                    val (from, to) = info
                     val safeFrom = (from - headerItems).coerceIn(0, queueWindows.lastIndex)
                     val safeTo = (to - headerItems).coerceIn(0, queueWindows.lastIndex)
 
@@ -772,7 +781,6 @@ fun Queue(
                             )
                         )
                     }
-                    dragInfo = null
                 }
             }
         }

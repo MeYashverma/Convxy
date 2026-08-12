@@ -66,6 +66,16 @@ import java.io.IOException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
+/** Higher first. Ranks Tidal search-result candidates so the matcher below tries
+ *  the best-quality candidate first instead of Tidal's own (unordered w.r.t.
+ *  quality) search result order. */
+private fun tidalQualityRank(audioQuality: String?): Int = when (audioQuality?.uppercase(java.util.Locale.US)) {
+    "HI_RES_LOSSLESS", "HI_RES" -> 3
+    "LOSSLESS" -> 2
+    "HIGH" -> 1
+    else -> 0
+}
+
 object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
     private const val TAG = "YTPlayerUtils"
@@ -305,8 +315,14 @@ object YTPlayerUtils {
                                         val t = track.title.lowercase().trim()
                                         val q = cleanTitle.lowercase().trim()
                                         val songDur = currentSong?.duration
-                                        (q in t || t in q) &&
-                                            (songDur == null || (track.duration?.let { Math.abs(it - songDur) <= 10 } ?: true))
+                                        val durationOk = if (songDur != null && track.duration != null) {
+                                            Math.abs(track.duration - songDur) <= 10
+                                        } else {
+                                            // No runtime to check against — require an exact
+                                            // title match instead of skipping the guard.
+                                            t == q
+                                        }
+                                        (q in t || t in q) && durationOk
                                     }.minByOrNull { track ->
                                         val t = track.title.lowercase().trim()
                                         val a = track.artist.lowercase().trim()
@@ -488,7 +504,12 @@ object YTPlayerUtils {
                     val customUrl = context.dataStore.get(TidalInstanceUrlKey, "").ifBlank { null }
 
                     val candidates = TidalService.search(query, customUrl)
-                    val best = candidates.firstOrNull { c ->
+                    // Ranked, not just the first list-order match: Tidal's search
+                    // order isn't quality order, and the previous first-match-wins
+                    // pick could lock onto a lower-quality candidate (or one whose
+                    // stream simply fails) ahead of a same-title/artist/duration
+                    // candidate that actually serves lossless.
+                    val matchingCandidates = candidates.filter { c ->
                         val ct = c.title.lowercase(java.util.Locale.US)
                         val ca = c.artistNames.map { it.lowercase(java.util.Locale.US) }
                         val titleOk = ct.contains(wantedTitle) || wantedTitle.contains(ct)
@@ -496,11 +517,20 @@ object YTPlayerUtils {
                             ca.any { it.contains(w) || w.contains(it) }
                         }
                         // Substring matching alone lets a short title pull in an
-                        // unrelated track; runtime is the cheap sanity check.
-                        val durationOk = wantedDuration == null ||
-                            (c.duration?.let { kotlin.math.abs(it - wantedDuration) <= 10 } ?: true)
+                        // unrelated track; runtime is the cheap sanity check. When
+                        // either duration is unknown there's nothing to check
+                        // against — require an exact title match instead of
+                        // silently skipping the guard, so a generic title can't
+                        // slip a wrong track through with no check at all.
+                        val durationOk = if (wantedDuration != null && c.duration != null) {
+                            kotlin.math.abs(c.duration - wantedDuration) <= 10
+                        } else {
+                            ct == wantedTitle
+                        }
                         titleOk && artistOk && durationOk
-                    } ?: run {
+                    }.sortedByDescending { tidalQualityRank(it.audioQuality) }
+
+                    if (matchingCandidates.isEmpty()) {
                         Timber.tag(TAG).d("TIDAL: no match for \"$query\" — falling back")
                         return@runCatching null
                     }
@@ -509,11 +539,23 @@ object YTPlayerUtils {
                         TidalQuality.valueOf(context.dataStore.get(TidalQualityKey, TidalQuality.LOSSLESS.name))
                     }.getOrDefault(TidalQuality.LOSSLESS)
 
-                    val streamUrl = TidalService.streamUrl(best.id, quality.toApiValue(), customUrl)
-                        ?: run {
-                            Timber.tag(TAG).d("TIDAL: no stream URL for id=${best.id} — falling back")
-                            return@runCatching null
+                    // Try every match, best-quality-first, instead of aborting to
+                    // Saavn/YouTube the instant the single first candidate's
+                    // stream fetch fails.
+                    var best: com.convx.music.utils.tidal.TidalTrack? = null
+                    var streamUrl: String? = null
+                    for (candidate in matchingCandidates) {
+                        val url = TidalService.streamUrl(candidate.id, quality.toApiValue(), customUrl)
+                        if (url != null) {
+                            best = candidate
+                            streamUrl = url
+                            break
                         }
+                    }
+                    if (best == null || streamUrl == null) {
+                        Timber.tag(TAG).d("TIDAL: no stream URL among ${matchingCandidates.size} match(es) for \"$query\" — falling back")
+                        return@runCatching null
+                    }
 
                     Timber.tag(TAG).i("Tidal: streaming FLAC \"${best.title}\" (id=${best.id}, ${quality.toApiValue()}) for videoId=$videoId")
                     PlaybackData(
@@ -632,9 +674,14 @@ object YTPlayerUtils {
                             // Title matching is substring-based in both directions, so a
                             // short title matches plenty of unrelated songs. Runtime is
                             // the cheap tiebreak that stops a different track being
-                            // served as this one.
-                            val durationMatches = wantedDurationSec == null ||
-                                (candidate.duration?.let { kotlin.math.abs(it - wantedDurationSec) <= 10 } ?: true)
+                            // served as this one. When either duration is unknown
+                            // there's nothing to tiebreak with — require an exact
+                            // title match instead of skipping the guard entirely.
+                            val durationMatches = if (wantedDurationSec != null && candidate.duration != null) {
+                                kotlin.math.abs(candidate.duration - wantedDurationSec) <= 10
+                            } else {
+                                candidateTitleLower == wantedTitleLower
+                            }
 
                             val isMatch = titleMatches && artistMatches && durationMatches
                             if (isMatch) {

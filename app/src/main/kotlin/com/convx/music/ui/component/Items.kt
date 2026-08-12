@@ -1489,6 +1489,12 @@ fun ItemThumbnail(
     val imageRequest = remember(thumbnailUrl, actualTargetSizePx) {
         ImageRequest.Builder(context)
             .data(thumbnailUrl?.resize(actualTargetSizePx, actualTargetSizePx))
+            // Keyed on the raw URL, not the resized one Coil would otherwise
+            // default to: DownloadUtil pre-caches a downloaded song's thumbnail
+            // under this same raw-URL key, so this is what lets that entry
+            // actually be found offline instead of missing under a different
+            // key for every distinct decode size requested across the app.
+            .diskCacheKey(thumbnailUrl)
             .size(CoilSize(actualTargetSizePx, actualTargetSizePx))
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1575,6 +1581,9 @@ fun LocalThumbnail(
     val imageRequest = remember(thumbnailUrl) {
         ImageRequest.Builder(context)
             .data(thumbnailUrl?.resize(544, 544))
+            // See ItemThumbnail above: keyed on the raw URL so a thumbnail
+            // pre-cached at download time (also keyed on the raw URL) is found.
+            .diskCacheKey(thumbnailUrl)
             .size(CoilSize(544, 544))
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1698,7 +1707,11 @@ fun PlaylistThumbnail(
             model = remember(thumbnails) {
                 ImageRequest.Builder(context)
                     .data(thumbnails[0].resize(544, 544))
-                    .apply { /* Removed cache key extensions due to unresolved in env */ }
+                    // Same raw-URL keying as ItemThumbnail/LocalThumbnail above:
+                    // DownloadUtil pre-caches a downloaded song's art under its
+                    // raw (unresized) URL, so this needs the same key to find it
+                    // offline instead of missing under the resized URL's default.
+                    .diskCacheKey(thumbnails[0])
                     .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                     .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                     .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -1727,7 +1740,7 @@ fun PlaylistThumbnail(
                     model = remember(thumbnails, index) {
                         ImageRequest.Builder(context)
                             .data(thumbnails.getOrNull(index)?.resize(544, 544))
-                            .apply { /* Removed cache key extensions due to unresolved in env */ }
+                            .diskCacheKey(thumbnails.getOrNull(index))
                             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)

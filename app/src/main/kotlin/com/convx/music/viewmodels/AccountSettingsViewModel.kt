@@ -7,6 +7,7 @@ package com.convx.music.viewmodels
 
 import android.content.Context
 import android.content.Intent
+import android.webkit.CookieManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.convx.music.App
@@ -144,6 +145,22 @@ class AccountSettingsViewModel @Inject constructor(
     fun switchToSavedAccount(context: Context, account: SavedAccount) {
         viewModelScope.launch(Dispatchers.IO) {
             YouTube.dataSyncId = account.dataSyncId
+
+            // Same staleness risk SwitchChannelScreen's WebView flow already
+            // guards against: Google can rotate the session cookie as part of
+            // a channel switch. This path has no WebView page load of its own
+            // to pick up a fresh one, but CookieManager's jar is persistent —
+            // pull whatever it currently holds rather than leaving the cookie
+            // captured at initial login in place indefinitely.
+            CookieManager.getInstance().getCookie("https://music.youtube.com")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { freshCookie ->
+                    YouTube.cookie = freshCookie
+                    context.dataStore.edit { settings ->
+                        settings[InnerTubeCookieKey] = freshCookie
+                    }
+                }
+
             context.dataStore.edit { settings ->
                 settings[DataSyncIdKey] = account.dataSyncId
                 settings[AccountNameKey] = account.name

@@ -284,6 +284,16 @@ val LocalGlassEffectConfig = staticCompositionLocalOf { GlassEffectConfig() }
 val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { error("No AppBackdrop provided") }
 
 /**
+ * When set, glass surfaces in scope pool one recorded+effect-processed layer
+ * per bucket this returns instead of a single reused layer — see
+ * `drawBackdrop`'s `loopBucket` parameter. Meant for surfaces sampling a
+ * backdrop whose source loops (a looping canvas video): a bucket's visual
+ * output is identical every repeat, so it only needs computing once, ever.
+ * Null (default) keeps every surface's existing single-layer behavior.
+ */
+val LocalBackdropLoopBucket = staticCompositionLocalOf<(() -> Int)?> { null }
+
+/**
  * Whether the Apple Music-styled UI (iOS 26/27 liquid glass look, SF-style tab icons,
  * denser glass) is active. Read by [com.convx.music.ui.screens.Screens] consumers to pick
  * between the classic and iOS icon sets.
@@ -330,6 +340,10 @@ fun Modifier.liquidGlass(
     // bar's bounds animate and would otherwise force a full-screen re-capture
     // plus effect chain on every frame.
     frozen: () -> Boolean = { false },
+    // Forwarded to drawBackdrop: see LocalBackdropLoopBucket's doc. Defaults to
+    // whatever's provided in composition, so player control pills over a
+    // looping video pick this up without every call site naming it explicitly.
+    loopBucket: (() -> Int)? = LocalBackdropLoopBucket.current,
 ): Modifier {
     if (!isGlassAllowed()) return this
     val backdrop = LocalAppBackdrop.current
@@ -493,5 +507,6 @@ fun Modifier.liquidGlass(
         onDrawSurface = surfaceBlock,
         backdropScale = resolutionScale,
         frozen = frozen,
+        loopBucket = loopBucket,
     )
 }

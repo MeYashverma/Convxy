@@ -8,6 +8,10 @@ package com.convx.music.utils
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.media.RingtoneManager
 import android.net.ConnectivityManager
 import android.net.Uri
@@ -20,6 +24,7 @@ import com.convx.music.constants.AudioQuality
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.nio.ByteBuffer
 
 object RingtoneHelper {
 
@@ -98,12 +103,13 @@ object RingtoneHelper {
 
             onProgress(0.6f, "Processing audio...")
 
-            val trimmedFile = File(context.cacheDir, "trimmed_ringtone_$songId.m4a")
-            if (trimmedFile.exists()) trimmedFile.delete()
+            // Falls back to the untrimmed source when the codec has no reliable
+            // stream-copy trim path (see trimAudio) rather than failing outright
+            // — the ringtone is then the full track, same as before this fix.
+            val trimmedFile = trimAudio(tempFile, context.cacheDir, "trimmed_ringtone_$songId", startMs, endMs)
+                ?: tempFile.copyTo(File(context.cacheDir, "trimmed_ringtone_$songId.m4a"), overwrite = true)
 
-            val success = trimAudio(context, tempFile, trimmedFile, startMs, endMs)
-
-            if (!success || !trimmedFile.exists() || trimmedFile.length() == 0L) {
+            if (!trimmedFile.exists() || trimmedFile.length() == 0L) {
                 withContext(Dispatchers.Main) {
                     onComplete(false, "Failed to process audio or output is empty", null)
                 }
@@ -112,13 +118,14 @@ object RingtoneHelper {
 
             onProgress(0.85f, "Saving ringtone...")
 
-            val fileName = "${title.replace(Regex("[^a-zA-Z0-9\\s]"), "")}_trimmed_$songId.m4a"
+            val outputMimeType = if (trimmedFile.extension.equals("ogg", ignoreCase = true)) "audio/ogg" else "audio/mp4"
+            val fileName = "${title.replace(Regex("[^a-zA-Z0-9\\s]"), "")}_trimmed_$songId.${trimmedFile.extension}"
 
             val ringtoneUri: Uri = try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val contentValues = ContentValues().apply {
                         put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
-                        put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
+                        put(MediaStore.Audio.Media.MIME_TYPE, outputMimeType)
                         put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_RINGTONES)
                         put(MediaStore.Audio.Media.IS_RINGTONE, true)
                         put(MediaStore.Audio.Media.IS_NOTIFICATION, true)
@@ -144,6 +151,18 @@ object RingtoneHelper {
                     context.contentResolver.update(uri, contentValues, null, null)
                     uri
                 } else {
+                    // API 26-28 only (Q+ takes the MediaStore branch above):
+                    // this write needs WRITE_EXTERNAL_STORAGE, a runtime-requested
+                    // permission on these levels. Nothing upstream of this suspend
+                    // function currently requests it — fail with a clear message
+                    // instead of letting a SecurityException surface as it did
+                    // before (opaque "Error: ...").
+                    if (androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) {
+                        throw Exception("Storage permission required to save ringtones on this Android version")
+                    }
                     val ringtonesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RINGTONES)
                     if (!ringtonesDir.exists()) ringtonesDir.mkdirs()
 
@@ -154,7 +173,7 @@ object RingtoneHelper {
                         put(MediaStore.Audio.Media.DATA, file.absolutePath)
                         put(MediaStore.Audio.Media.TITLE, "$title (Ringtone)")
                         put(MediaStore.Audio.Media.ARTIST, artist)
-                        put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
+                        put(MediaStore.Audio.Media.MIME_TYPE, outputMimeType)
                         put(MediaStore.Audio.Media.IS_RINGTONE, true)
                         put(MediaStore.Audio.Media.IS_NOTIFICATION, true)
                         put(MediaStore.Audio.Media.IS_ALARM, true)
@@ -185,19 +204,81 @@ object RingtoneHelper {
         }
     }
 
+    /**
+     * Trims [inputFile]'s audio track to [startMs]..[endMs] via sample-accurate
+     * stream copy (no re-encode), returning the trimmed file — or null if the
+     * source codec has no muxer that can hold it, so the caller can fall back
+     * to the untrimmed file instead of writing a broken one.
+     *
+     * The stream this app downloads for ringtones is usually Opus/WebM (format
+     * selection prefers it — see YTPlayerUtils.chooseFormat). MediaMuxer only
+     * gained Opus/OGG output in API 29; below that there is no public API for a
+     * lossless Opus trim without a full decode+encode pipeline, which is out of
+     * scope here.
+     */
     private suspend fun trimAudio(
-        context: Context,
         inputFile: File,
-        outputFile: File,
+        outputDir: File,
+        baseName: String,
         startMs: Long,
-        endMs: Long
-    ): Boolean = withContext(Dispatchers.IO) {
+        endMs: Long,
+    ): File? = withContext(Dispatchers.IO) {
+        val extractor = MediaExtractor()
         try {
-            inputFile.copyTo(outputFile, overwrite = true)
-            true
+            extractor.setDataSource(inputFile.absolutePath)
+            val trackIndex = (0 until extractor.trackCount).firstOrNull { i ->
+                extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+            } ?: return@withContext null
+            val format = extractor.getTrackFormat(trackIndex)
+            val mime = format.getString(MediaFormat.KEY_MIME).orEmpty()
+
+            val (muxerFormat, extension) = when {
+                mime.contains("opus", ignoreCase = true) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                    MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG to "ogg"
+                mime.contains("mp4a", ignoreCase = true) ->
+                    MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 to "m4a"
+                else -> return@withContext null
+            }
+
+            val outputFile = File(outputDir, "$baseName.$extension")
+            if (outputFile.exists()) outputFile.delete()
+            extractor.selectTrack(trackIndex)
+
+            val muxer = MediaMuxer(outputFile.absolutePath, muxerFormat)
+            val muxerTrackIndex = muxer.addTrack(format)
+            muxer.start()
+
+            val startUs = startMs * 1000L
+            val endUs = endMs * 1000L
+            extractor.seekTo(startUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+
+            val buffer = ByteBuffer.allocate(1 shl 20)
+            val bufferInfo = MediaCodec.BufferInfo()
+            while (true) {
+                buffer.clear()
+                val sampleSize = extractor.readSampleData(buffer, 0)
+                val sampleTimeUs = extractor.sampleTime
+                if (sampleSize < 0 || sampleTimeUs < 0 || sampleTimeUs >= endUs) break
+
+                // SEEK_TO_CLOSEST_SYNC lands on the sync sample at or before
+                // startUs, so the first sample(s) can predate it — clamp so the
+                // muxer never sees a negative presentation time.
+                bufferInfo.offset = 0
+                bufferInfo.size = sampleSize
+                bufferInfo.presentationTimeUs = (sampleTimeUs - startUs).coerceAtLeast(0L)
+                bufferInfo.flags = extractor.sampleFlags
+                muxer.writeSampleData(muxerTrackIndex, buffer, bufferInfo)
+                extractor.advance()
+            }
+
+            muxer.stop()
+            muxer.release()
+            outputFile
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            null
+        } finally {
+            extractor.release()
         }
     }
 

@@ -1065,8 +1065,6 @@ class MusicService :
                         // Don't restore repeat/shuffle from playerState as they are already set from DataStore (source of truth)
                         // player.repeatMode = playerState.repeatMode
                         // player.shuffleModeEnabled = playerState.shuffleModeEnabled
-                        playerVolume.value = playerState.volume
-
                         // A snapshot written while muted, audio-ducked, or
                         // mid-crossfade holds a zero (or near-zero) *effective*
                         // volume. Restoring it overrides the real PlayerVolumeKey
@@ -4127,8 +4125,11 @@ class MusicService :
                 // parks the loop and the service scope can tear down around it):
                 // otherwise the now-primary player keeps the last ramp value â€”
                 // near zero at the fade-out end â€” for the rest of the track.
+                // Read volume/mute live here, not the captured startVolume: if the
+                // user unmuted or raised volume mid-fade, restoring the stale
+                // snapshot would silently undo that action.
                 runCatching { fadingPlayer?.volume = 0f }
-                runCatching { player.volume = startVolume }
+                runCatching { player.volume = if (isMuted.value) 0f else playerVolume.value.coerceIn(0f, 1f) }
                 runCatching { cleanupCrossfade() }
             }
         }

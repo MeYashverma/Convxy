@@ -529,7 +529,13 @@ fun LocalPlaylistScreen(
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
-            dragInfo?.let { (from, to) ->
+            // Cleared up front: if the DB transaction below throws, or this
+            // effect is cancelled/restarted before reaching the end, leaving
+            // dragInfo set would make the NEXT drag's onMove silently reuse
+            // this stale "from" index — read as the reorder getting stuck.
+            val info = dragInfo
+            dragInfo = null
+            info?.let { (from, to) ->
                 database.transaction {
                     move(viewModel.playlistId, from, to)
                 }
@@ -550,8 +556,6 @@ fun LocalPlaylistScreen(
                         }
                     }
                 }
-
-                dragInfo = null
             }
         }
     }

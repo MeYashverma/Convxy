@@ -234,6 +234,7 @@ import com.convx.music.ui.component.rememberPlaybackFraction
 import com.convx.music.ui.component.WavySlider
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.LocalBackdropLoopBucket
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convx.music.ui.component.rememberBottomSheetState
@@ -288,6 +289,11 @@ import com.convx.music.ui.player.normalizeCanvasSongTitle
 import com.convx.music.vivimusiccanvas.ViviMusicCanvasProvider
 import com.convx.music.vivimusiccanvas.EchoMusicCanvasProvider
 import java.util.Locale
+
+/** Poll interval for VideoLoopClock and the bucket width glass surfaces cache
+ *  a looping canvas video's blur/lens output at (see LocalBackdropLoopBucket). */
+private const val VideoLoopBucketMs = 100L
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BottomSheetPlayer(
@@ -302,6 +308,11 @@ fun BottomSheetPlayer(
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
+
+    // Shared between the background slot (BackgroundVideoView polls into it)
+    // and the control pills below (read it via LocalBackdropLoopBucket) — see
+    // VideoLoopClock's doc for why this is a plain clock, not snapshot state.
+    val videoLoopClock = rememberVideoLoopClock()
 
     val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
         UseNewPlayerDesignKey,
@@ -993,6 +1004,13 @@ fun BottomSheetPlayer(
         playerConnection.requestShowQueue.collect { requested ->
             if (requested) {
                 showInlineLyrics = false
+                // Queue's own visibility below is gated on !isFullScreen, same as
+                // the lyrics path sets isFullScreen = true above. Without clearing
+                // it here, a prior fullscreen session (isFullScreen is
+                // rememberSaveable, so it survives the sheet collapsing back to
+                // the mini pill) leaves this expandSoft() a dead click — the queue
+                // sheet state expands but stays hidden behind the fullscreen gate.
+                isFullScreen = false
                 queueSheetState.expandSoft()
                 playerConnection.requestShowQueue.value = false
             }
@@ -1045,7 +1063,7 @@ fun BottomSheetPlayer(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .layerBackdrop(playerBackdrop)
+                    .layerBackdrop(playerBackdrop, frozen = state.backdropFrozen)
                     .then(
                         if (glassActive) {
                             // Unified Apple Music glass player background:
@@ -1379,11 +1397,12 @@ fun BottomSheetPlayer(
                                                         )
                                                     }
                                                 },
-                                                modifier = Modifier.fillMaxSize()
+                                                modifier = Modifier.fillMaxSize(),
+                                                loopClock = videoLoopClock,
                                             )
                                         }
                                     }
-                                    
+
                                     // Layer 3: Dynamic overlay for depth
                                     Box(
                                         modifier = Modifier
@@ -1724,7 +1743,7 @@ fun BottomSheetPlayer(
                                     interactionSource = remember { MutableInteractionSource() },
                                     onClick = {
                                         if (mediaMetadata.album != null) {
-                                            navController.navigate("album/${mediaMetadata.album.id}")
+                                            navController.navigate("album/${mediaMetadata.album.id}") { launchSingleTop = true }
                                             state.collapseSoft()
                                         }
                                     },
@@ -1802,7 +1821,7 @@ fun BottomSheetPlayer(
                                                         ?.let { ann ->
                                                             val artistId = ann.item
                                                             if (artistId.isNotBlank()) {
-                                                                navController.navigate("artist/$artistId")
+                                                                navController.navigate("artist/$artistId") { launchSingleTop = true }
                                                                 state.collapseSoft()
                                                             }
                                                         }
@@ -2001,7 +2020,17 @@ fun BottomSheetPlayer(
                     // Sample the player's own background (its blurred artwork/mesh
                     // layer), not whatever NavHost screen happens to be behind the
                     // player sheet — see playerBackdrop declaration above.
-                    CompositionLocalProvider(LocalAppBackdrop provides playerBackdrop) {
+                    // Stable across recompositions (remember'd) so DrawBackdropNode's
+                    // loopBucket-identity check doesn't clear the pool every time this
+                    // scope recomposes — only when video canvas actually toggles.
+                    val loopBucketProvider = remember(videoLoopClock) {
+                        { videoLoopClock.bucket(VideoLoopBucketMs) }
+                    }
+                    val videoCanvasActive = enableCanvas && canvasArtwork != null && backgroundVisible
+                    CompositionLocalProvider(
+                        LocalAppBackdrop provides playerBackdrop,
+                        LocalBackdropLoopBucket provides if (videoCanvasActive) loopBucketProvider else null,
+                    ) {
                     AnimatedContent(targetState = showInlineLyrics, label = "DownloadButton") { showLyrics ->
                         if (showLyrics) {
                             GlassCircleButton(
@@ -3336,7 +3365,11 @@ private fun BackgroundVideoView(
     isPlaying: Boolean,
     onError: () -> Unit = {},
     onReady: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Polled into periodically below so glass surfaces sampling this video's
+    // backdrop can cache their blur/lens output per loop-position bucket
+    // instead of recomputing every frame of every loop — see VideoLoopClock.
+    loopClock: VideoLoopClock? = null,
 ) {
     val context = LocalContext.current
     val downloadUtil = LocalDownloadUtil.current
@@ -3384,6 +3417,15 @@ private fun BackgroundVideoView(
                 videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
                 playWhenReady = isPlaying
             }
+    }
+
+    if (loopClock != null) {
+        LaunchedEffect(exoPlayer, loopClock) {
+            while (isActive) {
+                loopClock.update(exoPlayer.currentPosition, exoPlayer.duration)
+                delay(VideoLoopBucketMs)
+            }
+        }
     }
 
     val aspectRatioFrameLayout = remember {

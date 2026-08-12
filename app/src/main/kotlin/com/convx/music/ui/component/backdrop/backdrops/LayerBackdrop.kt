@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -76,6 +77,30 @@ class LayerBackdrop internal constructor(
     internal fun contentRecorded() {
         contentVersion++
     }
+
+    /**
+     * Regions declared static THIS generation by [backdropStaticRegion] children,
+     * in this backdrop's own coordinate space. Plain list, not snapshot state, for
+     * the same draw-phase-write reason as [contentVersion]. Cleared and rebuilt by
+     * [LayerBackdropNode.draw] every time the source re-records, so a stale
+     * declaration from a since-removed or since-changed composable never lingers
+     * past the generation it was made in.
+     */
+    internal val staticRegions = ArrayList<Rect>()
+
+    /**
+     * True if [rect] (in this backdrop's coordinate space) falls entirely inside a
+     * single region declared static this generation. Deliberately checks a single
+     * covering rect rather than the union of several: a target only partly covered
+     * by static declarations is treated as unstable rather than pulled into
+     * region-union math, so a miss only costs a skipped optimization, never a
+     * stale pixel on a sampling glass surface.
+     */
+    internal fun isFullyStatic(rect: Rect): Boolean =
+        staticRegions.any { region ->
+            region.left <= rect.left && region.top <= rect.top &&
+                region.right >= rect.right && region.bottom >= rect.bottom
+        }
 
     /**
      * True once the source has been recorded at least once. Freezing before that would

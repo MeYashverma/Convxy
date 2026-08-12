@@ -1118,6 +1118,13 @@ private fun SharedTransitionScope.ExpandedTabs(
     // in onDragStopped (finger lifted, puck settling onto its target) — never
     // mid-drag. An earlier "predictive fire" here navigated while the puck was
     // still being dragged, which opened screens before the drop.
+    // inspectDragGestures (vendored) fires onDragStart/onDrag/onDragEnd for a
+    // plain tap-through too, with zero net movement, and never consumes the
+    // touch — so a tap that lands on the puck while it's mid-sweep between
+    // two tabs would otherwise re-navigate to targetValue (the sweep's
+    // destination) on top of whatever the tapped tab's own tapClickable just
+    // navigated to. Gate the puck's own navigate-on-release to genuine drags.
+    var hasDraggedPuck = false
     val dampedDragAnimation = remember(animationScope, tabsCount) {
         DampedDragAnimation(
             animationScope = animationScope,
@@ -1129,7 +1136,7 @@ private fun SharedTransitionScope.ExpandedTabs(
             // fraction of our own tab width — a proportional scale factor, not
             // an absolute size, so it should track the source value directly.
             pressedScale = 78f / 56f,
-            onDragStarted = {},
+            onDragStarted = { hasDraggedPuck = false },
             onDragStopped = {
                 val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
                 currentIndex = targetIndex
@@ -1144,9 +1151,12 @@ private fun SharedTransitionScope.ExpandedTabs(
                 animationScope.launch {
                     offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
-                currentTabs.value.getOrNull(targetIndex)?.onClick?.invoke()
+                if (hasDraggedPuck) {
+                    currentTabs.value.getOrNull(targetIndex)?.onClick?.invoke()
+                }
             },
             onDrag = { _, dragAmount ->
+                if (dragAmount != Offset.Zero) hasDraggedPuck = true
                 updateValue(
                     (targetValue + dragAmount.x / tabWidthPx * if (isLtr) 1f else -1f)
                         .fastCoerceIn(0f, (tabsCount - 1).toFloat())

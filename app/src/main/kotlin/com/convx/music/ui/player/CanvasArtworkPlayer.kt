@@ -23,11 +23,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.convx.music.LocalDownloadUtil
 import com.music.innertube.YouTube
 import com.music.innertube.models.YouTubeClient
 import okhttp3.OkHttpClient
@@ -42,10 +44,16 @@ fun CanvasArtworkPlayer(
     fallbackUrl: String?,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
+    // Matches the "$mediaId#canvas" key DownloadUtil.kt pre-caches the canvas
+    // video under. Without it, this player has no way to hit that cache entry
+    // even when one exists — it always re-fetches over the network, which
+    // fails outright offline and can flicker/drop the overlay on a hiccup.
+    mediaId: String? = null,
     onExhausted: () -> Unit = {},
     onReady: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val downloadUtil = LocalDownloadUtil.current
     val primary = primaryUrl?.takeIf { it.isNotBlank() }
     val fallback = fallbackUrl?.takeIf { it.isNotBlank() }
     val initial = primary ?: fallback ?: return
@@ -124,12 +132,18 @@ fun CanvasArtworkPlayer(
                 .build()
         }
     val mediaSourceFactory =
-        remember(okHttpClient) {
+        remember(okHttpClient, downloadUtil) {
             DefaultMediaSourceFactory(
-                DefaultDataSource.Factory(
-                    context,
-                    OkHttpDataSource.Factory(okHttpClient),
-                ),
+                CacheDataSource.Factory()
+                    .setCache(downloadUtil.downloadCache)
+                    .setUpstreamDataSourceFactory(
+                        DefaultDataSource.Factory(
+                            context,
+                            OkHttpDataSource.Factory(okHttpClient),
+                        ),
+                    )
+                    .setCacheWriteDataSinkFactory(null)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR),
             )
         }
     val exoPlayer =
@@ -215,6 +229,12 @@ fun CanvasArtworkPlayer(
             MediaItem.Builder()
                 .setUri(normalized)
                 .setMimeType(mimeType)
+                .apply {
+                    // Same key DownloadUtil.kt pre-caches this canvas video
+                    // under — without it CacheDataSource has no way to find
+                    // an already-downloaded copy and always hits the network.
+                    if (!mediaId.isNullOrBlank()) setCustomCacheKey("$mediaId#canvas")
+                }
                 .build()
 
         exoPlayer.stop()

@@ -776,6 +776,13 @@ fun HomeScreen(
                 isActive = it.id == mediaMetadata?.id,
                 isPlaying = isPlaying,
                 showLikedIcon = !hideHomeFavoriteIcon,
+                // GridItem's own fixed-width sizing otherwise wins over this
+                // Modifier.fillMaxWidth() (it's applied after, in GridItem's
+                // internal chain) — barely visible in a phone's ~164dp-wide
+                // weighted slot, but leaves a large gap in tab view's much
+                // wider one. This is the actual switch that makes the tile
+                // stretch instead of the outer modifier alone.
+                fillMaxWidth = true,
             )
 
             is Album -> AlbumGridItem(
@@ -800,7 +807,8 @@ fun HomeScreen(
                                 )
                             }
                         }
-                    )
+                    ),
+                fillMaxWidth = true,
             )
 
             is Artist -> ArtistGridItem(
@@ -824,6 +832,7 @@ fun HomeScreen(
                             }
                         },
                     ),
+                fillMaxWidth = true,
             )
 
             is Playlist -> {}

@@ -77,6 +77,10 @@ private class LayerBackdropNode(
 ) : DrawModifierNode, GlobalPositionAwareModifierNode, Modifier.Node() {
 
     override fun ContentDrawScope.draw() {
+        // Cleared every generation, before children (backdropStaticRegion among
+        // them) redraw and repopulate it below — see LayerBackdrop.staticRegions.
+        backdrop.staticRegions.clear()
+
         // Record the subtree ONCE, then composite that recording to the screen —
         // rather than drawing the tree, then walking it a second time to record
         // it for glass to sample.

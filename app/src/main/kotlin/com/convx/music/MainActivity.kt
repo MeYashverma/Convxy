@@ -421,7 +421,6 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var listenTogetherManager: com.convx.music.listentogether.ListenTogetherManager
 
-    private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
 
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
@@ -499,11 +498,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (::navController.isInitialized) {
-            handleDeepLinkIntent(intent, navController)
-        } else {
-            pendingIntent = intent
-        }
+        // Live handling goes through the addOnNewIntentListener registered once
+        // composition mounts. This is a safety-net capture for the (unlikely)
+        // window before that listener is registered; the listener will already
+        // have handled the common case, so this is otherwise inert.
+        pendingIntent = intent
     }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -1478,7 +1477,17 @@ class MainActivity : ComponentActivity() {
                                                   if (enableSettingsPopup) {
                                                       showSettingDialoge = true
                                                   } else {
-                                                      navController.navigate("settings")
+                                                      // Same multi-back-stack pattern as onNavItemClick below:
+                                                      // without it this push skips saveState/restoreState and
+                                                      // can dead-end (back stack doesn't reconcile with the
+                                                      // tab bar's own popUpTo group).
+                                                      navController.navigate("settings") {
+                                                          popUpTo(navController.graph.startDestinationId) {
+                                                              saveState = true
+                                                          }
+                                                          launchSingleTop = true
+                                                          restoreState = true
+                                                      }
                                                   }
                                               }) {
                                                 BadgedBox(badge = {}) {
@@ -2219,27 +2228,27 @@ class MainActivity : ComponentActivity() {
                         YouTube.albumSongs(playlistId).onSuccess { songs ->
                             songs.firstOrNull()?.album?.id?.let { browseId ->
                                 withContext(Dispatchers.Main) {
-                                    navController.navigate("album/$browseId")
+                                    navController.navigate("album/$browseId") { launchSingleTop = true }
                                 }
                             }
                         }.onFailure { reportException(it) }
                     }
                 } else {
-                    navController.navigate("online_playlist/$playlistId")
+                    navController.navigate("online_playlist/$playlistId") { launchSingleTop = true }
                 }
             }
 
             "browse" -> uri.lastPathSegment?.let { browseId ->
-                navController.navigate("album/$browseId")
+                navController.navigate("album/$browseId") { launchSingleTop = true }
             }
 
             "channel", "c" -> uri.lastPathSegment?.let { artistId ->
-                navController.navigate("artist/$artistId")
+                navController.navigate("artist/$artistId") { launchSingleTop = true }
             }
 
             "search" -> {
                 uri.getQueryParameter("q")?.let {
-                    navController.navigate("search/${URLEncoder.encode(it, "UTF-8")}")
+                    navController.navigate("search/${URLEncoder.encode(it, "UTF-8")}") { launchSingleTop = true }
                 }
             }
 

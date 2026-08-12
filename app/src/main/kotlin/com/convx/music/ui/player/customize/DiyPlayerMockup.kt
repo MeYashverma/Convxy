@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.convx.music.R
 import com.convx.music.constants.HidePlayerThumbnailKey
+import com.convx.music.constants.PlayerHorizontalPadding
 import com.convx.music.constants.PlayerArtworkStyle
 import com.convx.music.constants.PlayerArtworkStyleKey
 import com.convx.music.constants.PlayerBackgroundStyle
@@ -132,6 +133,24 @@ fun DiyPlayerMockup(
  * resolve it against this identical canvas — the real player has no other reason to match a
  * 360:780 aspect ratio on its own.
  */
+/**
+ * The mockup's actual rendered width for [orientation] within a [maxWidth]x[maxHeight] area —
+ * the same scale formula [DiyDesignCanvas] computes internally, exposed so sibling UI (the
+ * editor's floating control pills) can match the mockup's real on-screen bounds. Without this,
+ * fillMaxWidth() controls stretch to the full physical screen while the mockup itself letterboxes
+ * narrower and centered on anything wider than a phone (tab view, tablet) — the pills end up
+ * pinned to the screen edges, visually disconnected from the canvas they control.
+ */
+fun diyMockupRenderedWidth(orientation: DiyOrientation, maxWidth: Dp, maxHeight: Dp): Dp {
+    val design = if (orientation == DiyOrientation.PORTRAIT) {
+        DpSize(DESIGN_SHORT_EDGE, DESIGN_LONG_EDGE)
+    } else {
+        DpSize(DESIGN_LONG_EDGE, DESIGN_SHORT_EDGE)
+    }
+    val scale = min(maxWidth / design.width, maxHeight / design.height)
+    return design.width * scale
+}
+
 @Composable
 fun DiyDesignCanvas(
     orientation: DiyOrientation,
@@ -260,7 +279,9 @@ private fun PortraitMockup(style: MockupStyle) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 32.dp),
+            // Matches the real Player's own PlayerHorizontalPadding — this used
+            // to be a hardcoded 24.dp, drifting from the real screen's proportions.
+            .padding(horizontal = PlayerHorizontalPadding, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Spacer(Modifier.weight(0.2f))
@@ -282,7 +303,7 @@ private fun LandscapeMockup(style: MockupStyle) {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 20.dp),
+            .padding(horizontal = PlayerHorizontalPadding, vertical = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(28.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

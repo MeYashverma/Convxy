@@ -15,6 +15,10 @@
     <!-- Local audio file access -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Ringtone save on API 26-28 only: writes to the public Ringtones dir
+         via java.io.File, which needs this below scoped storage (API 29+).
+         RingtoneHelper.kt's Q+ branch uses MediaStore instead and needs none. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <!--    bluetooth connect-->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />

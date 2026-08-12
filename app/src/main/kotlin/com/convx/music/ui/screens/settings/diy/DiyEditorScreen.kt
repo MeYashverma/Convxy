@@ -18,6 +18,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -79,6 +81,7 @@ import com.convx.music.ui.player.customize.DiyBounds
 import com.convx.music.ui.player.customize.DiyLayout
 import com.convx.music.ui.player.customize.DiyOrientation
 import com.convx.music.ui.player.customize.DiyPlayerMockup
+import com.convx.music.ui.player.customize.diyMockupRenderedWidth
 import com.convx.music.ui.player.customize.DiySticker
 import com.convx.music.ui.player.customize.DiyStickerContent
 import com.convx.music.ui.player.customize.DiyStickerKind
@@ -199,7 +202,13 @@ fun DiyEditorScreen(navController: NavController) {
         )
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+        // The mockup below letterboxes to a centered, narrower column on any
+        // screen wider than its 360:780 design ratio (tab view, tablet) —
+        // without this the control pills stay pinned to the physical screen
+        // edges instead of tracking the canvas they actually control.
+        val controlsMaxWidth = diyMockupRenderedWidth(orientation, maxWidth, maxHeight)
+
         EditorCanvas(
             layout = layout,
             orientation = orientation,
@@ -260,7 +269,7 @@ fun DiyEditorScreen(navController: NavController) {
                     navController.navigateUp()
                 }
             },
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier.align(Alignment.TopCenter).widthIn(max = controlsMaxWidth),
         )
 
         BottomControls(
@@ -285,7 +294,7 @@ fun DiyEditorScreen(navController: NavController) {
                     editOpen = false
                 }
             },
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = controlsMaxWidth),
         )
 
         PopupLayer(
@@ -487,30 +496,39 @@ private fun TopControls(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Modifier.weight needs a bounded main-axis constraint, which
+    // horizontalScroll below deliberately relaxes to unbounded — so the
+    // left/right pill groups can no longer be split by a weighted Spacer.
+    // Arrangement.SpaceBetween achieves the same "push apart" layout at rest
+    // (it only needs the Row's own resolved width, computed after scroll
+    // content is measured) and degrades to scrollable overflow instead of
+    // clipping when the groups don't both fit.
     Row(
         modifier = modifier
             .statusBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp)
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Pill {
-            PillIcon(R.drawable.arrow_back, onClick = onBack)
-        }
-        Pill {
-            DiyOrientation.entries.forEach { entry ->
-                PillText(
-                    text = stringResource(
-                        if (entry == DiyOrientation.PORTRAIT) R.string.diy_portrait
-                        else R.string.diy_landscape,
-                    ),
-                    selected = entry == orientation,
-                    onClick = { onOrientationChange(entry) },
-                )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Pill {
+                PillIcon(R.drawable.arrow_back, onClick = onBack)
+            }
+            Pill {
+                DiyOrientation.entries.forEach { entry ->
+                    PillText(
+                        text = stringResource(
+                            if (entry == DiyOrientation.PORTRAIT) R.string.diy_portrait
+                            else R.string.diy_landscape,
+                        ),
+                        selected = entry == orientation,
+                        onClick = { onOrientationChange(entry) },
+                    )
+                }
             }
         }
-        Spacer(Modifier.weight(1f))
         Pill {
             PillIcon(R.drawable.replay, enabled = canUndo, onClick = onUndo)
             PillIcon(R.drawable.fast_forward, enabled = canRedo, onClick = onRedo)
@@ -534,7 +552,11 @@ private fun BottomControls(
     Row(
         modifier = modifier
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 16.dp),
+            .padding(horizontal = 12.dp, vertical = 16.dp)
+            // The edit/delete pill only appears once a sticker is selected and
+            // is laid out last, so it's the one most likely to overflow
+            // off-screen on narrow widths — scroll rather than clip it.
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

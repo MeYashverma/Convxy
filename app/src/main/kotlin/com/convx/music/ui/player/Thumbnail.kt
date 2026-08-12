@@ -927,6 +927,7 @@ private fun ThumbnailItem(
                         primaryUrl = artwork.animated,
                         fallbackUrl = artwork.videoUrl,
                         isPlaying = isPlaying,
+                        mediaId = item.mediaId,
                         modifier = Modifier.fillMaxSize()
                     )
                 }

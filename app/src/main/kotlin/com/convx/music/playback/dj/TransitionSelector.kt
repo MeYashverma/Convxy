@@ -88,9 +88,17 @@ object TransitionSelector {
             DjMixTier.PLAIN_CROSSFADE -> 0.20f
         }
 
-        // The safe one: works on anything, and works best where a loop-style
-        // effect wouldn't, i.e. where the track is already thinning out.
-        scores[TransitionStyle.ECHO_FREEZE] = 0.58f + (1f - outroEnergy) * 0.25f
+        // A frozen delay loop only reads as a deliberate move over a matched
+        // beat grid — FULL_DJ is the only tier with one. Scoring it at
+        // SMART_CROSSFADE/PLAIN_CROSSFADE too (it used to) meant it beat
+        // TRANSPARENT's deliberately-low score there on every mismatched pair,
+        // which is most real-world transitions — heard as the outgoing track
+        // stuttering/repeating instead of an intentional effect. DjMixPlanner's
+        // own tier doc already says SMART_CROSSFADE carries no EQ/effects
+        // camouflage; this was the one place that contract wasn't enforced.
+        if (tier == DjMixTier.FULL_DJ) {
+            scores[TransitionStyle.ECHO_FREEZE] = 0.58f + (1f - outroEnergy) * 0.25f
+        }
 
         // A brake is an ending, not a blend. It earns its place when the tempos
         // could never have matched anyway — and only if the incoming track

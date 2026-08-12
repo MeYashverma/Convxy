@@ -40,6 +40,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,7 @@ import com.convx.music.constants.HomeBackgroundPathKey
 import com.convx.music.constants.LibraryBackgroundMode
 import com.convx.music.constants.LibraryBackgroundModeKey
 import com.convx.music.ui.component.DefaultDialog
+import com.convx.music.ui.component.HomeBackgroundBlurCache
 import com.convx.music.ui.component.HomeVideoBackground
 import com.convx.music.ui.component.Material3SettingsGroup
 import com.convx.music.ui.component.Material3SettingsItem
@@ -251,10 +253,21 @@ fun HomeBackgroundControls() {
             if (path.isNotEmpty() && isVideo) {
                 HomeVideoBackground(path = path, blur = blur, dim = dim)
             } else if (path.isNotEmpty()) {
-                // Mirrors HomeImageBackground: always realtime Modifier.blur.
-                val previewRequest = remember(path) {
+                // Mirrors HomeImageBackground's own steady-state: the runtime
+                // background swaps to this same baked file once settled, using
+                // a resample approximation rather than a true Gaussian blur
+                // (see HomeBackgroundBlurCache's doc). This preview used to
+                // always show the live RenderEffect blur instead, so what the
+                // user picked here didn't match what they'd actually see.
+                // Falls back to the live blur until the bake is ready, same
+                // fallback contract HomeImageBackground relies on.
+                var baked by remember(path, blur) { mutableStateOf<File?>(null) }
+                LaunchedEffect(path, blur) {
+                    baked = if (blur > 0f) HomeBackgroundBlurCache.get(context, path, blur) else null
+                }
+                val previewRequest = remember(path, baked) {
                     ImageRequest.Builder(context)
-                        .data(File(path))
+                        .data(baked ?: File(path))
                         .build()
                 }
                 AsyncImage(
@@ -263,7 +276,7 @@ fun HomeBackgroundControls() {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(blur.dp),
+                        .then(if (baked == null && blur > 0f) Modifier.blur(blur.dp) else Modifier),
                 )
                 Box(
                     modifier = Modifier

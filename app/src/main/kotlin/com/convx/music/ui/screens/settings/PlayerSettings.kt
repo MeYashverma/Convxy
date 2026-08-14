@@ -97,6 +97,7 @@ import com.convx.music.constants.AutoDjMixingEnabledKey
 import com.convx.music.constants.CreativeTransitionsEnabledKey
 import com.convx.music.constants.CompactPlayerInTabViewKey
 import com.convx.music.constants.HideVolumeBarKey
+import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.CrossfadeEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.CrossfadeGaplessKey
@@ -191,6 +192,10 @@ fun PlayerSettings(
     )
     val (compactPlayerInTabView, onCompactPlayerInTabViewChange) = rememberPreference(
         CompactPlayerInTabViewKey,
+        defaultValue = false
+    )
+    val (localOnlyMode, onLocalOnlyModeChange) = rememberPreference(
+        LocalOnlyModeKey,
         defaultValue = false
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
@@ -576,6 +581,33 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onCompactPlayerInTabViewChange(!compactPlayerInTabView) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.local_songs),
+                    title = { Text(stringResource(R.string.local_only_mode)) },
+                    description = { Text(stringResource(R.string.local_only_mode_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = localOnlyMode,
+                            onCheckedChange = onLocalOnlyModeChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (localOnlyMode) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLocalOnlyModeChange(!localOnlyMode) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.library_music),
+                    title = { Text(stringResource(R.string.excluded_folders)) },
+                    description = { Text(stringResource(R.string.excluded_folders_desc)) },
+                    onClick = { navController.navigate("settings/player/local_folders") }
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.history),

@@ -143,7 +143,6 @@ import com.convx.music.constants.EnablePaxsenixKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.DataSaverEnabledKey
-import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -243,7 +242,6 @@ fun ContentSettings(
     val (suggestionRegion, onSuggestionRegionChange) = rememberPreference(key = SuggestionRegionKey, defaultValue = "system")
     val (hideExplicit, onHideExplicitChange) = rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (dataSaverEnabled, onDataSaverEnabledChange) = rememberPreference(key = DataSaverEnabledKey, defaultValue = false)
-    val (localOnlyMode, onLocalOnlyModeChange) = rememberPreference(key = LocalOnlyModeKey, defaultValue = false)
     val (hideVideoSongs, onHideVideoSongsChange) = rememberPreference(key = HideVideoSongsKey, defaultValue = false)
 
     val (hideYoutubeShorts, onHideYoutubeShortsChange) = rememberPreference(key = HideYoutubeShortsKey, defaultValue = false)
@@ -254,9 +252,15 @@ fun ContentSettings(
     val (showArtistBackgroundVideo, onShowArtistBackgroundVideoChange) = rememberPreference(key = ShowArtistBackgroundVideoKey, defaultValue = true)
     val (proxyEnabled, onProxyEnabledChange) = rememberPreference(key = ProxyEnabledKey, defaultValue = false)
     val (proxyType, onProxyTypeChange) = rememberEnumPreference(key = ProxyTypeKey, defaultValue = Proxy.Type.HTTP)
-    val (proxyUrl, onProxyUrlChange) = rememberPreference(key = ProxyUrlKey, defaultValue = "host:port")
-    val (proxyUsername, onProxyUsernameChange) = rememberPreference(key = ProxyUsernameKey, defaultValue = "username")
-    val (proxyPassword, onProxyPasswordChange) = rememberPreference(key = ProxyPasswordKey, defaultValue = "password")
+    // Empty, not placeholder text — "host:port"/"username"/"password" used to be
+    // the actual stored default, so enabling the Proxy toggle (or just opening
+    // the auth section, which pre-enabled itself off these being "non-blank")
+    // without editing anything saved those literal strings as the real proxy
+    // URL / Basic-Auth credentials. Shown as OutlinedTextField placeholder hints
+    // below instead.
+    val (proxyUrl, onProxyUrlChange) = rememberPreference(key = ProxyUrlKey, defaultValue = "")
+    val (proxyUsername, onProxyUsernameChange) = rememberPreference(key = ProxyUsernameKey, defaultValue = "")
+    val (proxyPassword, onProxyPasswordChange) = rememberPreference(key = ProxyPasswordKey, defaultValue = "")
     val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (enableBetterLyrics, onEnableBetterLyricsChange) = rememberPreference(key = EnableBetterLyricsKey, defaultValue = true)
@@ -346,6 +350,7 @@ fun ContentSettings(
                         value = tempProxyUrl,
                         onValueChange = { tempProxyUrl = it },
                         label = { Text(stringResource(R.string.proxy_url)) },
+                        placeholder = { Text("host:port") },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -373,12 +378,14 @@ fun ContentSettings(
                                 value = tempProxyUsername,
                                 onValueChange = { tempProxyUsername = it },
                                 label = { Text(stringResource(R.string.proxy_username)) },
+                                placeholder = { Text("username") },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
                                 value = tempProxyPassword,
                                 onValueChange = { tempProxyPassword = it },
                                 label = { Text(stringResource(R.string.proxy_password)) },
+                                placeholder = { Text("password") },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -810,28 +817,6 @@ fun ContentSettings(
                         )
                     },
                     onClick = { onDataSaverEnabledChange(!dataSaverEnabled) }
-                ),
-
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.local_songs),
-                    title = { Text(stringResource(R.string.local_only_mode)) },
-                    description = { Text(stringResource(R.string.local_only_mode_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = localOnlyMode,
-                            onCheckedChange = onLocalOnlyModeChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (localOnlyMode) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onLocalOnlyModeChange(!localOnlyMode) }
                 ),
 
                 Material3SettingsItem(

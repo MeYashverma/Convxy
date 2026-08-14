@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontFamily
 import androidx.palette.graphics.Palette
 import com.convx.music.constants.AppFont
+import com.convx.music.constants.AppTextColorKey
 import com.convx.music.constants.SelectedFontKey
 import com.convx.music.utils.rememberPreference
 import com.materialkolor.PaletteStyle
@@ -74,10 +75,18 @@ fun vivimusicTheme(
         style = PaletteStyle.TonalSpot,
     )
 
-    val colorScheme = remember(baseColorScheme, pureBlack, darkTheme, themeColor) {
+    val (appTextColorInt) = rememberPreference(AppTextColorKey, defaultValue = 0)
+
+    val colorScheme = remember(baseColorScheme, pureBlack, darkTheme, themeColor, appTextColorInt) {
         val withApple = if (darkTheme) baseColorScheme.appleSurfaces() else baseColorScheme
         val withBlack = if (darkTheme && pureBlack) withApple.pureBlack(true) else withApple
-        withBlack.accentText(themeColor, darkTheme)
+        val withAccentText = withBlack.accentText(themeColor, darkTheme)
+        // Theme screen's explicit text color, when set, replaces the accent-tinted
+        // text roles everywhere they're read from MaterialTheme.colorScheme — this
+        // is the single root override every screen's default Text() picks up, same
+        // mechanism accentText itself uses. Fill/control roles (primary, onPrimary)
+        // are left alone; only text roles change.
+        if (appTextColorInt != 0) withAccentText.flatText(Color(appTextColorInt)) else withAccentText
     }
 
     val (selectedFont) = rememberPreference(SelectedFontKey, defaultValue = AppFont.SYSTEM.value)
@@ -95,7 +104,13 @@ fun vivimusicTheme(
 
     androidx.compose.runtime.CompositionLocalProvider(
         LocalAccentColor provides themeColor,
-        LocalAccentTextColor provides accentTextColor(themeColor, darkTheme),
+        // Same override as flatText just above: the user's explicit text color,
+        // when set, wins over the accent-derived one — this is what the shared
+        // top bar (wordmark + every screen's title, including Settings) actually
+        // reads, since it sits outside any screen's own theme scope.
+        LocalAccentTextColor provides (
+            if (appTextColorInt != 0) Color(appTextColorInt) else accentTextColor(themeColor, darkTheme)
+        ),
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -270,6 +285,23 @@ fun ColorScheme.accentText(accent: Color, dark: Boolean): ColorScheme {
         onPrimary = if (dark) Color.Black else Color.White,
     )
 }
+
+/**
+ * Flattens every text role [accentText] tints to one explicit user-chosen color —
+ * the Theme screen's "Text Color" override. Fill/control roles (primary, onPrimary)
+ * stay accent-derived: they double as button/slider fills, and a color picked for
+ * text readability isn't necessarily right as a large fill.
+ */
+fun ColorScheme.flatText(color: Color) = copy(
+    onSurface = color,
+    onBackground = color,
+    onSurfaceVariant = color,
+    onSecondaryContainer = color,
+    onTertiaryContainer = color,
+    onPrimaryContainer = color,
+    onSecondary = color,
+    secondary = color,
+)
 
 fun ColorScheme.pureBlack(apply: Boolean) =
     if (apply) copy(

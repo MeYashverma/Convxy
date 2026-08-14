@@ -59,12 +59,13 @@ import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
-import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.AlbumListItem
 import com.convx.music.ui.component.ArtistListItem
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.HeroBackground
+import com.convx.music.ui.component.HomeImageBackground
+import com.convx.music.ui.component.rememberAppBackgroundTint
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.font.FontWeight
 import com.convx.music.ui.component.LocalMenuState
@@ -129,7 +130,12 @@ fun LocalSearchScreen(
         staticArt = heroUrl,
         songs = result.map[LocalFilter.SONG]?.filterIsInstance<Song>()?.map { it.song.thumbnailUrl to false } ?: emptyList()
     )
-    val tint = Color.Black
+    // Was hardcoded Color.Black regardless of the Theme settings color/pureBlack
+    // choice — the top bar and result background never matched what the rest of
+    // the app (online SearchScreen included) actually painted. Same token online
+    // search uses, with pureBlack forcing flat black same as every other
+    // hero-tinted screen already does (see rememberHeroTint's PureBlack override).
+    val tint = if (pureBlack) Color.Black else rememberAppBackgroundTint(AppleTokens.BgElevated)
     val onTint = AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current
@@ -141,6 +147,10 @@ fun LocalSearchScreen(
             .fillMaxSize()
             .background(tint),
     ) {
+      // Matches Home/Library/OnlineSearchResult: the user's own picture/color
+      // background, drawn unconditionally like SearchScreen.kt — HomeImageBackground
+      // already no-ops when no custom image is set.
+      HomeImageBackground(withGradient = true)
       HeroTintedContent(tint = tint, backdrop = heroBackdrop) {
         val chromeShape = ContinuousRoundedRectangle(percent = 50)
         val chromeBackgroundModifier = if (useGlass) {
@@ -164,13 +174,6 @@ fun LocalSearchScreen(
                     } else base
                 }
         ) {
-            item(key = "search_header") {
-                LargeScreenTitle(
-                    title = stringResource(R.string.search),
-                    color = onTint,
-                )
-            }
-
             stickyHeader {
                 Box(
                     modifier = Modifier

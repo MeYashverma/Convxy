@@ -204,6 +204,7 @@ import com.convx.music.constants.ShowHistoryButtonKey
 import com.convx.music.constants.ShowStatsButtonKey
 import com.convx.music.constants.AppleMusicUiKey
 import com.convx.music.constants.PauseSearchHistoryKey
+import com.convx.music.constants.AppBackgroundColorKey
 import com.convx.music.constants.PureBlackKey
 import com.convx.music.constants.SYSTEM_DEFAULT
 import com.convx.music.constants.SelectedThemeColorKey
@@ -720,10 +721,22 @@ class MainActivity : ComponentActivity() {
             pureBlack = pureBlack,
             themeColor = themeColor,
         ) {
+            val (appBackgroundColorInt) = rememberPreference(AppBackgroundColorKey, defaultValue = 0)
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+                    // The base canvas behind every screen, tab-view's side panel and
+                    // main content pane included — HomeImageBackground and similar
+                    // per-screen overlays paint on top of this, but this is what shows
+                    // through wherever they don't, so it must follow the user's global
+                    // background color too, not just pureBlack vs the raw theme surface.
+                    .background(
+                        when {
+                            appBackgroundColorInt != 0 -> Color(appBackgroundColorInt)
+                            pureBlack -> Color.Black
+                            else -> MaterialTheme.colorScheme.surface
+                        }
+                    )
             ) {
                 val focusManager = LocalFocusManager.current
                 val density = LocalDensity.current
@@ -960,6 +973,9 @@ class MainActivity : ComponentActivity() {
                 val currentRoute by remember {
                     derivedStateOf { navBackStackEntry?.destination?.route }
                 }
+                LaunchedEffect(currentRoute) {
+                    Timber.tag("Navigation").d("route -> $currentRoute")
+                }
 
                 val inSearchScreen by remember {
                     derivedStateOf {
@@ -988,6 +1004,12 @@ class MainActivity : ComponentActivity() {
                         // search_input instead of hiding â€” only the classic bar still
                         // hides there.
                         inSearchInputScreen && !useFloatingNavBar -> false
+                        // By design: nav bar shows only at Settings root ("settings"
+                        // bare route); every drilled-in sub-page ("settings/...") is a
+                        // focused detail/editor context and hides it, same as the other
+                        // full-screen flows below. Reaching Home from a sub-page is via
+                        // one back-tap to root (where the bar reappears) or the back
+                        // arrow's long-press (backToMain()) shortcut.
                         currentRoute?.startsWith("settings/") == true -> false
                         currentRoute in setOf("login", "channel_picker", "equalizer", "wrapped", "update", "listen_together/chat") -> false
                         else -> true
@@ -1529,13 +1551,16 @@ class MainActivity : ComponentActivity() {
                                             actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                             navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                                         ),
-                                        modifier = Modifier.windowInsetsPadding(
-                                            // The side bar is a compact floating capsule
-                                            // centred vertically, not a full-height
-                                            // panel, so it never reaches the top bar and
-                                            // the top bar needs no inset for it.
-                                            cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
-                                        )
+                                        modifier = Modifier
+                                            .windowInsetsPadding(
+                                                cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
+                                            )
+                                            // The side bar now spans most of the screen
+                                            // height, not the small centered capsule this
+                                            // used to be — it reaches the top bar's row,
+                                            // so the bar needs the same start inset every
+                                            // screen's own content already gets.
+                                            .padding(start = if (showRail) sideBarContentInset else 0.dp)
                                     )
                                     }
                                 }
@@ -1971,7 +1996,7 @@ class MainActivity : ComponentActivity() {
                             // the same way ambient_mode is already excluded from the bottom/
                             // floating nav bar above, or the rail floats over its full-screen
                             // visualizer with no route-based reason to.
-                            if (showRail && currentRoute != "ambient_mode") {
+                            if (showRail && currentRoute != "ambient_mode" && currentRoute != "settings/appearance/diy") {
                                 // No global floating Back here anymore: each screen's own
                                 // back button (TopAppBar nav icon or floating chrome row)
                                 // now insets clear of the side panel, so a second global

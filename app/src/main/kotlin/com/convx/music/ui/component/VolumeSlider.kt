@@ -73,11 +73,14 @@ fun VolumeSlider(
         else -> volumeUpIcon
     }
 
+    // Unloaded track is a faded version of accentColor itself, not a separate
+    // Material role — so it reads as the same color as the loaded half, whatever
+    // accentColor is (including the caller's global text/button color).
     val colors = SliderDefaults.colors(
         thumbColor = accentColor,
         activeTrackColor = accentColor,
         activeTickColor = MaterialTheme.colorScheme.onPrimary,
-        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+        inactiveTrackColor = accentColor.copy(alpha = 0.3f),
         inactiveTickColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
     

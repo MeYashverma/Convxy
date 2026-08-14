@@ -23,6 +23,22 @@ class CrashHandler private constructor(
         Thread.getDefaultUncaughtExceptionHandler()
 
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
+        // media3's MediaNotificationManager calls the platform's (final,
+        // un-overridable) Service.startForeground() directly and
+        // asynchronously — a posted Handler callback, not on a frame app
+        // code controls — so this global handler is the only remaining
+        // place to catch a promotion the OS refused (app backgrounded past
+        // its foreground-service grace window; confirmed via a real device
+        // crash log, Samsung/Android 16, app 1.5.1). The OS already refused
+        // the promotion; there's nothing to recover except not killing the
+        // process over it — the notification just stays unpromoted until
+        // playback next starts in the foreground normally.
+        if (Build.VERSION.SDK_INT >= 31 &&
+            throwable is android.app.ForegroundServiceStartNotAllowedException
+        ) {
+            Timber.tag("CrashHandler").w(throwable, "Foreground service start refused by platform — ignoring, not crashing")
+            return
+        }
         try {
             val crashLog = buildCrashLog(throwable)
             Timber.e(throwable, "App crashed")

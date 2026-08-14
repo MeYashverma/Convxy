@@ -144,6 +144,19 @@ enum class GlassStyle {
     TRANSPARENT,
 }
 
+/**
+ * True when [Modifier.liquidGlass] should take its cheap translucent-tint path
+ * (no backdrop capture, no RenderEffect) instead of the full liquid treatment:
+ * either the user explicitly chose [GlassStyle.TRANSPARENT], or the platform
+ * can't do the real blur at all ([renderEffectSupported] false, below Android
+ * 12). The unsupported-platform case used to fall through to a hardcoded
+ * opaque-black surface instead — the "solid black instead of any
+ * transparency" bug reported on older/low-end devices. Pulled out as a plain
+ * function so the fallback decision is unit-testable without a Composition.
+ */
+fun shouldUseTranslucentGlassFallback(style: GlassStyle, renderEffectSupported: Boolean): Boolean =
+    style == GlassStyle.TRANSPARENT || !renderEffectSupported
+
 enum class GlassComponent {
     PLAYER,
     MINI_PLAYER,
@@ -373,7 +386,17 @@ fun Modifier.liquidGlass(
     // no RenderEffect runs, so there is nothing to configure. Content behind shows
     // through the tint directly, which is the point — the alternative when glass is
     // off is an opaque fill, and that reads as a black blob sitting on the content.
-    if (config.style == GlassStyle.TRANSPARENT) {
+    //
+    // Also taken when the platform can't do the real blur (below API 31):
+    // this used to fall through to a hardcoded opaque-black surface instead
+    // (reasoning: unblurred sharp content behind a translucent tint "reads as
+    // broken, not glass"), which is exactly the "solid black instead of any
+    // transparency" bug reported on older/low-end devices. This same
+    // translucent-tint path is already the app's own answer to "can't do a
+    // real blur, need something cheap that still respects the user's tint
+    // and opacity settings" — so route the unsupported case here too instead
+    // of a separate hardcoded fallback.
+    if (shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())) {
         return this
             .clip(shape)
             .background(surfaceTintColor.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f)))
@@ -479,17 +502,11 @@ fun Modifier.liquidGlass(
         if (applyEdgeEffects) ({ Shadow.Default }) else null
     }
 
-    // Below API 31 blur() (in effectsBlock above) is a no-op, so the sampled
-    // backdrop would show through the tint unblurred — sharp scrolling content
-    // behind a half-opaque rect reads as broken, not "glass". Go fully opaque
-    // black instead of trying to fake glass without the blur that makes it read
-    // as glass.
-    val surfaceOpaqueBlack = !isRenderEffectSupported()
-    val surfaceBlock: DrawScope.() -> Unit = remember(surfaceTintColor, config.surfaceOpacity, surfaceOpaqueBlack) {
+    // RenderEffect is guaranteed supported past this point — the unsupported
+    // case already returned the translucent-tint fallback above.
+    val surfaceBlock: DrawScope.() -> Unit = remember(surfaceTintColor, config.surfaceOpacity) {
         {
-            if (surfaceOpaqueBlack) {
-                drawRect(color = Color.Black, size = size)
-            } else if (config.surfaceOpacity > 0f) {
+            if (config.surfaceOpacity > 0f) {
                 drawRect(
                     color = surfaceTintColor.copy(alpha = config.surfaceOpacity),
                     size = size,

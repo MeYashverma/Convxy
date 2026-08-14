@@ -583,7 +583,12 @@ fun SongGridItem(
                 isActive = isActive,
                 isPlaying = isPlaying,
                 shape = ThumbnailRoundedShape,
-                modifier = Modifier.size(gridHeight)
+                // A fixed size here ignored the surrounding GridItem's own
+                // fillMaxWidth switch — in a wide tab-view cell the outer square
+                // stretched correctly, but this stayed pinned small and centered
+                // inside it, leaving a gap with the title pushed down below the
+                // whole (mostly empty) square. Match the parent instead.
+                modifier = if (fillMaxWidth) Modifier.fillMaxSize() else Modifier.size(gridHeight)
             )
         }
     },
@@ -1514,6 +1519,8 @@ fun ItemThumbnail(
                 model = imageRequest,
                 contentDescription = null,
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
+                placeholder = painterResource(R.drawable.thumbnail_fallback),
+                error = painterResource(R.drawable.thumbnail_fallback),
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -1719,8 +1726,8 @@ fun PlaylistThumbnail(
             },
             contentDescription = null,
             contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
-            placeholder = painterResource(R.drawable.queue_music),
-            error = painterResource(R.drawable.queue_music),
+            placeholder = painterResource(R.drawable.thumbnail_fallback),
+            error = painterResource(R.drawable.thumbnail_fallback),
             modifier = Modifier
                 .size(size)
                 .clip(shape)
@@ -1748,8 +1755,8 @@ fun PlaylistThumbnail(
                     },
                     contentDescription = null,
                     contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
-                    placeholder = painterResource(R.drawable.queue_music),
-                    error = painterResource(R.drawable.queue_music),
+                    placeholder = painterResource(R.drawable.thumbnail_fallback),
+                    error = painterResource(R.drawable.thumbnail_fallback),
                     modifier = Modifier
                         .align(alignment)
                         .size(size / 2)

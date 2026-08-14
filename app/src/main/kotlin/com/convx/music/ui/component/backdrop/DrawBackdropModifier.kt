@@ -276,7 +276,6 @@ private class DrawBackdropElement(
             // path's stale recordedBackdropVersion/size fields (last touched
             // before bucketing started, or never) accidentally read as "still
             // valid" and skip drawing into the never-yet-recorded graphicsLayer.
-            node.I also always tell you to just copy the player's UI. Like not like the upper part so it looks identical to the player's UI. But I don't know what do you make. It looks different and has different size and proportions to what you want.clearLoopPool()
             node.loopBucket = loopBucket
             node.surfaceDirty = true
         }
@@ -362,7 +361,7 @@ private class DrawBackdropNode(
     // Capped defensively; an evicted bucket simply re-records next visit.
     private var loopPool: HashMap<Int, GraphicsLayer>? = null
 
-    private fun clearLoopPool() {
+    internal fun clearLoopPool() {
         val pool = loopPool ?: return
         val graphicsContext = requireGraphicsContext()
         pool.values.forEach { graphicsContext.releaseGraphicsLayer(it) }

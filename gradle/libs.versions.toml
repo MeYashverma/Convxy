@@ -44,6 +44,7 @@ lottie = "6.6.2"
 work = "2.10.0"
 coreSplashscreen = "1.2.0"
 material3Version = "1.4.0"
+webkit = "1.16.0"
 
 
 [libraries]
@@ -56,6 +57,7 @@ gradle = { module = "com.android.tools.build:gradle", version.ref = "androidGrad
 activity = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 hilt-navigation = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigation" }
 datastore = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 
 compose-runtime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
 compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }

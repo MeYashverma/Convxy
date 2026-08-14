@@ -87,7 +87,12 @@ fun SwitchChannelScreen(navController: NavController) {
                     }
                     addJavascriptInterface(object {
                         @JavascriptInterface
-                        fun onRetrieveDataSyncId(newDataSyncId: String?) {
+                        fun onRetrieveDataSyncId(newDataSyncIdRaw: String?) {
+                            // Same WebView JS-bridge marshaling quirk as LoginScreen — can hand
+                            // this back still percent-encoded ("%3D%3D" instead of "=="),
+                            // corrupting every authenticated request's session context. Decode
+                            // is a no-op on an already-clean value.
+                            val newDataSyncId = newDataSyncIdRaw?.let { android.net.Uri.decode(it) }
                             if (newDataSyncId != null && newDataSyncId.isNotEmpty() && newDataSyncId != dataSyncId) {
                                 dataSyncId = newDataSyncId
                                 YouTube.dataSyncId = newDataSyncId

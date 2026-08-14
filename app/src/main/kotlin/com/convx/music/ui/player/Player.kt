@@ -9,7 +9,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.view.WindowManager
 import android.widget.Toast
 import android.content.BroadcastReceiver
@@ -108,6 +107,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -172,7 +172,9 @@ import com.convx.music.constants.CropAlbumArtKey
 import com.convx.music.constants.DarkModeKey
 import com.convx.music.constants.CompactPlayerInTabViewKey
 import com.convx.music.constants.CompactPlayerMaxWidth
+import com.convx.music.constants.AppTextColorKey
 import com.convx.music.constants.HidePlayerThumbnailKey
+import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.constants.EnableLyricsThumbnailPlayPauseKey
 import com.convx.music.constants.KeepScreenOn
 import com.convx.music.constants.PlayerBackgroundStyle
@@ -183,7 +185,6 @@ import com.convx.music.ui.theme.decodeGradientStops
 import com.convx.music.ui.theme.tiltedGradient
 import com.convx.music.constants.PlayerStaticColorKey
 import com.convx.music.constants.PlayerButtonsStyle
-import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.constants.OneTapFullscreenLyricsKey
 import com.convx.music.constants.FullscreenLyricsCollapseTopKey
 import com.convx.music.constants.PlayerButtonsStyleKey
@@ -191,7 +192,6 @@ import com.convx.music.constants.PlayerHorizontalPadding
 import com.convx.music.constants.QueuePeekHeight
 import com.convx.music.constants.SliderStyle
 import com.convx.music.constants.SliderStyleKey
-import com.convx.music.constants.SquigglySliderKey
 import com.convx.music.constants.SwipeLyricsKey
 import com.convx.music.constants.ThumbnailCornerRadius
 import com.convx.music.constants.ThumbnailRoundedShape
@@ -223,7 +223,6 @@ import com.convx.music.ui.player.customize.PlayerGlyph
 import com.convx.music.ui.player.customize.PlayerIconSlot
 import com.convx.music.ui.player.customize.rememberDiyLayout
 import com.convx.music.ui.player.customize.rememberPlayerIcon
-import com.convx.music.ui.component.SquigglySlider
 import com.convx.music.ui.component.GlassComponent
 import com.convx.music.ui.component.LocalGlassEffectConfig
 import com.convx.music.ui.component.PLAYER_BLUR_MULTIPLIER
@@ -301,6 +300,22 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    // The DIY editor mounts this same composable as its live editing canvas (real
+    // background/controls, not a hand-built approximation) and draws its own
+    // editable sticker overlay on top — this trio lets it do that without changing
+    // anything for the one real, singleton instance in MainActivity, which never
+    // passes these.
+    /** Off in the editor: it draws its own (live, editable) sticker layer instead —
+     *  leaving this on would double-render the saved layout underneath it. */
+    showDiyStickers: Boolean = true,
+    /** Editor-only: previews the orientation the user is toggling instead of the
+     *  device's actual orientation, which the editor may not itself be in. */
+    forcedOrientation: DiyOrientation? = null,
+    /** Editor-only: this composable is mounted a second time there alongside the
+     *  real singleton instance in MainActivity — suppresses the window-level side
+     *  effects (status bar icon color, keep-screen-on) so the two copies can't
+     *  fight over that global, real-device state. */
+    isPreviewOnly: Boolean = false,
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -365,7 +380,11 @@ fun BottomSheetPlayer(
     val isKeepScreenOn by rememberPreference(KeepScreenOn, false)
     val keepScreenOn = isPlaying && isKeepScreenOn
 
-    DisposableEffect(playerBackground, state.isExpanded, useDarkTheme, keepScreenOn) {
+    DisposableEffect(playerBackground, state.isExpanded, useDarkTheme, keepScreenOn, isPreviewOnly) {
+        // The editor mounts a second copy of this composable alongside the real
+        // singleton instance in MainActivity — without this guard both would fight
+        // over the same real window's status bar icon color / keep-screen-on flag.
+        if (isPreviewOnly) return@DisposableEffect onDispose {}
         val window = (context as? android.app.Activity)?.window
         if (window != null && state.isExpanded) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -452,8 +471,7 @@ fun BottomSheetPlayer(
     val isLosslessStream = currentFormat?.mimeType?.contains("flac", ignoreCase = true) == true || 
                           playerFormat?.sampleMimeType?.contains("flac", ignoreCase = true) == true
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SLIM)
-    val squigglySlider by rememberPreference(SquigglySliderKey, defaultValue = false)
-    
+
     // Listen Together state (reactive)
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue =RoomRole.NONE)
@@ -631,8 +649,13 @@ fun BottomSheetPlayer(
         }
     }
 
+    // Every non-DEFAULT background style hardcodes White regardless of the
+    // user's global button/text color choice (AppTextColorKey) — DEFAULT alone
+    // read it indirectly via MaterialTheme.colorScheme.onBackground. Take the
+    // global color directly, for every style, whenever the user has set one.
+    val (appTextColorInt) = rememberPreference(AppTextColorKey, defaultValue = 0)
     val TextBackgroundColor by animateColorAsState(
-        targetValue = when (playerBackground) {
+        targetValue = if (appTextColorInt != 0) Color(appTextColorInt) else when (playerBackground) {
             PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
             PlayerBackgroundStyle.BLUR -> Color.White
             PlayerBackgroundStyle.GRADIENT -> Color.White
@@ -780,6 +803,12 @@ fun BottomSheetPlayer(
             }
         }
     }
+
+    // Seek bar's loaded (active) color: the user's global text/button color when set,
+    // else the same textButtonColor every other player control already uses. Every
+    // slider style's inactive track is a faded version of this same color (see
+    // PlayerSliderColors), so both halves of the seek bar read as one color, not two.
+    val seekBarActiveColor = if (appTextColorInt != 0) Color(appTextColorInt) else textButtonColor
 
     // Separate colors for Previous/Next buttons in PRIMARY/TERTIARY modes
     val (sideButtonContainerColor, sideButtonContentColor) = when {
@@ -940,9 +969,9 @@ fun BottomSheetPlayer(
     var isFullScreen by rememberSaveable {
         mutableStateOf(false)
     }
-    val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
     val (oneTapFullscreenLyrics) = rememberPreference(OneTapFullscreenLyricsKey, defaultValue = false)
     val (fullscreenLyricsCollapseTop) = rememberPreference(FullscreenLyricsCollapseTopKey, defaultValue = true)
+    val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
     // Position update - only for local playback
     // When casting, we use castPosition directly to avoid sync issues
     // Use isPlaying instead of playbackState to ensure continuous updates during playback
@@ -1048,9 +1077,13 @@ fun BottomSheetPlayer(
     val playerBackdrop = rememberLayerBackdrop()
 
     val diyLayout = rememberDiyLayout()
-    val diyOrientation = if (LocalConfiguration.current.orientation ==
-        android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    ) DiyOrientation.LANDSCAPE else DiyOrientation.PORTRAIT
+    // Shared by the sticker canvas below AND the thumbnail/controls layout branch
+    // further down, so the editor's orientation toggle (forcedOrientation) previews
+    // both consistently instead of stickers repositioning while the background
+    // layout stays pinned to the device's real, physical orientation.
+    val isLandscapeLayout = forcedOrientation?.let { it == DiyOrientation.LANDSCAPE }
+        ?: (LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
+    val diyOrientation = if (isLandscapeLayout) DiyOrientation.LANDSCAPE else DiyOrientation.PORTRAIT
 
     BottomSheet(
         state = state,
@@ -1093,18 +1126,31 @@ fun BottomSheetPlayer(
                         ) { thumbnailUrl ->
                             if (thumbnailUrl != null) {
                                 Box(modifier = Modifier.graphicsLayer { alpha = backgroundAlpha() }) {
+                                    // Modifier.blur is a no-op below API 31 (RenderEffect isn't
+                                    // available) — without this gate, old Android shows the raw
+                                    // 160x160 crop stretched to fill the screen, unblurred and
+                                    // blocky, instead of the intended soft background. Solid
+                                    // black is closer to the intended look than that.
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                         AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(thumbnailUrl)
-                                            .size(48, 48)
-                                            .allowHardware(false)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(if (useDarkTheme) 150.dp else 100.dp)
-                                    )
+                                            model = ImageRequest.Builder(context)
+                                                .data(thumbnailUrl)
+                                                // 48x48 upscaled ~20-30x to fill the screen showed visible
+                                                // blocking even under a heavy blur — 160px matches the
+                                                // decode size HeroArtwork.kt already tuned for "visually
+                                                // identical to full-res once blurred" at a gentler upscale.
+                                                .size(160, 160)
+                                                .allowHardware(false)
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(if (useDarkTheme) 150.dp else 100.dp)
+                                        )
+                                    } else {
+                                        Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+                                    }
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -1315,19 +1361,25 @@ fun BottomSheetPlayer(
                                         .fillMaxSize()
                                         .graphicsLayer { alpha = backgroundAlpha() }
                                 ) {
-                                    // Layer 1: Full-Screen Blurred Background
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(thumbnailUrl)
-                                            .size(48, 48) // Downsample significantly for performance
-                                            .allowHardware(false)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(150.dp)
-                                    )
+                                    // Layer 1: Full-Screen Blurred Background. Modifier.blur is a
+                                    // no-op below API 31 — an unblurred 48x48 crop stretched full
+                                    // screen is blocky, so fall back to solid black there instead.
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(thumbnailUrl)
+                                                .size(48, 48) // Downsample significantly for performance
+                                                .allowHardware(false)
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(150.dp)
+                                        )
+                                    } else {
+                                        Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+                                    }
 
                                     // Layer 2: Clear Artwork (Limited to top 60% of screen)
                                     // Fades out when lyrics are shown to provide a full-screen blur
@@ -1478,62 +1530,69 @@ fun BottomSheetPlayer(
                                     }
                                     val colorFilter = ColorFilter.colorMatrix(matrix)
 
-                                    // Layer 1: The Anchor (Full Image, Counter-Clockwise)
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(thumbnailUrl)
-                                            .size(48, 48) // Downsample significantly for performance
-                                            .allowHardware(false)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        colorFilter = colorFilter,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(100.dp)
-                                            .graphicsLayer { rotationZ = anchorRotation }
-                                    )
+                                    // All 3 layers depend on Modifier.blur, a no-op below API 31 —
+                                    // without it these would be 3 overlapping, unblurred, rotating
+                                    // 48x48 crops (glitchy), so fall back to solid black there.
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        // Layer 1: The Anchor (Full Image, Counter-Clockwise)
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(thumbnailUrl)
+                                                .size(48, 48) // Downsample significantly for performance
+                                                .allowHardware(false)
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            colorFilter = colorFilter,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(100.dp)
+                                                .graphicsLayer { rotationZ = anchorRotation }
+                                        )
 
-                                    // Layer 2: Fast Rotating Crop (Top-Left)
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(thumbnailUrl)
-                                            .size(48, 48) // Downsample significantly for performance
-                                            .allowHardware(false)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        colorFilter = colorFilter,
-                                        alignment = Alignment.TopStart,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(120.dp)
-                                            .graphicsLayer { 
-                                                rotationZ = fastRotation
-                                                alpha = 0.6f
-                                            }
-                                    )
+                                        // Layer 2: Fast Rotating Crop (Top-Left)
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(thumbnailUrl)
+                                                .size(48, 48) // Downsample significantly for performance
+                                                .allowHardware(false)
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            colorFilter = colorFilter,
+                                            alignment = Alignment.TopStart,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(120.dp)
+                                                .graphicsLayer {
+                                                    rotationZ = fastRotation
+                                                    alpha = 0.6f
+                                                }
+                                        )
 
-                                    // Layer 3: Slow Rotating Crop (Bottom-Right)
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(thumbnailUrl)
-                                            .size(48, 48) // Downsample significantly for performance
-                                            .allowHardware(false)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        colorFilter = colorFilter,
-                                        alignment = Alignment.BottomEnd,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(120.dp)
-                                            .graphicsLayer { 
-                                                rotationZ = slowRotation
-                                                alpha = 0.5f
-                                            }
-                                    )
-                                    
+                                        // Layer 3: Slow Rotating Crop (Bottom-Right)
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(thumbnailUrl)
+                                                .size(48, 48) // Downsample significantly for performance
+                                                .allowHardware(false)
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            colorFilter = colorFilter,
+                                            alignment = Alignment.BottomEnd,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(120.dp)
+                                                .graphicsLayer {
+                                                    rotationZ = slowRotation
+                                                    alpha = 0.5f
+                                                }
+                                        )
+                                    } else {
+                                        Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+                                    }
+
                                     // Global dark tint to prevent neon look + vertical gradient for depth
                                     Box(
                                         modifier = Modifier
@@ -1576,6 +1635,29 @@ fun BottomSheetPlayer(
                         // Nothing
                     }
                 }
+
+                // No artwork for this song: BLUR/GRADIENT/GLOW_ANIMATED/APPLE_MUSIC/
+                // LIVE_MESH all gate on thumbnailUrl above and render nothing in that
+                // case, leaving the player fully blank. Center the app's own mark
+                // instead of a void. STATIC/CUSTOM_GRADIENT/DEFAULT never depend on
+                // artwork in the first place, so they're excluded here.
+                if (mediaMetadata?.thumbnailUrl == null &&
+                    playerBackground !in setOf(
+                        PlayerBackgroundStyle.STATIC,
+                        PlayerBackgroundStyle.CUSTOM_GRADIENT,
+                        PlayerBackgroundStyle.DEFAULT,
+                    )
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Image(
+                            painter = painterResource(R.drawable.convx_logo),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(if (useDarkTheme) Color.White else Color.Black),
+                            modifier = Modifier.size(96.dp).alpha(0.4f),
+                        )
+                    }
+                }
+
                 // Status-bar scrim: black tint ramping from 0 at its own bottom edge
                 // up to fully dark at the top, so the status bar icons stay legible
                 // over bright artwork — same treatment as the app's own top bar.
@@ -1606,7 +1688,7 @@ fun BottomSheetPlayer(
                 // Gated on lyrics NOT being shown: this sits in the same artwork Box the inline
                 // lyrics swap into (AnimatedContent below), so with no gate a sticker bleeds over
                 // the lyrics text the same way it bled over the expanded queue sheet.
-                if (!showInlineLyrics) {
+                if (!showInlineLyrics && showDiyStickers) {
                     DiyDesignCanvas(orientation = diyOrientation, modifier = Modifier.fillMaxSize()) {
                         DiyStickerLayer(
                             layout = diyLayout,
@@ -1680,6 +1762,8 @@ fun BottomSheetPlayer(
                                         model = mediaMetadata.thumbnailUrl,
                                         contentDescription = null,
                                         contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
+                                        placeholder = painterResource(R.drawable.thumbnail_fallback),
+                                        error = painterResource(R.drawable.thumbnail_fallback),
                                         modifier = Modifier.fillMaxSize()
                                     )
 
@@ -2156,53 +2240,17 @@ fun BottomSheetPlayer(
                         },
                         enabled = !isListenTogetherGuest,
                         colors = PlayerSliderColors.getSliderColors(
-                            activeColor = if (useNewPlayerDesign) textButtonColor else textButtonColor.copy(alpha = 0.7f),
-                            playerBackground = playerBackground,
-                            useDarkTheme = useDarkTheme
+                            activeColor = if (useNewPlayerDesign) seekBarActiveColor else seekBarActiveColor.copy(alpha = 0.7f),
                         ),
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                     )
                 }
 
                 SliderStyle.WAVY -> {
-                    if (squigglySlider) {
-                        SquigglySlider(
-                            value = (sliderPosition ?: effectivePosition).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                            // Guest seek is blocked here as it is on every other slider
-                            // style. This branch had no check at all, so picking the wavy
-                            // style was enough to scrub a room out of sync.
-                            enabled = !isListenTogetherGuest,
-                            onValueChange = {
-                                if (!isListenTogetherGuest) sliderPosition = it.toLong()
-                            },
-                            onValueChangeFinished = {
-                                if (!isListenTogetherGuest) {
-                                    sliderPosition?.let {
-                                        if (isCasting) {
-                                            castHandler?.seekTo(it)
-                                            lastManualSeekTime = System.currentTimeMillis()
-                                        } else {
-                                            playerConnection.player.seekTo(it)
-                                        }
-                                        position = it
-                                    }
-                                    sliderPosition = null
-                                }
-                            },
-                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                            colors = PlayerSliderColors.getSliderColors(
-                                activeColor = if (useNewPlayerDesign) textButtonColor else textButtonColor.copy(alpha = 0.7f),
-                                playerBackground = playerBackground,
-                                useDarkTheme = useDarkTheme
-                            ),
-                            isPlaying = effectiveIsPlaying,
-                        )
-                    } else {
+                    run {
                         WavySlider(
                             value = (sliderPosition ?: effectivePosition).toFloat(),
                             valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                            // See the SquigglySlider branch above — same missing guard.
                             enabled = !isListenTogetherGuest,
                             onValueChange = {
                                 if (!isListenTogetherGuest) sliderPosition = it.toLong()
@@ -2222,9 +2270,7 @@ fun BottomSheetPlayer(
                                 }
                             },
                             colors = PlayerSliderColors.getSliderColors(
-                                activeColor = if (useNewPlayerDesign) textButtonColor else textButtonColor.copy(alpha = 0.7f),
-                                playerBackground = playerBackground,
-                                useDarkTheme = useDarkTheme
+                                activeColor = if (useNewPlayerDesign) seekBarActiveColor else seekBarActiveColor.copy(alpha = 0.7f),
                             ),
                             modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                             isPlaying = effectiveIsPlaying
@@ -2291,9 +2337,7 @@ fun BottomSheetPlayer(
                                 sliderState = sliderState,
                                 trackHeight = trackHeight,
                                 colors = PlayerSliderColors.getSliderColors(
-                                    activeColor = if (useNewPlayerDesign) textButtonColor else textButtonColor.copy(alpha = 0.7f),
-                                    playerBackground = playerBackground,
-                                    useDarkTheme = useDarkTheme
+                                    activeColor = if (useNewPlayerDesign) seekBarActiveColor else seekBarActiveColor.copy(alpha = 0.7f),
                                 )
                             )
                         },
@@ -2303,9 +2347,7 @@ fun BottomSheetPlayer(
 
                 SliderStyle.WAVEFORM -> {
                     val waveColors = PlayerSliderColors.getSliderColors(
-                        activeColor = if (useNewPlayerDesign) textButtonColor else textButtonColor.copy(alpha = 0.7f),
-                        playerBackground = playerBackground,
-                        useDarkTheme = useDarkTheme
+                        activeColor = if (useNewPlayerDesign) seekBarActiveColor else seekBarActiveColor.copy(alpha = 0.7f),
                     )
                     // Per-frame off the player clock, so the waveform glides rather
                     // than stepping with the once-a-second position state.
@@ -2837,14 +2879,15 @@ fun BottomSheetPlayer(
 
                         Spacer(modifier = Modifier.height(8.dp)) //space between play and audio
 
-                        // Hidden via alpha, not omitted — keeps this row's
-                        // space reserved so the layout below doesn't shift up.
+                        // Hidden means invisible + non-interactive, not removed — the row still
+                        // reserves its layout space so a DIY sticker can be placed over it.
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = PlayerHorizontalPadding)
                                 .alpha(if (hideVolumeBar) 0f else 1f)
+                                .then(if (hideVolumeBar) Modifier.clearAndSetSemantics {} else Modifier)
                         ) {
                             val volumeInteractionSource = remember { MutableInteractionSource() }
                             val isVolumeDragged by volumeInteractionSource.collectIsDraggedAsState()
@@ -2916,14 +2959,15 @@ fun BottomSheetPlayer(
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
+                                enabled = !hideVolumeBar,
                                 interactionSource = volumeInteractionSource,
                                 thumb = {},
                                 track = { sliderState ->
                                     PlayerSliderTrack(
                                         sliderState = sliderState,
                                         colors = SliderDefaults.colors(
-                                            activeTrackColor = textButtonColor.copy(alpha = 0.7f),
-                                            inactiveTrackColor = textButtonColor.copy(alpha = 0.15f)
+                                            activeTrackColor = seekBarActiveColor.copy(alpha = 0.7f),
+                                            inactiveTrackColor = seekBarActiveColor.copy(alpha = 0.15f)
                                         ),
                                         trackHeight = volumeTrackHeight
                                     )
@@ -2999,8 +3043,12 @@ fun BottomSheetPlayer(
             }
         }
 
-        when (LocalConfiguration.current.orientation) {
-            Configuration.ORIENTATION_LANDSCAPE -> {
+        // Compact tab view forces the stacked (mobile-style) branch below even on a
+        // physically-landscape/wide screen — that's the whole point of the setting:
+        // no side-by-side thumbnail, controls centered underneath like on phone.
+        val forceStackedPlayerLayout = LocalTabView.current && compactPlayerInTabView
+        when {
+            !forceStackedPlayerLayout && isLandscapeLayout -> {
                 // Calculate vertical padding like OuterTune
                 val density = LocalDensity.current
                 val verticalPadding = max(
@@ -3183,7 +3231,7 @@ fun BottomSheetPlayer(
         // Gated on the queue sheet NOT being expanded: this layer is a sibling of the Queue
         // bottom sheet in the same Box, so with no gate it paints on top of the expanded sheet too.
         // Also gated on lyrics NOT being shown, for the same reason as the z < 0 layer above.
-        if (!queueSheetState.isExpanded && !showInlineLyrics) {
+        if (!queueSheetState.isExpanded && !showInlineLyrics && showDiyStickers) {
             // Same fixed design canvas as the z < 0 layer above and the editor itself — see the
             // comment there for why a plain fillMaxSize bounds would misplace stickers.
             DiyDesignCanvas(orientation = diyOrientation, modifier = Modifier.fillMaxSize()) {

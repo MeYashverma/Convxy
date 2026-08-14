@@ -67,6 +67,21 @@ class BackupRestoreViewModel @Inject constructor(
                         outputStream.putNextEntry(ZipEntry(InternalDatabase.DB_NAME))
                         inputStream.copyTo(outputStream)
                     }
+                    // The Home background image/video itself is a plain file in
+                    // filesDir, not a DataStore value — settings.preferences_pb
+                    // above only carries the *path string* pointing at it. Without
+                    // this, a restore on a fresh install left HomeBackgroundPathKey
+                    // pointing at a file that no longer exists, so the background
+                    // (and whatever color customization was derived from it)
+                    // silently failed to show even though every other setting
+                    // came back correctly.
+                    context.filesDir.listFiles { file -> file.name.startsWith(HOME_BACKGROUND_FILE_PREFIX) }
+                        ?.forEach { bgFile ->
+                            bgFile.inputStream().use { inputStream ->
+                                outputStream.putNextEntry(ZipEntry("$HOME_BACKGROUND_ZIP_DIR/${bgFile.name}"))
+                                inputStream.copyTo(outputStream)
+                            }
+                        }
                 }
             }
         }.onSuccess {
@@ -108,7 +123,14 @@ class BackupRestoreViewModel @Inject constructor(
                                 }
                                 Timber.tag("RESTORE").i("DB overwrite complete")
                             }
-                            else -> {
+                            else -> if (entry.name.startsWith("$HOME_BACKGROUND_ZIP_DIR/")) {
+                                Timber.tag("RESTORE").i("Restoring home background file: ${entry.name}")
+                                foundAny = true
+                                val fileName = entry.name.removePrefix("$HOME_BACKGROUND_ZIP_DIR/")
+                                context.filesDir.resolve(fileName).outputStream().use { outputStream ->
+                                    inputStream.copyTo(outputStream)
+                                }
+                            } else {
                                 Timber.tag("RESTORE").i("Skipping unexpected entry: ${entry.name}")
                             }
                         }
@@ -306,5 +328,10 @@ class BackupRestoreViewModel @Inject constructor(
 
     companion object {
         const val SETTINGS_FILENAME = "settings.preferences_pb"
+
+        // Matches HomeBackgroundSettings.kt's copyBackgroundMedia filename convention
+        // ("home_background_<timestamp>.<ext>").
+        private const val HOME_BACKGROUND_FILE_PREFIX = "home_background_"
+        private const val HOME_BACKGROUND_ZIP_DIR = "home_background_files"
     }
 }

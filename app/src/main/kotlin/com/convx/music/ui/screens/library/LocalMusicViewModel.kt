@@ -3,16 +3,20 @@ package com.convx.music.ui.screens.library
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.convx.music.constants.LocalExcludedFoldersKey
 import com.convx.music.db.MusicDatabase
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Song
 import com.convx.music.utils.LocalAudioScanner
+import com.convx.music.utils.dataStore
+import com.convx.music.utils.decodeExcludedFolders
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -42,7 +46,10 @@ class LocalMusicViewModel @Inject constructor(
         viewModelScope.launch {
             _isScanning.value = true
             try {
-                val result = LocalAudioScanner.scanAndInsert(context, database)
+                val excludedFolders = decodeExcludedFolders(
+                    context.dataStore.data.first()[LocalExcludedFoldersKey] ?: "",
+                )
+                val result = LocalAudioScanner.scanAndInsert(context, database, excludedFolders)
                 _scanResult.value = result
                 Timber.tag("LocalMusicViewModel").i("Scan complete: $result")
             } catch (e: Exception) {

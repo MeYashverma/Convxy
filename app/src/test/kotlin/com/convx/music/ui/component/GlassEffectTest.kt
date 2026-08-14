@@ -155,4 +155,22 @@ class GlassEffectConfigTest {
         assertTrue(isGlassSupported(sdkInt = 31))
         assertTrue(isGlassSupported(sdkInt = 34))
     }
+
+    @Test
+    fun `translucent fallback used when RenderEffect unsupported, regardless of style`() {
+        assertTrue(shouldUseTranslucentGlassFallback(GlassStyle.LIQUID, renderEffectSupported = false))
+        assertTrue(shouldUseTranslucentGlassFallback(GlassStyle.BLUR, renderEffectSupported = false))
+        assertTrue(shouldUseTranslucentGlassFallback(GlassStyle.TRANSPARENT, renderEffectSupported = false))
+    }
+
+    @Test
+    fun `translucent fallback used when style is explicitly Transparent, even if supported`() {
+        assertTrue(shouldUseTranslucentGlassFallback(GlassStyle.TRANSPARENT, renderEffectSupported = true))
+    }
+
+    @Test
+    fun `full glass used when supported and style is not Transparent`() {
+        assertFalse(shouldUseTranslucentGlassFallback(GlassStyle.LIQUID, renderEffectSupported = true))
+        assertFalse(shouldUseTranslucentGlassFallback(GlassStyle.BLUR, renderEffectSupported = true))
+    }
 }

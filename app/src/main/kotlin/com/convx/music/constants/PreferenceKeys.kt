@@ -125,6 +125,8 @@ val DataSaverEnabledKey = booleanPreferencesKey("dataSaverEnabled")
 // on-device library. The screens and routes stay exactly where they are — only
 // what they read changes — so turning it off restores the normal app instantly.
 val LocalOnlyModeKey = booleanPreferencesKey("localOnlyMode")
+/** Folder paths (LocalFolderIndex.Folder.path) excluded from local scanning, joined by "". Empty = nothing excluded. */
+val LocalExcludedFoldersKey = stringPreferencesKey("localExcludedFolders") // delimiter-joined paths; see LocalFolderExclusion.kt
 val ListenBrainzEnabledKey = booleanPreferencesKey("listenbrainz_enabled")
 val ListenBrainzTokenKey = stringPreferencesKey("listenbrainz_token")
 val HideYoutubeShortsKey = booleanPreferencesKey("hideYoutubeShorts")
@@ -159,6 +161,10 @@ val SaavnAudioQualityKey    = stringPreferencesKey("saavnAudioQuality")
  *  YouTube fetch, so playback never just fails. Off: a miss fails the playback attempt
  *  instead, for a user who wants Saavn-or-nothing rather than a silent audio swap. */
 val SaavnFallbackToYouTubeKey = booleanPreferencesKey("saavnFallbackToYouTube")
+/** Circuit breaker: on forces the quality picked above no matter what — a lossless-capable
+ *  Spine module or Tidal will never silently upgrade the stream to FLAC. Off (default) lets
+ *  those sources win when enabled, same as before this switch existed. */
+val ForceSelectedQualityKey = booleanPreferencesKey("forceSelectedQuality")
 
 // Lossless (TIDAL via hifi-api). Opt-in, off by default. Streaming only for now.
 val EnableTidalStreamingKey = booleanPreferencesKey("enableTidalStreaming")
@@ -645,6 +651,20 @@ val HomeBackgroundPathKey = stringPreferencesKey("homeBackgroundPath")
 val HomeBackgroundBlurKey = floatPreferencesKey("homeBackgroundBlur")
 val HomeBackgroundDimKey = floatPreferencesKey("homeBackgroundDim")
 val HomeBackgroundAnimateKey = booleanPreferencesKey("homeBackgroundAnimate")
+
+/** 0.3..1 scale of the device's own screen resolution used when storing a
+ *  picked background image. 1 (default) = full screen resolution. */
+val HomeBackgroundQualityKey = floatPreferencesKey("homeBackgroundQuality")
+
+/**
+ * App-wide background/text color, independent of Liquid Glass — applies to
+ * Home's plain background (when no custom image is set) and the shared nav
+ * chrome's fallback color when Liquid Glass is off. 0 (default) means
+ * "unset": every call site keeps its exact current fallback color, so a user
+ * who never touches this setting sees no change at all.
+ */
+val AppBackgroundColorKey = intPreferencesKey("appBackgroundColor")
+val AppTextColorKey = intPreferencesKey("appTextColor")
 val LibraryBackgroundModeKey = stringPreferencesKey("libraryBackgroundMode")
 /** True when HomeBackgroundPathKey points at a video file instead of an image. */
 val HomeBackgroundIsVideoKey = booleanPreferencesKey("homeBackgroundIsVideo")

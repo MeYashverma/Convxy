@@ -27,6 +27,7 @@ import com.music.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.music.innertube.models.response.PlayerResponse
 import com.convx.music.constants.AudioQuality
 import com.convx.music.constants.EnableSaavnStreamingKey
+import com.convx.music.constants.ForceSelectedQualityKey
 import com.convx.music.constants.SaavnFallbackToYouTubeKey
 import com.convx.music.constants.EnableTidalStreamingKey
 import com.convx.music.constants.EnabledModulesKey
@@ -176,6 +177,11 @@ object YTPlayerUtils {
         // URL from JioSaavn first. We fall through to YouTube on ANY failure so
         // the user always hears audio.
         if (context != null) {
+            // Circuit breaker: skips both the lossless-capable Spine modules and
+            // Tidal below, so a user who picked a specific quality actually gets
+            // it instead of a module/Tidal silently upgrading to FLAC.
+            val forceSelectedQuality = context.dataStore.get(ForceSelectedQualityKey, false)
+
             // ── 8spine module intercept ─────────────────────────────────────────
             // Try enabled 8spine modules for streaming before other sources.
             // Falls through to TIDAL/Saavn/YouTube on ANY failure.
@@ -370,7 +376,7 @@ object YTPlayerUtils {
                                         list.codecInfos.any { !it.isEncoder && it.supportedTypes.any { t -> t.contains("eac3", ignoreCase = true) } }
                                     }
 
-                                    val isAtmos = isAtmosSupported && (module.isDolbyAtmos ||
+                                    val isAtmos = !forceSelectedQuality && isAtmosSupported && (module.isDolbyAtmos ||
                                         streamResult.track?.audioQuality?.uppercase()?.contains("ATMOS") == true ||
                                         streamResult.track?.audioModes?.any { it.uppercase().contains("ATMOS") } == true ||
                                         streamResult.track?.mimeType?.uppercase()?.contains("EAC3") == true)
@@ -379,7 +385,7 @@ object YTPlayerUtils {
                                         Timber.tag(TAG).w("      ! Device does not support EAC3/Atmos - will attempt fallback to FLAC/High")
                                     }
 
-                                    val isLossless = !isAtmos && (
+                                    val isLossless = !isAtmos && !forceSelectedQuality && (
                                         module.isLossless ||
                                         streamResult.track?.audioQuality?.uppercase()?.contains("LOSSLESS") == true ||
                                         streamResult.track?.audioQuality?.uppercase()?.contains("HIRES") == true ||
@@ -468,7 +474,7 @@ object YTPlayerUtils {
             // ── Lossless (TIDAL) intercept ───────────────────────────────────────
             // Opt-in FLAC from a public hifi-api instance. Tried BEFORE JioSaavn so
             // lossless wins. Falls through to Saavn/YouTube on ANY failure.
-            if (!forceStandardAudio && allowLossless && context.dataStore.get(EnableTidalStreamingKey, false)) {
+            if (!forceStandardAudio && !forceSelectedQuality && allowLossless && context.dataStore.get(EnableTidalStreamingKey, false)) {
                 Timber.tag(TAG).d("Lossless enabled — trying TIDAL for videoId=$videoId")
                 val tidalResult = runCatching {
                     val (currentSong, meta) = coroutineScope {
@@ -677,8 +683,9 @@ object YTPlayerUtils {
                             // served as this one. When either duration is unknown
                             // there's nothing to tiebreak with — require an exact
                             // title match instead of skipping the guard entirely.
-                            val durationMatches = if (wantedDurationSec != null && candidate.duration != null) {
-                                kotlin.math.abs(candidate.duration - wantedDurationSec) <= 10
+                            val candidateDuration = candidate.duration
+                            val durationMatches = if (wantedDurationSec != null && candidateDuration != null) {
+                                kotlin.math.abs(candidateDuration - wantedDurationSec) <= 10
                             } else {
                                 candidateTitleLower == wantedTitleLower
                             }
@@ -791,16 +798,31 @@ object YTPlayerUtils {
         // ── End JioSaavn intercept ───────────────────────────────────────────
 
         val firstAttempt = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
-        
-        if (firstAttempt.isFailure && YouTube.cookie == null) {
-            Timber.tag(TAG).w("Playback failed for guest. Rotating session and retrying...")
-            PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for guest", "Triggering bot detection mitigation (rotating guest session)")
-            BotDetectionMitigator.rotateGuestSession()
-            val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
+
+        // A geo-restricted video fails the same way on a retry — rotating a
+        // guest session or re-attempting as-is can't fix a region block, so
+        // don't waste the one retry on it either way.
+        val isGeoRestricted = BotDetectionMitigator.isGeoError(firstAttempt.exceptionOrNull()?.message)
+
+        if (firstAttempt.isFailure && !isGeoRestricted) {
+            val retryResult = if (YouTube.cookie == null) {
+                Timber.tag(TAG).w("Playback failed for guest. Rotating session and retrying...")
+                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for guest", "Triggering bot detection mitigation (rotating guest session)")
+                BotDetectionMitigator.rotateGuestSession()
+                resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
+            } else {
+                // Signed-in users have no guest identity to rotate, but the same
+                // failure class (e.g. a stream response missing expiry data) can
+                // still be transient — a bare retry gives them the same one
+                // extra chance a guest already gets, instead of none at all.
+                Timber.tag(TAG).w("Playback failed for signed-in user. Retrying once...")
+                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for signed-in user", "Retrying once (no session to rotate)")
+                resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
+            }
             retryResult.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
             return retryResult
         }
-        
+
         firstAttempt.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
         return firstAttempt
     }
@@ -1161,11 +1183,13 @@ object YTPlayerUtils {
             )
         }
 
-        if (streamExpiresInSeconds == null) {
-            Timber.tag(logTag).e("Missing stream expire time")
-            throw Exception("Missing stream expire time")
-        }
-
+        // Checked before streamExpiresInSeconds: format/streamUrl not being set is
+        // WHY streamExpiresInSeconds never got set either (all three are reset to
+        // null at the top of every loop iteration, and expiresInSeconds is only
+        // assigned after format+streamUrl already succeeded for that client) — the
+        // old order reported "Missing stream expire time" for every failure, even
+        // ones where the real cause was no usable audio format or a dead stream
+        // URL on the last-tried client. Surfacing the real reason here.
         if (format == null) {
             Timber.tag(logTag).e("Could not find format")
             throw Exception("Could not find format")
@@ -1174,6 +1198,14 @@ object YTPlayerUtils {
         if (streamUrl == null) {
             Timber.tag(logTag).e("Could not find stream url")
             throw Exception("Could not find stream url")
+        }
+
+        // format + streamUrl came from a response that DID succeed, so a missing
+        // expiry here is the genuinely rare case (a client omitting the field) —
+        // default rather than throw away an otherwise-playable stream.
+        val expiresInSeconds = streamExpiresInSeconds ?: run {
+            Timber.tag(logTag).w("Stream expiry missing from an otherwise-valid response — defaulting to 21600s")
+            21600
         }
 
         Timber.tag(logTag).d("Successfully obtained playback data with format: ${format.mimeType}, bitrate: ${format.bitrate}")
@@ -1186,7 +1218,7 @@ object YTPlayerUtils {
             playbackTracking,
             format,
             streamUrl,
-            streamExpiresInSeconds,
+            expiresInSeconds,
         )
     }.onFailure { e ->
         Timber.tag(logTag).e(e, "Playback resolution failed")

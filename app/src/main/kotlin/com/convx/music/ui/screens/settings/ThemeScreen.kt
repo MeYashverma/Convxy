@@ -33,6 +33,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.background
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.bounceClick
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -167,6 +168,8 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.PureBlackMiniPlayerKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.SelectedThemeColorKey
+import com.convx.music.constants.AppBackgroundColorKey
+import com.convx.music.constants.AppTextColorKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -177,38 +180,8 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.utils.rememberEnumPreference
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.utils.rememberPreference
-
-data class ThemePalette(
-    val nameRes: Int,
-    val seedColor: Color
-)
-
-// Fixed hue presets removed — the custom color picker (see ThemeControls'
-// palette row) covers any color directly, the presets were redundant middle
-// ground between "system" and "pick exactly what you want."
-val PaletteColors = listOf(
-    ThemePalette(R.string.palette_dynamic, Color.Transparent), // Sentinel for System/Dynamic colors
-    // ThemePalette(R.string.palette_apple_red, AppleTokens.AccentRed),
-    // ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)),
-    // ThemePalette(R.string.palette_rose, Color(0xFFD81B60)),
-    // ThemePalette(R.string.palette_purple, Color(0xFF8E24AA)),
-    // ThemePalette(R.string.palette_deep_purple, Color(0xFF5E35B1)),
-    // ThemePalette(R.string.palette_indigo, Color(0xFF3949AB)),
-    // ThemePalette(R.string.palette_blue, Color(0xFF1E88E5)),
-    // ThemePalette(R.string.palette_sky_blue, Color(0xFF039BE5)),
-    // ThemePalette(R.string.palette_cyan, Color(0xFF00ACC1)),
-    // ThemePalette(R.string.palette_teal, Color(0xFF00897B)),
-    // ThemePalette(R.string.palette_green, Color(0xFF43A047)),
-    // ThemePalette(R.string.palette_light_green, Color(0xFF7CB342)),
-    // ThemePalette(R.string.palette_lime, Color(0xFFC0CA33)),
-    // ThemePalette(R.string.palette_yellow, Color(0xFFFDD835)),
-    // ThemePalette(R.string.palette_amber, Color(0xFFFFB300)),
-    // ThemePalette(R.string.palette_orange, Color(0xFFFB8C00)),
-    // ThemePalette(R.string.palette_deep_orange, Color(0xFFF4511E)),
-    // ThemePalette(R.string.palette_brown, Color(0xFF6D4C41)),
-    // ThemePalette(R.string.palette_grey, Color(0xFF757575)),
-    // ThemePalette(R.string.palette_blue_grey, Color(0xFF546E7A)),
-)
+import androidx.compose.foundation.layout.windowInsetsPadding
+import com.convx.music.LocalPlayerAwareWindowInsets
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -257,7 +230,6 @@ fun ThemeScreen(
 
     if (isLandscape) {
         LandscapeThemeLayout(
-            innerPadding = PaddingValues(0.dp),
             darkMode = darkMode,
             onDarkModeChange = onDarkModeChange,
             pureBlack = pureBlack,
@@ -268,7 +240,6 @@ fun ThemeScreen(
         )
     } else {
         PortraitThemeLayout(
-            innerPadding = PaddingValues(0.dp),
             darkMode = darkMode,
             onDarkModeChange = onDarkModeChange,
             pureBlack = pureBlack,
@@ -295,7 +266,6 @@ fun ThemeScreen(
 
 @Composable
 fun PortraitThemeLayout(
-    innerPadding: PaddingValues,
     darkMode: DarkMode,
     onDarkModeChange: (DarkMode) -> Unit,
     pureBlack: Boolean,
@@ -307,7 +277,12 @@ fun PortraitThemeLayout(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
+            // Was a hardcoded PaddingValues(0.dp) from the caller, so content
+            // started at y=0 under the opaque TopAppBar below — the phone
+            // mockup's top edge rendered hidden behind the bar. This is the
+            // same top-bar-aware inset every other settings screen already
+            // uses (see GlassEffectSettings.kt).
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -333,8 +308,6 @@ fun PortraitThemeLayout(
             onDarkModeChange = onDarkModeChange,
             pureBlack = pureBlack,
             onPureBlackChange = onPureBlackChange,
-            selectedThemeColor = selectedThemeColor,
-            onSelectedThemeColorChange = onSelectedThemeColorChange,
             onReset = onReset,
         )
 
@@ -349,7 +322,6 @@ fun PortraitThemeLayout(
 
 @Composable
 fun LandscapeThemeLayout(
-    innerPadding: PaddingValues,
     darkMode: DarkMode,
     onDarkModeChange: (DarkMode) -> Unit,
     pureBlack: Boolean,
@@ -361,7 +333,8 @@ fun LandscapeThemeLayout(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
+            // Same top-bar-hidden-mockup fix as PortraitThemeLayout above.
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
     ) {
         Column(
             modifier = Modifier
@@ -397,8 +370,6 @@ fun LandscapeThemeLayout(
                 onDarkModeChange = onDarkModeChange,
                 pureBlack = pureBlack,
                 onPureBlackChange = onPureBlackChange,
-                selectedThemeColor = selectedThemeColor,
-                onSelectedThemeColorChange = onSelectedThemeColorChange,
                 onReset = onReset,
             )
 
@@ -418,8 +389,6 @@ fun ThemeControls(
     onDarkModeChange: (DarkMode) -> Unit,
     pureBlack: Boolean,
     onPureBlackChange: (Boolean) -> Unit,
-    selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit,
     onReset: () -> Unit,
 ) {
     Card(
@@ -507,66 +476,7 @@ fun ThemeControls(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = stringResource(R.string.color_palette),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                // Selected iff it isn't a preset or the dynamic sentinel — i.e. a
-                // color someone actually picked, not one of the swatches below.
-                val isCustomSelected = PaletteColors.none {
-                    if (it.seedColor == Color.Transparent) selectedThemeColor == DefaultThemeColor
-                    else selectedThemeColor == it.seedColor
-                }
-                var showColorPicker by remember { mutableStateOf(false) }
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    items(PaletteColors) { palette ->
-                        val isDynamicPalette = palette.seedColor == Color.Transparent
-                        val isSelected = if (isDynamicPalette) {
-                            selectedThemeColor == DefaultThemeColor
-                        } else {
-                            selectedThemeColor == palette.seedColor
-                        }
-
-                        PaletteItem(
-                            palette = palette,
-                            isSelected = isSelected,
-                            onClick = {
-                                val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
-                                onSelectedThemeColorChange(colorToSave)
-                            }
-                        )
-                    }
-                    item {
-                        PaletteItem(
-                            palette = ThemePalette(
-                                nameRes = R.string.theme_custom_color,
-                                seedColor = if (isCustomSelected) selectedThemeColor else DefaultThemeColor,
-                            ),
-                            isSelected = isCustomSelected,
-                            onClick = { showColorPicker = true },
-                        )
-                    }
-                }
-
-                if (showColorPicker) {
-                    ColorPickerDialog(
-                        initialColor = selectedThemeColor,
-                        title = stringResource(R.string.theme_custom_color),
-                        onDismiss = { showColorPicker = false },
-                        onConfirm = {
-                            onSelectedThemeColorChange(it)
-                            showColorPicker = false
-                        },
-                    )
-                }
-            }
+            AppBackgroundTextColorSection()
 
             TextButton(
                 onClick = onReset,
@@ -575,6 +485,115 @@ fun ThemeControls(
                 Text(stringResource(R.string.reset))
             }
         }
+    }
+}
+
+/**
+ * App-wide background/text color, independent of Liquid Glass. Replaces the
+ * old accent-color palette picker in this screen — the seed-color mechanism
+ * it wrote to ([SelectedThemeColorKey]/[DynamicThemeKey]) is untouched and
+ * still drives the app's Material color scheme, this just removes its picker
+ * UI here in favor of direct background/text color control.
+ *
+ * Both preferences default to 0 ("unset"): every call site that reads them
+ * (Home's plain background, the shared nav chrome's non-glass fallback)
+ * falls back to its exact pre-existing hardcoded color, so a user who never
+ * opens this section sees no visual change at all.
+ */
+@Composable
+private fun AppBackgroundTextColorSection() {
+    val (backgroundColorInt, onBackgroundColorChange) = rememberPreference(AppBackgroundColorKey, defaultValue = 0)
+    val (textColorInt, onTextColorChange) = rememberPreference(AppTextColorKey, defaultValue = 0)
+
+    // "Unset" swatch shown here matches what every consuming call site's own
+    // fallback actually resolves to (surfaceContainerHigh / onSurface), so
+    // the picker never shows a color that doesn't match reality.
+    val backgroundColor = if (backgroundColorInt == 0) MaterialTheme.colorScheme.surfaceContainerHigh else Color(backgroundColorInt)
+    val textColor = if (textColorInt == 0) MaterialTheme.colorScheme.onSurface else Color(textColorInt)
+
+    var showBackgroundPicker by remember { mutableStateOf(false) }
+    var showTextPicker by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = stringResource(R.string.app_background_text_color),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = stringResource(R.string.app_background_text_color_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            AppColorSwatchButton(
+                label = stringResource(R.string.background_color),
+                color = backgroundColor,
+                onClick = { showBackgroundPicker = true },
+                modifier = Modifier.weight(1f),
+            )
+            AppColorSwatchButton(
+                label = stringResource(R.string.text_color),
+                color = textColor,
+                onClick = { showTextPicker = true },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+
+    if (showBackgroundPicker) {
+        ColorPickerDialog(
+            initialColor = backgroundColor,
+            title = stringResource(R.string.background_color),
+            onDismiss = { showBackgroundPicker = false },
+            onConfirm = {
+                onBackgroundColorChange(it.toArgb())
+                showBackgroundPicker = false
+            },
+        )
+    }
+
+    if (showTextPicker) {
+        ColorPickerDialog(
+            initialColor = textColor,
+            title = stringResource(R.string.text_color),
+            onDismiss = { showTextPicker = false },
+            onConfirm = {
+                onTextColorChange(it.toArgb())
+                showTextPicker = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun AppColorSwatchButton(
+    label: String,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(color)
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), CircleShape)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -704,123 +723,6 @@ fun ModeCircle(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun PaletteItem(
-    palette: ThemePalette,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val isSystemDark = isSystemInDarkTheme()
-    
-    val colorScheme = rememberDynamicColorScheme(
-        seedColor = palette.seedColor,
-        isDark = isSystemDark,
-        style = PaletteStyle.TonalSpot
-    )
-    
-    val cornerRadius by animateDpAsState(
-        targetValue = if (isSelected) 48.dp * 0.25f else 24.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "cornerRadius"
-    )
-    
-    val borderWidth by animateDpAsState(
-        targetValue = if (isSelected) 3.dp else 0.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "borderWidth"
-    )
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.08f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "scale"
-    )
-    
-    val shape = RoundedCornerShape(cornerRadius)
-    val interactionSource = remember { MutableInteractionSource() }
-    
-    val paletteName = stringResource(palette.nameRes)
-    val contentDesc = stringResource(R.string.cd_palette_item, paletteName)
-    
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(shape)
-            .then(
-                if (borderWidth > 0.dp) {
-                    Modifier.border(
-                        width = borderWidth,
-                        color = MaterialTheme.colorScheme.inversePrimary,
-                        shape = shape
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .bounceClick(
-                interactionSource = interactionSource,
-                indication = ripple(),
-                onClick = onClick
-            )
-            .semantics {
-                contentDescription = contentDesc
-            }
-    ) {
-        if (palette.seedColor == Color.Transparent) {
-            // Draw Dynamic/System icon using Material Design icon
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.palette),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        } else {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val width = size.width
-                val height = size.height
-                
-                drawRect(
-                    color = colorScheme.onPrimary,
-                    topLeft = Offset(0f, 0f),
-                    size = Size(width, height / 2)
-                )
-                
-                drawRect(
-                    color = colorScheme.secondary,
-                    topLeft = Offset(0f, height / 2),
-                    size = Size(width / 2, height / 2)
-                )
-                
-                drawRect(
-                    color = colorScheme.tertiary,
-                    topLeft = Offset(width / 2, height / 2),
-                    size = Size(width / 2, height / 2)
-                )
             }
         }
     }

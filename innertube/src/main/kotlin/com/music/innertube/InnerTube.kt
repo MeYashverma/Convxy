@@ -157,14 +157,10 @@ class InnerTube {
 
         defaultRequest {
             url(YouTubeClient.API_URL_YOUTUBE_MUSIC)
-            // Add common headers for better compatibility
-            header("Accept", "application/json")
-            header("Accept-Language", "en-US,en;q=0.9")
-            // No blanket Cache-Control: no-cache — OkHttp never caches POST
-            // (nearly every InnerTube call) regardless of headers, so this only
-            // ever mattered for the handful of real GET calls (getSwJsData,
-            // returnYouTubeDislike, the watch-tracking ping), where it was
-            // silently defeating the 50MB disk cache configured below.
+            // Was force-sending Accept-Language: en-US on every request regardless
+            // of the account's actual locale — clashes with the hl/gl fields the
+            // Context body already carries per-request, and vivi-music (working,
+            // same device/account/network) sends neither header at all.
         }
     }
 

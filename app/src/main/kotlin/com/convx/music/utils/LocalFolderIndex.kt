@@ -30,17 +30,31 @@ object LocalFolderIndex {
         val songIds: List<String>,
     )
 
+    /**
+     * The column to query for a song's folder, and how to turn its raw value into
+     * a bare directory path — shared with [LocalAudioScanner] so both derive the
+     * exact same folder for the exact same song.
+     */
+    val pathColumn: String
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Audio.Media.RELATIVE_PATH
+        } else {
+            MediaStore.Audio.Media.DATA
+        }
+
+    /** RELATIVE_PATH is already a directory ("Music/Rock/"); DATA is the file
+     *  itself, so drop the file name. */
+    fun folderPathOf(raw: String): String {
+        val dir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) raw else raw.substringBeforeLast('/', "")
+        return dir.trim('/')
+    }
+
     // ponytail: process-lifetime cache, reloaded on demand. Folders only change
     // when files do, and a rescan/app restart already refreshes it.
     @Volatile
     private var cache: List<Folder> = emptyList()
 
     suspend fun load(context: Context): List<Folder> = withContext(Dispatchers.IO) {
-        val pathColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.RELATIVE_PATH
-        } else {
-            MediaStore.Audio.Media.DATA
-        }
         val projection = arrayOf(MediaStore.Audio.Media._ID, pathColumn)
 
         // Same predicate as the scanner, so folder counts match what was imported.
@@ -65,10 +79,7 @@ object LocalFolderIndex {
                 val pathIndex = cursor.getColumnIndexOrThrow(pathColumn)
                 while (cursor.moveToNext()) {
                     val raw = cursor.getString(pathIndex) ?: continue
-                    // RELATIVE_PATH is already a directory ("Music/Rock/"); DATA is
-                    // the file itself, so drop the file name.
-                    val dir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) raw else raw.substringBeforeLast('/', "")
-                    val path = dir.trim('/')
+                    val path = folderPathOf(raw)
                     if (path.isEmpty()) continue
                     val id = ContentUris.withAppendedId(collection, cursor.getLong(idColumn)).toString()
                     byPath.getOrPut(path) { mutableListOf() }.add(id)

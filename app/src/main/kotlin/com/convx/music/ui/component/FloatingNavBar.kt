@@ -8,6 +8,9 @@
 package com.convx.music.ui.component
 
 import androidx.activity.compose.BackHandler
+import com.convx.music.constants.AppBackgroundColorKey
+import com.convx.music.constants.AppTextColorKey
+import com.convx.music.utils.rememberPreference
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -218,17 +221,25 @@ private fun AppFloatingNavBarChrome(
     val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val appleMusicUi = LocalAppleMusicUi.current
 
+    val (appBackgroundColorInt) = rememberPreference(AppBackgroundColorKey, 0)
+    val (appTextColorInt) = rememberPreference(AppTextColorKey, 0)
     val backgroundColor = when {
         useGlass -> Color.Transparent
         pureBlack -> Color.Black
+        appBackgroundColorInt != 0 -> Color(appBackgroundColorInt)
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     // Both derive from the glass content colour, which adapts to what the pill
     // composites to. Unselected used to be hardcoded white, which vanished on a
     // light-tinted bar; dimming the adaptive colour keeps the selected/unselected
     // distinction at any tint instead of only on dark ones.
-    val selectedContentColor = glassConfig.textColor
-    val unselectedContentColor = glassConfig.textColor.copy(alpha = 0.6f)
+    //
+    // The app-wide AppTextColorKey override (Theme screen) wins whenever the
+    // user set one, glass on or off — glassConfig.textColor is only the
+    // fallback for "no explicit override chosen".
+    val tabTextColor = if (appTextColorInt != 0) Color(appTextColorInt) else glassConfig.textColor
+    val selectedContentColor = tabTextColor
+    val unselectedContentColor = tabTextColor.copy(alpha = 0.6f)
 
     val tabBarContentModifier = if (useGlass) {
         Modifier.liquidGlass(
@@ -256,6 +267,7 @@ private fun AppFloatingNavBarChrome(
     val selectedTabKey = rememberStickySelectedRoute(currentRoute, tabScreens)
 
     val accessoryContentColor = when {
+        appTextColorInt != 0 -> Color(appTextColorInt)
         useGlass -> glassConfig.textColor
         pureBlack -> Color.White
         else -> MaterialTheme.colorScheme.onSurface
@@ -267,6 +279,13 @@ private fun AppFloatingNavBarChrome(
                     isInline = true,
                     contentColor = accessoryContentColor,
                     onClick = onAccessoryClick,
+                    // Same lyrics/queue icons render in inline mode as expanded
+                    // (FloatingMiniPlayer doesn't gate them on isInline), but this
+                    // call site never passed the click handlers — tapping queue
+                    // while the bar was in its scrolled/collapsed state silently
+                    // fell back to a plain expand instead of opening the queue.
+                    onLyricsClick = onAccessoryLyricsClick,
+                    onQueueClick = onAccessoryQueueClick,
                     modifier = accessoryModifier.then(tabBarContentModifier),
                 )
             }
@@ -324,12 +343,16 @@ private fun AppFloatingNavBarChrome(
             // The selection puck's lens/accent-tint effects only make sense when the
             // bar itself is sampling the app backdrop through liquid glass.
             backdrop = if (useGlass) LocalAppBackdrop.current else null,
-            // The puck tints its whole sampled icon row with this one colour. Feeding it
-            // the glass content colour meant that whenever adaptive contrast resolved
-            // dark (light theme, or a light tint), the entire puck rendered near-black
-            // and read as a dark blob. The app accent is chosen to be visible against
-            // the bar and is what the rail already uses for selected content.
-            accentColor = com.convx.music.ui.theme.LocalAccentColor.current,
+            // The puck tints its whole sampled icon row with this one colour, and a
+            // second crisp copy of the icon (below, "the selected icon drawn a second
+            // time") is redrawn on top in tabTextColor as the drag settles. The two
+            // must match exactly — the lens warp offsets this sampled copy slightly
+            // from the crisp one, so any color mismatch between them reads as a
+            // doubled/ghosted icon, not just a subtle glow. tabTextColor is already
+            // the contrast-correct choice (global text color when set, else the
+            // glass system's own computed contrast) — reuse it instead of deriving
+            // a second, different "correct" color.
+            accentColor = tabTextColor,
             searchMode = searchModeActive,
             searchBarContent = if (searchModeActive) {
                 { contentModifier ->

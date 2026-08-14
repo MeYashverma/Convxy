@@ -67,6 +67,7 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.AlbumViewTypeKey
+import com.convx.music.constants.AppBackgroundColorKey
 import com.convx.music.constants.CONTENT_TYPE_HEADER
 import com.convx.music.constants.CONTENT_TYPE_PLAYLIST
 import com.convx.music.constants.GridItemSize
@@ -108,7 +109,6 @@ import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.menu.AlbumMenu
 import com.convx.music.ui.menu.ArtistMenu
 import com.convx.music.ui.menu.PlaylistMenu
-import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
 import com.convx.music.ui.utils.bounceClick
@@ -181,8 +181,9 @@ fun LibraryMixScreen(
         null
     }
     val heroSource = rememberHeroSource(staticArt = heroUrl)
+    val (appBackgroundColorInt) = rememberPreference(AppBackgroundColorKey, defaultValue = 0)
     val tint = if (libraryBackgroundMode == LibraryBackgroundMode.THEME) {
-        MaterialTheme.colorScheme.primary
+        if (appBackgroundColorInt != 0) Color(appBackgroundColorInt) else MaterialTheme.colorScheme.primary
     } else {
         rememberHeroTint(heroUrl)
     }
@@ -413,15 +414,6 @@ fun LibraryMixScreen(
                         modifier = Modifier,
                         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                     ) {
-                        item(key = "header_title") {
-                            Column {
-                                LargeScreenTitle(
-                                    title = stringResource(R.string.filter_library),
-                                    color = onTint,
-                                )
-                            }
-                        }
-
                         item(
                             key = "filter",
                             contentType = CONTENT_TYPE_HEADER,
@@ -801,15 +793,6 @@ fun LibraryMixScreen(
                     columns = rememberGridColumns(),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
-                    item(key = "header_title", span = { GridItemSpan(maxLineSpan) }) {
-                        Column {
-                            LargeScreenTitle(
-                                title = stringResource(R.string.filter_library),
-                                color = onTint,
-                            )
-                        }
-                    }
-
                     item(
                         key = "filter",
                         span = { GridItemSpan(maxLineSpan) },

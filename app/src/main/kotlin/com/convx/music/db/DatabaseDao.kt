@@ -1477,6 +1477,33 @@ interface DatabaseDao {
         previewSize: Int = Int.MAX_VALUE,
     ): Flow<List<Playlist>>
 
+    // Same scope as the search* queries above, minus the LIKE predicate — the fuzzy fallback
+    // in LocalSearchViewModel scores these in Kotlin when the exact substring search (a typo)
+    // comes back empty, so this must stay in sync with whatever "in library" means up there.
+    @Transaction
+    @Query("SELECT * FROM song WHERE inLibrary IS NOT NULL")
+    fun allSearchableSongs(): Flow<List<Song>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query(
+        "SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE songCount > 0",
+    )
+    fun allSearchableArtists(): Flow<List<Artist>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query(
+        "SELECT * FROM album WHERE EXISTS(SELECT * FROM song WHERE song.albumId = album.id AND song.inLibrary IS NOT NULL)",
+    )
+    fun allSearchableAlbums(): Flow<List<Album>>
+
+    @Transaction
+    @Query(
+        "SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist",
+    )
+    fun allSearchablePlaylists(): Flow<List<Playlist>>
+
     @Transaction
     @Query("SELECT * FROM event ORDER BY rowId DESC")
     fun events(): Flow<List<EventWithSong>>

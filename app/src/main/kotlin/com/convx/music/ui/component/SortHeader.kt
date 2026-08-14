@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.convx.music.R
 import com.convx.music.constants.PlaylistSongSortType
+import com.convx.music.ui.theme.rememberGlobalAccentColors
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -57,6 +58,7 @@ inline fun <reified T : Enum<T>> SortHeader(
     showDescending: Boolean? = true,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val (accentColor, onAccentColor) = rememberGlobalAccentColors()
 
     val displayDescending = showDescending == true && sortType != PlaylistSongSortType.CUSTOM
 
@@ -65,8 +67,8 @@ inline fun <reified T : Enum<T>> SortHeader(
             SplitButtonDefaults.LeadingButton(
                 onClick = { menuExpanded = !menuExpanded },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = accentColor,
+                    contentColor = onAccentColor
                 ),
                 modifier = Modifier.widthIn(min = 120.dp)
             ) {
@@ -90,8 +92,8 @@ inline fun <reified T : Enum<T>> SortHeader(
                         checked = sortDescending,
                         onCheckedChange = { onSortDescendingChange(it) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = accentColor,
+                            contentColor = onAccentColor
                         ),
                         modifier = Modifier.semantics {
                             stateDescription = if (sortDescending) "Descending" else "Ascending"
@@ -118,8 +120,8 @@ inline fun <reified T : Enum<T>> SortHeader(
                     checked = menuExpanded,
                     onCheckedChange = { menuExpanded = it },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = accentColor,
+                        contentColor = onAccentColor
                     ),
                     modifier = Modifier.semantics {
                         stateDescription = if (menuExpanded) "Expanded" else "Collapsed"

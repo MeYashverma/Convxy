@@ -39,6 +39,7 @@ import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
 import com.convx.music.constants.EnableSaavnStreamingKey
+import com.convx.music.constants.ForceSelectedQualityKey
 import com.convx.music.constants.SaavnAudioQuality
 import com.convx.music.constants.SaavnAudioQualityKey
 import com.convx.music.constants.SaavnFallbackToYouTubeKey
@@ -68,6 +69,10 @@ fun JioSettings(
     val (fallbackToYouTube, onFallbackToYouTubeChange) = rememberPreference(
         SaavnFallbackToYouTubeKey,
         defaultValue = true
+    )
+    val (forceSelectedQuality, onForceSelectedQualityChange) = rememberPreference(
+        ForceSelectedQualityKey,
+        defaultValue = false
     )
 
     Column(
@@ -197,6 +202,19 @@ fun JioSettings(
                         )
                     },
                     onClick = { onFallbackToYouTubeChange(!fallbackToYouTube) }
+                ),
+                Material3SettingsItem(
+                    title = { Text(stringResource(R.string.force_selected_quality)) },
+                    description = { Text(stringResource(R.string.force_selected_quality_desc)) },
+                    enabled = saavnEnabled,
+                    trailingContent = {
+                        ModernSwitch(
+                            checked = forceSelectedQuality,
+                            enabled = saavnEnabled,
+                            onCheckedChange = onForceSelectedQualityChange,
+                        )
+                    },
+                    onClick = { onForceSelectedQualityChange(!forceSelectedQuality) }
                 ),
             )
         )

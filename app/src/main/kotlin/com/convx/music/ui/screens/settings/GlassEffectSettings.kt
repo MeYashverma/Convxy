@@ -19,7 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -112,6 +114,18 @@ import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 import kotlin.math.roundToInt
+
+/** Small current-color preview for a color-picker settings row's trailing content. */
+@Composable
+private fun ColorSwatch(color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(color)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), CircleShape)
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -366,6 +380,7 @@ fun GlassEffectSettings(
                     icon = painterResource(R.drawable.palette),
                     title = { Text(stringResource(R.string.liquid_glass_surface_tint)) },
                     description = { Text(stringResource(R.string.liquid_glass_surface_tint_desc)) },
+                    trailingContent = { ColorSwatch(surfaceTintColor) },
                     onClick = { showSurfaceTintDialog = true }
                 ),
                 Material3SettingsItem(
@@ -444,6 +459,7 @@ fun GlassEffectSettings(
                         icon = painterResource(R.drawable.palette),
                         title = { Text(stringResource(R.string.liquid_glass_text_color)) },
                         description = { Text(stringResource(R.string.liquid_glass_text_color_desc)) },
+                        trailingContent = { ColorSwatch(textColor) },
                         onClick = { showTextColorDialog = true }
                     )
                 },
@@ -548,6 +564,8 @@ fun GlassEffectSettings(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),
                         title = { Text(stringResource(R.string.liquid_glass_surface_tint)) },
+                        description = { Text(stringResource(R.string.liquid_glass_side_panel_surface_tint_desc)) },
+                        trailingContent = { ColorSwatch(sidePanelTintColor) },
                         onClick = { showSidePanelColorDialog = true }
                     ),
                     Material3SettingsItem(
@@ -558,6 +576,8 @@ fun GlassEffectSettings(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),
                         title = { Text(stringResource(R.string.liquid_glass_text_color)) },
+                        description = { Text(stringResource(R.string.liquid_glass_side_panel_text_color_desc)) },
+                        trailingContent = { ColorSwatch(sidePanelTextColor) },
                         onClick = { showSidePanelTextColorDialog = true }
                     ),
                 )

@@ -39,6 +39,7 @@ import com.convx.music.utils.CrashHandler
 import com.convx.music.utils.DebugLogs
 import com.convx.music.utils.cipher.CipherDeobfuscator
 import com.convx.music.utils.dataStore
+import com.convx.music.utils.get
 import com.convx.music.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -67,6 +68,19 @@ class App : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Restored synchronously, before anything else can start: the async
+        // DataStore collector further down (applicationScope.launch { ... }
+        // .collect { YouTube.cookie = ... }) doesn't land its first value until
+        // some time after onCreate() returns. MusicService can start resolving
+        // playback before that — sees YouTube.cookie == null (its default, not
+        // "genuinely logged out"), takes the guest-session branch in
+        // BotDetectionMitigator, and PERSISTS a freshly-fetched guest
+        // visitorData over the real logged-in session's value in DataStore.
+        // Every cold start was a fresh chance to re-corrupt it.
+        YouTube.cookie = dataStore.get(InnerTubeCookieKey, "").takeIf { it.isNotBlank() && it != "null" }
+        YouTube.visitorData = dataStore.get(VisitorDataKey, "").takeIf { it.isNotBlank() && it != "null" }
+        YouTube.dataSyncId = dataStore.get(DataSyncIdKey, "").takeIf { it.isNotBlank() && it != "null" }
 
         // Install crash handler first
         CrashHandler.install(this)
@@ -140,7 +154,7 @@ class App : Application(), SingletonImageLoader.Factory {
                 }
             }
             try {
-                settings[ProxyUrlKey]?.let {
+                settings[ProxyUrlKey]?.takeIf { it.isNotBlank() }?.let {
                     YouTube.proxy = Proxy(type, it.toInetSocketAddress())
                 }
             } catch (e: Exception) {

@@ -5,48 +5,32 @@
 
 package com.convx.music.ui.theme
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import com.convx.music.constants.PlayerBackgroundStyle
 
 /**
  * Player slider color configuration for consistent styling across all slider types
- * 
+ *
  * This object provides standardized color schemes for Default, Squiggly, and Slim sliders
  * used in the music player interface, ensuring visual consistency and proper contrast.
  */
 object PlayerSliderColors {
 
     /**
-     * Standard slider colors for all slider types
-     * 
-     * @param activeColor Color for active track, ticks, and thumb
-     * @param playerBackground The player background style
-     * @param useDarkTheme Whether dark theme is being used
+     * Standard slider colors for all slider types. The unloaded/inactive track is always a
+     * faded version of [activeColor] itself — not a separate background-dependent color — so
+     * the two halves of the seek bar read as one color at two strengths, whatever [activeColor]
+     * is (including the user's global text/button color when they've set one).
+     *
+     * @param activeColor Color for active (loaded) track, ticks, and thumb
      * @return SliderColors configuration
      */
     @Composable
-    fun getSliderColors(
-        activeColor: Color,
-        playerBackground: PlayerBackgroundStyle,
-        useDarkTheme: Boolean
-    ): SliderColors {
-        val inactiveTrackColor = when (playerBackground) {
-            PlayerBackgroundStyle.DEFAULT -> {
-                if (useDarkTheme) {
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                }
-            }
-            PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT, PlayerBackgroundStyle.GLOW_ANIMATED, PlayerBackgroundStyle.APPLE_MUSIC, PlayerBackgroundStyle.LIVE_MESH, PlayerBackgroundStyle.STATIC, PlayerBackgroundStyle.CUSTOM_GRADIENT -> {
-                Color.White.copy(alpha = 0.4f)
-            }
-        }
-        
+    fun getSliderColors(activeColor: Color): SliderColors {
+        val inactiveTrackColor = activeColor.copy(alpha = 0.3f)
+
         return SliderDefaults.colors(
             activeTrackColor = activeColor,
             activeTickColor = activeColor,

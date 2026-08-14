@@ -32,6 +32,7 @@ import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideYoutubeShortsKey
 import com.convx.music.constants.LibraryFilter
+import com.convx.music.constants.LocalExcludedFoldersKey
 import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.PlaylistSortDescendingKey
 import com.convx.music.constants.PlaylistSortType
@@ -52,6 +53,7 @@ import com.convx.music.playback.DownloadUtil
 import com.convx.music.utils.LocalAudioScanner
 import com.convx.music.utils.SyncUtils
 import com.convx.music.utils.dataStore
+import com.convx.music.utils.decodeExcludedFolders
 import com.convx.music.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -61,6 +63,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -117,7 +120,10 @@ constructor(
             _isScanning.value = true
             _scanResult.value = null
             try {
-                val result = LocalAudioScanner.scanAndInsert(context, database)
+                val excludedFolders = decodeExcludedFolders(
+                    context.dataStore.data.first()[LocalExcludedFoldersKey] ?: "",
+                )
+                val result = LocalAudioScanner.scanAndInsert(context, database, excludedFolders)
                 _scanResult.value = result
             } catch (e: Exception) {
                 _scanResult.value = LocalAudioScanner.ScanResult(0, 0, 0)

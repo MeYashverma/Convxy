@@ -53,6 +53,9 @@
     <string name="local_only_mode">Local-only mode</string>
     <string name="local_only_mode_desc">Home, Library and Search show only music stored on this device</string>
     <string name="folders">Folders</string>
+    <string name="excluded_folders">Excluded folders</string>
+    <string name="excluded_folders_desc">Choose which on-device folders local-only mode scans</string>
+    <string name="excluded_folders_empty">No folders found yet. Scan your device from the Local screen first.</string>
     <string name="sync_playlist">Sync playlist</string>
     <string name="syncing_progress">Syncing %1$d of %2$d songs</string>
     <string name="playlist_uploaded">Playlist uploaded successfully</string>
@@ -74,6 +77,8 @@
     <string name="text_color">Text color</string>
     <string name="secondary_text_color">Secondary text color</string>
     <string name="background_color">Background color</string>
+    <string name="app_background_text_color">Background &amp; Text Color</string>
+    <string name="app_background_text_color_desc">Applies to Home\'s background (when no custom image is set) and the app\'s chrome when Liquid Glass is off</string>
 
     <string name="added_to_play_next">Added to play next</string>
     <string name="added_to_queue">Added to the queue</string>
@@ -1128,6 +1133,9 @@
     <string name="home_background_remove">Remove image</string>
     <string name="home_background_animate">Blur on load</string>
     <string name="home_background_animate_desc">Start sharp, then ease into blur once the image loads</string>
+    <string name="home_background_quality">Background quality</string>
+    <string name="home_background_quality_desc">How sharp a newly picked background is stored, relative to your screen\'s own resolution</string>
+    <string name="home_background_quality_reapply_hint">Applies to the next image or video you pick — re-pick your current background to apply a new quality to it</string>
     <string name="library_background">Library background</string>
     <string name="library_background_plain">Plain</string>
     <string name="library_background_theme">Follow theme</string>
@@ -1161,6 +1169,8 @@
     <string name="liquid_glass_side_panel">Glass Side Panel</string>
     <string name="liquid_glass_side_panel_desc">Tablet side panel glass, set independently from the phone navigation bar</string>
     <string name="liquid_glass_side_panel_overrides">Side Panel Effect (overrides above)</string>
+    <string name="liquid_glass_side_panel_surface_tint_desc">Tint color for the tablet side panel only, independent of the main Surface Tint above</string>
+    <string name="liquid_glass_side_panel_text_color_desc">Text color for the tablet side panel only, independent of the main Glass Text Color above</string>
     <string name="collapse_side_panel">Collapse side panel</string>
     <string name="expand_side_panel">Expand side panel</string>
     <string name="player_theme_layout">Layout</string>
@@ -1183,6 +1193,10 @@
     <string name="hide_home_favorite_icon_desc">Hides the heart badge on liked songs and albums in Home\'s rows. Library, search, and playlists are unaffected.</string>
     <string name="saavn_fallback_to_youtube">Retry on YouTube if Saavn fails</string>
     <string name="saavn_fallback_to_youtube_desc">On: if no matching track or stream is found on JioSaavn, plays from YouTube instead. Off: playback fails instead of silently swapping to YouTube audio.</string>
+    <string name="force_selected_quality">Force this quality</string>
+    <string name="force_selected_quality_desc">On: always use the quality selected above, even if a lossless module or Tidal would otherwise upgrade it to FLAC.</string>
+    <string name="login_validation_failed_retrying">Couldn\'t confirm sign-in, retrying…</string>
+    <string name="login_validation_failed_final">Sign-in failed. Go back and try again.</string>
     <string name="support_section">Support</string>
     <string name="support_upi">UPI</string>
     <string name="support_kofi">Ko-fi</string>

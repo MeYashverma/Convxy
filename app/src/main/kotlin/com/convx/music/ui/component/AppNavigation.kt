@@ -7,6 +7,9 @@ package com.convx.music.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.convx.music.constants.AppBackgroundColorKey
+import com.convx.music.constants.AppTextColorKey
+import com.convx.music.utils.rememberPreference
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -184,11 +187,18 @@ fun AppNavigationBar(
     slimNav: Boolean = false,
     onSearchLongClick: (() -> Unit)? = null
 ) {
-    val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    val (appBackgroundColorInt) = rememberPreference(AppBackgroundColorKey, 0)
+    val (appTextColorInt) = rememberPreference(AppTextColorKey, 0)
+    val containerColor = when {
+        pureBlack -> Color.Black
+        appBackgroundColorInt != 0 -> Color(appBackgroundColorInt)
+        else -> MaterialTheme.colorScheme.surfaceContainer
+    }
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass = glassEnabled && glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
     val navContainerColor = if (useGlass) Color.Transparent else containerColor
     val contentColor = when {
+        appTextColorInt != 0 -> Color(appTextColorInt)
         useGlass -> glassConfig.textColor
         pureBlack -> Color.White
         else -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -301,19 +311,25 @@ fun AppLandscapeRail(
 ) {
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
-    
+    val (appBackgroundColorInt) = rememberPreference(AppBackgroundColorKey, 0)
+    val (appTextColorInt) = rememberPreference(AppTextColorKey, 0)
+
     val backgroundColor = when {
         useGlass -> Color.Transparent
         pureBlack -> Color.Black
+        appBackgroundColorInt != 0 -> Color(appBackgroundColorInt)
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    
+
     val selectedContentColor = com.convx.music.ui.theme.LocalAccentColor.current
     // Non-glass fell back to hardcoded white, which is invisible on a light
     // theme. glassConfig.textColor is already the adaptive colour (computed from
     // what the surface composites to); onSurface is its non-glass equivalent.
-    val unselectedContentColor =
-        if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
+    val unselectedContentColor = when {
+        appTextColorInt != 0 -> Color(appTextColorInt)
+        useGlass -> glassConfig.textColor
+        else -> MaterialTheme.colorScheme.onSurface
+    }
 
     val railModifier = if (useGlass) {
         modifier.liquidGlass(

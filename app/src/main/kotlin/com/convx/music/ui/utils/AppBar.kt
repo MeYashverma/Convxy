@@ -14,6 +14,7 @@ import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,11 +34,18 @@ import com.convx.music.LocalPlayerAwareWindowInsets
  * The status bar on top (NOT [LocalPlayerAwareWindowInsets]'s top — that has the
  * app bar's own height baked in, which would push the bar down), plus the
  * horizontal insets, which already include the side panel's reserved start width
- * (0 on phone, so this is a no-op there and matches the Material default).
+ * (0 on phone, so this is a no-op there and matches the Material default), plus
+ * the display cutout's start/end insets — in landscape a camera cutout usually
+ * sits on one of the horizontal edges, not the top, so `systemBars` alone (which
+ * does not include the cutout) let title/action icons render underneath it. One
+ * other screen in the app already adds `displayCutout.only(Start + End)` for its
+ * own top bar; this shared function — used by nearly every other screen's top
+ * bar — didn't, so this brings it in line.
  */
 @Composable
 fun appTopBarWindowInsets(): WindowInsets =
     WindowInsets.systemBars.only(WindowInsetsSides.Top)
+        .add(WindowInsets.displayCutout.only(WindowInsetsSides.Start + WindowInsetsSides.End))
         .add(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal))
 
 @OptIn(ExperimentalMaterial3Api::class)

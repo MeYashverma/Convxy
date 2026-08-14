@@ -29,14 +29,45 @@ import androidx.compose.material3.MaterialTheme
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.convx.music.constants.AppBackgroundColorKey
 import com.convx.music.constants.HomeBackgroundAnimateKey
 import com.convx.music.constants.HomeBackgroundBlurKey
 import com.convx.music.constants.HomeBackgroundDimKey
 import com.convx.music.constants.HomeBackgroundEnabledKey
 import com.convx.music.constants.HomeBackgroundIsVideoKey
 import com.convx.music.constants.HomeBackgroundPathKey
+import com.convx.music.constants.HomeBackgroundQualityKey
 import com.convx.music.utils.rememberPreference
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import java.io.File
+
+/** Absolute ceiling on the background's stored/decoded resolution, regardless
+ *  of the quality preference or how large the device's own screen is — keeps
+ *  an exotic tablet/foldable from decoding an unreasonably large bitmap. */
+private const val BackgroundAbsoluteMaxEdge = 2560
+
+/**
+ * The size a background image is stored at (HomeBackgroundSettings.kt's
+ * copyBackgroundMedia) and decoded at (this file, below): the device's own
+ * screen resolution — so "full quality" actually means full quality on every
+ * device, not a fixed 1080x1920 that under-serves a QHD+ screen — scaled by
+ * [quality] (0.3..1) and clamped to [BackgroundAbsoluteMaxEdge]. Shared by
+ * both the store-time and display-time requests so they always agree.
+ */
+@Composable
+fun rememberHomeBackgroundTargetSize(quality: Float): Pair<Int, Int> {
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    return remember(configuration, density, quality) {
+        val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+        val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+        val q = quality.coerceIn(0.3f, 1f)
+        val width = (screenWidthPx * q).toInt().coerceIn(1, BackgroundAbsoluteMaxEdge)
+        val height = (screenHeightPx * q).toInt().coerceIn(1, BackgroundAbsoluteMaxEdge)
+        width to height
+    }
+}
 
 /** Process-wide: the intro blur ramp plays only the first time this session. */
 private var blurAnimatedThisSession = false
@@ -61,16 +92,14 @@ fun hasCustomHomeBackground(): Boolean {
  * Library screens. Draws nothing when disabled or unset. Must be placed as a layer
  * behind the screen content inside a [BoxScope] (uses [matchParentSize]).
  *
- * Blur runs via realtime Modifier.blur while the intro ramp animates, and off a
- * file baked by [HomeBackgroundBlurCache] once it settles — the radius is static
- * from then on, so the live RenderEffect is per-frame work for a picture that
- * never changes.
+ * Blur is always the live RenderEffect (Modifier.blur), including once the intro
+ * ramp settles. A prior version swapped in a bitmap pre-blurred by successive
+ * downscale/upscale at that point to save the per-frame GPU cost — cheaper, but
+ * the resample approximation showed visible seams/blocking versus a real blur.
  *
- * A prior version tried to bake it into the decoded bitmap via a Coil
+ * A version before that tried baking it into the decoded bitmap via a Coil
  * Transformation and rendered unblurred on-device regardless of
- * algorithm/cache-key/hardware-bitmap fixes. The bake here does not go through
- * Coil, and the live blur stays in place until the baked file actually exists, so
- * that failure mode degrades to the old behaviour instead of to a sharp image.
+ * algorithm/cache-key/hardware-bitmap fixes.
  *
  * @param withGradient adds the bottom primary-color wash on top of the image.
  * @param contentLoaded when animate is on, the blur eases in once this flips true
@@ -87,7 +116,16 @@ fun BoxScope.HomeImageBackground(
     val (dim) = rememberPreference(HomeBackgroundDimKey, 0.4f)
     val (animate) = rememberPreference(HomeBackgroundAnimateKey, false)
     val (isVideo) = rememberPreference(HomeBackgroundIsVideoKey, false)
-    if (!enabled || path.isEmpty()) return
+    if (!enabled || path.isEmpty()) {
+        // No custom image set — paint the user's chosen plain background
+        // color if they set one (0 = unset, draws nothing, exactly like
+        // before this preference existed).
+        val (backgroundColorInt) = rememberPreference(AppBackgroundColorKey, 0)
+        if (backgroundColorInt != 0) {
+            Box(modifier = Modifier.matchParentSize().background(Color(backgroundColorInt)))
+        }
+        return
+    }
 
     if (isVideo) {
         // No blur-in animation for video — the loop is already motion, ramping
@@ -119,33 +157,33 @@ fun BoxScope.HomeImageBackground(
     val effectiveBlur = if (animate) animatedBlur else blur
     val context = LocalContext.current
 
-    // Once the blur has settled at its target it never changes again, so the live
-    // RenderEffect is the same pixels recomputed on every frame that replays this
-    // layer — including every scroll frame. Swap in a pre-blurred file for that
-    // steady state. `baked` stays null while the ramp is animating and until the
-    // file is ready, and the live blur below covers both, so a bake that fails
-    // degrades to exactly the previous behaviour rather than to a sharp image.
-    val settled = effectiveBlur == blur
-    var baked by remember(path, blur) { mutableStateOf<File?>(null) }
-    LaunchedEffect(path, blur, settled) {
-        if (settled && blur > 0f) baked = HomeBackgroundBlurCache.get(context, path, blur)
-    }
-
-    val imageRequest = remember(path, baked) {
+    // Was a flat 1080x1920 request regardless of what the image was actually
+    // stored at — so even after raising the stored resolution to the
+    // device's own screen size (HomeBackgroundSettings.kt), this decode step
+    // downsampled it right back down on every render, on any screen bigger
+    // than 1080x1920. Match the same quality-scaled target used at store time.
+    val (quality) = rememberPreference(HomeBackgroundQualityKey, 1f)
+    val (targetWidth, targetHeight) = rememberHomeBackgroundTargetSize(quality)
+    val imageRequest = remember(path, targetWidth, targetHeight) {
         ImageRequest.Builder(context)
-            .data(baked ?: File(path))
-            .size(1080, 1920)
+            .data(File(path))
+            .size(targetWidth, targetHeight)
             .crossfade(false)
             .build()
     }
 
+    // Always the live RenderEffect blur — a prior version swapped in a bitmap
+    // pre-blurred via successive downscale/upscale once "settled" (cheaper per
+    // frame while scrolling), but that resample approximation showed visible
+    // seams/blocking versus a real blur. Simplicity + correctness over the
+    // per-frame GPU cost for a background that doesn't otherwise animate.
     AsyncImage(
         model = imageRequest,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier
             .matchParentSize()
-            .then(if (baked == null) Modifier.blur(effectiveBlur.dp) else Modifier),
+            .blur(effectiveBlur.dp),
     )
     Box(
         modifier = Modifier

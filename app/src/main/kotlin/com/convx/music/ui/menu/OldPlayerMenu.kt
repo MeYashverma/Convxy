@@ -66,8 +66,8 @@ import com.convx.music.ui.component.Material3MenuItemData
 import com.convx.music.ui.component.NewAction
 import com.convx.music.ui.component.NewActionGrid
 import com.convx.music.ui.component.VolumeSlider
+import com.convx.music.ui.theme.rememberGlobalAccentColors
 import com.convx.music.constants.EnableSaavnStreamingKey
-import com.convx.music.constants.HideVolumeBarKey
 import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -113,7 +113,6 @@ fun OldPlayerMenu(
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val (saavnEnabled) = rememberPreference(EnableSaavnStreamingKey, defaultValue = false)
-    val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
 
     val artists = remember(mediaMetadata.artists) {
         mediaMetadata.artists.filter { it.id != null }
@@ -205,20 +204,20 @@ fun OldPlayerMenu(
             }
         }
 
-        if (!hideVolumeBar) {
-            VolumeSlider(
-                value = if (isCasting) castVolume else playerVolume.value,
-                onValueChange = { volume ->
-                    if (isCasting) {
-                        castHandler?.setVolume(volume)
-                    } else {
-                        playerConnection.service.playerVolume.value = volume
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                accentColor = MaterialTheme.colorScheme.primary
-            )
-        }
+        // "Hide Volume Bar" only affects the player's own inline volume row
+        // now — this menu copy always shows regardless of the setting.
+        VolumeSlider(
+            value = if (isCasting) castVolume else playerVolume.value,
+            onValueChange = { volume ->
+                if (isCasting) {
+                    castHandler?.setVolume(volume)
+                } else {
+                    playerConnection.service.playerVolume.value = volume
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            accentColor = rememberGlobalAccentColors().first
+        )
     }
 
     Spacer(modifier = Modifier.height(20.dp))

@@ -174,7 +174,6 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.SlimNavBarKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
-import com.convx.music.constants.SquigglySliderKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.SwipeSensitivityKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -309,10 +308,6 @@ fun AppearanceSettings(
     val (oneTapFullscreenLyrics, onOneTapFullscreenLyricsChange) = rememberPreference(OneTapFullscreenLyricsKey, defaultValue = false)
     val (fullscreenLyricsCollapseTop, onFullscreenLyricsCollapseTopChange) = rememberPreference(FullscreenLyricsCollapseTopKey, defaultValue = true)
 
-    val (squigglySlider, onSquigglySliderChange) = rememberPreference(
-        SquigglySliderKey,
-        defaultValue = false
-    )
     val (swipeThumbnail, onSwipeThumbnailChange) = rememberPreference(
         SwipeThumbnailKey,
         defaultValue = true
@@ -518,6 +513,42 @@ fun AppearanceSettings(
                     LibraryFilter.LIBRARY -> stringResource(R.string.filter_library)
                 }
             }
+        )
+    }
+
+    if (showRestartDialog) {
+        DefaultDialog(
+            onDismiss = { showRestartDialog = false },
+            buttons = {
+                TextButton(onClick = { showRestartDialog = false }) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(onClick = {
+                    showRestartDialog = false
+                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                    intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    context.startActivity(intent)
+                    Runtime.getRuntime().exit(0)
+                }) { Text(stringResource(R.string.restart)) }
+            }
+        ) {
+            Text(
+                text = stringResource(R.string.density_restart_message),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(16.dp),
+            )
+        }
+    }
+
+    if (showDensityScaleDialog) {
+        EnumDialog(
+            onDismiss = { showDensityScaleDialog = false },
+            onSelect = {
+                onDensityScaleChange(it.value)
+                showDensityScaleDialog = false
+            },
+            title = stringResource(R.string.display_density),
+            current = DensityScale.fromValue(densityScale),
+            values = DensityScale.entries,
+            valueText = { it.label }
         )
     }
 
@@ -844,26 +875,6 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onMiniBarTabStyleChange(!miniBarTabStyle) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.tune),
-                    title = { Text(stringResource(R.string.enable_wavy_slider)) },
-                    trailingContent = {
-                        Switch(
-                            checked = squigglySlider,
-                            onCheckedChange = onSquigglySliderChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (squigglySlider) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onSquigglySliderChange(!squigglySlider) }
                 ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.canvas_art),

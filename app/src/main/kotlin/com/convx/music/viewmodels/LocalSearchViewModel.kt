@@ -17,9 +17,11 @@ import com.convx.music.db.entities.LocalItem
 import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.Song
 import com.convx.music.utils.dataStore
+import com.convx.music.utils.fuzzyScore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -29,6 +31,30 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
+
+/**
+ * The exact substring search (a typo returns nothing) is the fast path; only when it comes
+ * back empty do we fall back to scanning the full [all] list and ranking it by [fuzzyScore]
+ * against each item's title. Local libraries are small enough that this full scan is cheap,
+ * and it only runs on the rare "typed something with no exact match" case.
+ */
+private fun <T : LocalItem> exactOrFuzzy(
+    query: String,
+    exact: Flow<List<T>>,
+    all: Flow<List<T>>,
+    limit: Int = Int.MAX_VALUE,
+): Flow<List<T>> = exact.flatMapLatest { exactResults ->
+    if (exactResults.isNotEmpty()) {
+        flowOf(exactResults)
+    } else {
+        all.map { items ->
+            items.mapNotNull { item -> fuzzyScore(query, item.title)?.let { item to it } }
+                .sortedByDescending { it.second }
+                .take(limit)
+                .map { it.first }
+        }
+    }
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -55,21 +81,21 @@ constructor(
                 when (filter) {
                     LocalFilter.ALL ->
                         combine(
-                            database.searchSongs(query, PREVIEW_SIZE),
-                            database.searchAlbums(query, PREVIEW_SIZE),
-                            database.searchArtists(query, PREVIEW_SIZE),
-                            database.searchPlaylists(query, PREVIEW_SIZE),
+                            exactOrFuzzy(query, database.searchSongs(query, PREVIEW_SIZE), database.allSearchableSongs(), PREVIEW_SIZE),
+                            exactOrFuzzy(query, database.searchAlbums(query, PREVIEW_SIZE), database.allSearchableAlbums(), PREVIEW_SIZE),
+                            exactOrFuzzy(query, database.searchArtists(query, PREVIEW_SIZE), database.allSearchableArtists(), PREVIEW_SIZE),
+                            exactOrFuzzy(query, database.searchPlaylists(query, PREVIEW_SIZE), database.allSearchablePlaylists(), PREVIEW_SIZE),
                         ) { songs, albums, artists, playlists ->
                             val filteredSongs = if (hideVideoSongs) songs.filter { !it.song.isVideo } else songs
                             filteredSongs + albums + artists + playlists
                         }
 
-                    LocalFilter.SONG -> database.searchSongs(query).map { songs ->
+                    LocalFilter.SONG -> exactOrFuzzy(query, database.searchSongs(query), database.allSearchableSongs()).map { songs ->
                         if (hideVideoSongs) songs.filter { !it.song.isVideo } else songs
                     }
-                    LocalFilter.ALBUM -> database.searchAlbums(query)
-                    LocalFilter.ARTIST -> database.searchArtists(query)
-                    LocalFilter.PLAYLIST -> database.searchPlaylists(query)
+                    LocalFilter.ALBUM -> exactOrFuzzy(query, database.searchAlbums(query), database.allSearchableAlbums())
+                    LocalFilter.ARTIST -> exactOrFuzzy(query, database.searchArtists(query), database.allSearchableArtists())
+                    LocalFilter.PLAYLIST -> exactOrFuzzy(query, database.searchPlaylists(query), database.allSearchablePlaylists())
                 }.map { list ->
                     LocalSearchResult(
                         query = query,

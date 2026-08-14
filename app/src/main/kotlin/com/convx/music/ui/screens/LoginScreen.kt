@@ -10,6 +10,8 @@ import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +49,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -84,6 +87,10 @@ fun LoginScreen(
     val liveDataSyncId = remember { AtomicReference("") }
 
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    // Caps the reload-and-retry below so a persistent failure (e.g. an account with
+    // no YouTube channel at all) can't hammer the network forever instead of just
+    // leaving the user to back out.
+    val validationAttempts = remember { AtomicInteger(0) }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -127,17 +134,23 @@ fun LoginScreen(
 
                                     Timber.d("Login: YouTube object initialized, validating...")
 
-                                    YouTube.accountInfo().onSuccess {
-                                        // A Google account can have several YouTube channels — this
-                                        // is the only call that lists all of them without opening
-                                        // YouTube's own UI. See getAccountChannels for why.
-                                        val channels = YouTube.getAccountChannels().getOrDefault(emptyList())
-                                            .mapNotNull { c ->
-                                                c.dataSyncId?.let { id ->
-                                                    SavedAccount(id, c.name, c.channelHandle, c.thumbnailUrl)
-                                                }
+                                    // Validate via getAccountChannels, not accountInfo — its result
+                                    // was never used below anyway (only success/failure mattered),
+                                    // and it requires activeAccountHeaderRenderer, a field Google
+                                    // omits for some accounts (multi-channel/brand accounts — same
+                                    // failure class reported in sibling YouTube Music clients).
+                                    // getAccountChannels hits a different endpoint that doesn't
+                                    // depend on that field and is what actually gets used below.
+                                    // An EMPTY list is a legitimate result here (a single-channel
+                                    // account has nothing to switch to) — only a thrown exception
+                                    // (a real network/parse failure) counts as login failing.
+                                    YouTube.getAccountChannels().mapCatching { raw ->
+                                        raw.mapNotNull { c ->
+                                            c.dataSyncId?.let { id ->
+                                                SavedAccount(id, c.name, c.channelHandle, c.thumbnailUrl)
                                             }
-
+                                        }
+                                    }.onSuccess { channels ->
                                         // Clean up WebView
                                         webViewRef.value?.apply {
                                             stopLoading()
@@ -156,12 +169,20 @@ fun LoginScreen(
                                             }
                                         } else {
                                             Timber.d("Login: single channel, restarting app...")
+                                            // No picker shown means nothing needs disambiguating —
+                                            // liveDataSyncId (straight from the page's own
+                                            // window.yt.config_.DATASYNC_ID) IS the active identity
+                                            // already. Preferring the channel-list-endpoint's parsed
+                                            // value here was an unnecessary swap to a value sourced
+                                            // from a completely different response shape, for no
+                                            // benefit — only fall back to it if the bridge somehow
+                                            // never fired.
                                             accountSettingsViewModel.applyChannelAndRestart(
                                                 context = context,
                                                 cookie = cookie,
                                                 visitorData = newVisitorData,
-                                                chosenDataSyncId = channels.firstOrNull()?.dataSyncId
-                                                    ?: liveDataSyncId.get(),
+                                                chosenDataSyncId = liveDataSyncId.get()
+                                                    .ifBlank { channels.firstOrNull()?.dataSyncId.orEmpty() },
                                                 allChannels = channels,
                                             )
                                         }
@@ -169,6 +190,26 @@ fun LoginScreen(
                                         Timber.e(it, "Login: Authentication validation failed")
                                         hasCompletedLogin = false // Allow retry
                                         reportException(it)
+                                        // "Allow retry" above did nothing on its own — the WebView
+                                        // just sat on the already-loaded page with hasCompletedLogin
+                                        // reset, so onPageFinished never refired and the app never
+                                        // moved past the login screen. Reload so it does, up to a
+                                        // few times in case this is a persistent failure.
+                                        val attempt = validationAttempts.incrementAndGet()
+                                        if (attempt <= 3) {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                context.getString(R.string.login_validation_failed_retrying),
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                            webViewRef.value?.reload()
+                                        } else {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                context.getString(R.string.login_validation_failed_final),
+                                                android.widget.Toast.LENGTH_LONG
+                                            ).show()
+                                        }
                                     }
                                 }
                             }
@@ -179,13 +220,33 @@ fun LoginScreen(
                         setSupportZoom(true)
                         builtInZoomControls = true
                         displayZoomControls = false
+                        // Google's sign-in flow can detect and block an embedded WebView via
+                        // two signals: the "wv" token Android stamps into the default WebView
+                        // user agent, and the X-Requested-With header WebView sends with every
+                        // request (identifies the calling app package). Clearing both is the
+                        // standard fix for the "this browser or app may not be secure" block —
+                        // androidx.webkit added setRequestedWithHeaderMode specifically for it.
+                        userAgentString = userAgentString.replace("; wv", "")
+                    }
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+                        // Empty allow-list: no origin (accounts.google.com included) gets the
+                        // X-Requested-With header at all.
+                        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
                     }
                     addJavascriptInterface(object {
                         @JavascriptInterface
                         fun onRetrieveVisitorData(newVisitorData: String?) {
                             if (!newVisitorData.isNullOrBlank() && newVisitorData != "null") {
-                                liveVisitorData.set(newVisitorData)
-                                visitorData = newVisitorData
+                                // The WebView's JS-to-native bridge can hand this string back
+                                // still percent-encoded (seen with trailing "%3D%3D" instead of
+                                // the raw "==" base64 padding) — a WebView/Chromium marshaling
+                                // quirk, not something YouTube's own page JS does. Sent as-is,
+                                // that corrupts the X-Goog-Visitor-Id header on every single
+                                // authenticated request. android.net.Uri.decode is a no-op on an
+                                // already-clean string, so this is safe either way.
+                                val decoded = android.net.Uri.decode(newVisitorData)
+                                liveVisitorData.set(decoded)
+                                visitorData = decoded
                             }
                         }
                         @JavascriptInterface
@@ -196,8 +257,9 @@ fun LoginScreen(
                             // app could only ever authenticate as the primary
                             // channel no matter which one was active.
                             if (!newDataSyncId.isNullOrBlank() && newDataSyncId != "null") {
-                                liveDataSyncId.set(newDataSyncId)
-                                dataSyncId = newDataSyncId
+                                val decoded = android.net.Uri.decode(newDataSyncId)
+                                liveDataSyncId.set(decoded)
+                                dataSyncId = decoded
                             }
                         }
                     }, "Android")

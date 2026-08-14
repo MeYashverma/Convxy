@@ -686,12 +686,17 @@ object YouTube {
             ?.tabRenderer?.content?.sectionListRenderer?.continuations?.getContinuation()
         val sectionListRender = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
             ?.tabRenderer?.content?.sectionListRenderer
-        val sections = sectionListRender?.contents!!
+        // A shape YouTube sometimes serves (empty/guest feed, transient response
+        // variant) has no sectionListRenderer contents at all. Force-unwrapping
+        // that threw an NPE that runCatching swallowed, silently failing the
+        // whole home load — same bug class as the Liked Music header NPE.
+        // Degrade to an empty (still valid) page instead of failing outright.
+        val sections = sectionListRender?.contents.orEmpty()
             .mapNotNull { it.musicCarouselShelfRenderer }
             .mapNotNull {
                 HomePage.Section.fromMusicCarouselShelfRenderer(it)
             }.toMutableList()
-        val chips = sectionListRender.header?.chipCloudRenderer?.chips?.mapNotNull { HomePage.Chip.fromChipCloudChipRenderer(it) }
+        val chips = sectionListRender?.header?.chipCloudRenderer?.chips?.mapNotNull { HomePage.Chip.fromChipCloudChipRenderer(it) }
         HomePage(chips, sections, continuation)
     }
 
@@ -1370,10 +1375,12 @@ object YouTube {
     }
 
     suspend fun accountInfo(): Result<AccountInfo> = runCatching {
-        innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
-            .actions[0].openPopupAction.popup.multiPageMenuRenderer
-            .header?.activeAccountHeaderRenderer
-            ?.toAccountInfo()!!
+        val response = innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
+        val renderer = response.actions.getOrNull(0)?.openPopupAction?.popup?.multiPageMenuRenderer
+            ?: throw IllegalStateException("Account menu renderer not found")
+
+        renderer.header?.activeAccountHeaderRenderer?.toAccountInfo()
+            ?: throw IllegalStateException("Active account info not found in header")
     }
 
     /**

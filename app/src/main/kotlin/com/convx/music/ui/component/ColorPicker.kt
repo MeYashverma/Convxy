@@ -11,6 +11,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -190,7 +192,15 @@ fun ColorPickerDialog(
             }
         },
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                // No scroll here overflowed in landscape/tab-view, where the
+                // dialog has much less height to work with than portrait —
+                // the lower preset swatches and OK/Cancel buttons became
+                // unreachable.
+                .verticalScroll(rememberScrollState())
+        ) {
             SaturationValuePanel(
                 hue = hue,
                 saturation = saturation,

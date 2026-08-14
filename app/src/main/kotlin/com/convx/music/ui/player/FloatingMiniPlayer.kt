@@ -287,6 +287,8 @@ fun FloatingMiniPlayer(
                     model = mediaMetadata?.thumbnailUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.thumbnail_fallback),
+                    error = painterResource(R.drawable.thumbnail_fallback),
                     modifier = Modifier
                         .size(artSize)
                         .clip(RoundedCornerShape(artCornerRadius)),
@@ -337,6 +339,8 @@ fun FloatingMiniPlayer(
                     model = mediaMetadata?.thumbnailUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.thumbnail_fallback),
+                    error = painterResource(R.drawable.thumbnail_fallback),
                     modifier = Modifier
                         .size(artSize)
                         .clip(RoundedCornerShape(artCornerRadius)),
@@ -479,6 +483,8 @@ fun FloatingMiniPlayer(
                     model = mediaMetadata?.thumbnailUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.thumbnail_fallback),
+                    error = painterResource(R.drawable.thumbnail_fallback),
                     modifier = Modifier
                         .size(artSize)
                         .clip(RoundedCornerShape(artCornerRadius)),

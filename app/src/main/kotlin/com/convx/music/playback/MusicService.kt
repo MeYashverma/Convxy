@@ -312,7 +312,14 @@ class MusicService :
         }
     }
 
-    private var scope = CoroutineScope(Dispatchers.Main) + Job()
+    // SupervisorJob, not Job: a plain Job cancels every sibling the instant ANY
+    // child throws uncaught — one bad scope.launch{} (e.g. a playback resolution
+    // failure) was cascading into cancelling every other concurrent coroutine
+    // under this scope, including unrelated in-flight track resolutions. That
+    // showed up as "Parent job is Cancelling" followed by every fallback client
+    // failing in under a millisecond for a completely different track — not a
+    // real all-clients-blocked failure, just collateral damage from the crash.
+    private var scope = CoroutineScope(Dispatchers.Main) + SupervisorJob()
 
     // Serialized disk writer for queue/player-state persistence: one worker keeps
     // snapshots from overwriting each other and keeps ObjectOutputStream IO (3
@@ -1505,7 +1512,7 @@ class MusicService :
         queue: Queue,
         playWhenReady: Boolean = true,
     ) {
-        if (!scope.isActive) scope = CoroutineScope(Dispatchers.Main) + Job()
+        if (!scope.isActive) scope = CoroutineScope(Dispatchers.Main) + SupervisorJob()
 
         // Safety Check : Ensuring player is initilized
         if (!playerInitialized.value) {
@@ -3606,6 +3613,16 @@ class MusicService :
             Timber.tag(TAG).w(e, "Foreground service start refused by platform")
             null
         }
+
+    // Service.startForeground(id, notification[, type]) is `final` on the
+    // platform Service class — cannot be overridden here the way
+    // startForegroundService (a Context method) above can. media3's
+    // MediaNotificationManager calls it directly and asynchronously (posted
+    // to a Handler, not on a frame this class controls), so the
+    // ForegroundServiceStartNotAllowedException it can throw is instead
+    // caught as a last resort in CrashHandler.kt's uncaught-exception
+    // handler — the only remaining interception point for this specific
+    // platform call path. See CrashHandler.kt for the actual recovery.
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {

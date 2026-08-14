@@ -61,11 +61,12 @@ import com.convx.music.constants.HomeBackgroundDimKey
 import com.convx.music.constants.HomeBackgroundEnabledKey
 import com.convx.music.constants.HomeBackgroundIsVideoKey
 import com.convx.music.constants.HomeBackgroundPathKey
+import com.convx.music.constants.HomeBackgroundQualityKey
 import com.convx.music.constants.LibraryBackgroundMode
 import com.convx.music.constants.LibraryBackgroundModeKey
 import com.convx.music.ui.component.DefaultDialog
-import com.convx.music.ui.component.HomeBackgroundBlurCache
 import com.convx.music.ui.component.HomeVideoBackground
+import com.convx.music.ui.component.rememberHomeBackgroundTargetSize
 import com.convx.music.ui.component.Material3SettingsGroup
 import com.convx.music.ui.component.Material3SettingsItem
 import com.convx.music.utils.rememberEnumPreference
@@ -91,21 +92,18 @@ private fun mediaSizeBytes(context: android.content.Context, uri: Uri): Long {
     } ?: -1L
 }
 
-/** Longest edge the background is ever drawn at — HomeImageBackground requests
- *  exactly this from Coil, so anything larger on disk is decoded and thrown away
- *  on every load. */
-private const val BackgroundMaxWidth = 1080
-private const val BackgroundMaxHeight = 1920
 
 /** Copies a picked image/video into app storage so the background survives
  *  without a persistable URI permission. Unique filename cache-busts Coil.
  *  Returns the absolute path, or null on failure.
  *
- *  Images are re-encoded down to [BackgroundMaxWidth]x[BackgroundMaxHeight] first.
- *  A modern phone camera or a downloaded wallpaper is routinely 20-50 MP, and the
- *  raw bytes were kept whole even though the renderer never asks for more than
- *  1080x1920 — so every screen that shows the background paid a full-size decode
- *  and downsample, and the file sat in app storage at its original size forever.
+ *  Images are re-encoded down to [maxWidth]x[maxHeight] first. A modern phone
+ *  camera or a downloaded wallpaper is routinely 20-50 MP, and keeping the raw
+ *  bytes whole means every screen that shows the background pays a full-size
+ *  decode and downsample, with the file sitting in app storage at its original
+ *  size forever. [maxWidth]/[maxHeight] are the caller's target — see
+ *  [rememberHomeBackgroundTargetSize] for how that's derived from the device's
+ *  own screen resolution and the user's quality preference.
  *  Videos are copied as-is: transcoding one is not a per-pick cost worth paying.
  *
  *  Decoding through Coil rather than BitmapFactory deliberately: it already
@@ -117,6 +115,8 @@ private suspend fun copyBackgroundMedia(
     source: Uri,
     isVideo: Boolean,
     isGif: Boolean = false,
+    maxWidth: Int,
+    maxHeight: Int,
 ): String? = runCatching {
     val ext = if (isVideo) "mp4" else if (isGif) "gif" else "jpg"
     val dest = File(context.filesDir, "home_background_${System.currentTimeMillis()}.$ext")
@@ -135,7 +135,7 @@ private suspend fun copyBackgroundMedia(
 
     val request = ImageRequest.Builder(context)
         .data(source)
-        .size(BackgroundMaxWidth, BackgroundMaxHeight)
+        .size(maxWidth, maxHeight)
         .allowHardware(false) // compress() needs readable pixels
         .build()
     val bitmap = (context.imageLoader.execute(request) as? SuccessResult)?.image?.toBitmap()
@@ -150,7 +150,11 @@ private suspend fun copyBackgroundMedia(
     }
 
     dest.outputStream().use { output ->
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)
+        // Was 90 — fine at the old flat 1080x1920 cap, but now that the stored
+        // size can go up to full screen resolution, the same ratio leaves more
+        // visible blocking in smooth/gradient regions at the larger pixel
+        // count. Bump quality to match.
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, output)
     }
     dest.absolutePath
 }.getOrNull()
@@ -173,15 +177,20 @@ fun HomeBackgroundControls() {
     val (dim, onDimChange) = rememberPreference(HomeBackgroundDimKey, defaultValue = 0.4f)
     val (animate, onAnimateChange) = rememberPreference(HomeBackgroundAnimateKey, defaultValue = false)
     val (isVideo, onIsVideoChange) = rememberPreference(HomeBackgroundIsVideoKey, defaultValue = false)
+    val (quality, onQualityChange) = rememberPreference(HomeBackgroundQualityKey, defaultValue = 1f)
+    val (targetWidth, targetHeight) = rememberHomeBackgroundTargetSize(quality)
 
     var showBlurDialog by rememberSaveable { mutableStateOf(false) }
     var showDimDialog by rememberSaveable { mutableStateOf(false) }
+    var showQualityDialog by rememberSaveable { mutableStateOf(false) }
     var pendingVideoUri by remember { mutableStateOf<Uri?>(null) }
 
     fun applyPickedMedia(uri: Uri, video: Boolean, gif: Boolean = false) {
         val previous = path
         scope.launch {
-            val newPath = withContext(Dispatchers.IO) { copyBackgroundMedia(context, uri, video, gif) }
+            val newPath = withContext(Dispatchers.IO) {
+                copyBackgroundMedia(context, uri, video, gif, targetWidth, targetHeight)
+            }
             if (newPath != null) {
                 onPathChange(newPath)
                 onIsVideoChange(video)
@@ -253,21 +262,11 @@ fun HomeBackgroundControls() {
             if (path.isNotEmpty() && isVideo) {
                 HomeVideoBackground(path = path, blur = blur, dim = dim)
             } else if (path.isNotEmpty()) {
-                // Mirrors HomeImageBackground's own steady-state: the runtime
-                // background swaps to this same baked file once settled, using
-                // a resample approximation rather than a true Gaussian blur
-                // (see HomeBackgroundBlurCache's doc). This preview used to
-                // always show the live RenderEffect blur instead, so what the
-                // user picked here didn't match what they'd actually see.
-                // Falls back to the live blur until the bake is ready, same
-                // fallback contract HomeImageBackground relies on.
-                var baked by remember(path, blur) { mutableStateOf<File?>(null) }
-                LaunchedEffect(path, blur) {
-                    baked = if (blur > 0f) HomeBackgroundBlurCache.get(context, path, blur) else null
-                }
-                val previewRequest = remember(path, baked) {
+                // Mirrors HomeImageBackground's own steady state: a real live
+                // RenderEffect blur, same as what the home screen actually shows.
+                val previewRequest = remember(path) {
                     ImageRequest.Builder(context)
-                        .data(baked ?: File(path))
+                        .data(File(path))
                         .build()
                 }
                 AsyncImage(
@@ -276,7 +275,7 @@ fun HomeBackgroundControls() {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .then(if (baked == null && blur > 0f) Modifier.blur(blur.dp) else Modifier),
+                        .then(if (blur > 0f) Modifier.blur(blur.dp) else Modifier),
                 )
                 Box(
                     modifier = Modifier
@@ -343,6 +342,12 @@ fun HomeBackgroundControls() {
                     icon = painterResource(R.drawable.tune),
                     title = { Text(stringResource(R.string.home_background_dim)) },
                     onClick = { showDimDialog = true }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.sliders),
+                    title = { Text(stringResource(R.string.home_background_quality)) },
+                    description = { Text(stringResource(R.string.home_background_quality_desc)) },
+                    onClick = { showQualityDialog = true }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.tune),
@@ -457,6 +462,31 @@ fun HomeBackgroundControls() {
                 Text(text = stringResource(R.string.home_background_dim), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
                 Text(text = "%.0f%%".format(tempValue * 100), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
                 Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+
+    if (showQualityDialog) {
+        var tempValue by remember { mutableFloatStateOf(quality) }
+        DefaultDialog(
+            onDismiss = { tempValue = quality; showQualityDialog = false },
+            buttons = {
+                TextButton(onClick = { tempValue = 1f }) { Text(stringResource(R.string.reset)) }
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { tempValue = quality; showQualityDialog = false }) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(onClick = { onQualityChange(tempValue); showQualityDialog = false }) { Text(stringResource(android.R.string.ok)) }
+            }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                Text(text = stringResource(R.string.home_background_quality), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
+                Text(text = "%.0f%%".format(tempValue * 100), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 16.dp))
+                Slider(value = tempValue, onValueChange = { tempValue = it }, valueRange = 0.3f..1f, modifier = Modifier.fillMaxWidth())
+                Text(
+                    text = stringResource(R.string.home_background_quality_reapply_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }

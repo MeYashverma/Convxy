@@ -32,8 +32,12 @@ class BrowseViewModel @Inject constructor(
                     // Store the title
                     title.value = result.title
  
-                    // Flatten the nested structure to get all YTItems
-                    val allItems = result.items.flatMap { it.items }
+                    // Flatten the nested structure to get all YTItems. Dedupe by
+                    // id: the same item (e.g. an auto-generated radio mix) can
+                    // legitimately appear in more than one section, and
+                    // BrowseScreen renders this list keyed by id — a duplicate
+                    // crashes it ("Key ... was already used").
+                    val allItems = result.items.flatMap { it.items }.distinctBy { it.id }
                     items.value = allItems
                 }.onFailure {
                     reportException(it)

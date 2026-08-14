@@ -51,6 +51,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -75,13 +78,19 @@ import androidx.datastore.preferences.core.edit
 import androidx.navigation.NavController
 import com.convx.music.R
 import com.convx.music.constants.DiyLayoutKey
+import com.convx.music.constants.PureBlackKey
+import com.convx.music.ui.component.BottomSheetState
+import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.convx.music.ui.component.expandedAnchor
+import com.convx.music.ui.component.rememberBottomSheetState
+import com.convx.music.ui.player.BottomSheetPlayer
 import com.convx.music.ui.player.customize.DIY_MAX_ASSET_BYTES
 import com.convx.music.ui.player.customize.DIY_MAX_STICKERS
 import com.convx.music.ui.player.customize.DiyBounds
+import com.convx.music.ui.player.customize.DiyDesignCanvas
 import com.convx.music.ui.player.customize.DiyLayout
 import com.convx.music.ui.player.customize.DiyOrientation
-import com.convx.music.ui.player.customize.DiyPlayerMockup
-import com.convx.music.ui.player.customize.diyMockupRenderedWidth
 import com.convx.music.ui.player.customize.DiySticker
 import com.convx.music.ui.player.customize.DiyStickerContent
 import com.convx.music.ui.player.customize.DiyStickerKind
@@ -89,6 +98,7 @@ import com.convx.music.ui.player.customize.DiyStore
 import com.convx.music.ui.player.customize.DiyTransform
 import com.convx.music.utils.MediaImport
 import com.convx.music.utils.dataStore
+import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -118,11 +128,23 @@ fun DiyEditorScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
 
     var layout by remember { mutableStateOf(DiyStore.load(context)) }
-    var orientation by remember { mutableStateOf(DiyOrientation.PORTRAIT) }
+    // Follows the device's real rotation rather than a manual toggle — each
+    // sticker already keeps a separate portrait/landscape transform (DiyLayout.kt's
+    // DiySticker.portrait/landscape), so rotating the phone alone is enough to
+    // preview and edit both layouts.
+    val orientation = if (LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    ) DiyOrientation.LANDSCAPE else DiyOrientation.PORTRAIT
     var selectedId by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var emojiOpen by remember { mutableStateOf(false) }
     var editOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(orientation) {
+        selectedId = null
+        emojiOpen = false
+        editOpen = false
+    }
 
     val undoStack = remember { mutableStateListOf<DiyLayout>() }
     val redoStack = remember { mutableStateListOf<DiyLayout>() }
@@ -202,17 +224,26 @@ fun DiyEditorScreen(navController: NavController) {
         )
     }
 
+    val (pureBlack) = rememberPreference(PureBlackKey, defaultValue = false)
+
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
-        // The mockup below letterboxes to a centered, narrower column on any
-        // screen wider than its 360:780 design ratio (tab view, tablet) —
-        // without this the control pills stay pinned to the physical screen
-        // edges instead of tracking the canvas they actually control.
-        val controlsMaxWidth = diyMockupRenderedWidth(orientation, maxWidth, maxHeight)
+        // Forced permanently expanded, own state distinct from the real singleton
+        // player's — this is a second, preview-only mount of the same composable
+        // (see BottomSheetPlayer's isPreviewOnly doc), not the app's actual player.
+        val editorPlayerState = rememberBottomSheetState(
+            dismissedBound = 0.dp,
+            expandedBound = maxHeight,
+            collapsedBound = 0.dp,
+            initialAnchor = expandedAnchor,
+        )
 
         EditorCanvas(
             layout = layout,
             orientation = orientation,
             selectedId = selectedId,
+            navController = navController,
+            pureBlack = pureBlack,
+            playerState = editorPlayerState,
             onSelect = {
                 selectedId = it
                 if (it == null) {
@@ -232,13 +263,6 @@ fun DiyEditorScreen(navController: NavController) {
         )
 
         TopControls(
-            orientation = orientation,
-            onOrientationChange = {
-                orientation = it
-                selectedId = null
-                emojiOpen = false
-                editOpen = false
-            },
             canUndo = undoStack.isNotEmpty(),
             canRedo = redoStack.isNotEmpty(),
             onBack = navController::navigateUp,
@@ -269,7 +293,7 @@ fun DiyEditorScreen(navController: NavController) {
                     navController.navigateUp()
                 }
             },
-            modifier = Modifier.align(Alignment.TopCenter).widthIn(max = controlsMaxWidth),
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
         )
 
         BottomControls(
@@ -294,7 +318,7 @@ fun DiyEditorScreen(navController: NavController) {
                     editOpen = false
                 }
             },
-            modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = controlsMaxWidth),
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
         )
 
         PopupLayer(
@@ -332,7 +356,8 @@ fun DiyEditorScreen(navController: NavController) {
 // ------------------------------------------------------------------------------- canvas
 
 /**
- * The mockup at true size, plus an interactive sticker layer over it.
+ * The real player at true size (background, artwork, controls — not an approximation), plus
+ * an interactive sticker layer over it.
  *
  * Hit-testing lives here rather than on the stickers themselves: one gesture surface picks the
  * topmost sticker under the finger, which handles overlaps correctly and keeps the shipped sticker
@@ -343,6 +368,9 @@ private fun EditorCanvas(
     layout: DiyLayout,
     orientation: DiyOrientation,
     selectedId: String?,
+    navController: NavController,
+    pureBlack: Boolean,
+    playerState: BottomSheetState,
     onSelect: (String?) -> Unit,
     onGestureStart: () -> Unit,
     onTransform: (DiyTransform) -> Unit,
@@ -358,17 +386,36 @@ private fun EditorCanvas(
     val gestureTarget = remember { mutableStateOf<String?>(null) }
     val undoPending = remember { mutableStateOf(false) }
 
-    DiyPlayerMockup(
-        orientation = orientation,
-        modifier = modifier,
-        layout = layout,
-        stickerOverlay = { zFilter ->
-            // Inside the mockup's scaled design box, so bounds here are design space — the same
-            // space the gesture surface below measures in.
+    Box(modifier = modifier) {
+        // DiyEditorScreen is itself a NavHost destination, inside the root
+        // appBackdrop's capture subtree — so BottomSheetPlayer's own glass base
+        // (Player.kt's Modifier.liquidGlass on the `background` slot) must not
+        // resolve LocalAppBackdrop to that root appBackdrop, or its capture
+        // includes itself (RenderNode::prepareTreeImpl SIGSEGV, see
+        // glass-chrome-rendernode-cycle). Provide an UNATTACHED screen-local
+        // backdrop first, same pattern as AlbumScreen/ArtistScreen/DiyPlayerMockup.
+        val editorBackdrop = rememberLayerBackdrop()
+        CompositionLocalProvider(LocalAppBackdrop provides editorBackdrop) {
+            BottomSheetPlayer(
+                state = playerState,
+                navController = navController,
+                pureBlack = pureBlack,
+                showDiyStickers = false,
+                forcedOrientation = orientation,
+                isPreviewOnly = true,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        // ponytail: every sticker draws above the real player here regardless of its z —
+        // there's no slot to inject "behind artwork, above background" into a composable
+        // this doesn't own the internal stack of. The saved z still applies correctly once
+        // played for real (showDiyStickers back on, outside the editor). Upgrade path: an
+        // injectable content slot in BottomSheetPlayer at that exact point in its stack.
+        DiyDesignCanvas(orientation = orientation, modifier = Modifier.fillMaxSize()) { scale ->
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val bounds = DiyBounds(maxWidth, maxHeight)
                 layout.stickers
-                    .filter { zFilter(it.z) }
                     .sortedBy { it.z }
                     .forEach { sticker ->
                         DiyStickerContent(
@@ -387,8 +434,7 @@ private fun EditorCanvas(
                         )
                     }
             }
-        },
-        topOverlay = { scale ->
+
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val density = LocalDensity.current
                 val widthPx = with(density) { maxWidth.toPx() }
@@ -455,8 +501,8 @@ private fun EditorCanvas(
                         },
                 )
             }
-        },
-    )
+        }
+    }
 }
 
 /** @return the id of the topmost sticker whose box contains [offset], or null. */
@@ -486,8 +532,6 @@ private const val MIN_TOUCH_HALF_PX = 36f
 
 @Composable
 private fun TopControls(
-    orientation: DiyOrientation,
-    onOrientationChange: (DiyOrientation) -> Unit,
     canUndo: Boolean,
     canRedo: Boolean,
     onBack: () -> Unit,
@@ -515,18 +559,6 @@ private fun TopControls(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Pill {
                 PillIcon(R.drawable.arrow_back, onClick = onBack)
-            }
-            Pill {
-                DiyOrientation.entries.forEach { entry ->
-                    PillText(
-                        text = stringResource(
-                            if (entry == DiyOrientation.PORTRAIT) R.string.diy_portrait
-                            else R.string.diy_landscape,
-                        ),
-                        selected = entry == orientation,
-                        onClick = { onOrientationChange(entry) },
-                    )
-                }
             }
         }
         Pill {

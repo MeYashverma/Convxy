@@ -255,7 +255,6 @@ fun ArtistScreen(
     // screen's own content behind it (same Modifier.liquidGlass + LocalAppBackdrop
     // mechanism the floating nav bar puck uses) rather than a flat fallback color.
     val artistThumbnail = artistPage?.artist?.thumbnail ?: libraryArtist?.artist?.thumbnailUrl
-    val screenBackground = MaterialTheme.colorScheme.background
 
     val glassConfig = LocalGlassEffectConfig.current
     val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
@@ -303,10 +302,22 @@ fun ArtistScreen(
     )
     val backdropFreeze = rememberBackdropFreeze()
 
+    // A flat fill of `tint` reads as a hard-edged color mismatch once the hero
+    // art (which the tint is extracted from) ends and the plain list content
+    // begins. Easing into the screen's real background color over the lower
+    // half turns that seam into a deliberate wash instead — same fix as
+    // AlbumScreen.kt.
+    val screenBackground = MaterialTheme.colorScheme.background
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(tint)
+            .background(
+                Brush.verticalGradient(
+                    0f to tint,
+                    0.5f to tint,
+                    1f to screenBackground,
+                )
+            )
     ) {
     HeroTintedContent(tint = tint, backdrop = heroBackdrop) {
         // Built INSIDE the provider so liquidGlass captures heroBackdrop, not the

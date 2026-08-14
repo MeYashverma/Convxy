@@ -70,11 +70,14 @@ fun BottomSheet(
     onDismiss: (() -> Unit)? = null,
     collapsedContent: @Composable BoxScope.() -> Unit,
     isExpandable: Boolean = true,
-    /** Caps the expanded content AND its background wash to this width, centered
-     *  horizontally, so the whole expanded player reads as one phone-shaped panel
-     *  instead of a phone-width foreground floating on a full-bleed backdrop. The
-     *  collapsed/mini content (a full-width dock regardless) is unaffected.
-     *  [Dp.Unspecified] (default) lets both fill the sheet exactly as before. */
+    /** Caps the expanded content to this width, centered horizontally, so the
+     *  controls read as one phone-shaped panel on a wide screen instead of
+     *  stretching edge to edge. [background] (the full-bleed artwork/wash) is
+     *  deliberately NOT capped by this — it stays full-screen regardless, same
+     *  as the mobile layout's own artwork treatment; only the controls above it
+     *  get centered and width-limited. The collapsed/mini content (a full-width
+     *  dock regardless) is unaffected either way.
+     *  [Dp.Unspecified] (default) lets content fill the sheet exactly as before. */
     contentMaxWidth: Dp = Dp.Unspecified,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -89,14 +92,8 @@ fun BottomSheet(
             .fillMaxSize(),
     ) {
         Box(
-            modifier = if (contentMaxWidth.isSpecified) {
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxHeight()
-                    .widthIn(max = contentMaxWidth)
-            } else {
-                Modifier.fillMaxSize()
-            },
+            // Always full-bleed — see contentMaxWidth's doc above.
+            modifier = Modifier.fillMaxSize(),
             content = background,
         )
     }

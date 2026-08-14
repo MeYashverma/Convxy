@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -27,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,7 +52,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -58,6 +60,7 @@ import coil3.request.ImageRequest
 import coil3.size.Size as CoilSize
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.ui.theme.rememberGlobalAccentColors
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Song
@@ -77,6 +80,7 @@ fun LocalMusicScreen(
     val context = LocalContext.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val menuState = LocalMenuState.current
+    val (accentColor, onAccentColor) = rememberGlobalAccentColors()
 
     val songs by viewModel.songs.collectAsState()
     val albums by viewModel.albums.collectAsState()
@@ -348,6 +352,10 @@ fun LocalMusicScreen(
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor,
+                            contentColor = onAccentColor,
+                        ),
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.play),
@@ -366,7 +374,8 @@ fun LocalMusicScreen(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            containerColor = accentColor,
+                            contentColor = onAccentColor,
                         ),
                     ) {
                         Icon(
@@ -390,11 +399,12 @@ fun LocalMusicScreen(
                 )
             }
 
-            items(
-                items = displaySongs.take(50),
-                key = { it.localMediaId() },
-                contentType = { "song" },
-            ) { song ->
+            val songRows = displaySongs.take(50)
+            itemsIndexed(
+                items = songRows,
+                key = { _, it -> it.localMediaId() },
+                contentType = { _, _ -> "song" },
+            ) { index, song ->
                 SongListItem(
                     song = song,
                     onClick = {
@@ -412,6 +422,7 @@ fun LocalMusicScreen(
                         }
                     },
                 )
+                if (index != songRows.lastIndex) HorizontalDivider()
             }
 
             if (displaySongs.size > 50) {
@@ -440,17 +451,18 @@ fun LocalMusicScreen(
                 )
             }
 
-            items(
+            itemsIndexed(
                 items = displayAlbums,
-                key = { it.id },
-                contentType = { "album" },
-            ) { album ->
+                key = { _, it -> it.id },
+                contentType = { _, _ -> "album" },
+            ) { index, album ->
                 AlbumListItem(
                     album = album,
                     onClick = {
                         navController.navigate("album/${album.id}")
                     },
                 )
+                if (index != displayAlbums.lastIndex) HorizontalDivider()
             }
         }
 
@@ -463,17 +475,18 @@ fun LocalMusicScreen(
                 )
             }
 
-            items(
+            itemsIndexed(
                 items = displayArtists,
-                key = { it.id },
-                contentType = { "artist" },
-            ) { artist ->
+                key = { _, it -> it.id },
+                contentType = { _, _ -> "artist" },
+            ) { index, artist ->
                 ArtistListItem(
                     artist = artist,
                     onClick = {
                         navController.navigate("artist/${artist.id}")
                     },
                 )
+                if (index != displayArtists.lastIndex) HorizontalDivider()
             }
         }
 
@@ -530,6 +543,8 @@ private fun SongListItem(
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.thumbnail_fallback),
+            error = painterResource(R.drawable.thumbnail_fallback),
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(8.dp))
@@ -544,14 +559,16 @@ private fun SongListItem(
                 text = song.title,
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                softWrap = false,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
             )
             Text(
                 text = song.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                softWrap = false,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
             )
         }
 
@@ -585,6 +602,8 @@ private fun AlbumListItem(
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.thumbnail_fallback),
+            error = painterResource(R.drawable.thumbnail_fallback),
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(8.dp))
@@ -599,7 +618,8 @@ private fun AlbumListItem(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                softWrap = false,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
             )
             Text(
                 text = "${album.album.songCount} songs${if (album.album.year != null) " \u00b7 ${album.album.year}" else ""}",
@@ -630,6 +650,8 @@ private fun ArtistListItem(
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.thumbnail_fallback),
+            error = painterResource(R.drawable.thumbnail_fallback),
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
@@ -644,7 +666,8 @@ private fun ArtistListItem(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                softWrap = false,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
             )
             Text(
                 text = "${artist.songCount} songs",

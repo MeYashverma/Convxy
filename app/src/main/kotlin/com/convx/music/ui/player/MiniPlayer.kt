@@ -456,6 +456,8 @@ private fun NewMiniPlayer(
                                 .build(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
+                            placeholder = painterResource(R.drawable.thumbnail_fallback),
+                            error = painterResource(R.drawable.thumbnail_fallback),
                             modifier = Modifier.fillMaxSize().clip(CircleShape)
                         )
                     }
@@ -691,6 +693,8 @@ private fun NewMiniPlayerPlayButton(
                             .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.thumbnail_fallback),
+                        error = painterResource(R.drawable.thumbnail_fallback),
                         modifier = Modifier.fillMaxSize().clip(CircleShape)
                     )
                 }
@@ -1066,6 +1070,8 @@ private fun LegacyMiniMediaInfo(
                     .build(),
                 contentDescription = null,
                 contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
+                placeholder = painterResource(R.drawable.thumbnail_fallback),
+                error = painterResource(R.drawable.thumbnail_fallback),
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(ContinuousRoundedRectangle(ThumbnailCornerRadius)),
@@ -1259,6 +1265,10 @@ private fun MiniPlayerBackgroundLayer(
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.45f))
                 )
+            } else {
+                // Modifier.blur no-ops below API 31 — without this fallback the
+                // gate above left nothing drawn at all. Solid black instead.
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black))
             }
         }
         PlayerBackgroundStyle.GRADIENT -> {
@@ -1354,21 +1364,27 @@ private fun MiniPlayerBackgroundLayer(
                         scaleY = 1.5f
                     }
             ) {
-                val matrix = remember { ColorMatrix().apply { setToSaturation(1.6f) } }
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(mediaMetadata?.thumbnailUrl)
-                        .size(128, 128)
-                        .allowHardware(false)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    colorFilter = ColorFilter.colorMatrix(matrix),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .blur(40.dp)
-                        .graphicsLayer { rotationZ = rotation.value }
-                )
+                // Modifier.blur no-ops below API 31 — an unblurred rotating 128x128
+                // crop is glitchy, so fall back to solid black there instead.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val matrix = remember { ColorMatrix().apply { setToSaturation(1.6f) } }
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(mediaMetadata?.thumbnailUrl)
+                            .size(128, 128)
+                            .allowHardware(false)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        colorFilter = ColorFilter.colorMatrix(matrix),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(40.dp)
+                            .graphicsLayer { rotationZ = rotation.value }
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+                }
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
             }
         }

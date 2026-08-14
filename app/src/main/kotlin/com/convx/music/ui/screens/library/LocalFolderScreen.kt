@@ -39,6 +39,7 @@ import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.SongListItem
 import com.convx.music.ui.menu.SongMenu
 import com.convx.music.ui.utils.bounceClick
+import com.convx.music.ui.theme.rememberGlobalAccentColors
 import com.convx.music.utils.LocalFolderIndex
 import com.convx.music.utils.listItemShape
 import androidx.compose.foundation.layout.asPaddingValues
@@ -63,6 +64,7 @@ fun LocalFolderScreen(
 
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val (accentColor, onAccentColor) = rememberGlobalAccentColors()
 
     val songs by produceState(initialValue = emptyList<Song>(), path) {
         val ids = LocalFolderIndex.songIdsFor(context, path)
@@ -107,6 +109,10 @@ fun LocalFolderScreen(
                             )
                         },
                         modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor,
+                            contentColor = onAccentColor,
+                        ),
                     ) { Text(stringResource(R.string.play)) }
                     Button(
                         onClick = {
@@ -116,7 +122,8 @@ fun LocalFolderScreen(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            containerColor = accentColor,
+                            contentColor = onAccentColor,
                         ),
                     ) { Text(stringResource(R.string.shuffle)) }
                 }

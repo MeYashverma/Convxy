@@ -204,6 +204,7 @@ import com.convx.music.ui.menu.YouTubePlaylistMenu
 import com.convx.music.ui.menu.YouTubeSongMenu
 import com.convx.music.ui.utils.SnapLayoutInfoProvider
 import com.convx.music.ui.theme.AppleTokens
+import com.convx.music.ui.theme.rememberGlobalAccentColors
 import com.convx.music.ui.utils.resize
 import com.convx.music.utils.listItemShape
 import com.convx.music.utils.rememberEnumPreference
@@ -1475,6 +1476,24 @@ private fun LazyListScope.localHomeContent(
     isPlaying: Boolean,
     columns: Int,
 ) {
+    // Every online section leads with this hairline (NavigationTitle's
+    // showDivider) to separate it from what precedes it — local mode replaces
+    // those sections wholesale but never drew its own, leaving local content
+    // with no separator above it at all.
+    item(key = "local_divider") {
+        HorizontalDivider(
+            thickness = Dp.Hairline,
+            color = AppleTokens.divider,
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                .padding(
+                    start = AppleTokens.Gutter,
+                    end = AppleTokens.Gutter,
+                    top = AppleTokens.SectionGap,
+                ),
+        )
+    }
+
     item(key = "local_categories") {
         ChipsRow(
             chips = listOf(
@@ -1538,6 +1557,7 @@ private fun LazyListScope.localHomeContent(
             }
 
             item(key = "local_shuffle_all") {
+                val (accentColor, onAccentColor) = rememberGlobalAccentColors()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1551,6 +1571,10 @@ private fun LazyListScope.localHomeContent(
                             )
                         },
                         modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor,
+                            contentColor = onAccentColor,
+                        ),
                     ) { Text(stringResource(R.string.play)) }
                     Button(
                         onClick = {
@@ -1560,7 +1584,8 @@ private fun LazyListScope.localHomeContent(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            containerColor = accentColor,
+                            contentColor = onAccentColor,
                         ),
                     ) { Text(stringResource(R.string.shuffle)) }
                 }
@@ -1653,30 +1678,16 @@ private fun LazyListScope.localHomeContent(
                         folder.songIds.size,
                     ),
                     thumbnailContent = {
-                        if (thumbnailUrl != null) {
-                            AsyncImage(
-                                model = thumbnailUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(ListThumbnailSize)
-                                    .clip(RoundedCornerShape(AppleTokens.Control)),
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(ListThumbnailSize)
-                                    .clip(RoundedCornerShape(AppleTokens.Control))
-                                    .background(LocalContentColor.current.copy(alpha = 0.1f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.library_music),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
-                        }
+                        AsyncImage(
+                            model = thumbnailUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(R.drawable.thumbnail_fallback),
+                            error = painterResource(R.drawable.thumbnail_fallback),
+                            modifier = Modifier
+                                .size(ListThumbnailSize)
+                                .clip(RoundedCornerShape(AppleTokens.Control)),
+                        )
                     },
                     shape = listItemShape(index, folders.size),
                     modifier = Modifier
@@ -1872,7 +1883,14 @@ private fun LazyListScope.speedDialSection(
                                                                     )
                                                                     is AlbumItem -> deps.navController.navigate("album/${randomItem.id}")
                                                                     is ArtistItem -> deps.navController.navigate("artist/${randomItem.id}")
-                                                                    is PlaylistItem -> deps.navController.navigate("online_playlist/${randomItem.id}") //patched directly shows corresponding screens
+                                                                    // A locally-created playlist (id prefixed "LP", see
+                                                                    // PlaylistEntity.generatePlaylistId) isn't a real YouTube
+                                                                    // playlist — online_playlist/ can't resolve it and silently
+                                                                    // fails to open.
+                                                                    is PlaylistItem -> deps.navController.navigate(
+                                                                        if (randomItem.id.startsWith("LP")) "local_playlist/${randomItem.id}"
+                                                                        else "online_playlist/${randomItem.id}"
+                                                                    )
                                                                 }
                                                             }
                                                         }
@@ -1913,7 +1931,14 @@ private fun LazyListScope.speedDialSection(
                                                                 is AlbumItem -> deps.navController.navigate("album/${item.id}")
                                                                 is ArtistItem -> deps.navController.navigate("artist/${item.id}")
 
-                                                                is PlaylistItem -> deps.navController.navigate("online_playlist/${item.id}") //patched navigation to correct screens
+                                                                // A locally-created playlist (id prefixed "LP", see
+                                                                // PlaylistEntity.generatePlaylistId) isn't a real YouTube
+                                                                // playlist — online_playlist/ can't resolve it and silently
+                                                                // fails to open. This is the pinned-playlist-doesn't-open bug.
+                                                                is PlaylistItem -> deps.navController.navigate(
+                                                                    if (item.id.startsWith("LP")) "local_playlist/${item.id}"
+                                                                    else "online_playlist/${item.id}"
+                                                                )
                                                             }
                                                         },
                                                         onLongClick = {

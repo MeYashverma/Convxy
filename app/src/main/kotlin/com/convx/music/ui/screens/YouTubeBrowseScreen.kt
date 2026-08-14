@@ -103,7 +103,12 @@ fun YouTubeBrowseScreen(
     val coroutineScope = rememberCoroutineScope()
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
 
-    val allItems = browseResult?.items?.flatMap { it.items }.orEmpty()
+    // Flattening multiple sections can surface the same item twice (an
+    // auto-generated radio mix showing up in more than one section is the
+    // common case — confirmed via a crash log: "Key playlist_RDCLAK5uy_...
+    // was already used" in this screen's keyed grid below). Dedupe by id,
+    // matching the same fix already applied to AccountScreen's playlist grid.
+    val allItems = browseResult?.items?.flatMap { it.items }.orEmpty().distinctBy { it.id }
 
     val heroUrl = allItems.firstOrNull()?.let {
         when (it) {

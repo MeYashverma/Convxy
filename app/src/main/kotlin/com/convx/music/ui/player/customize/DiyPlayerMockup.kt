@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -64,6 +65,12 @@ import com.convx.music.constants.PlayerStaticColorKey
 import com.convx.music.constants.SliderStyle
 import com.convx.music.constants.SliderStyleKey
 import com.convx.music.constants.ThumbnailCornerRadiusKey
+import com.convx.music.ui.component.LocalAppBackdrop
+import com.convx.music.ui.component.LocalGlassEffectConfig
+import com.convx.music.ui.component.PLAYER_BLUR_MULTIPLIER
+import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.convx.music.ui.component.isGlassAllowed
+import com.convx.music.ui.component.liquidGlass
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.decodeGradientStops
 import com.convx.music.utils.rememberEnumPreference
@@ -107,21 +114,54 @@ fun DiyPlayerMockup(
     topOverlay: @Composable BoxScope.(scale: Float) -> Unit = {},
 ) {
     val style = rememberMockupStyle()
+    val glassConfig = LocalGlassEffectConfig.current
+    val glassActive = isGlassAllowed()
 
-    Box(modifier = modifier.background(style.backdrop)) {
-        DiyDesignCanvas(orientation = orientation) { scale ->
-            // Anything with a negative z sits behind the artwork. Nothing ever goes behind the
-            // backdrop itself — on the real player that slot belongs to the Canvas video.
-            stickerOverlay { it < 0 }
+    // Same frosted-chrome trick as ArtistScreen/AlbumScreen: this editor is a NavHost
+    // destination, so liquidGlass must NOT sample the root appBackdrop (that capture
+    // includes the screen itself -> native RenderNode cycle, SIGSEGV). An unattached
+    // screen-local backdrop (never .layerBackdrop'd onto anything) gives real glass
+    // material with zero self-reference, just without live artwork refraction.
+    val mockupBackdrop = rememberLayerBackdrop()
 
-            if (orientation == DiyOrientation.PORTRAIT) {
-                PortraitMockup(style)
-            } else {
-                LandscapeMockup(style)
+    CompositionLocalProvider(LocalAppBackdrop provides mockupBackdrop) {
+        Box(
+            modifier = modifier.then(
+                if (glassActive) {
+                    // Same glass base + multiplier the real player's own background uses,
+                    // so the editor is an honest preview of what glass looks like there.
+                    Modifier.liquidGlass(
+                        config = glassConfig,
+                        applyEdgeEffects = false,
+                        blurRadiusDp = (glassConfig.blurRadius * PLAYER_BLUR_MULTIPLIER).coerceAtMost(100f),
+                    )
+                } else {
+                    Modifier.background(style.backdrop)
+                },
+            ),
+        ) {
+            // With glass on, the style backdrop (accent wash / static color / gradient) still
+            // draws on top of the glass base, same as the real player layering its background
+            // styles over its own glass — the glass base mostly shows at the unfilled edges
+            // and through the specular highlight liquidGlass draws after this content.
+            if (glassActive) {
+                Box(Modifier.fillMaxSize().background(style.backdrop))
             }
 
-            stickerOverlay { it >= 0 }
-            topOverlay(scale)
+            DiyDesignCanvas(orientation = orientation) { scale ->
+                // Anything with a negative z sits behind the artwork. Nothing ever goes behind the
+                // backdrop itself — on the real player that slot belongs to the Canvas video.
+                stickerOverlay { it < 0 }
+
+                if (orientation == DiyOrientation.PORTRAIT) {
+                    PortraitMockup(style)
+                } else {
+                    LandscapeMockup(style)
+                }
+
+                stickerOverlay { it >= 0 }
+                topOverlay(scale)
+            }
         }
     }
 }

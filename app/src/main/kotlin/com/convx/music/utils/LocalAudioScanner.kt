@@ -30,7 +30,16 @@ object LocalAudioScanner {
         val skippedExisting: Int,
     )
 
-    suspend fun scanAndInsert(context: Context, database: MusicDatabase): ScanResult =
+    /**
+     * @param excludedFolders folder paths (as reported by [LocalFolderIndex]) to keep out of
+     *   the library — a song already imported from one of these is deleted, not just skipped,
+     *   so toggling a folder off in settings and rescanning actually removes it.
+     */
+    suspend fun scanAndInsert(
+        context: Context,
+        database: MusicDatabase,
+        excludedFolders: Set<String> = emptySet(),
+    ): ScanResult =
         withContext(Dispatchers.IO) {
             var totalFound = 0
             var newSongs = 0
@@ -46,6 +55,7 @@ object LocalAudioScanner {
                 MediaStore.Audio.Media.DATE_ADDED,
                 MediaStore.Audio.Media.DATE_MODIFIED,
                 MediaStore.Audio.Media.YEAR,
+                LocalFolderIndex.pathColumn,
             )
 
             // IS_MUSIC alone misses files whose scanner flag isn't set (common
@@ -85,6 +95,7 @@ object LocalAudioScanner {
                 val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
                 val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
                 val yearColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)
+                val pathColumnIndex = cursor.getColumnIndexOrThrow(LocalFolderIndex.pathColumn)
 
                 while (cursor.moveToNext()) {
                     totalFound++
@@ -97,6 +108,9 @@ object LocalAudioScanner {
                     val dateAdded = cursor.getLong(dateAddedColumn)
                     val dateModified = cursor.getLong(dateModifiedColumn)
                     val year = cursor.getInt(yearColumn)
+                    val folderPath = cursor.getString(pathColumnIndex)
+                        ?.let { LocalFolderIndex.folderPathOf(it) }
+                        ?: ""
 
                     val contentUri = ContentUris.withAppendedId(
                         collection,
@@ -116,6 +130,15 @@ object LocalAudioScanner {
 
                     // Check if song already exists
                     val existingSong = database.getSongById(songId)
+
+                    if (folderPath in excludedFolders) {
+                        // Already imported from a folder that's since been excluded —
+                        // remove it so toggling the folder off actually takes effect,
+                        // not just "no new songs from here" going forward.
+                        if (existingSong != null) database.delete(existingSong.song)
+                        continue
+                    }
+
                     if (existingSong != null) {
                         skippedExisting++
                         continue

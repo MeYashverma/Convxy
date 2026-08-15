@@ -6,6 +6,21 @@ val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
+
+// Single source of truth for the app version — see version.properties and the
+// bumpVersion task at the bottom of this file. versionCode is DERIVED, not hand-set,
+// so it can never drift from versionName the way it did before (versionCode 5 sat
+// next to versionName "1.5.1" with no relationship between them at all).
+val versionProps = Properties().apply {
+    load(rootProject.file("version.properties").inputStream())
+}
+val appVersionMajor = versionProps.getProperty("VERSION_MAJOR").toInt()
+val appVersionMinor = versionProps.getProperty("VERSION_MINOR").toInt()
+val appVersionPatch = versionProps.getProperty("VERSION_PATCH").toInt()
+// 1.5.1 -> 10501. Room for MINOR/PATCH up to 99 each before a scheme change is needed.
+val appVersionCode = appVersionMajor * 10_000 + appVersionMinor * 100 + appVersionPatch
+val appVersionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
+
 plugins {
     id("com.android.application")
     alias(libs.plugins.hilt)
@@ -24,8 +39,8 @@ android {
         applicationId = "com.convx.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.5.1"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -331,3 +346,45 @@ dependencies {
 }
 
 
+
+/**
+ * `./gradlew bumpVersion -Ppart=patch|minor|major` — the whole release-versioning
+ * mechanism. Increments the requested part of version.properties (patch/minor reset
+ * the parts below them to 0, same as semver), leaves everything else untouched, and
+ * prints the tag to push. Nothing auto-commits or auto-tags: git stays a manual,
+ * reviewable step.
+ *
+ * `part` defaults to "patch" since that's what almost every release here has been —
+ * bugfix passes, not new features.
+ */
+tasks.register("bumpVersion") {
+    group = "versioning"
+    description = "Bumps version.properties (patch/minor/major) — the single source for versionCode/versionName."
+    doLast {
+        val part = (project.findProperty("part") as String?)?.lowercase() ?: "patch"
+        var major = appVersionMajor
+        var minor = appVersionMinor
+        var patch = appVersionPatch
+        when (part) {
+            "major" -> { major += 1; minor = 0; patch = 0 }
+            "minor" -> { minor += 1; patch = 0 }
+            "patch" -> { patch += 1 }
+            else -> throw GradleException("Unknown part '$part' — use major, minor, or patch.")
+        }
+
+        val versionFile = rootProject.file("version.properties")
+        versionFile.writeText(
+            "VERSION_MAJOR=$major\nVERSION_MINOR=$minor\nVERSION_PATCH=$patch\n"
+        )
+
+        val newVersionName = "$major.$minor.$patch"
+        val newVersionCode = major * 10_000 + minor * 100 + patch
+        println("Bumped $part: $appVersionName ($appVersionCode) -> $newVersionName ($newVersionCode)")
+        println()
+        println("Next steps:")
+        println("  git add version.properties")
+        println("  git commit -m \"chore: bump version to $newVersionName\"")
+        println("  git tag v$newVersionName")
+        println("  git push && git push --tags   # tag push triggers release.yml")
+    }
+}

@@ -505,7 +505,7 @@ fun ArtistScreen(
                                 circular = true,
                                 title = {
                                     Text(
-                                        text = artistName?.lowercase() ?: "unknown",
+                                        text = artistName?.titlecaseWords() ?: "Unknown",
                                         style = MaterialTheme.typography.headlineLarge,
                                         fontFamily = rememberCustomArtistFontFamily() ?: rememberBrandFontFamily(),
                                         fontWeight = FontWeight.SemiBold,
@@ -586,7 +586,7 @@ fun ArtistScreen(
                                     Spacer(modifier = Modifier.width(5.dp))
 
                                     // Artist Name — drop-cap style, first letter bigger than the rest.
-                                    val displayArtistName = artistName?.lowercase() ?: "unknown"
+                                    val displayArtistName = artistName?.titlecaseWords() ?: "Unknown"
                                     Text(
                                         text = buildAnnotatedString {
                                             if (displayArtistName.isNotEmpty()) {
@@ -604,7 +604,11 @@ fun ArtistScreen(
                                         // The page's biggest heading: carries the artwork
                                         // tint plainly rather than flat content colour.
                                         color = LocalAccentTextColor.current,
-                                        maxLines = 1,
+                                        // Two lines: a long name was ellipsed away on one
+                                        // ("Metro Boomin" clipped mid-word behind the share
+                                        // button) rather than wrapping into the space the
+                                        // header already has.
+                                        maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         textAlign = TextAlign.Center,
                                         fontSize = 44.sp,
@@ -1279,3 +1283,17 @@ fun FeaturedReleaseCard(
         }
     }
 }
+
+/**
+ * Uppercases the first letter of each word, leaving the rest of the casing alone.
+ *
+ * The artist header used to `.lowercase()` the whole name and rely on a drop-cap span
+ * to restore the first letter, so "Metro Boomin" rendered as "Metro boomin". Only
+ * touching each word's leading character fixes that without flattening names whose
+ * casing is deliberate — SZA, A$AP Rocky and MF DOOM all survive unchanged, which a
+ * lowercase-then-capitalize pass would have mangled.
+ */
+private fun String.titlecaseWords(): String =
+    split(' ').joinToString(" ") { word ->
+        word.replaceFirstChar { it.uppercaseChar() }
+    }

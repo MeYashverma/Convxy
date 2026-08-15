@@ -40,7 +40,6 @@ fun HeroTintedContent(
 ) {
     val base = MaterialTheme.colorScheme
     val onDark = tint.luminance() <= 0.5f
-    val scheme = remember(base, tint, onDark) { base.accentText(tint, onDark) }
 
     // Theme screen's explicit text color, when set, wins over the tint-derived
     // hero text colors below — same override vivimusicTheme's own flatText
@@ -48,6 +47,18 @@ fun HeroTintedContent(
     // this screen-local system so hero screens (Home, Search, Library) agree
     // with it too instead of always following their artwork tint.
     val (appTextColorInt) = rememberPreference(AppTextColorKey, defaultValue = 0)
+
+    // Was `base.accentText(tint, onDark)` alone, so any screen under this — Album,
+    // Artist, Library, Search, every playlist screen — that reads
+    // MaterialTheme.colorScheme.onSurface/onSurfaceVariant/secondary directly
+    // (rather than through LocalContentColor/LocalAccentTextColor below) fell back
+    // to the hero-tint-derived color and ignored the global text color setting.
+    // flatText is the same override vivimusicTheme applies at the root; it has to
+    // be re-applied here because this MaterialTheme rebuilds the scheme from scratch.
+    val scheme = remember(base, tint, onDark, appTextColorInt) {
+        val tinted = base.accentText(tint, onDark)
+        if (appTextColorInt != 0) tinted.flatText(Color(appTextColorInt)) else tinted
+    }
     val contentColor = if (appTextColorInt != 0) Color(appTextColorInt) else AppleTokens.onColor(tint)
     val headingColor = if (appTextColorInt != 0) Color(appTextColorInt) else AppleTokens.onColorHeading(tint)
 

@@ -112,10 +112,15 @@ fun NavigationTitle(
             }
         }
 
-        // "See All" / "Play all" as a plain accent-red text action rather than an
+        // "See All" / "Play all" as a plain accent text action rather than an
         // outlined button or a chevron: the design keeps every section header to
         // one weight of chrome, so the action reads as a link beside the title
         // instead of as a control stacked on it.
+        //
+        // Takes the same color as the title beside it. This was hardcoded to
+        // AppleTokens.AccentRed, so it stayed red on every screen no matter what
+        // the user picked in Theme settings — and on a hero screen it clashed with
+        // the artwork tint the title next to it was already following.
         val action = onPlayAllClick ?: onClick
         if (action != null) {
             Text(
@@ -125,7 +130,7 @@ fun NavigationTitle(
                 fontSize = AppleTokens.ItemTitle,
                 lineHeight = AppleTokens.ItemTitleLineHeight,
                 fontWeight = FontWeight.Normal,
-                color = AppleTokens.AccentRed,
+                color = contentColor,
                 maxLines = 1,
                 modifier = Modifier.clickable(onClick = action),
             )

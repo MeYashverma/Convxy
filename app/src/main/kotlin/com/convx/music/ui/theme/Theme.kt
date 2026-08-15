@@ -288,9 +288,15 @@ fun ColorScheme.accentText(accent: Color, dark: Boolean): ColorScheme {
 
 /**
  * Flattens every text role [accentText] tints to one explicit user-chosen color —
- * the Theme screen's "Text Color" override. Fill/control roles (primary, onPrimary)
- * stay accent-derived: they double as button/slider fills, and a color picked for
- * text readability isn't necessarily right as a large fill.
+ * the Theme screen's "Text Color" override.
+ *
+ * `primary` is included, and it has to be: [accentText] deliberately routes the app's
+ * second-largest text role through it (links, "See All" actions, selected states,
+ * every settings screen's highlighted label), so leaving it accent-derived meant a
+ * user who picked a text color still saw red text across Settings, About and section
+ * actions. It doubles as a button/slider fill, so `onPrimary` is derived from the
+ * picked color's own luminance rather than the theme's — a dark text color picked in
+ * dark mode would otherwise leave black-on-dark button labels.
  */
 fun ColorScheme.flatText(color: Color) = copy(
     onSurface = color,
@@ -301,6 +307,8 @@ fun ColorScheme.flatText(color: Color) = copy(
     onPrimaryContainer = color,
     onSecondary = color,
     secondary = color,
+    primary = color,
+    onPrimary = if (color.luminance() > 0.5f) Color.Black else Color.White,
 )
 
 fun ColorScheme.pureBlack(apply: Boolean) =

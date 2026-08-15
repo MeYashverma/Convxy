@@ -59,6 +59,7 @@ import com.convx.music.constants.SelectedThemeColorKey
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.DefaultThemeColor
+import com.convx.music.ui.theme.LocalAccentColor
 import com.convx.music.ui.theme.extractThemeColor
 import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
@@ -159,13 +160,23 @@ fun Color.asDeepTint(): Color {
 @Composable
 fun rememberHeroTint(url: String?): Color {
     val context = LocalContext.current
-    // Black until the artwork color is extracted (no red flash); seeded from the
+
+    // Where a failed extraction lands. The doc above claimed the fallback was
+    // AccentRed, but nothing ever assigned it: black is the *pending* value, and
+    // every failure path below simply left it there — a device that couldn't fetch
+    // the artwork (offline, 403, decode failure, image evicted under memory
+    // pressure) got a permanently black hero plane instead of a colour, which is
+    // the "generated colour falls to black on some phones" report. Resolves to the
+    // user's own theme colour now, so a miss degrades to their accent, not to black.
+    val fallbackTint = LocalAccentColor.current.asDeepTint()
+
+    // Black until the artwork color is extracted (no accent flash); seeded from the
     // cache so a revisited image shows its tint at once.
     var tint by remember(url) { mutableStateOf(url?.let { heroTintCache.get(it) } ?: Color.Black) }
 
     LaunchedEffect(url) {
         if (url == null) {
-            tint = Color.Black
+            tint = fallbackTint
             return@LaunchedEffect
         }
         if (heroTintCache.get(url) != null) return@LaunchedEffect
@@ -178,13 +189,15 @@ fun rememberHeroTint(url: String?): Color {
                     .build()
                 val result = context.imageLoader.execute(request)
                 val bitmap = result.image?.toBitmap()
-                if (bitmap != null) {
-                    val c = bitmap.extractThemeColor().asDeepTint()
-                    heroTintCache.put(url, c)
-                    tint = c
+                tint = if (bitmap != null) {
+                    bitmap.extractThemeColor().asDeepTint().also { heroTintCache.put(url, it) }
+                } else {
+                    // Not cached: a later visit with a working network should still
+                    // get the real artwork colour rather than this stand-in.
+                    fallbackTint
                 }
             } catch (_: Exception) {
-                // Fallback stays as AccentRed
+                tint = fallbackTint
             }
         }
     }

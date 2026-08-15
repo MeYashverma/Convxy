@@ -77,6 +77,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import com.music.innertube.YouTube
@@ -533,6 +534,23 @@ class MusicService :
     override fun onCreate() {
         super.onCreate()
         isRunning = true
+
+        // media3's own interception point for the platform refusing a foreground
+        // promotion (SDK 31+, and stricter again on 16). Without a listener set,
+        // media3 lets ForegroundServiceStartNotAllowedException propagate out of
+        // its posted Handler callback and the process dies — which is the
+        // SM-A566B/Android 16 crash. CrashHandler catches it as a last resort,
+        // but that is a global uncaught-exception net; this is the supported hook
+        // and it keeps the service alive. Nothing to recover here: the OS refused
+        // the promotion, so playback simply stays unpromoted until it next starts
+        // from the foreground.
+        // Qualified: this class also implements Player.Listener, so a bare `Listener`
+        // resolves to that inherited one instead of the service's.
+        setListener(object : MediaSessionService.Listener {
+            override fun onForegroundServiceStartNotAllowedException() {
+                Timber.tag(TAG).w("Foreground promotion refused by platform — staying unpromoted")
+            }
+        })
 
         // Player rediness reset to false
         playerInitialized.value = false

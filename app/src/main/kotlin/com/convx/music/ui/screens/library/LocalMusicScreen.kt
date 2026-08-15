@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,6 +60,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Size as CoilSize
+import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.ui.theme.rememberGlobalAccentColors
@@ -66,6 +69,7 @@ import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
+import com.convx.music.ui.component.DraggableScrollbar
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.menu.SongMenu
 import java.time.LocalDateTime
@@ -133,7 +137,35 @@ fun LocalMusicScreen(
         }
     }
 
+    // Entering the screen refreshes the library instead of leaving it to the Rescan
+    // button. force = false so this only fires when the last scan has gone stale —
+    // navigating to the player and back must not restart a full MediaStore sweep.
+    LaunchedEffect(hasStoragePermission) {
+        if (hasStoragePermission) viewModel.scanDevice(context, force = false)
+    }
+
+    val lazyListState = rememberLazyListState()
+
+    /**
+     * Keyed by list item key rather than by index: the list is several sections deep
+     * with optional permission/scanning/result rows above them, so any index-based
+     * mapping would silently drift the moment one of those appears. The keys are the
+     * same ones the items below are emitted with.
+     */
+    val scrollLabels = remember(displaySongs, displayAlbums, displayArtists, sortMode) {
+        buildMap {
+            put("songs_header", "Songs")
+            put("albums_header", "Albums")
+            put("artists_header", "Artists")
+            displaySongs.take(50).forEach { put(it.localMediaId(), songScrollLabel(it, sortMode)) }
+            displayAlbums.forEach { put(it.id, it.title.firstOrNull()?.uppercase() ?: "#") }
+            displayArtists.forEach { put(it.id, it.title.firstOrNull()?.uppercase() ?: "#") }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
+        state = lazyListState,
         modifier = Modifier.fillMaxSize(),
     ) {
         // Header
@@ -495,6 +527,25 @@ fun LocalMusicScreen(
             Spacer(Modifier.height(80.dp))
         }
     }
+
+        DraggableScrollbar(
+            scrollState = lazyListState,
+            modifier = Modifier
+                .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues())
+                .align(Alignment.CenterEnd),
+            label = { _ ->
+                val key = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull()?.key as? String
+                key?.let { scrollLabels[it] }.orEmpty()
+            },
+        )
+    }
+}
+
+/** What the fast-scroll bubble says for a song row, in the terms the list is sorted by. */
+private fun songScrollLabel(song: Song, mode: LocalSortMode): String = when (mode) {
+    LocalSortMode.NAME -> song.title.firstOrNull()?.uppercase() ?: "#"
+    LocalSortMode.DURATION -> formatDuration(song.song.duration)
+    LocalSortMode.RECENT -> song.song.dateModified?.year?.toString() ?: "—"
 }
 
 @Composable

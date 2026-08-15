@@ -120,6 +120,9 @@ object YTPlayerUtils {
      */
     private val MAIN_CLIENT: YouTubeClient = ANDROID_VR_1_43_32
 
+    /** Used when a player response omits streamingData.expiresInSeconds — 6h, YouTube's usual value. */
+    private const val DEFAULT_STREAM_EXPIRY_SECONDS = 21600
+
     /**
      * Client used to fetch metadata (audioConfig, playbackTracking) when the user is
      * logged in. This ensures remote YouTube history is correctly updated.
@@ -1093,8 +1096,14 @@ object YTPlayerUtils {
 
                 streamExpiresInSeconds = streamPlayerResponse.streamingData?.expiresInSeconds
                 if (streamExpiresInSeconds == null) {
-                    Timber.tag(logTag).d("Stream expiration time not found")
-                    continue
+                    // NOT a reason to discard a stream that resolved. `continue` here
+                    // threw away a working format + URL over a missing housekeeping
+                    // field, walked the rest of the fallback clients, and — when the
+                    // field is absent from every response, which is what a YouTube-side
+                    // shape change looks like — ended with "Missing stream expire time"
+                    // and no playback at all.
+                    Timber.tag(logTag).w("Stream expiration time not found — defaulting to ${DEFAULT_STREAM_EXPIRY_SECONDS}s")
+                    streamExpiresInSeconds = DEFAULT_STREAM_EXPIRY_SECONDS
                 }
 
                 Timber.tag(logTag).d("Stream expires in: $streamExpiresInSeconds seconds")
@@ -1203,10 +1212,7 @@ object YTPlayerUtils {
         // format + streamUrl came from a response that DID succeed, so a missing
         // expiry here is the genuinely rare case (a client omitting the field) —
         // default rather than throw away an otherwise-playable stream.
-        val expiresInSeconds = streamExpiresInSeconds ?: run {
-            Timber.tag(logTag).w("Stream expiry missing from an otherwise-valid response — defaulting to 21600s")
-            21600
-        }
+        val expiresInSeconds = streamExpiresInSeconds ?: DEFAULT_STREAM_EXPIRY_SECONDS
 
         Timber.tag(logTag).d("Successfully obtained playback data with format: ${format.mimeType}, bitrate: ${format.bitrate}")
         if (isUploadedTrack) {

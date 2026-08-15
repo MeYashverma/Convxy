@@ -185,7 +185,7 @@ import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.MenuState
 import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.RandomizeGridItem
-import com.convx.music.ui.component.rememberAppBackgroundTint
+import com.convx.music.ui.component.rememberAppBackgroundColor
 import com.convx.music.ui.component.shimmer.GridItemPlaceHolder
 import com.convx.music.ui.component.shimmer.ShimmerHost
 import com.convx.music.ui.component.shimmer.TextPlaceholder
@@ -1071,7 +1071,7 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(rememberAppBackgroundTint(MaterialTheme.colorScheme.background))
+                    .background(rememberAppBackgroundColor(MaterialTheme.colorScheme.background))
             )
             HomeImageBackground(contentLoaded = homePage != null)
 

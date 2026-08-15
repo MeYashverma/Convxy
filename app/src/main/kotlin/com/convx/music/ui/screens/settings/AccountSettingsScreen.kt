@@ -126,6 +126,13 @@ fun AccountSettingsScreen(
     val accountName by homeViewModel.accountName.collectAsState()
     val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
 
+    // Keeps the tap-to-switch list alive for sessions that predate the channel
+    // picker, or whose lookup failed at login — without this it is only ever
+    // written by a fresh login.
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) accountSettingsViewModel.refreshSavedAccounts(context)
+    }
+
     var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }

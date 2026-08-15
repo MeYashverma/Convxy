@@ -47,6 +47,18 @@ class InnerTube {
     )
     var visitorData: String? = null
     var dataSyncId: String? = null
+        set(value) {
+            // YouTube hands out DATASYNC_ID as "<id>||" (primary account) or
+            // "<channelId>||<accountId>" (second/brand channel), but the API's
+            // onBehalfOfUser only accepts the bare LEADING id — the "||" form makes
+            // every authenticated request fail with HTTP 500, and keeping the
+            // trailing half instead resolves every channel of one Google account to
+            // the same identity, which is what silently reverted channel switches.
+            // Normalized here rather than at each call site so login, session
+            // restore, channel switch and token import all get it, including
+            // already-stored bad values.
+            field = value?.takeIf { it.isNotBlank() && it != "null" }?.substringBefore("||")
+        }
     var cookie: String? = null
         set(value) {
             field = value

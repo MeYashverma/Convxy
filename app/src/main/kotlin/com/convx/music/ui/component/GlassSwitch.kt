@@ -35,7 +35,11 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GlassSwitch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    // Nullable, and it has to stay that way down the whole chain: null means "this
+    // switch is a read-out, the row around it owns the click". Wrapping a null in a
+    // non-null lambda still installs a clickable, which eats the touch and calls
+    // nothing — the switch looks live and does nothing when tapped.
+    onCheckedChange: ((Boolean) -> Unit)?,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -95,7 +99,13 @@ fun GlassSwitch(
                     Modifier
                 }
             )
-            .clickable(enabled = enabled) { onCheckedChange(!checked) },
+            .then(
+                if (onCheckedChange != null) {
+                    Modifier.clickable(enabled = enabled) { onCheckedChange(!checked) }
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.CenterStart,
     ) {
         Box(
@@ -147,7 +157,7 @@ fun GlassSwitchCompat(
     // toggle keeps its iOS shape, motion, green on-state and rim highlight.
     GlassSwitch(
         checked = checked,
-        onCheckedChange = { onCheckedChange?.invoke(it) },
+        onCheckedChange = onCheckedChange,
         enabled = enabled,
         modifier = modifier,
     )

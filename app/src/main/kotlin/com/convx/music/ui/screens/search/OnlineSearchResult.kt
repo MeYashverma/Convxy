@@ -87,7 +87,7 @@ import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.YouTubeListItem
 import com.convx.music.ui.component.HomeImageBackground
 import com.convx.music.ui.component.hasCustomHomeBackground
-import com.convx.music.ui.component.rememberAppBackgroundTint
+import com.convx.music.ui.component.rememberAppBackgroundColor
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
@@ -268,7 +268,7 @@ fun OnlineSearchResult(
     // The suggestions/"hint" overlay below (shown while re-typing on this results
     // page) tints from the app's home background image, not this page's own
     // search-result hero — matching the initial SearchScreen's header tint.
-    val hintTint = rememberAppBackgroundTint(AppleTokens.BgElevated)
+    val hintTint = rememberAppBackgroundColor(AppleTokens.BgElevated)
     val hintOnTint = AppleTokens.onColor(hintTint)
 
     val heroBackdrop = rememberLayerBackdrop()

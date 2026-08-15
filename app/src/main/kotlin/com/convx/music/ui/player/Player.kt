@@ -104,6 +104,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -253,9 +254,11 @@ import com.convx.music.utils.rememberPreference
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.max
 import kotlin.math.roundToInt
 import com.convx.music.ui.component.Icon as MIcon
@@ -292,6 +295,9 @@ import java.util.Locale
 /** Poll interval for VideoLoopClock and the bucket width glass surfaces cache
  *  a looping canvas video's blur/lens output at (see LocalBackdropLoopBucket). */
 private const val VideoLoopBucketMs = 100L
+
+/** Upper bound on waiting for the player sheet before opening the queue inside it. */
+private const val PARENT_SHEET_SETTLE_TIMEOUT_MS = 1_000L
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -1040,6 +1046,18 @@ fun BottomSheetPlayer(
                 // the mini pill) leaves this expandSoft() a dead click — the queue
                 // sheet state expands but stays hidden behind the fullscreen gate.
                 isFullScreen = false
+                // Both callers (the floating nav bar's accessory and the now-playing
+                // pill) start the PLAYER sheet expanding and set this flag in the same
+                // frame, so this ran against a parent that was still animating — the
+                // nested queue sheet expanded into bounds that were still moving and
+                // settled straight back, which is the dead tap. Wait for the parent to
+                // arrive, but never block forever: if it isn't going to expand (already
+                // open, or the animation was interrupted by a drag), just go.
+                if (!state.isExpanded) {
+                    withTimeoutOrNull(PARENT_SHEET_SETTLE_TIMEOUT_MS) {
+                        snapshotFlow { state.isExpanded }.first { it }
+                    }
+                }
                 queueSheetState.expandSoft()
                 playerConnection.requestShowQueue.value = false
             }
@@ -2149,9 +2167,10 @@ fun BottomSheetPlayer(
                                     }
                                 },
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert),
-                                    contentDescription = null,
+                                PlayerGlyph(
+                                    slot = PlayerIconSlot.MORE,
+                                    fallback = R.drawable.more_vert,
+                                    tint = LocalContentColor.current,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -3231,10 +3250,20 @@ fun BottomSheetPlayer(
         // Gated on the queue sheet NOT being expanded: this layer is a sibling of the Queue
         // bottom sheet in the same Box, so with no gate it paints on top of the expanded sheet too.
         // Also gated on lyrics NOT being shown, for the same reason as the z < 0 layer above.
-        if (!queueSheetState.isExpanded && !showInlineLyrics && showDiyStickers) {
+        if (!showInlineLyrics && showDiyStickers) {
             // Same fixed design canvas as the z < 0 layer above and the editor itself — see the
             // comment there for why a plain fillMaxSize bounds would misplace stickers.
-            DiyDesignCanvas(orientation = diyOrientation, modifier = Modifier.fillMaxSize()) {
+            DiyDesignCanvas(
+                orientation = diyOrientation,
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Fades out with the queue's own drag instead of vanishing the instant
+                    // the sheet reports itself expanded, so dragging the queue up dissolves
+                    // the stickers with it. Read inside graphicsLayer's lambda: that is a
+                    // draw-phase read, so a sheet drag doesn't recompose this ~3000-line
+                    // composable once per frame the way reading progress in the body would.
+                    .graphicsLayer { alpha = 1f - queueSheetState.progress.coerceIn(0f, 1f) },
+            ) {
                 DiyStickerLayer(
                     layout = diyLayout,
                     orientation = diyOrientation,
@@ -3354,10 +3383,13 @@ fun MoreActionsButton(
                 }
             }
     ) {
-        Image(
-            painter = painterResource(R.drawable.more_vert),
-            contentDescription = null,
-            colorFilter = ColorFilter.tint(iconButtonColor)
+        // Routed through PlayerGlyph like every other control: this one drew the stock
+        // glyph straight from resources, so the More slot in player-icon settings did
+        // nothing here even though the sibling PlayerMoreMenuButton honoured it.
+        PlayerGlyph(
+            slot = PlayerIconSlot.MORE,
+            fallback = R.drawable.more_vert,
+            tint = iconButtonColor,
         )
     }
 }
@@ -3398,10 +3430,13 @@ private fun PlayerMoreMenuButton(
                 }
             },
     ) {
-        Image(
-            painter = rememberPlayerIcon(PlayerIconSlot.MORE).painter,
-            contentDescription = null,
-            colorFilter = ColorFilter.tint(iconButtonColor),
+        // PlayerGlyph, not a raw Image with an unconditional tint: a user's own
+        // image for this slot was being flattened to a solid colour regardless of
+        // the slot's per-icon tint flag, so a photo came out as a coloured blob.
+        PlayerGlyph(
+            slot = PlayerIconSlot.MORE,
+            fallback = R.drawable.more_horiz,
+            tint = iconButtonColor,
         )
     }
 }

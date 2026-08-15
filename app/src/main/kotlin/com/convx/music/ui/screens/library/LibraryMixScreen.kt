@@ -67,7 +67,6 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.ui.utils.rememberGridColumns
 import com.convx.music.constants.AlbumViewTypeKey
-import com.convx.music.constants.AppBackgroundColorKey
 import com.convx.music.constants.CONTENT_TYPE_HEADER
 import com.convx.music.constants.CONTENT_TYPE_PLAYLIST
 import com.convx.music.constants.GridItemSize
@@ -101,6 +100,7 @@ import com.convx.music.ui.component.PlaylistGridItem
 import com.convx.music.ui.component.CreatePlaylistDialog
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.hasCustomHomeBackground
+import com.convx.music.ui.component.rememberAppBackgroundColor
 import com.convx.music.ui.component.PlaylistListItem
 import com.convx.music.ui.component.SortHeader
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
@@ -181,9 +181,11 @@ fun LibraryMixScreen(
         null
     }
     val heroSource = rememberHeroSource(staticArt = heroUrl)
-    val (appBackgroundColorInt) = rememberPreference(AppBackgroundColorKey, defaultValue = 0)
+    // Shared resolver, so Library falls back the same way Home and Search do instead of
+    // resolving the same preference by hand — its own fallback was colorScheme.primary,
+    // a saturated accent, where every other screen falls back to a neutral surface.
     val tint = if (libraryBackgroundMode == LibraryBackgroundMode.THEME) {
-        if (appBackgroundColorInt != 0) Color(appBackgroundColorInt) else MaterialTheme.colorScheme.primary
+        rememberAppBackgroundColor(MaterialTheme.colorScheme.primary)
     } else {
         rememberHeroTint(heroUrl)
     }

@@ -65,7 +65,7 @@ import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.HeroBackground
 import com.convx.music.ui.component.HomeImageBackground
-import com.convx.music.ui.component.rememberAppBackgroundTint
+import com.convx.music.ui.component.rememberAppBackgroundColor
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.font.FontWeight
 import com.convx.music.ui.component.LocalMenuState
@@ -135,7 +135,7 @@ fun LocalSearchScreen(
     // the app (online SearchScreen included) actually painted. Same token online
     // search uses, with pureBlack forcing flat black same as every other
     // hero-tinted screen already does (see rememberHeroTint's PureBlack override).
-    val tint = if (pureBlack) Color.Black else rememberAppBackgroundTint(AppleTokens.BgElevated)
+    val tint = if (pureBlack) Color.Black else rememberAppBackgroundColor(AppleTokens.BgElevated)
     val onTint = AppleTokens.onColor(tint)
 
     val glassConfig = LocalGlassEffectConfig.current

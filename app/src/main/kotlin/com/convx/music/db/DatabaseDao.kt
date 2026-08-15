@@ -151,6 +151,13 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE liked ORDER BY totalPlayTime")
     fun likedSongsByPlayTimeAsc(): Flow<List<Song>>
 
+    /** Ids only — [DownloadUtil] watches this to auto-download newly liked songs. */
+    @Query("SELECT id FROM song WHERE liked")
+    fun likedSongIds(): Flow<List<String>>
+
+    @Query("SELECT title FROM song WHERE id = :songId")
+    suspend fun songTitle(songId: String): String?
+
     fun likedSongs(
         sortType: SongSortType,
         descending: Boolean,

@@ -137,6 +137,30 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     /**
+     * Re-reads the account's channel list and stores it for tap-to-switch.
+     *
+     * The list used to be written only by [applyChannelAndRestart], i.e. only by a
+     * login that happened after the channel picker shipped — anyone signed in before
+     * that, or whose channel lookup failed once at login, was left with an empty list
+     * and no way to refill it, so the switcher never appeared. Cheap enough to run
+     * whenever Account settings opens.
+     */
+    fun refreshSavedAccounts(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (YouTube.cookie == null) return@launch
+            val channels = YouTube.getAccountChannels().getOrNull()
+                ?.mapNotNull { c ->
+                    c.dataSyncId?.let { SavedAccount(it, c.name, c.channelHandle, c.thumbnailUrl) }
+                }
+                ?.takeIf { it.isNotEmpty() }
+                ?: return@launch
+            context.dataStore.edit { settings ->
+                settings[SavedAccountsKey] = channels.toJson()
+            }
+        }
+    }
+
+    /**
      * Switches the active channel to an already-saved account. No WebView, no
      * restart — the cookie is unchanged (same Google login), only which channel
      * it acts as changes, same mechanism [com.convx.music.ui.screens.SwitchChannelScreen]

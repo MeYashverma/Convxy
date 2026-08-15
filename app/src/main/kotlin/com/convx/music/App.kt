@@ -202,12 +202,13 @@ class App : Application(), SingletonImageLoader.Factory {
                 .map { it[DataSyncIdKey] }
                 .distinctUntilChanged()
                 .collect { dataSyncId ->
-                    // Kept whole, not truncated at "||" — that suffix is what
-                    // distinguishes a brand/second channel from the account's
-                    // primary identity (see LoginScreen.kt). Truncating it here
-                    // silently reverted every channel switch back to primary,
-                    // since this collector re-fires on every DataStore write.
-                    YouTube.dataSyncId = dataSyncId?.takeIf { it.isNotBlank() && it != "null" }
+                    // Assigned raw: blank/"null"/"||" handling lives in
+                    // InnerTube.dataSyncId's setter so every path that assigns it
+                    // (login, this collector, channel switch, token import) gets the
+                    // same normalization. Truncating here — and keeping the wrong
+                    // half of "||" — is what silently reverted channel switches back
+                    // to primary, since this collector re-fires on every write.
+                    YouTube.dataSyncId = dataSyncId
                 }
         }
 

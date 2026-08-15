@@ -55,7 +55,12 @@
     <string name="folders">Folders</string>
     <string name="excluded_folders">Excluded folders</string>
     <string name="excluded_folders_desc">Choose which on-device folders local-only mode scans</string>
-    <string name="excluded_folders_empty">No folders found yet. Scan your device from the Local screen first.</string>
+    <string name="excluded_folders_empty">No folders with music found yet. Tap Scan device to look again.</string>
+    <string name="excluded_folders_permission">Convx needs permission to read audio on this device before it can list your folders.</string>
+    <string name="excluded_folders_custom">Excluded by hand</string>
+    <string name="exclude_folder_add">Add folder</string>
+    <string name="excluded_folders_song_count">%1$d songs</string>
+    <string name="excluded_folders_song_count_one">1 song</string>
     <string name="sync_playlist">Sync playlist</string>
     <string name="syncing_progress">Syncing %1$d of %2$d songs</string>
     <string name="playlist_uploaded">Playlist uploaded successfully</string>

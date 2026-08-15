@@ -73,18 +73,42 @@ fun rememberHomeBackgroundTargetSize(quality: Float): Pair<Int, Int> {
 private var blurAnimatedThisSession = false
 
 /**
- * True when the user has a custom background image set and enabled.
+ * True when the user has set a background of their own — an image, or a flat colour.
  *
  * Screens that draw their own backdrop (blurred album art, theme wash) must check
  * this and suppress those layers — otherwise they render underneath the custom
- * image along with their scrims, and the user's picture comes out looking nothing
+ * background along with their scrims, and the user's choice comes out looking nothing
  * like it does on a screen that has no backdrop of its own.
+ *
+ * A picked colour counts here, not just an image: it used to test the image path
+ * alone, so a colour-only setup fell through to the auto-generated hero blur on the
+ * search-results page and never showed the colour at all.
  */
 @Composable
 fun hasCustomHomeBackground(): Boolean {
     val (enabled) = rememberPreference(HomeBackgroundEnabledKey, false)
     val (path) = rememberPreference(HomeBackgroundPathKey, "")
-    return enabled && path.isNotEmpty()
+    val (colorInt) = rememberPreference(AppBackgroundColorKey, 0)
+    return (enabled && path.isNotEmpty()) || colorInt != 0
+}
+
+/**
+ * The colour a screen should paint under everything, resolving the two preferences that
+ * both claim to set "the background" in one place:
+ *
+ * 1. an explicit background colour ([AppBackgroundColorKey]) if the user picked one,
+ * 2. otherwise the theme colour when dynamic theming is off (what
+ *    [com.convx.music.ui.component.rememberAppBackgroundTint] has always done),
+ * 3. otherwise [fallback] — each screen's own default surface.
+ *
+ * Home, Library and both search screens previously each resolved this differently and
+ * disagreed on the default: `colorScheme.background` on Home, `colorScheme.primary` on
+ * Library, `AppleTokens.BgElevated` on Search.
+ */
+@Composable
+fun rememberAppBackgroundColor(fallback: Color): Color {
+    val (colorInt) = rememberPreference(AppBackgroundColorKey, 0)
+    return if (colorInt != 0) Color(colorInt) else rememberAppBackgroundTint(fallback)
 }
 
 /**

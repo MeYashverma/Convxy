@@ -9,10 +9,15 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -30,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -67,7 +73,13 @@ fun DraggableScrollbar(
     trackWidth: Dp = 24.dp,
     minItemCountForScroll: Int = 15,
     minScrollRangeForDrag: Int = 5,
-    headerItems: Int = 0
+    headerItems: Int = 0,
+    /**
+     * Maps a content index (header items already subtracted) to the text shown in a
+     * bubble beside the thumb while dragging — an initial for an A-Z sort, a year, a
+     * duration. Null keeps the bare thumb, which is what every other caller wants.
+     */
+    label: ((Int) -> String)? = null,
 ) {
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
@@ -179,6 +191,37 @@ fun DraggableScrollbar(
                 size = Size(size.width, thumbHeightPx),
                 cornerRadius = CornerRadius(thumbCornerRadius.toPx())
             )
+        }
+
+        // Only while dragging, so a resting list pays nothing for this. The index comes
+        // from the list rather than the drag handler because the list is already
+        // following the thumb, and reading it here keeps the bubble a composition-level
+        // concern instead of another thing the gesture loop has to drive.
+        if (label != null && isDraggingState) {
+            val contentIndex = (scrollState.firstVisibleItemIndex - headerItems).coerceAtLeast(0)
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = RoundedCornerShape(10.dp),
+                shadowElevation = 3.dp,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset {
+                        IntOffset(
+                            x = -with(density) { (trackWidth + 8.dp).roundToPx() },
+                            y = (dragThumbY + thumbHeightPx / 2f - with(density) { 16.dp.toPx() })
+                                .coerceIn(0f, (viewportHeight - with(density) { 32.dp.toPx() }).coerceAtLeast(0f))
+                                .roundToInt(),
+                        )
+                    }
+            ) {
+                Text(
+                    text = label(contentIndex),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
         }
     }
 }

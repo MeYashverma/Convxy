@@ -90,7 +90,6 @@ import com.convx.music.constants.AudioOffload
 import com.convx.music.constants.AudioQualityKey
 import com.convx.music.constants.EnableTidalStreamingKey
 import com.convx.music.constants.EnabledModulesKey
-import com.convx.music.constants.AutoDownloadOnLikeKey
 import com.convx.music.constants.AutoLoadMoreKey
 import com.convx.music.constants.AutoSkipNextOnErrorKey
 import com.convx.music.constants.CrossfadeDurationKey
@@ -1922,23 +1921,9 @@ class MusicService :
                 database.query {
                     update(song)
                     syncUtils.likeSong(song)
-
-                    // Check if auto-download on like is enabled and the song is now liked
-                    if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
-                        // Trigger download for the liked song
-                        val downloadRequest =
-                            androidx.media3.exoplayer.offline.DownloadRequest
-                                .Builder(song.id, song.id.toUri())
-                                .setCustomCacheKey(song.id)
-                                .setData(song.title.toByteArray())
-                                .build()
-                        androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
-                            this@MusicService,
-                            ExoDownloadService::class.java,
-                            downloadRequest,
-                            false
-                        )
-                    }
+                    // Auto-download on like is handled by DownloadUtil, which watches
+                    // the `liked` column — this hook only ever fired for the player's
+                    // own like button, never for the song/queue/selection menus.
                 }
                 currentMediaMetadata.value = player.currentMetadata
             }
@@ -2388,8 +2373,20 @@ class MusicService :
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
         super.onPlaybackParametersChanged(playbackParameters)
+
+        // Offload can't do speed/pitch: an offloaded AudioTrack either ignores
+        // PlaybackParams or rejects them outright depending on the device, so a
+        // tempo/transpose change lands on a sink that can't honour it. Same
+        // defensive drop the crossfade path already makes, driven by the params.
+        val defaultParameters = playbackParameters.speed == 1f && playbackParameters.pitch == 1f
+        player.setOffloadEnabled(cachedOffloadEnabled && defaultParameters)
+
         if (playbackParameters.speed != lastPlaybackSpeed) {
             lastPlaybackSpeed = playbackParameters.speed
+            // A pending crossfade was scheduled as a wall-clock delay derived from
+            // the OLD speed — re-derive it. Skipped mid-transition, where the DJ
+            // engine is driving the parameters itself.
+            if (!isCrossfading) scheduleCrossfade()
             discordUpdateJob?.cancel()
 
             // update scheduling thingy
@@ -3810,8 +3807,14 @@ class MusicService :
             player.duration,
             crossfadeDuration.toLong(),
         )
-        val delayMs = triggerTime - player.currentPosition
-        if (delayMs <= 0) return
+        val mediaDelayMs = triggerTime - player.currentPosition
+        if (mediaDelayMs <= 0) return
+        // delay() counts wall-clock, triggerTime is media time: at 0.5x tempo the
+        // trigger is twice as far away in real seconds, at 2x it is half. Unscaled,
+        // a user who touched the tempo slider got crossfades firing mid-song or
+        // after the track had already ended.
+        val speed = player.playbackParameters.speed.takeIf { it > 0f } ?: 1f
+        val delayMs = (mediaDelayMs / speed).toLong()
 
         if (djEngine.enabled) {
             val targetIndex = if (player.repeatMode == REPEAT_MODE_ONE) {

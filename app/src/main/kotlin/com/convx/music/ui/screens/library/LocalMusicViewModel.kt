@@ -3,20 +3,16 @@ package com.convx.music.ui.screens.library
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.convx.music.constants.LocalExcludedFoldersKey
 import com.convx.music.db.MusicDatabase
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Song
 import com.convx.music.utils.LocalAudioScanner
-import com.convx.music.utils.dataStore
-import com.convx.music.utils.decodeExcludedFolders
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -42,15 +38,23 @@ class LocalMusicViewModel @Inject constructor(
     private val _scanResult = MutableStateFlow<LocalAudioScanner.ScanResult?>(null)
     val scanResult: StateFlow<LocalAudioScanner.ScanResult?> = _scanResult.asStateFlow()
 
-    fun scanDevice(context: Context) {
+    /** Set once a scan finishes, so re-entering the screen doesn't rescan on every visit. */
+    private var lastScanAt = 0L
+
+    /**
+     * [force] is what a tapped Rescan button passes; screen-entry auto-scans leave it
+     * false so a quick trip to the player and back doesn't kick off a full MediaStore
+     * sweep every time.
+     */
+    fun scanDevice(context: Context, force: Boolean = true) {
+        if (_isScanning.value) return
+        if (!force && System.currentTimeMillis() - lastScanAt < AUTO_SCAN_INTERVAL_MS) return
         viewModelScope.launch {
             _isScanning.value = true
             try {
-                val excludedFolders = decodeExcludedFolders(
-                    context.dataStore.data.first()[LocalExcludedFoldersKey] ?: "",
-                )
-                val result = LocalAudioScanner.scanAndInsert(context, database, excludedFolders)
+                val result = LocalAudioScanner.scanAndInsert(context, database)
                 _scanResult.value = result
+                lastScanAt = System.currentTimeMillis()
                 Timber.tag("LocalMusicViewModel").i("Scan complete: $result")
             } catch (e: Exception) {
                 Timber.tag("LocalMusicViewModel").e(e, "Scan failed")
@@ -58,5 +62,10 @@ class LocalMusicViewModel @Inject constructor(
                 _isScanning.value = false
             }
         }
+    }
+
+    private companion object {
+        /** How stale an auto-scan may be before entering the screen triggers a fresh one. */
+        const val AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000L
     }
 }

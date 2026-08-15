@@ -112,7 +112,7 @@ import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.constants.GridItemSize
 import com.convx.music.ui.component.HeroBackground
 import com.convx.music.ui.component.HomeImageBackground
-import com.convx.music.ui.component.rememberAppBackgroundTint
+import com.convx.music.ui.component.rememberAppBackgroundColor
 import com.convx.music.ui.component.rememberHeroSource
 import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
@@ -186,7 +186,7 @@ fun SearchScreen(
 
     // Fixed elevated token, not derived from any specific result's thumbnail —
     // safe to override with the user's own picked theme color.
-    val tint = rememberAppBackgroundTint(AppleTokens.BgElevated)
+    val tint = rememberAppBackgroundColor(AppleTokens.BgElevated)
     val onTint = AppleTokens.onColor(tint)
     val heroSource = rememberHeroSource(staticArt = null)
     val heroBackdrop = rememberLayerBackdrop {

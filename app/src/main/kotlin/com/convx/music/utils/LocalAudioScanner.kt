@@ -10,6 +10,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import com.convx.music.constants.LocalExcludedFoldersKey
 import com.convx.music.db.MusicDatabase
 import com.convx.music.db.entities.AlbumEntity
 import com.convx.music.db.entities.ArtistEntity
@@ -17,6 +18,7 @@ import com.convx.music.db.entities.SongAlbumMap
 import com.convx.music.db.entities.SongArtistMap
 import com.convx.music.db.entities.SongEntity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -31,19 +33,24 @@ object LocalAudioScanner {
     )
 
     /**
-     * @param excludedFolders folder paths (as reported by [LocalFolderIndex]) to keep out of
-     *   the library — a song already imported from one of these is deleted, not just skipped,
-     *   so toggling a folder off in settings and rescanning actually removes it.
+     * Excluded folders are read here rather than passed in. They used to be a parameter
+     * defaulting to an empty set, and two of the four callers (Home's pull-to-refresh and
+     * the auto-playlist scan) never passed it — so excluding a folder in settings dropped
+     * its songs, and then the very next refresh imported every one of them straight back.
+     * Reading the preference at the one place that acts on it makes every caller correct.
      */
     suspend fun scanAndInsert(
         context: Context,
         database: MusicDatabase,
-        excludedFolders: Set<String> = emptySet(),
     ): ScanResult =
         withContext(Dispatchers.IO) {
             var totalFound = 0
             var newSongs = 0
             var skippedExisting = 0
+
+            val excludedFolders = decodeExcludedFolders(
+                context.dataStore.data.first()[LocalExcludedFoldersKey] ?: "",
+            )
 
             val projection = arrayOf(
                 MediaStore.Audio.Media._ID,
@@ -131,7 +138,13 @@ object LocalAudioScanner {
                     // Check if song already exists
                     val existingSong = database.getSongById(songId)
 
-                    if (folderPath in excludedFolders) {
+                    // Prefix match, not equality: excluding "Music/Podcasts" has to take
+                    // its subfolders with it, and a folder picked by hand in settings is
+                    // usually a parent of the ones MediaStore actually reports.
+                    if (folderPath != null && excludedFolders.any {
+                            folderPath == it || folderPath.startsWith("$it/")
+                        }
+                    ) {
                         // Already imported from a folder that's since been excluded —
                         // remove it so toggling the folder off actually takes effect,
                         // not just "no new songs from here" going forward.

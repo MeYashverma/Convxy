@@ -25,6 +25,8 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadNotificationHelper
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
 import com.music.innertube.YouTube
 import com.convx.music.constants.AudioQuality
 import com.convx.music.constants.AudioQualityKey
@@ -40,8 +42,10 @@ import com.convx.music.db.entities.SongEntity
 import com.convx.music.di.DownloadCache
 import com.convx.music.di.PlayerCache
 import com.convx.music.ui.utils.resize
+import com.convx.music.constants.AutoDownloadOnLikeKey
 import com.convx.music.utils.YTPlayerUtils
 import com.convx.music.utils.enumPreference
+import com.convx.music.utils.get
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -95,6 +99,46 @@ constructor(
 
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
+    init {
+        // Auto-download-on-like watches the `liked` column instead of hooking the
+        // like action: the hook used to live in MusicService.toggleLike(), which
+        // only the player screen's like button and the media-session action ever
+        // reach. Liking from a song/queue/selection menu, a swipe, or the YouTube
+        // sync writes the same column and never triggered a download.
+        scope.launch {
+            var known: Set<String>? = null
+            database.likedSongIds().collect { ids ->
+                val current = ids.toSet()
+                val previous = known
+                known = current
+                // The first emission is the existing library, not a batch of new
+                // likes — seeding it stops a fresh start from queueing everything.
+                if (previous == null) return@collect
+                if (!appContext.dataStore.get(AutoDownloadOnLikeKey, false)) return@collect
+
+                for (songId in current - previous) {
+                    if (downloads.value[songId] != null) continue
+                    runCatching {
+                        val title = database.songTitle(songId).orEmpty()
+                        DownloadService.sendAddDownload(
+                            appContext,
+                            ExoDownloadService::class.java,
+                            DownloadRequest.Builder(songId, songId.toUri())
+                                .setCustomCacheKey(songId)
+                                .setData(title.toByteArray())
+                                .build(),
+                            false,
+                        )
+                    }.onFailure {
+                        // Backgrounded apps can be blocked from starting the download
+                        // service; losing one auto-download must not kill the collector.
+                        Timber.e(it, "Auto-download on like failed for $songId")
+                    }
+                }
+            }
+        }
+    }
+
     private val dataSourceFactory =
         ResolvingDataSource.Factory(
             CacheDataSource
@@ -132,7 +176,11 @@ constructor(
                 return@Factory dataSpec
             }
 
-            songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
+            // ">" — the entry is usable while its expiry is still in the FUTURE. This
+            // was "<", which paired with the expiry being stored as a bare duration
+            // (see below) meant a cached URL was reused forever, long past the point
+            // where YouTube stopped serving it, and never re-resolved.
+            songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
@@ -271,7 +319,11 @@ constructor(
                 "${playbackData.streamUrl}&range=0-${format.contentLength ?: 10_000_000}"
             }
 
-            songUrlCache[mediaId] = streamUrl to playbackData.streamExpiresInSeconds * 1000L
+            // Absolute deadline, not a bare duration — the read above compares this
+            // against System.currentTimeMillis(). MusicService's resolver already
+            // stored it this way; this one was ~6h past the epoch, i.e. always stale.
+            songUrlCache[mediaId] =
+                streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
             dataSpec.withUri(streamUrl.toUri())
         }
 

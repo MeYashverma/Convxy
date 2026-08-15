@@ -3,12 +3,12 @@
   <h3>Convx is an open-source, Liquid Glass music player for Android</h3>
 
   <p>
-    <a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.5.1">
-      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20CONVX%201.5.1-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convx 1.5.1">
+    <a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.5.2">
+      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20CONVX%201.5.2-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convx 1.5.2">
     </a>
   </p>
   <p>
-    <b><a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.5.1">⬇️ DOWNLOAD CONVX 1.5.1</a></b>
+    <b><a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.5.2">⬇️ DOWNLOAD CONVX 1.5.2</a></b>
     — Latest release. Works on Android 8.0+.
   </p>
 

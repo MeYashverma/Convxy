@@ -132,6 +132,7 @@ import com.convx.music.ui.component.BottomSheetState
 import com.convx.music.ui.component.LocalBottomSheetPageState
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.MediaMetadataListItem
+import com.convx.music.ui.component.thumbnailPx
 import com.convx.music.ui.menu.PlayerMenu
 import com.convx.music.ui.menu.QueueMenu
 import com.convx.music.ui.menu.SelectionMediaMetadataMenu
@@ -825,7 +826,7 @@ fun Queue(
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(mediaMetadata?.thumbnailUrl)
-                            .size(CoilSize(96, 96))
+                            .size(CoilSize(thumbnailPx(48.dp), thumbnailPx(48.dp)))
                             .crossfade(false)
                             .build(),
                         contentDescription = null,

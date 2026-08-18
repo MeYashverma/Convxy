@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import com.convx.music.ui.component.ScrollingWaveformSeekBar
 import com.convx.music.ui.component.rememberPlaybackFraction
+import com.convx.music.ui.component.thumbnailPx
 import com.convx.music.constants.MiniPlayerWaveformKey
 import com.convx.music.constants.PlayerGradientAngleKey
 import com.convx.music.constants.PlayerGradientStopsKey
@@ -451,7 +452,7 @@ private fun NewMiniPlayer(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(metadata.thumbnailUrl)
-                                .size(CoilSize(96, 96))
+                                .size(CoilSize(thumbnailPx(36.dp), thumbnailPx(36.dp)))
                                 .crossfade(false)
                                 .build(),
                             contentDescription = null,
@@ -688,7 +689,7 @@ private fun NewMiniPlayerPlayButton(
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(metadata.thumbnailUrl)
-                            .size(CoilSize(96, 96))
+                            .size(CoilSize(thumbnailPx(innerSize), thumbnailPx(innerSize)))
                             .crossfade(false)
                             .build(),
                         contentDescription = null,
@@ -1065,7 +1066,7 @@ private fun LegacyMiniMediaInfo(
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(mediaMetadata.thumbnailUrl)
-                    .size(CoilSize(96, 96))
+                    .size(CoilSize(thumbnailPx(48.dp), thumbnailPx(48.dp)))
                     .crossfade(false)
                     .build(),
                 contentDescription = null,

@@ -740,6 +740,10 @@ fun AlbumListItem(
                     when {
                         songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
                         songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
+                        // Distinguishing this from STOPPED is what makes a failed
+                        // download visible here instead of the row silently looking
+                        // like it was never downloaded at all.
+                        songs.any { allDownloads[it.id]?.state == Download.STATE_FAILED } -> Download.STATE_FAILED
                         else -> Download.STATE_STOPPED
                     }
                 }
@@ -823,6 +827,10 @@ fun AlbumGridItem(
                     when {
                         songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
                         songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
+                        // Distinguishing this from STOPPED is what makes a failed
+                        // download visible here instead of the row silently looking
+                        // like it was never downloaded at all.
+                        songs.any { allDownloads[it.id]?.state == Download.STATE_FAILED } -> Download.STATE_FAILED
                         else -> Download.STATE_STOPPED
                     }
                 }
@@ -930,6 +938,10 @@ fun PlaylistListItem(
                     when {
                         songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
                         songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
+                        // Distinguishing this from STOPPED is what makes a failed
+                        // download visible here instead of the row silently looking
+                        // like it was never downloaded at all.
+                        songs.any { allDownloads[it.id]?.state == Download.STATE_FAILED } -> Download.STATE_FAILED
                         else -> Download.STATE_STOPPED
                     }
                 }
@@ -1042,6 +1054,10 @@ fun PlaylistGridItem(
                     when {
                         songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
                         songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
+                        // Distinguishing this from STOPPED is what makes a failed
+                        // download visible here instead of the row silently looking
+                        // like it was never downloaded at all.
+                        songs.any { allDownloads[it.id]?.state == Download.STATE_FAILED } -> Download.STATE_FAILED
                         else -> Download.STATE_STOPPED
                     }
                 }
@@ -1943,6 +1959,18 @@ object Icon {
                 strokeWidth = 2.dp,
                 modifier = Modifier
                     .size(16.dp)
+                    .padding(end = 2.dp)
+            )
+            // A failed download used to fall into the same "no icon" bucket as
+            // "never downloaded" — the row just silently reverted to looking like
+            // nothing had happened, with no notification either, so a failure was
+            // completely invisible. Surfacing it distinctly is the whole fix.
+            Download.STATE_FAILED -> Icon(
+                painter = painterResource(R.drawable.error),
+                contentDescription = stringResource(R.string.download_failed),
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .size(18.dp)
                     .padding(end = 2.dp)
             )
             else -> { /* no icon */ }

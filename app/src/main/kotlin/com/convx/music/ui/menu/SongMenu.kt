@@ -717,6 +717,36 @@ fun SongMenu(
                                 }
                             )
                         }
+                        // A failed download used to fall into the same branch as
+                        // "never downloaded" below — same icon, same "Download" label,
+                        // no sign anything had gone wrong. Surfacing it distinctly (and
+                        // letting the same tap re-queue it) is the whole fix.
+                        Download.STATE_FAILED -> {
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.download_failed)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.error),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                onClick = {
+                                    val downloadRequest =
+                                        DownloadRequest
+                                            .Builder(song.id, song.id.toUri())
+                                            .setCustomCacheKey(song.id)
+                                            .setData(song.song.title.toByteArray())
+                                            .build()
+                                    DownloadService.sendAddDownload(
+                                        context,
+                                        ExoDownloadService::class.java,
+                                        downloadRequest,
+                                        false,
+                                    )
+                                }
+                            )
+                        }
                         else -> {
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.action_download)) },

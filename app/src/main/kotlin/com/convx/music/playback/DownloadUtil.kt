@@ -340,6 +340,17 @@ constructor(
             Executor(Runnable::run)
         ).apply {
             maxParallelDownloads = 3
+            // Built to post a notification on a failed download but never actually
+            // registered anywhere — a failure produced no system notification, no
+            // in-app error state (see the STATE_FAILED handling below/in the menus),
+            // nothing. It just silently looked like the download had never happened.
+            addListener(
+                ExoDownloadService.TerminalStateNotificationHelper(
+                    context,
+                    downloadNotificationHelper,
+                    ExoDownloadService.NOTIFICATION_ID + 1,
+                )
+            )
             addListener(
                 object : DownloadManager.Listener {
                     override fun onDownloadChanged(

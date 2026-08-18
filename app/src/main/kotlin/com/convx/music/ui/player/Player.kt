@@ -463,7 +463,19 @@ fun BottomSheetPlayer(
         value = target.audioFormat
         val listener = object : Player.Listener {
             override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
-                if (events.contains(androidx.media3.common.Player.EVENT_TRACKS_CHANGED)) {
+                // A lossless-fallback retry (and other same-item error retries)
+                // re-prepare the SAME media item in place via seekTo()+prepare()
+                // rather than transitioning to a new one — ExoPlayer doesn't
+                // reliably fire EVENT_TRACKS_CHANGED for that even though the
+                // actual resolved format changed underneath (FLAC -> AAC/Opus),
+                // so the badge kept showing the old format while the DB-backed
+                // song-info menu (which re-reads fresh on every resolve) already
+                // had the new one. EVENT_POSITION_DISCONTINUITY reliably fires
+                // for that seekTo(), giving a second, more certain trigger to
+                // re-read the live format.
+                if (events.contains(androidx.media3.common.Player.EVENT_TRACKS_CHANGED) ||
+                    events.contains(androidx.media3.common.Player.EVENT_POSITION_DISCONTINUITY)
+                ) {
                     value = (player as? ExoPlayer)?.audioFormat
                 }
             }

@@ -49,6 +49,7 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.ui.Alignment
 import com.convx.music.constants.InnerTubeCookieKey
+import com.convx.music.constants.PendingPlaylistDeletesKey
 import com.convx.music.utils.dataStore
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -281,8 +282,17 @@ fun PlaylistMenu(
                             delete(playlist.playlist)
                         }
 
+                        val browseId = playlist.playlist.browseId
                         coroutineScope.launch(Dispatchers.IO) {
-                            playlist.playlist.browseId?.let { YouTube.deletePlaylist(it) }
+                            if (browseId == null) return@launch
+                            // Marked pending before the network call: if the delete
+                            // fails, or a library sync races it while it's still in
+                            // flight, the sync sees this browseId as pending and
+                            // won't resurrect the playlist it was just told to remove.
+                            context.dataStore.edit {
+                                it[PendingPlaylistDeletesKey] = (it[PendingPlaylistDeletesKey] ?: emptySet()) + browseId
+                            }
+                            YouTube.deletePlaylist(browseId)
                         }
                     }
                 ) {

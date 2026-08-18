@@ -12,6 +12,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.datastore.preferences.core.edit
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -142,6 +143,7 @@ import com.convx.music.LocalPlayerConnection
 import com.convx.music.LocalSyncUtils
 import com.convx.music.R
 import com.convx.music.constants.DarkModeKey
+import com.convx.music.constants.PendingPlaylistDeletesKey
 import com.convx.music.constants.PlaylistEditLockKey
 import com.convx.music.constants.PlaylistSongSortDescendingKey
 import com.convx.music.constants.PlaylistSongSortType
@@ -195,6 +197,7 @@ import com.convx.music.ui.component.rememberHeroTint
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.theme.HeroTintedContent
 import com.convx.music.ui.utils.backToMain
+import com.convx.music.utils.dataStore
 import com.convx.music.utils.listItemShape
 import com.convx.music.utils.makeTimeString
 import com.convx.music.utils.rememberEnumPreference
@@ -494,8 +497,17 @@ fun LocalPlaylistScreen(
                         database.query {
                             playlist?.let { delete(it.playlist) }
                         }
+                        val browseId = playlist?.playlist?.browseId
                         viewModel.viewModelScope.launch(Dispatchers.IO) {
-                            playlist?.playlist?.browseId?.let { YouTube.deletePlaylist(it) }
+                            if (browseId == null) return@launch
+                            // Marked pending before the network call: if the delete
+                            // fails, or a library sync races it while it's still in
+                            // flight, the sync sees this browseId as pending and
+                            // won't resurrect the playlist it was just told to remove.
+                            context.dataStore.edit {
+                                it[PendingPlaylistDeletesKey] = (it[PendingPlaylistDeletesKey] ?: emptySet()) + browseId
+                            }
+                            YouTube.deletePlaylist(browseId)
                         }
                         navController.popBackStack()
                     }

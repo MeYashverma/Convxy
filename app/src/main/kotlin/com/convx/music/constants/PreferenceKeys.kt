@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -311,6 +312,13 @@ val LastAlbumSyncKey = longPreferencesKey("last_album_sync")
 val LastArtistSyncKey = longPreferencesKey("last_artist_sync")
 val LastPlaylistSyncKey = longPreferencesKey("last_playlist_sync")
 val LastFullSyncKey = longPreferencesKey("last_full_sync")
+
+/** browseIds the user deleted locally whose remote YouTube delete hasn't been
+ *  confirmed gone yet — the playlist sync consults this so it doesn't
+ *  resurrect a playlist the user just deleted while the remote delete is
+ *  still in flight (or retried after a failure), and clears an id once the
+ *  remote library listing no longer includes it. */
+val PendingPlaylistDeletesKey = stringSetPreferencesKey("pending_playlist_deletes")
 
 // Sync cooldown in seconds (30 minutes)
 const val SYNC_COOLDOWN = 30 * 60L

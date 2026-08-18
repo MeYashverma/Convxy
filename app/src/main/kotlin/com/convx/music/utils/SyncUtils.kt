@@ -19,6 +19,7 @@ import com.music.lastfm.LastFM
 import com.convx.music.constants.InnerTubeCookieKey
 import com.convx.music.constants.LastFMUseSendLikes
 import com.convx.music.constants.LastFullSyncKey
+import com.convx.music.constants.PendingPlaylistDeletesKey
 import com.convx.music.constants.SYNC_COOLDOWN
 import com.convx.music.db.MusicDatabase
 import com.convx.music.db.entities.ArtistEntity
@@ -899,6 +900,24 @@ class SyncUtils @Inject constructor(
                         .reversed()
                     val remoteIds = remotePlaylists.map { it.id }.toSet()
 
+                    // Playlists the user deleted locally whose remote delete either
+                    // hasn't landed yet or failed outright — skip re-adding them
+                    // below (the whole reason this bug existed: a local delete with
+                    // no matching local row looked exactly like a new remote
+                    // playlist) and retry the remote delete instead of resurrecting
+                    // them. An id no longer present remotely is confirmed gone and
+                    // stops being tracked.
+                    val pendingDeletes = context.dataStore.get(PendingPlaylistDeletesKey, emptySet())
+                    val stillPendingRemotely = pendingDeletes intersect remoteIds
+                    stillPendingRemotely.forEach { browseId ->
+                        Timber.d("syncSavedPlaylists: retrying delete for pending browseId=$browseId")
+                        YouTube.deletePlaylist(browseId)
+                    }
+                    if (pendingDeletes != stillPendingRemotely) {
+                        context.dataStore.edit { it[PendingPlaylistDeletesKey] = stillPendingRemotely }
+                    }
+                    val remotePlaylistsToSync = remotePlaylists.filterNot { it.id in pendingDeletes }
+
                     val localPlaylists = database.playlistsByNameAsc().first()
                     localPlaylists.filterNot { it.playlist.browseId in remoteIds }
                         .filterNot { it.playlist.browseId == null }
@@ -911,7 +930,7 @@ class SyncUtils @Inject constructor(
                             }
                         }
 
-                    for (playlist in remotePlaylists) {
+                    for (playlist in remotePlaylistsToSync) {
                         try {
                             var playlistEntity = localPlaylists.find { it.playlist.browseId == playlist.id }?.playlist
 

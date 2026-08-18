@@ -91,7 +91,7 @@ fun rememberHeroZoom(maxPull: Dp = 220.dp): HeroZoom {
     val rawPull = remember { mutableFloatStateOf(0f) }
     val viewport = remember { mutableFloatStateOf(0f) }
     val maxPullPx = with(LocalDensity.current) { maxPull.toPx() }
-    val enabled by rememberPreference(IosOverscrollKey, defaultValue = false)
+    val enabled by rememberPreference(IosOverscrollKey, defaultValue = true)
     return remember(rawPull, viewport, maxPullPx, enabled) {
         HeroZoom(rawPull, viewport, maxPullPx, enabled)
     }

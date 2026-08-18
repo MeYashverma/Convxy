@@ -1347,7 +1347,7 @@ class MainActivity : ComponentActivity() {
 
                 // One provider replaces Android's stretch/glow edge effect with the
                 // iOS rubber-band for every scroll container in the app.
-                val iosOverscroll by rememberPreference(IosOverscrollKey, defaultValue = false)
+                val iosOverscroll by rememberPreference(IosOverscrollKey, defaultValue = true)
                 val iosOverscrollFactory = rememberIosOverscrollFactory()
 
                 // Entering/exiting search: hold the nav bar's visual state at the

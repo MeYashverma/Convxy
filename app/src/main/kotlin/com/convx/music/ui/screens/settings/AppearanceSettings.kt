@@ -266,7 +266,7 @@ fun AppearanceSettings(
     )
     val (iosOverscroll, onIosOverscrollChange) = rememberPreference(
         IosOverscrollKey,
-        defaultValue = false
+        defaultValue = true
     )
     val (enableSettingsPopup, onEnableSettingsPopupChange) = rememberPreference(
         EnableSettingsPopupKey,

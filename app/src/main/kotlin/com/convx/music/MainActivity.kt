@@ -146,6 +146,7 @@ import coil3.toBitmap
 import com.convx.music.ui.component.backdrop.backdrops.layerBackdrop
 import com.convx.music.ui.component.backdrop.backdrops.rememberBackdropFreeze
 import com.convx.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.convx.music.ui.component.backdrop.backdrops.rememberNavTransitionFreeze
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
@@ -1285,7 +1286,16 @@ class MainActivity : ComponentActivity() {
                 // any scroll (266 frames/7s at rest). Same trap as LayerBackdrop.contentVersion.
                 val backdropFreeze = rememberBackdropFreeze()
                 val backdropFreezeConnection = backdropFreeze.connection
-                val backdropFrozenProvider = backdropFreeze.frozen
+                // A plain nav transition (slide+fade between two screens) is neither a
+                // scroll nor a fling, so backdropFreeze never caught it — the backdrop
+                // re-recorded every frame of every navigation for the whole ~200ms
+                // transition, at the same per-frame cost already measured and fixed for
+                // scroll. OR'd in here rather than folded into BackdropFreeze itself,
+                // which many other screens also use for their own local backdrops.
+                val navTransitionFreeze = rememberNavTransitionFreeze(currentRoute)
+                val backdropFrozenProvider = {
+                    backdropFreeze.frozen() || navTransitionFreeze.frozen()
+                }
 
                 // One provider replaces Android's stretch/glow edge effect with the
                 // iOS rubber-band for every scroll container in the app.

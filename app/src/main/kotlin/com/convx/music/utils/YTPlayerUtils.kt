@@ -808,20 +808,18 @@ object YTPlayerUtils {
         val isGeoRestricted = BotDetectionMitigator.isGeoError(firstAttempt.exceptionOrNull()?.message)
 
         if (firstAttempt.isFailure && !isGeoRestricted) {
-            val retryResult = if (YouTube.cookie == null) {
-                Timber.tag(TAG).w("Playback failed for guest. Rotating session and retrying...")
-                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for guest", "Triggering bot detection mitigation (rotating guest session)")
-                BotDetectionMitigator.rotateGuestSession()
-                resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
-            } else {
-                // Signed-in users have no guest identity to rotate, but the same
-                // failure class (e.g. a stream response missing expiry data) can
-                // still be transient — a bare retry gives them the same one
-                // extra chance a guest already gets, instead of none at all.
-                Timber.tag(TAG).w("Playback failed for signed-in user. Retrying once...")
-                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for signed-in user", "Retrying once (no session to rotate)")
-                resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
-            }
+            // visitorData rides in every request's client context independent of
+            // login — cookie/dataSyncId are separate fields — so a flagged
+            // visitorData can trigger bot detection on a signed-in session just
+            // as it does for a guest. A bare same-identity retry reproduces the
+            // exact same rejection; rotating visitorData actually changes
+            // something and is what gives a signed-in user a real chance too,
+            // without touching their login cookie or dataSyncId.
+            val label = if (YouTube.cookie == null) "guest" else "signed-in user"
+            Timber.tag(TAG).w("Playback failed for $label. Rotating session and retrying...")
+            PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for $label", "Triggering bot detection mitigation (rotating guest session)")
+            BotDetectionMitigator.rotateGuestSession()
+            val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
             retryResult.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
             return retryResult
         }

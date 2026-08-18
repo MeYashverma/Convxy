@@ -45,6 +45,14 @@ private const val FlingBounceScale = 0.4f
 private const val MaxBounceVelocity = 4000f
 
 /**
+ * Critically-damped spring stiffness for the release bounce-back, equivalent to
+ * a ~0.4s natural period (stiffness = (2*pi/period)^2) -- matches real UIScrollView
+ * bounce timing (~300-500ms to settle) far more closely than a generic Compose
+ * stiffness preset does.
+ */
+private const val BounceSpringStiffness = 247f
+
+/**
  * UIScrollView's rubber band curve: `(1 - 1/(d*c/dim + 1)) * dim/c`.
  *
  * [rawDistance] is how far the finger has actually travelled past the edge; the
@@ -152,6 +160,14 @@ class IosOverscrollEffect : OverscrollEffect {
         // already-reached edge) seeds the spring, so it overshoots into a real
         // bounce instead of just easing a static stretch back to rest. At rest
         // the rubber band is 1:1, so fling velocity needs no curve conversion.
+        //
+        // Stiffness: Spring.StiffnessMedium (1500) settles roughly 2.5x FASTER
+        // than real UIScrollView bounce timing -- checked against Miuix's own
+        // overscroll spring (critically damped too, but tuned to a 0.4s natural
+        // period, equivalent stiffness ~247) and against the ~300-500ms a real
+        // iOS bounce actually takes. A too-stiff critically-damped spring doesn't
+        // wobble, but it does snap back hard and fast, which read as "less
+        // smooth" than a slower settle in an otherwise-identical curve.
         animate(
             initialValue = rawPull.floatValue,
             targetValue = 0f,
@@ -159,7 +175,7 @@ class IosOverscrollEffect : OverscrollEffect {
                 .coerceIn(-MaxBounceVelocity, MaxBounceVelocity),
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMedium,
+                stiffness = BounceSpringStiffness,
             ),
         ) { value, _ -> rawPull.floatValue = value }
     }

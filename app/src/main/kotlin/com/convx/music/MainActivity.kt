@@ -261,6 +261,10 @@ import com.convx.music.ui.component.rememberBottomSheetState
 import com.convx.music.ui.component.shimmer.ShimmerTheme
 import com.convx.music.ui.menu.YouTubeSongMenu
 import com.convx.music.ui.player.BottomSheetPlayer
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.rememberPagerState
+import com.convx.music.ui.screens.MainTabsRoute
+import com.convx.music.ui.screens.MainTabsScreens
 import com.convx.music.ui.screens.Screens
 import com.convx.music.ui.screens.SettingDialoge
 import com.convx.music.ui.screens.navigationBuilder
@@ -508,7 +512,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -916,6 +920,25 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Home/Search/Library/ListenTogether/Settings render as pages of one
+                // pager (see MainTabsPager.kt) instead of five separate NavHost
+                // destinations, so switching between them is a pager scroll rather
+                // than a destination swap -- no AnimatedContent transition, no
+                // backdrop re-record. The initial page still honors a launch
+                // shortcut / the user's default-open-tab preference exactly like the
+                // old startDestination selection did.
+                val initialMainTabIndex = remember {
+                    val screen = when (tabOpenedFromShortcut ?: defaultOpenTab) {
+                        NavigationTab.HOME -> Screens.Home
+                        NavigationTab.SEARCH -> Screens.Search
+                        NavigationTab.LIBRARY -> Screens.Library
+                    }
+                    MainTabsScreens.indexOf(screen).coerceAtLeast(0)
+                }
+                val mainTabsPagerState = rememberPagerState(initialPage = initialMainTabIndex) {
+                    MainTabsScreens.size
+                }
+
                 val topLevelScreens = remember {
                     listOf(
                         Screens.Home.route,
@@ -978,14 +1001,31 @@ class MainActivity : ComponentActivity() {
                     Timber.tag("Navigation").d("route -> $currentRoute")
                 }
 
+                // The real NavHost destination while on any of the pager tabs is
+                // always MainTabsRoute now -- every "which tab is this" check below
+                // (search-mode detection, top-bar visibility, the nav bar's selected
+                // puck) needs the tab the pager is actually showing, not that shared
+                // wrapper route. NavTransitionFreeze deliberately keeps keying off the
+                // raw currentRoute above -- it should only fire for a real NavHost
+                // transition, and pager swipes no longer are one.
+                val effectiveRoute by remember {
+                    derivedStateOf {
+                        if (currentRoute == MainTabsRoute) {
+                            MainTabsScreens.getOrNull(mainTabsPagerState.currentPage)?.route ?: currentRoute
+                        } else {
+                            currentRoute
+                        }
+                    }
+                }
+
                 val inSearchScreen by remember {
                     derivedStateOf {
                         currentRoute?.startsWith("search/") == true ||
-                            currentRoute == Screens.Search.route
+                            effectiveRoute == Screens.Search.route
                     }
                 }
                 val inSearchInputScreen by remember {
-                    derivedStateOf { currentRoute == Screens.Search.route }
+                    derivedStateOf { effectiveRoute == Screens.Search.route }
                 }
                 LaunchedEffect(inSearchScreen) {
                     if (!inSearchScreen) searchKeyboardActive = false
@@ -1124,8 +1164,14 @@ class MainActivity : ComponentActivity() {
                 // or while scrolling back up â€” see TopBarChromeVisibility.
                 val topBarChrome = remember { TopBarChromeVisibility() }
 
-                // Navigation tracking
-                LaunchedEffect(navBackStackEntry) {
+                // Navigation tracking. Keyed on effectiveRoute too, not just
+                // navBackStackEntry -- a pager tab switch (Home/Search/Library/
+                // ListenTogether/Settings) no longer changes the real back stack
+                // entry at all, so navBackStackEntry alone would miss it entirely.
+                // Still keyed on navBackStackEntry as well: resubmitting a new
+                // search query pushes a new entry on the SAME destination template
+                // ("search/{query}"), which would not otherwise register as a change.
+                LaunchedEffect(navBackStackEntry, effectiveRoute) {
                     // Only the results route (search/{query}) carries a query arg;
                     // the search_input landing does not â€” guard against a null arg
                     // so tapping search never NPEs.
@@ -1144,12 +1190,12 @@ class MainActivity : ComponentActivity() {
                                 TextRange(searchQuery.length)
                             )
                         )
-                    } else if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
+                    } else if (navigationItems.fastAny { it.route == effectiveRoute }) {
                         onQueryChange(TextFieldValue())
                     }
 
                     // Reset scroll behavior for main navigation items
-                    if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
+                    if (navigationItems.fastAny { it.route == effectiveRoute }) {
                         if (navigationItems.fastAny { it.route == previousTab }) {
                             topAppBarScrollBehavior.state.resetHeightOffset()
                         }
@@ -1158,7 +1204,7 @@ class MainActivity : ComponentActivity() {
                     topAppBarScrollBehavior.state.resetHeightOffset()
 
                     // Track previous tab for animations
-                    navController.currentBackStackEntry?.destination?.route?.let {
+                    effectiveRoute?.let {
                         setPreviousTab(it)
                     }
                 }
@@ -1199,13 +1245,15 @@ class MainActivity : ComponentActivity() {
 
                 var shouldShowTopBar by rememberSaveable { mutableStateOf(false) }
 
-                LaunchedEffect(navBackStackEntry, listenTogetherInTopBar, showRail) {
-                    val currentRoute = navBackStackEntry?.destination?.route
-                    val isListenTogetherScreen = currentRoute == Screens.ListenTogether.route || 
+                // Keyed on effectiveRoute (not navBackStackEntry) so this reacts to a
+                // pager tab switch too -- the real NavHost entry no longer changes
+                // when switching between Home/Search/Library/ListenTogether/Settings.
+                LaunchedEffect(effectiveRoute, listenTogetherInTopBar, showRail) {
+                    val isListenTogetherScreen = effectiveRoute == Screens.ListenTogether.route ||
                         currentRoute == "listen_together_from_topbar"
                     shouldShowTopBar = !showRail &&
-                        currentRoute in topLevelScreens &&
-                        currentRoute != "settings" &&
+                        effectiveRoute in topLevelScreens &&
+                        effectiveRoute != "settings" &&
                         !(isListenTogetherScreen && listenTogetherInTopBar)
                 }
 
@@ -1238,8 +1286,8 @@ class MainActivity : ComponentActivity() {
                     onDispose { removeOnNewIntentListener(listener) }
                 }
 
-                val currentTitleRes = remember(navBackStackEntry) {
-                    when (navBackStackEntry?.destination?.route) {
+                val currentTitleRes = remember(effectiveRoute) {
+                    when (effectiveRoute) {
                         Screens.Home.route -> R.string.music
                         Screens.Search.route -> R.string.search
                         Screens.Library.route -> R.string.filter_library
@@ -1476,8 +1524,7 @@ class MainActivity : ComponentActivity() {
                                         title = {
                                             // Home shows the wordmark; every other tab keeps
                                             // its own title.
-                                            val isHome =
-                                                navBackStackEntry?.destination?.route == Screens.Home.route
+                                            val isHome = effectiveRoute == Screens.Home.route
                                             Text(
                                                 text = if (isHome) {
                                                     BrandName
@@ -1577,7 +1624,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         bottomBar = {
-                            val onNavItemClick: (Screens, Boolean) -> Unit = remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
+                            val onNavItemClick: (Screens, Boolean) -> Unit = remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState, mainTabsPagerState) {
                                 var lastNavRoute: String? = null
                                 var lastNavTimeMs = 0L
                                 { screen: Screens, isSelected: Boolean ->
@@ -1599,7 +1646,11 @@ class MainActivity : ComponentActivity() {
                                         // meant a tab tap within the debounce window was silently
                                         // swallowed and you stayed on the previous screen, which
                                         // is why Home sometimes did nothing.
-                                        if (navController.currentDestination?.route != lastNavRoute) {
+                                        // effectiveRoute (not the raw destination route): every
+                                        // pager tab shares the same real MainTabsRoute destination,
+                                        // so the raw route alone can no longer tell a tab tap
+                                        // apart from a real destination change.
+                                        if (effectiveRoute != lastNavRoute) {
                                             lastNavRoute = null
                                         }
                                         // Guards against a double-fire from the floating tab bar's
@@ -1608,16 +1659,31 @@ class MainActivity : ComponentActivity() {
                                         if (screen.route != lastNavRoute || now - lastNavTimeMs >= NavDebounceMs) {
                                             lastNavRoute = screen.route
                                             lastNavTimeMs = now
-                                            navController.navigate(screen.route) {
-                                                // Preserve each tab's own back stack across tab
-                                                // switches (multi-back-stack): drilling into a
-                                                // detail on one tab, switching away and back
-                                                // restores where you were instead of the tab root.
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    saveState = true
+                                            val pageIndex = MainTabsScreens.indexOf(screen)
+                                            if (pageIndex != -1) {
+                                                // Home/Search/Library/ListenTogether/Settings are
+                                                // pager pages now (MainTabsPager.kt) -- switching
+                                                // between them is a pager scroll, not a navigate()
+                                                // call. Pop back to the pager first if we're
+                                                // drilled into a detail/settings sub-page.
+                                                if (navController.currentDestination?.route != MainTabsRoute) {
+                                                    navController.popBackStack(MainTabsRoute, inclusive = false)
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
+                                                coroutineScope.launch {
+                                                    mainTabsPagerState.animateScrollToPage(pageIndex)
+                                                }
+                                            } else {
+                                                navController.navigate(screen.route) {
+                                                    // Preserve each tab's own back stack across tab
+                                                    // switches (multi-back-stack): drilling into a
+                                                    // detail on one tab, switching away and back
+                                                    // restores where you were instead of the tab root.
+                                                    popUpTo(navController.graph.startDestinationId) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
                                             }
                                         }
                                     }
@@ -1685,7 +1751,7 @@ class MainActivity : ComponentActivity() {
                                     if (useFloatingNavBar) {
                                         AppFloatingNavBar(
                                             navigationItems = floatingNavigationItems,
-                                            currentRoute = currentRoute,
+                                            currentRoute = effectiveRoute,
                                             onItemClick = onNavItemClick,
                                             scrollConnection = floatingNavBarScrollConnection,
                                             pureBlack = pureBlack,
@@ -1728,7 +1794,7 @@ class MainActivity : ComponentActivity() {
                                         AppNavigationBar(
                                             glassEnabled = true,
                                             navigationItems = navigationItems,
-                                            currentRoute = currentRoute,
+                                            currentRoute = effectiveRoute,
                                             onItemClick = onNavItemClick,
                                             pureBlack = pureBlack,
                                             slimNav = slimNav,
@@ -1786,7 +1852,7 @@ class MainActivity : ComponentActivity() {
                             .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                     ) {
                         Box(Modifier.fillMaxSize()) {
-                            val onRailItemClick: (Screens, Boolean) -> Unit = remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
+                            val onRailItemClick: (Screens, Boolean) -> Unit = remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState, mainTabsPagerState) {
                                 var lastNavRoute: String? = null
                                 var lastNavTimeMs = 0L
                                 { screen: Screens, isSelected: Boolean ->
@@ -1804,16 +1870,31 @@ class MainActivity : ComponentActivity() {
                                         if (screen.route != lastNavRoute || now - lastNavTimeMs >= NavDebounceMs) {
                                             lastNavRoute = screen.route
                                             lastNavTimeMs = now
-                                            navController.navigate(screen.route) {
-                                                // Preserve each tab's own back stack across tab
-                                                // switches (multi-back-stack): drilling into a
-                                                // detail on one tab, switching away and back
-                                                // restores where you were instead of the tab root.
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    saveState = true
+                                            val pageIndex = MainTabsScreens.indexOf(screen)
+                                            if (pageIndex != -1) {
+                                                // Home/Search/Library/ListenTogether/Settings are
+                                                // pager pages now (MainTabsPager.kt) -- switching
+                                                // between them is a pager scroll, not a navigate()
+                                                // call. Pop back to the pager first if we're
+                                                // drilled into a detail/settings sub-page.
+                                                if (navController.currentDestination?.route != MainTabsRoute) {
+                                                    navController.popBackStack(MainTabsRoute, inclusive = false)
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
+                                                coroutineScope.launch {
+                                                    mainTabsPagerState.animateScrollToPage(pageIndex)
+                                                }
+                                            } else {
+                                                navController.navigate(screen.route) {
+                                                    // Preserve each tab's own back stack across tab
+                                                    // switches (multi-back-stack): drilling into a
+                                                    // detail on one tab, switching away and back
+                                                    // restores where you were instead of the tab root.
+                                                    popUpTo(navController.graph.startDestinationId) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
                                             }
                                         }
                                     }
@@ -1832,11 +1913,9 @@ class MainActivity : ComponentActivity() {
                                 // NavHost with animations (Material 3 Expressive style)
                                 NavHost(
                                     navController = navController,
-                                    startDestination = when (tabOpenedFromShortcut ?: defaultOpenTab) {
-                                        NavigationTab.HOME -> Screens.Home
-                                        NavigationTab.LIBRARY -> Screens.Library
-                                        else -> Screens.Home
-                                    }.route,
+                                    // Always the pager wrapper now -- which tab it opens on is
+                                    // decided by mainTabsPagerState's initialPage instead.
+                                    startDestination = MainTabsRoute,
                                     // Enter Transition - smoother with smaller offset and longer duration
                                     enterTransition = {
                                         val currentRouteIndex = navigationItems.indexOfFirst {
@@ -1966,7 +2045,8 @@ class MainActivity : ComponentActivity() {
                                         navController = navController,
                                         scrollBehavior = topAppBarScrollBehavior,
                                         activity = this@MainActivity,
-                                        snackbarHostState = snackbarHostState
+                                        snackbarHostState = snackbarHostState,
+                                        mainTabsPagerState = mainTabsPagerState,
                                     )
                                 }
                             }
@@ -2082,7 +2162,7 @@ class MainActivity : ComponentActivity() {
 
                                 AppFloatingSideBar(
                                     navigationItems = navigationItems,
-                                    currentRoute = currentRoute,
+                                    currentRoute = effectiveRoute,
                                     onItemClick = onRailItemClick,
                                     sections = sidebarSections,
                                     pureBlack = pureBlack,

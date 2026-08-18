@@ -6,31 +6,27 @@
 package com.convx.music.ui.screens
 
 import android.app.Activity
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.navArgument
-import com.convx.music.constants.DarkModeKey
-import com.convx.music.constants.PureBlackKey
 import com.convx.music.ui.screens.artist.ArtistAlbumsScreen
 import com.convx.music.ui.screens.artist.ArtistItemsScreen
 import com.convx.music.ui.screens.artist.ArtistScreen
 import com.convx.music.ui.screens.artist.ArtistSongsScreen
 import com.convx.music.ui.screens.equalizer.EqScreen
-import com.convx.music.ui.screens.library.LibraryScreen
 import com.convx.music.ui.screens.library.LocalFolderScreen
 import com.convx.music.ui.screens.library.LocalMusicScreen
 import com.convx.music.ui.screens.playlist.AutoPlaylistScreen
@@ -39,7 +35,6 @@ import com.convx.music.ui.screens.playlist.LocalPlaylistScreen
 import com.convx.music.ui.screens.playlist.OnlinePlaylistScreen
 import com.convx.music.ui.screens.playlist.TopPlaylistScreen
 import com.convx.music.ui.screens.search.OnlineSearchResult
-import com.convx.music.ui.screens.search.SearchScreen
 import com.convx.music.ui.screens.settings.AboutScreen
 import com.convx.music.ui.screens.settings.AppearanceSettings
 import com.convx.music.ui.screens.settings.CanvasSelection
@@ -55,14 +50,12 @@ import com.convx.music.ui.screens.settings.SpotifyScreen
 import com.convx.music.viewmodels.SpotifyImportViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.convx.music.ui.screens.settings.ContentSettings
-import com.convx.music.ui.screens.settings.DarkMode
 import com.convx.music.ui.screens.settings.DiscordLoginScreen
 import com.convx.music.ui.screens.settings.PlayerSettings
 import com.convx.music.ui.screens.settings.JioSettings
 import com.convx.music.ui.screens.settings.LocalFoldersSettingsScreen
 import com.convx.music.ui.screens.settings.PrivacySettings
 import com.convx.music.ui.screens.settings.RomanizationSettings
-import com.convx.music.ui.screens.settings.SettingsScreen
 import com.convx.music.ui.screens.settings.AccountSettingsScreen
 import com.convx.music.ui.screens.settings.StorageSettings
 import com.convx.music.ui.screens.settings.ThemeScreen
@@ -79,45 +72,31 @@ import com.convx.music.ui.screens.settings.ModuleDetailScreen
 import com.convx.music.ui.screens.settings.UpdateSettings
 import com.convx.music.ui.screens.wrapped.WrappedScreen
 import com.convx.music.vivimusic.updater.UpdateScreen
-import com.convx.music.utils.rememberEnumPreference
-import com.convx.music.utils.rememberPreference
 import com.convx.music.vivimusic.changelog.ChangelogScreen
 import com.convx.music.vivimusic.commitscreen.CommitScreen
 import com.convx.music.ui.screens.equalizer.axion.AxionEqScreen
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
     scrollBehavior: TopAppBarScrollBehavior,
     activity: Activity,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    mainTabsPagerState: PagerState,
 ) {
-    composable(Screens.Home.route) {
-        HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
-    }
-
-    composable(Screens.Search.route) {
-        val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
-        val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
-        val isSystemInDarkTheme = isSystemInDarkTheme()
-        val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
-            if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
-        }
-        val pureBlack = remember(pureBlackEnabled, useDarkTheme) {
-            pureBlackEnabled && useDarkTheme
-        }
-        SearchScreen(
+    // Home/Search/Library/ListenTogether/Settings all live inside this one
+    // destination now (see MainTabsPager.kt) instead of five separate NavHost
+    // destinations -- switching between them is a pager scroll, not a
+    // destination swap. Everything below this route is completely unchanged:
+    // drilling into a detail screen from any tab still pushes onto this same
+    // outer NavHost exactly as it always did.
+    composable(MainTabsRoute) {
+        MainTabsPager(
+            pagerState = mainTabsPagerState,
             navController = navController,
-            pureBlack = pureBlack
+            scrollBehavior = scrollBehavior,
+            snackbarHostState = snackbarHostState,
         )
-    }
-
-    composable(Screens.Library.route) {
-        LibraryScreen(navController)
-    }
-
-    composable(Screens.ListenTogether.route) {
-        ListenTogetherScreen(navController, showTopBar = false)
     }
 
     composable(
@@ -349,10 +328,6 @@ fun NavGraphBuilder.navigationBuilder(
         ),
     ) {
         YouTubeBrowseScreen(navController)
-    }
-
-    composable("settings") {
-        SettingsScreen(navController, scrollBehavior)
     }
 
     composable("settings/update") {

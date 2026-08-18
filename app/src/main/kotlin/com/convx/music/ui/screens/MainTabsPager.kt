@@ -50,13 +50,22 @@ const val MainTabsRoute = "main_tabs"
  * search results) from any of them is completely unchanged: it still goes through
  * the outer NavHost exactly as before.
  *
- * beyondViewportPageCount keeps every page composed at once rather than tearing one
- * down and rebuilding it on tab switch -- deliberately not adjacent-only, because
- * Convx's tab bar (unlike a plain swipe pager) promises a tab remembers exactly
- * where you left it even when you jump straight to a non-adjacent tab, not just a
- * neighboring one. userScrollEnabled is off: this bar has always been tap-only, and
- * several screens already use horizontal swipe for their own gestures (hero
- * carousels, swipe-to-remove) that a drag-to-switch-tabs pager would fight with.
+ * beyondViewportPageCount is deliberately left at its default (0) -- an earlier
+ * version set it to keep all five pages composed at once, on the theory that the
+ * tab bar's "remembers exactly where you left a tab" promise needed it. It didn't:
+ * the OLD NavHost-based multi-back-stack never kept multiple tabs' compositions
+ * alive either -- saveState/restoreState only preserves navigation-level state
+ * (SavedStateHandle, ViewModelStore), while the actual composition is torn down on
+ * every pop and rebuilt from rememberSaveable/ViewModel state on return, same as
+ * this pager does at 0. Keeping all five alive instead meant Home's carousels,
+ * Library's own internal 5-page sub-pager, and everything else were all composing,
+ * recomposing, and (for any glass surface) re-recording their backdrop
+ * simultaneously all the time regardless of which tab was visible -- measured as
+ * severe, continuous lag, not just a slower switch.
+ *
+ * userScrollEnabled is off: this bar has always been tap-only, and several screens
+ * already use horizontal swipe for their own gestures (hero carousels,
+ * swipe-to-remove) that a drag-to-switch-tabs pager would fight with.
  * animateScrollToPage still plays the same smooth slide on a tab tap either way.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -71,7 +80,6 @@ fun MainTabsPager(
     HorizontalPager(
         state = pagerState,
         modifier = modifier.fillMaxSize(),
-        beyondViewportPageCount = MainTabsScreens.size,
         userScrollEnabled = false,
     ) { page ->
         when (MainTabsScreens.getOrNull(page)) {

@@ -1354,31 +1354,49 @@ class MainActivity : ComponentActivity() {
                 // target (search-expanded / normal) for one animation beat before the
                 // actual navigation call, so the shrink/expand-to-pill animation plays
                 // out first instead of racing the route's own screen transition.
-                val enterSearch: () -> Unit = remember(navController, coroutineScope) {
+                // Which pager page to return to on exitSearch -- captured at the
+                // moment search is entered, since search_input is a pager page now
+                // and no longer leaves a real back-stack entry to pop for "the tab I
+                // was on before search".
+                var tabIndexBeforeSearch by remember { mutableIntStateOf(0) }
+                val enterSearch: () -> Unit = remember(navController, coroutineScope, mainTabsPagerState) {
                     {
+                        tabIndexBeforeSearch = mainTabsPagerState.currentPage
                         searchVisualOverride = true
                         coroutineScope.launch {
                             delay(SearchNavTransitionDelayMs)
-                            navController.navigate(Screens.Search.route) { launchSingleTop = true }
+                            // search_input is a MainTabsPager page now, not its own
+                            // NavHost destination -- navigate(Screens.Search.route)
+                            // here crashed (IllegalArgumentException: no such
+                            // destination) since that route was removed from the
+                            // graph. Pop back to the pager (if drilled into a detail
+                            // screen) and scroll to the Search page instead.
+                            if (navController.currentDestination?.route != MainTabsRoute) {
+                                navController.popBackStack(MainTabsRoute, inclusive = false)
+                            }
+                            val searchIndex = MainTabsScreens.indexOf(Screens.Search)
+                            if (searchIndex != -1) {
+                                mainTabsPagerState.animateScrollToPage(searchIndex)
+                            }
                             searchVisualOverride = null
                         }
                     }
                 }
-                val exitSearch: () -> Unit = remember(navController, coroutineScope) {
+                val exitSearch: () -> Unit = remember(navController, coroutineScope, mainTabsPagerState) {
                     {
                         searchKeyboardActive = false
                         searchVisualOverride = false
                         coroutineScope.launch {
                             delay(SearchNavTransitionDelayMs)
-                            // Pop the WHOLE search flow, not a single level. Searching
-                            // pushes search_input and then search/{query} on top of it,
-                            // so navigateUp() from a results screen landed on the hint
-                            // screen â€” which renders nothing once the keyboard is closed,
-                            // and read as "the screen I came from lost all its content".
-                            // Cancelling search must return to whatever preceded it.
-                            if (!navController.popBackStack(Screens.Search.route, inclusive = true)) {
+                            // search/{query} (the results screen) is still a real
+                            // pushed NavHost destination -- leave it the normal way.
+                            // search_input itself is just a pager page now, so there
+                            // is nothing to pop for it; scroll back to whichever tab
+                            // was active before search instead.
+                            if (navController.currentDestination?.route?.startsWith("search/") == true) {
                                 navController.navigateUp()
                             }
+                            mainTabsPagerState.animateScrollToPage(tabIndexBeforeSearch)
                             searchVisualOverride = null
                         }
                     }
@@ -1403,10 +1421,16 @@ class MainActivity : ComponentActivity() {
                     onTapBar = {
                         if (inSearchScreen && !inSearchInputScreen) {
                             // Tapping the bar again from a results screen (search/{query})
-                            // pops back to the hint screen (search_input) and opens the
-                            // keyboard there instead â€” a normal, working search, rather
-                            // than trying to resubmit in place.
-                            navController.popBackStack(Screens.Search.route, inclusive = false)
+                            // pops back to the pager's Search page and opens the keyboard
+                            // there instead â€” a normal, working search, rather than
+                            // trying to resubmit in place. search_input is a pager page
+                            // now, not a stacked destination above search/{query} (see
+                            // enterSearch/exitSearch), so this just leaves the results
+                            // screen and lands back on whatever page the pager already
+                            // has -- Search, since nothing else moved it.
+                            if (navController.currentDestination?.route != MainTabsRoute) {
+                                navController.popBackStack(MainTabsRoute, inclusive = false)
+                            }
                         }
                         searchKeyboardActive = true
                     },
@@ -1556,16 +1580,19 @@ class MainActivity : ComponentActivity() {
                                                   if (enableSettingsPopup) {
                                                       showSettingDialoge = true
                                                   } else {
-                                                      // Same multi-back-stack pattern as onNavItemClick below:
-                                                      // without it this push skips saveState/restoreState and
-                                                      // can dead-end (back stack doesn't reconcile with the
-                                                      // tab bar's own popUpTo group).
-                                                      navController.navigate("settings") {
-                                                          popUpTo(navController.graph.startDestinationId) {
-                                                              saveState = true
+                                                      // Settings is a MainTabsPager page now, not its
+                                                      // own NavHost destination -- navigate("settings")
+                                                      // here crashed the same way enterSearch's did.
+                                                      // Pop back to the pager (if drilled into a detail
+                                                      // screen) and scroll to the Settings page instead.
+                                                      if (navController.currentDestination?.route != MainTabsRoute) {
+                                                          navController.popBackStack(MainTabsRoute, inclusive = false)
+                                                      }
+                                                      val settingsIndex = MainTabsScreens.indexOf(Screens.Settings)
+                                                      if (settingsIndex != -1) {
+                                                          coroutineScope.launch {
+                                                              mainTabsPagerState.animateScrollToPage(settingsIndex)
                                                           }
-                                                          launchSingleTop = true
-                                                          restoreState = true
                                                       }
                                                   }
                                               }) {
@@ -2176,7 +2203,17 @@ class MainActivity : ComponentActivity() {
                                                 if (enableSettingsPopup) {
                                                     showSettingDialoge = true
                                                 } else {
-                                                    navController.navigate("settings")
+                                                    // Settings is a MainTabsPager page now -- see
+                                                    // the matching fix on the phone settings icon.
+                                                    if (navController.currentDestination?.route != MainTabsRoute) {
+                                                        navController.popBackStack(MainTabsRoute, inclusive = false)
+                                                    }
+                                                    val settingsIndex = MainTabsScreens.indexOf(Screens.Settings)
+                                                    if (settingsIndex != -1) {
+                                                        coroutineScope.launch {
+                                                            mainTabsPagerState.animateScrollToPage(settingsIndex)
+                                                        }
+                                                    }
                                                 }
                                             },
                                         )
@@ -2310,7 +2347,22 @@ class MainActivity : ComponentActivity() {
                             onDismissRequest = { showSettingDialoge = false },
                             onNavigate = { route ->
                                 showSettingDialoge = false
-                                navController.navigate(route)
+                                if (route == MainTabsRoute || MainTabsScreens.any { it.route == route }) {
+                                    // "settings" (bare) is the one MainTabsScreens route
+                                    // this dialog can send -- it's a pager page now, not
+                                    // its own NavHost destination.
+                                    if (navController.currentDestination?.route != MainTabsRoute) {
+                                        navController.popBackStack(MainTabsRoute, inclusive = false)
+                                    }
+                                    val index = MainTabsScreens.indexOfFirst { it.route == route }
+                                    if (index != -1) {
+                                        coroutineScope.launch {
+                                            mainTabsPagerState.animateScrollToPage(index)
+                                        }
+                                    }
+                                } else {
+                                    navController.navigate(route)
+                                }
                             },
                             homeViewModel = homeViewModel
                         )

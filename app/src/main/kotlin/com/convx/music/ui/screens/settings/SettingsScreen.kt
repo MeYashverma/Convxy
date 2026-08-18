@@ -56,7 +56,6 @@ import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.Material3SettingsGroup
 import com.convx.music.ui.component.Material3SettingsItem
-import com.convx.music.ui.screens.Screens
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.utils.backToMain
@@ -175,7 +174,13 @@ fun SettingsScreen(
                     icon = painterResource(R.drawable.group),
                     iconTint = Color(0xFF5856D6),
                     title = stringResource(R.string.listen_together),
-                    onClick = { navController.navigate(Screens.ListenTogether.route) },
+                    // Screens.ListenTogether.route ("listen_together") is a
+                    // MainTabsPager page now, not its own NavHost destination, and
+                    // this screen has no access to the pager state to scroll it.
+                    // "listen_together_from_topbar" is the same screen (showTopBar =
+                    // true) as a real, always-registered destination -- exactly what
+                    // the top bar's own Listen Together entry point already uses.
+                    onClick = { navController.navigate("listen_together_from_topbar") },
                 )
             }
         }

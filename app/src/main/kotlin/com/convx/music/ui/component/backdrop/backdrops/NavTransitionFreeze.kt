@@ -4,13 +4,18 @@
  */
 package com.convx.music.ui.component.backdrop.backdrops
 
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.flow.collectLatest
 
-// Matches the slideIn/fadeIn tween(200) duration every NavHost transition in
-// MainActivity uses, plus a buffer for frame-delivery slop.
-private const val NavTransitionFreezeWindowNs = 300_000_000L
+// Covers Motion.PushMillis (350), the longest NavHost transition in MainActivity,
+// plus a buffer for frame-delivery slop. Must not be shorter than the transition:
+// thawing mid-slide puts the whole-tree re-record back exactly where it hurts.
+private const val NavTransitionFreezeWindowNs = 450_000_000L
 
 /**
  * Time-boxed freeze for the app-level [layerBackdrop] across a screen-to-screen
@@ -44,6 +49,37 @@ fun rememberNavTransitionFreeze(currentRoute: String?): NavTransitionFreeze {
     val freeze = remember { NavTransitionFreeze() }
     LaunchedEffect(currentRoute) {
         freeze.markTransitionStarted()
+    }
+    return freeze
+}
+
+/**
+ * Same freeze, driven by a [PagerState] settling instead of a route change.
+ *
+ * The main tabs are pages of one HorizontalPager, not NavHost destinations, so a tab
+ * switch changes no route -- [rememberNavTransitionFreeze] never fired for it. Nor did
+ * [BackdropFreeze]: `animateScrollToPage` mutates the pager state directly and does not
+ * dispatch nested scroll the way a gesture or fling does, so the scroll-driven freeze
+ * saw nothing either. The app backdrop therefore re-recorded the entire tree on every
+ * frame of every tab switch -- the same per-frame cost already measured and fixed for
+ * scroll (47ms of layer.record vs 1.9ms), on the single most-used interaction in the app.
+ *
+ * Re-marks every frame while the pager is in motion rather than once at the start,
+ * because a tab animation outlasts the fixed freeze window and would otherwise thaw
+ * mid-slide. [isScrollInProgress] is read in a coroutine, never inside `frozen` --
+ * a snapshot read there runs in the draw phase and re-invalidates every frame forever.
+ */
+@Composable
+fun rememberPagerTransitionFreeze(pagerState: PagerState): NavTransitionFreeze {
+    val freeze = remember { NavTransitionFreeze() }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.isScrollInProgress }
+            .collectLatest { scrolling ->
+                while (scrolling) {
+                    freeze.markTransitionStarted()
+                    withFrameNanos { }
+                }
+            }
     }
     return freeze
 }

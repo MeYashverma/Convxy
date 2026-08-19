@@ -368,7 +368,7 @@ fun OnlineSearchResult(
                         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heroPullZoom(heroZoom, onRefresh = viewModel::refresh)
+                            .heroPullZoom(heroZoom)
                     ) {
                         if (searchFilter == null) {
                             searchSummary?.summaries?.forEach { summary ->

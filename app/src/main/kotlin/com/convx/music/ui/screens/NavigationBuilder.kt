@@ -7,21 +7,36 @@ package com.convx.music.ui.screens
 
 import android.app.Activity
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import com.convx.music.ui.utils.Motion
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.navArgument
+import com.convx.music.ui.utils.LocalNavAnimatedVisibilityScope
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Modifier
+import com.convx.music.ui.utils.morphContainer
+import com.convx.music.ui.utils.hasMorphSource
+import com.convx.music.ui.utils.morphArtworkId
+import com.convx.music.ui.screens.settings.HomeFeedOrderScreen
 import com.convx.music.ui.screens.artist.ArtistAlbumsScreen
 import com.convx.music.ui.screens.artist.ArtistItemsScreen
 import com.convx.music.ui.screens.artist.ArtistScreen
@@ -29,6 +44,8 @@ import com.convx.music.ui.screens.artist.ArtistSongsScreen
 import com.convx.music.ui.screens.equalizer.EqScreen
 import com.convx.music.ui.screens.library.LocalFolderScreen
 import com.convx.music.ui.screens.library.LocalMusicScreen
+import com.convx.music.ui.screens.library.LibraryScreen
+import com.convx.music.ui.screens.settings.SettingsScreen
 import com.convx.music.ui.screens.playlist.AutoPlaylistScreen
 import com.convx.music.ui.screens.playlist.CachePlaylistScreen
 import com.convx.music.ui.screens.playlist.LocalPlaylistScreen
@@ -82,21 +99,23 @@ fun NavGraphBuilder.navigationBuilder(
     scrollBehavior: TopAppBarScrollBehavior,
     activity: Activity,
     snackbarHostState: SnackbarHostState,
-    mainTabsPagerState: PagerState,
 ) {
-    // Home/Search/Library/ListenTogether/Settings all live inside this one
-    // destination now (see MainTabsPager.kt) instead of five separate NavHost
-    // destinations -- switching between them is a pager scroll, not a
-    // destination swap. Everything below this route is completely unchanged:
-    // drilling into a detail screen from any tab still pushes onto this same
-    // outer NavHost exactly as it always did.
-    composable(MainTabsRoute) {
-        MainTabsPager(
-            pagerState = mainTabsPagerState,
-            navController = navController,
-            scrollBehavior = scrollBehavior,
-            snackbarHostState = snackbarHostState,
-        )
+    // Reverted from the pager (MainTabsPager.kt, still in the tree but unused): the
+    // pager itself became the lag source it was meant to fix, so these are real
+    // NavHost destinations again -- one AnimatedContent transition per switch (the
+    // iOS parallax push set at the NavHost level in MainActivity), multi-back-stack
+    // via popUpTo/saveState/restoreState in onNavItemClick, same as everything else
+    // in this file.
+    composable(Screens.Home.route) {
+        HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
+    }
+
+    composable(Screens.Library.route) {
+        LibraryScreen(navController)
+    }
+
+    composable(Screens.Settings.route) {
+        SettingsScreen(navController, scrollBehavior)
     }
 
     composable(
@@ -133,7 +152,7 @@ fun NavGraphBuilder.navigationBuilder(
         ChartsScreen(navController)
     }
 
-    composable(
+    sharedComposable(
         route = "browse/{browseId}",
         arguments = listOf(
             navArgument("browseId") {
@@ -179,7 +198,7 @@ fun NavGraphBuilder.navigationBuilder(
         OnlineSearchResult(navController)
     }
 
-    composable(
+    sharedComposable(
         route = "album/{albumId}",
         arguments = listOf(
             navArgument("albumId") {
@@ -190,7 +209,7 @@ fun NavGraphBuilder.navigationBuilder(
         AlbumScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "artist/{artistId}",
         arguments = listOf(
             navArgument("artistId") {
@@ -242,7 +261,7 @@ fun NavGraphBuilder.navigationBuilder(
         ArtistItemsScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "online_playlist/{playlistId}",
         arguments = listOf(
             navArgument("playlistId") {
@@ -253,7 +272,7 @@ fun NavGraphBuilder.navigationBuilder(
         OnlinePlaylistScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "local_playlist/{playlistId}",
         arguments = listOf(
             navArgument("playlistId") {
@@ -270,7 +289,7 @@ fun NavGraphBuilder.navigationBuilder(
         LocalMusicScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "local_folder/{path}",
         arguments = listOf(
             navArgument("path") {
@@ -281,7 +300,7 @@ fun NavGraphBuilder.navigationBuilder(
         LocalFolderScreen(navController, it.arguments?.getString("path").orEmpty())
     }
 
-    composable(
+    sharedComposable(
         route = "auto_playlist/{playlist}",
         arguments = listOf(
             navArgument("playlist") {
@@ -292,7 +311,7 @@ fun NavGraphBuilder.navigationBuilder(
         AutoPlaylistScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "cache_playlist/{playlist}",
         arguments = listOf(
             navArgument("playlist") {
@@ -303,7 +322,7 @@ fun NavGraphBuilder.navigationBuilder(
         CachePlaylistScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "top_playlist/{top}",
         arguments = listOf(
             navArgument("top") {
@@ -314,7 +333,7 @@ fun NavGraphBuilder.navigationBuilder(
         TopPlaylistScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "youtube_browse/{browseId}?params={params}",
         arguments = listOf(
             navArgument("browseId") {
@@ -340,6 +359,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/appearance") {
         AppearanceSettings(navController, scrollBehavior, activity, snackbarHostState)
+    }
+
+    composable("settings/home_feed_order") {
+        HomeFeedOrderScreen(navController, scrollBehavior)
     }
 
     composable("settings/appearance/theme") {
@@ -506,3 +529,81 @@ fun NavGraphBuilder.navigationBuilder(
     }
 }
 
+/**
+ * [composable] that also publishes the destination's own [AnimatedVisibilityScope].
+ *
+ * A shared element needs both ends to name the transition they are part of, and for a
+ * NavHost destination that scope only exists inside the entry's content lambda. Rather
+ * than repeat a CompositionLocalProvider in every screen, destinations that take part in
+ * an artwork morph are declared with this instead of [composable].
+ *
+ * Applied only where there is actually a shared pair. A destination with no shared element
+ * gains nothing from the local, and wrapping all sixty-odd of them would be churn.
+ */
+
+/**
+ * A destination that grows out of the tile that opened it, and shrinks back into it.
+ *
+ * The whole screen is one shared element paired with the tapped tile's artwork box, so
+ * the detail page reads as that tile opening rather than as a new page arriving over it.
+ * See `Modifier.morphContainer` for the mechanics and for what the reference capture
+ * actually does.
+ *
+ * The enter/exit specs here deliberately do almost nothing: the morph IS the transition,
+ * and any slide or scale declared at this level would fight the shared element's own
+ * interpolation of the same bounds. What is left is the treatment of the screen BEHIND
+ * the morph -- it holds still and dims, because the tile the card is flying to and from
+ * must not travel out from under it.
+ *
+ * Falls back to a plain cross-fade when the destination carries no id, or when its tile
+ * was never on screen to be nominated (a deep link, a restored back stack): with no
+ * source half, `morphContainer` is inert and this is all that is left.
+ */
+private fun NavGraphBuilder.sharedComposable(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit,
+) = composable(
+    route = route,
+    arguments = arguments,
+    enterTransition = { fadeIn(tween(1)) },
+    exitTransition = { fadeOut(tween(180), targetAlpha = 0.7f) },
+    popEnterTransition = { fadeIn(tween(180), initialAlpha = 0.7f) },
+    popExitTransition = { fadeOut(tween(1)) },
+) { entry ->
+    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+        val morphId = entry.morphArtworkId()
+        // `morphContainer` no-ops with no id (deep link, restored back stack), and
+        // also finds no partner to interpolate from when the id's tile never called
+        // `sharedArtworkSource` -- a bespoke card rendering its own AsyncImage instead
+        // of going through one of Items.kt's shared composables. Both cases used to
+        // fall all the way back to the bare fadeIn(1) above: an instant pop with no
+        // motion at all. `animateEnterExit` is the generic, cheap fallback for both:
+        // a soft grow-and-fade that costs nothing but a graphicsLayer scale (no
+        // shared-element matching, no tile identity needed) -- which is the whole
+        // point: every tile-opened screen gets SOME grow-in, not only the ones that
+        // were wired into the shared-artwork system.
+        //
+        // Gated on `!hasMorphSource`, not id == null -- stacking this on TOP of an id
+        // that IS driving a real container morph would scale the card twice
+        // (morphContainer's own interpolation, then this fallback's 0.94 on top of
+        // it), which reads as the card overshooting past its target and snapping back.
+        val hasRealMorph = morphId != null && hasMorphSource(morphId)
+        Box(
+            Modifier
+                .morphContainer(morphId, isSource = false)
+                .then(
+                    if (!hasRealMorph) {
+                        Modifier.animateEnterExit(
+                            enter = fadeIn(Motion.appear()) + scaleIn(Motion.appear(), initialScale = 0.94f),
+                            exit = fadeOut(Motion.appear()) + scaleOut(Motion.appear(), targetScale = 0.94f),
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
+            content(entry)
+        }
+    }
+}

@@ -5,36 +5,32 @@
 package com.convx.music.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
-import com.convx.music.constants.DarkModeKey
-import com.convx.music.constants.PureBlackKey
 import com.convx.music.ui.screens.library.LibraryScreen
-import com.convx.music.ui.screens.search.SearchScreen
-import com.convx.music.ui.screens.settings.DarkMode
 import com.convx.music.ui.screens.settings.SettingsScreen
-import com.convx.music.utils.rememberEnumPreference
-import com.convx.music.utils.rememberPreference
 
 /**
  * Page order for [MainTabsPager] -- index into this list is the pager page index.
- * Matches the floating tab bar's own left-to-right order (Screens.MainScreens +
- * Settings appended, see MainActivity's navigationItems/floatingNavigationItems)
- * so a pager scroll slides the same direction the tapped icon actually sits in.
+ *
+ * Exactly the tab bar's own left-to-right order, so page index and tab index are the
+ * same number and neither has to be mapped onto the other. Search is deliberately
+ * absent: it is rendered as an overlay above this pager, not as a page. It used to
+ * sit at index 1, wedged between Home and Library, even though the bar draws it as
+ * the standalone circle on the far RIGHT (see FloatingNavBar's tabScreens filter) --
+ * so every tab switch slid past a page the user could not see in the bar, and the
+ * puck's index was off by one past Home. Moving it to the end instead would have
+ * been worse: opening search from Home would then scroll the pager across two
+ * intervening tabs, composing both on the way.
  */
 val MainTabsScreens = listOf(
     Screens.Home,
-    Screens.Search,
-    Screens.ListenTogether,
     Screens.Library,
     Screens.Settings,
 )
@@ -42,8 +38,29 @@ val MainTabsScreens = listOf(
 const val MainTabsRoute = "main_tabs"
 
 /**
- * Hosts Home/Search/Library/ListenTogether/Settings as pages of one [HorizontalPager]
- * instead of five separate NavHost destinations. Switching between them becomes a
+ * Animate to [page] without ever animating *across* an intervening page.
+ *
+ * [PagerState.animateScrollToPage] scrolls through everything between here and there,
+ * and with `beyondViewportPageCount = 0` each page it passes over is composed from
+ * scratch inside the animation's own frames. Home -> Settings therefore paid for
+ * building the entire Library screen mid-slide, so how badly a tab switch stuttered
+ * depended on which tab it happened to travel over rather than on where it was going.
+ *
+ * Landing one page short first makes the animated part always exactly one page: the
+ * jump is invisible (it happens in a single frame, before any motion starts) and the
+ * slide the user actually sees is unchanged.
+ */
+suspend fun PagerState.slideToPage(page: Int) {
+    val from = currentPage
+    if (page - from > 1 || from - page > 1) {
+        scrollToPage(page + if (page > from) -1 else 1)
+    }
+    animateScrollToPage(page)
+}
+
+/**
+ * Hosts Home/Library/Settings as pages of one [HorizontalPager] instead of
+ * separate NavHost destinations. Switching between them becomes a
  * pager scroll -- no destination swap, no AnimatedContent transition, no backdrop
  * re-record -- while every screen still receives the exact same navController it
  * always did, so drilling into a detail screen (album, artist, a settings sub-page,
@@ -84,19 +101,6 @@ fun MainTabsPager(
     ) { page ->
         when (MainTabsScreens.getOrNull(page)) {
             Screens.Home -> HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
-
-            Screens.Search -> {
-                val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
-                val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
-                val isSystemInDarkTheme = isSystemInDarkTheme()
-                val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
-                    if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
-                }
-                val pureBlack = remember(pureBlackEnabled, useDarkTheme) {
-                    pureBlackEnabled && useDarkTheme
-                }
-                SearchScreen(navController = navController, pureBlack = pureBlack)
-            }
 
             Screens.Library -> LibraryScreen(navController)
 

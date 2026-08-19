@@ -320,7 +320,7 @@ fun LibraryPlaylistsScreen(
                 LazyColumn(
                     state = lazyListState,
                     overscrollEffect = heroZoom.listOverscroll(),
-                    modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::sync),
+                    modifier = Modifier.heroPullZoom(heroZoom),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(
@@ -454,7 +454,7 @@ fun LibraryPlaylistsScreen(
                 LazyVerticalGrid(
                     state = lazyGridState,
                     overscrollEffect = heroZoom.listOverscroll(),
-                    modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::sync),
+                    modifier = Modifier.heroPullZoom(heroZoom),
                     columns = rememberGridColumns(),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {

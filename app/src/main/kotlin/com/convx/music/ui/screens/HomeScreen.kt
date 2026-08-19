@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import com.convx.music.ui.utils.rememberEdgeAwareFlingBehavior
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -141,11 +142,16 @@ import com.convx.music.constants.ShowHomeFabKey
 import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
 import com.convx.music.constants.HomeGridColumnsOverrideKey
 import com.convx.music.constants.HomeHeroCardEnabledKey
+import com.convx.music.constants.HomeSectionOrderKey
+import com.convx.music.constants.ShowHomeMoodFiltersKey
 import com.convx.music.constants.SpeedDialCardHeightOverrideKey
 import com.convx.music.constants.SpeedDialColumnsOverrideKey
 import com.convx.music.constants.SmallGridThumbnailHeight
 import com.convx.music.constants.ThumbnailCornerRadius
 import com.convx.music.db.MusicDatabase
+import com.convx.music.ui.component.SpotlightCard
+import com.convx.music.ui.component.SpotlightCardHeight
+import com.convx.music.ui.component.SpotlightCardSpacing
 import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.LocalItem
@@ -745,6 +751,24 @@ fun HomeScreen(
 
     val (hideHomeFavoriteIcon) = rememberPreference(HideHomeFavoriteIconKey, false)
 
+    // The tap behaviour of localGridItem below, reachable without rendering a tile —
+    // the spotlight row draws its own card but wants the same navigation.
+    val onLocalItemClick: (LocalItem) -> Unit = { localItem ->
+        when (localItem) {
+            is Song -> if (localItem.id == mediaMetadata?.id) {
+                playerConnection.togglePlayPause()
+            } else {
+                playerConnection.playQueue(YouTubeQueue.radio(localItem.toMediaMetadata()))
+            }
+
+            is Album -> navController.navigate("album/${localItem.id}")
+            is Artist -> navController.navigate("artist/${localItem.id}")
+            // Matches localGridItem, which also renders no tap target for a playlist
+            // here: this shelf is built from songs and albums only.
+            is Playlist -> Unit
+        }
+    }
+
     val localGridItem: @Composable (LocalItem) -> Unit = {
         when (it) {
             is Song -> SongGridItem(
@@ -900,13 +924,26 @@ fun HomeScreen(
         )
     }
 
-    val (heroCardEnabled) = rememberPreference(HomeHeroCardEnabledKey, false)
+    val (heroCardEnabled) = rememberPreference(HomeHeroCardEnabledKey, true)
+    val (savedSectionOrder) = rememberPreference(HomeSectionOrderKey, "")
+    val (showMoodFilters) = rememberPreference(ShowHomeMoodFiltersKey, true)
     val (homeGridColumnsOverride) = rememberPreference(HomeGridColumnsOverrideKey, 0)
     val keepListeningColumns = if (homeGridColumnsOverride > 0) homeGridColumnsOverride else 2
+
+    // Read here, not inside the speed-dial lazy item. rememberPreference collects a
+    // DataStore Flow; inside an item block that collector is created and torn down
+    // every time the section scrolls into view, three times over for these three keys.
+    // Hoisted to the screen, they are collected once for as long as Home is composed.
+    val (speedDialColumnsOverride) = rememberPreference(SpeedDialColumnsOverrideKey, 0)
+    val (speedDialHeightOverride) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
+    val (speedDialCornerOverride) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
 
     val homeSections = remember(
         heroCardEnabled,
         randomizeHomeOrder,
+        // Without this key a reorder saved in settings would not reach Home until
+        // something else invalidated the list.
+        savedSectionOrder,
         randomSeed,
         speedDialItems,
         quickPicks,
@@ -922,7 +959,9 @@ fun HomeScreen(
         val list = mutableListOf<HomeSection>()
 
         if (heroCardEnabled && quickPicks?.isNotEmpty() == true) list.add(HomeSection.Hero)
-        if (speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
+        // Speed Dial section commented out per request -- gated out here rather than
+        // deleting the section's rendering code, so it is one line to bring back.
+        // if (speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
         if (quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
         if (communityPlaylists?.isNotEmpty() == true) list.add(HomeSection.FromTheCommunity)
         if (dailyDiscover?.isNotEmpty() == true) list.add(HomeSection.DailyDiscover)
@@ -944,7 +983,29 @@ fun HomeScreen(
 
         if (explorePage?.moodAndGenres != null) list.add(HomeSection.MoodAndGenres)
 
-        if (randomizeHomeOrder) {
+        val customOrder = savedSectionOrder.lineSequence()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .toList()
+
+        if (customOrder.isNotEmpty()) {
+            // An explicit arrangement beats both the shuffle and the default weights --
+            // the user has said what they want to see first.
+            //
+            // Sections the saved order does not mention keep their relative default order
+            // and go after the ones it does. That is what lets a release add a section
+            // without scrambling an arrangement saved by an older version: the new one
+            // simply appears at the end instead of landing somewhere arbitrary.
+            list.sortedWith(
+                compareBy(
+                    { section ->
+                        val at = customOrder.indexOf(section.id)
+                        if (at >= 0) at else Int.MAX_VALUE
+                    },
+                    { section -> -section.baseWeight },
+                ),
+            )
+        } else if (randomizeHomeOrder) {
             list.sortedByDescending { section ->
                 // Use a stable seed for each section based on the session seed + section ID hash
                 // This ensures the weight for a specific section remains constant during a session (until refresh)
@@ -1111,6 +1172,9 @@ fun HomeScreen(
                 scope = scope,
                 sideInset = sideInset,
                 availableWidth = maxWidth,
+                speedDialColumnsOverride = speedDialColumnsOverride,
+                speedDialHeightOverride = speedDialHeightOverride,
+                speedDialCornerOverride = speedDialCornerOverride,
                 horizontalLazyGridItemWidth = horizontalLazyGridItemWidth,
                 quickPicksGridState = quickPicksLazyGridState,
                 quickPicksSnapLayoutInfoProvider = quickPicksSnapLayoutInfoProvider,
@@ -1119,6 +1183,7 @@ fun HomeScreen(
                 keepListeningGridState = keepListeningLazyGridState,
                 currentGridHeight = currentGridHeight,
                 localGridItem = localGridItem,
+                onLocalItemClick = onLocalItemClick,
                 ytGridItem = ytGridItem,
                 hideHomeFavoriteIcon = hideHomeFavoriteIcon,
             )
@@ -1134,7 +1199,7 @@ fun HomeScreen(
                 // Screen title, scrolled with the content rather than pinned in the
                 // app bar: the bar is transparent chrome here, and a large title that
                 // scrolls away is what gives the first screenful its weight.
-                item(key = "listen_now_title") {
+                item(key = "listen_now_title", contentType = "section_title") {
                     Text(
                         text = stringResource(if (localOnly) R.string.filter_local else R.string.listen_now),
                         fontSize = AppleTokens.TitleLarge,
@@ -1159,8 +1224,30 @@ fun HomeScreen(
                     )
                 }
 
+                // YouTube's own mood/genre filters (Energize, Relax, Feel good...).
+                // The API has always returned these and HomeViewModel has always been able
+                // to act on them -- toggleChip refetches the feed with the chip's params --
+                // but nothing ever rendered the list, so the feature was invisible.
+                //
+                // Local-only mode has no remote feed to filter, so it gets nothing here.
+                val moodChips = homePage?.chips
+                if (showMoodFilters && !localOnly && !moodChips.isNullOrEmpty()) {
+                    item(key = "mood_filters", contentType = "mood_filters") {
+                        ChipsRow(
+                            // null is a real option, not a placeholder: it is how the user
+                            // clears the filter and returns to the unfiltered feed.
+                            chips = listOf<Pair<HomePage.Chip?, String>>(
+                                null to stringResource(R.string.filter_all),
+                            ) + moodChips.map { chip -> chip to chip.title },
+                            currentValue = selectedChip,
+                            onValueUpdate = { chip -> viewModel.toggleChip(chip) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+
                 if (selectedChip == null && !localOnly) {
-                    item(key = "wrapped_card") {
+                    item(key = "wrapped_card", contentType = "wrapped_card") {
                         AnimatedVisibility(visible = shouldShowWrappedCard) {
                             Card(
                                 modifier = Modifier
@@ -1262,7 +1349,7 @@ fun HomeScreen(
                 // sections in a 5s trace). Reaching the bottom triggers loadMoreYouTubeItems
                 // immediately, so the placeholder still appears for every real load.
                 if (isLoading) {
-                    item(key = "loading_shimmer") {
+                    item(key = "loading_shimmer", contentType = "shimmer") {
                         ShimmerHost(
                             modifier = Modifier.animateItem()
                         ) {
@@ -1307,7 +1394,7 @@ fun HomeScreen(
                     }
                 }
 
-                item(key = "bottom_spacer") {
+                item(key = "bottom_spacer", contentType = "spacer") {
                     Spacer(modifier = Modifier.height(30.dp))
                 }
             }
@@ -1386,6 +1473,9 @@ private data class HomeSectionDeps(
     val scope: CoroutineScope,
     val sideInset: Dp,
     val availableWidth: Dp,
+    val speedDialColumnsOverride: Int,
+    val speedDialHeightOverride: Int,
+    val speedDialCornerOverride: Int,
     val horizontalLazyGridItemWidth: Dp,
     val quickPicksGridState: LazyGridState,
     val quickPicksSnapLayoutInfoProvider: SnapLayoutInfoProvider,
@@ -1394,6 +1484,7 @@ private data class HomeSectionDeps(
     val keepListeningGridState: LazyGridState,
     val currentGridHeight: Dp,
     val localGridItem: @Composable (LocalItem) -> Unit,
+    val onLocalItemClick: (LocalItem) -> Unit,
     val ytGridItem: @Composable (YTItem) -> Unit,
     val hideHomeFavoriteIcon: Boolean,
 )
@@ -1476,25 +1567,51 @@ private fun LazyListScope.localHomeContent(
     isPlaying: Boolean,
     columns: Int,
 ) {
-    // Every online section leads with this hairline (NavigationTitle's
-    // showDivider) to separate it from what precedes it — local mode replaces
-    // those sections wholesale but never drew its own, leaving local content
-    // with no separator above it at all.
-    item(key = "local_divider") {
-        HorizontalDivider(
-            thickness = Dp.Hairline,
-            color = AppleTokens.divider,
-            modifier = Modifier
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                .padding(
-                    start = AppleTokens.Gutter,
-                    end = AppleTokens.Gutter,
-                    top = AppleTokens.SectionGap,
-                ),
-        )
+    // Local mode gets the same spotlight shelf the online Home leads with, built from
+    // the newest songs on the device. Without it local mode opened straight onto a chip
+    // row and a dense list -- correct, but nothing to look at, and nothing that used the
+    // artwork the user actually owns.
+    if (songs.isNotEmpty()) {
+        item(key = "local_spotlight_title", contentType = "section_title") {
+            NavigationTitle(
+                title = stringResource(R.string.recently_added),
+                modifier = Modifier.animateItem(),
+            )
+        }
+        item(key = "local_spotlight", contentType = "spotlight_row") {
+            // Newest first, capped: this is a shelf, not the library. The full list is
+            // one chip away under Songs.
+            val spotlightSongs = remember(songs) {
+                songs.sortedByDescending { it.song.inLibrary ?: it.song.dateModified }
+                    .take(LocalSpotlightCount)
+            }
+            // LazyRow, not HorizontalPager. A pager consumes the whole fling to advance
+            // exactly one page, so a hard flick and a nudge travel the same distance --
+            // which is the "no physics on the horizontal shelves" report. A lazy row
+            // keeps the platform decay, so velocity decides how far the shelf goes.
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = AppleTokens.Gutter)
+                    .plusStart(deps.sideInset),
+                horizontalArrangement = Arrangement.spacedBy(SpotlightCardSpacing),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(SpotlightCardHeight)
+                    .animateItem()
+                    .bleedStart(deps.sideInset),
+            ) {
+                items(spotlightSongs, key = { it.id }, contentType = { "spotlight_card" }) { song ->
+                    SpotlightCard(
+                        thumbnailUrl = song.thumbnailUrl,
+                        title = song.title,
+                        subtitle = song.artists.joinToString(", ") { it.name },
+                        onClick = { deps.onLocalItemClick(song) },
+                    )
+                }
+            }
+        }
     }
 
-    item(key = "local_categories") {
+    item(key = "local_categories", contentType = "local_categories") {
         ChipsRow(
             chips = listOf(
                 LocalCategory.SONGS to stringResource(R.string.songs),
@@ -1517,7 +1634,7 @@ private fun LazyListScope.localHomeContent(
         LocalCategory.FOLDERS -> folders.isEmpty()
     }
     if (isEmpty) {
-        item(key = "local_empty") {
+        item(key = "local_empty", contentType = "empty") {
             Text(
                 text = stringResource(R.string.no_local_files),
                 style = MaterialTheme.typography.bodyMedium,
@@ -1532,7 +1649,7 @@ private fun LazyListScope.localHomeContent(
 
     when (category) {
         LocalCategory.SONGS -> {
-            item(key = "local_songs_sort") {
+            item(key = "local_songs_sort", contentType = "sort_row") {
                 val (sortType, onSortTypeChange) = rememberEnumPreference(
                     LocalSongSortTypeKey,
                     SongSortType.NAME,
@@ -1556,7 +1673,7 @@ private fun LazyListScope.localHomeContent(
                 )
             }
 
-            item(key = "local_shuffle_all") {
+            item(key = "local_shuffle_all", contentType = "shuffle_row") {
                 val (accentColor, onAccentColor) = rememberGlobalAccentColors()
                 Row(
                     modifier = Modifier
@@ -1594,6 +1711,7 @@ private fun LazyListScope.localHomeContent(
             itemsIndexed(
                 items = songs,
                 key = { _, song -> "local_song_${song.id}" },
+                contentType = { _, _ -> "local_song" },
             ) { index, song ->
                 SongListItem(
                     song = song,
@@ -1641,6 +1759,7 @@ private fun LazyListScope.localHomeContent(
             itemsIndexed(
                 items = playlists,
                 key = { _, playlist -> "local_playlist_${playlist.id}" },
+                contentType = { _, _ -> "local_playlist" },
             ) { index, playlist ->
                 PlaylistListItem(
                     playlist = playlist,
@@ -1666,6 +1785,7 @@ private fun LazyListScope.localHomeContent(
             itemsIndexed(
                 items = folders,
                 key = { _, folder -> "local_folder_${folder.path}" },
+                contentType = { _, _ -> "local_folder" },
             ) { index, folder ->
                 val thumbnailUrl = remember(folder, songById) {
                     folder.songIds.firstNotNullOfOrNull { songById[it]?.song?.thumbnailUrl }
@@ -1712,7 +1832,7 @@ private fun LazyListScope.localItemRows(
     columns: Int,
 ) {
     items.chunked(columns).forEachIndexed { index, rowItems ->
-        item(key = "${keyPrefix}_row_$index") {
+        item(key = "${keyPrefix}_row_$index", contentType = "local_row") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1737,7 +1857,7 @@ private fun LazyListScope.heroSection(
     quickPicks: List<Song>?,
 ) {
     quickPicks?.firstOrNull()?.let { top ->
-        item(key = "hero_card") {
+        item(key = "hero_card", contentType = "hero_card") {
             val heroSubtitle = remember(top.id) {
                 top.artists.joinToString { it.name }
             }
@@ -1787,18 +1907,17 @@ private fun LazyListScope.speedDialSection(
     randomizeJob: MutableState<Job?>,
 ) {
     items.takeIf { it.isNotEmpty() }?.let { items ->
-        item(key = "speed_dial_title") {
+        item(key = "speed_dial_title", contentType = "section_title") {
             NavigationTitle(
                 title = stringResource(R.string.speed_dial),
                 modifier = Modifier.animateItem(),
-                showDivider = true,
             )
         }
 
-        item(key = "speed_dial_list") {
+        item(key = "speed_dial_list", contentType = "speed_dial_list") {
             val targetItemSize = 160.dp
             val availableWidth = deps.availableWidth - 32.dp
-            val (speedDialColumnsOverride) = rememberPreference(SpeedDialColumnsOverrideKey, 0)
+            val speedDialColumnsOverride = deps.speedDialColumnsOverride
             val columns = if (speedDialColumnsOverride > 0) {
                 speedDialColumnsOverride
             } else {
@@ -1818,8 +1937,8 @@ private fun LazyListScope.speedDialSection(
             val speedDialThumbnailSizePx = with(LocalDensity.current) {
                 itemWidth.roundToPx().coerceAtLeast(64)
             }
-            val (speedDialHeightOverride) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
-            val (speedDialCornerOverride) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
+            val speedDialHeightOverride = deps.speedDialHeightOverride
+            val speedDialCornerOverride = deps.speedDialCornerOverride
             val speedDialTileHeight = if (speedDialHeightOverride > 0) {
                 speedDialHeightOverride.dp
             } else {
@@ -1840,7 +1959,7 @@ private fun LazyListScope.speedDialSection(
             ) {
                 HorizontalPager(
                     state = pagerState,
-                    contentPadding = PaddingValues(horizontal = 16.dp).plusStart(deps.sideInset),
+                    contentPadding = PaddingValues(horizontal = AppleTokens.Gutter).plusStart(deps.sideInset),
                     pageSpacing = 16.dp,
                     modifier =
                         Modifier
@@ -1863,7 +1982,11 @@ private fun LazyListScope.speedDialSection(
                                             modifier = Modifier
                                                 .width(itemWidth)
                                                 .height(speedDialTileHeight)
-                                                .padding(AppleTokens.ItemGap / 2)
+                                                // Half the old gap: two tiles each paid
+                                                // ItemGap/2, so the shelf spent a full
+                                                // ItemGap between neighbours and read as
+                                                // scattered rather than as one row.
+                                                .padding(AppleTokens.ItemGap / 4)
                                         ) {
                                             RandomizeGridItem(
                                                 isLoading = isRandomizing,
@@ -1905,7 +2028,11 @@ private fun LazyListScope.speedDialSection(
                                             modifier = Modifier
                                                 .width(itemWidth)
                                                 .height(speedDialTileHeight)
-                                                .padding(AppleTokens.ItemGap / 2)
+                                                // Half the old gap: two tiles each paid
+                                                // ItemGap/2, so the shelf spent a full
+                                                // ItemGap between neighbours and read as
+                                                // scattered rather than as one row.
+                                                .padding(AppleTokens.ItemGap / 4)
                                         ) {
                                             SpeedDialGridItem(
                                                 item = item,
@@ -1915,7 +2042,7 @@ private fun LazyListScope.speedDialSection(
                                                 },
                                                 isPlaying = isPlaying,
                                                 thumbnailSizePx = speedDialThumbnailSizePx,
-                                                // 0 = circular, the new default. A user override still wins.
+                                                // 0 = the app's standard tile corner. A user override still wins.
                                                 cornerRadiusDp = speedDialCornerOverride,
                                                 modifier = Modifier
                                                     .fillMaxSize()
@@ -2016,7 +2143,7 @@ private fun LazyListScope.quickPicksSection(
     songMap: Map<String, Song>,
 ) {
     quickPicks?.takeIf { it.isNotEmpty() }?.let { quickPicks ->
-        item(key = "quick_picks_title") {
+        item(key = "quick_picks_title", contentType = "section_title") {
             val quickPicksTitle = stringResource(R.string.quick_picks)
             NavigationTitle(
                 title = quickPicksTitle,
@@ -2029,17 +2156,19 @@ private fun LazyListScope.quickPicksSection(
                         )
                     )
                 },
-                showDivider = true,
             )
         }
 
-        item(key = "quick_picks_list") {
+        item(key = "quick_picks_list", contentType = "quick_picks_list") {
             val distinctQuickPicks =
                 remember(quickPicks) { quickPicks.distinctBy { it.id } }
             LazyHorizontalGrid(
                 state = deps.quickPicksGridState,
                 rows = GridCells.Fixed(QuickPicksGridRows),
-                flingBehavior = rememberSnapFlingBehavior(deps.quickPicksSnapLayoutInfoProvider),
+                flingBehavior = rememberEdgeAwareFlingBehavior(
+                    deps.quickPicksGridState,
+                    rememberSnapFlingBehavior(deps.quickPicksSnapLayoutInfoProvider),
+                ),
                 contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                     .asPaddingValues().plusStart(deps.sideInset),
                 modifier = Modifier
@@ -2117,17 +2246,16 @@ private fun LazyListScope.communityPlaylistsSection(
     communityPlaylists: List<CommunityPlaylistItem>?,
 ) {
     communityPlaylists?.takeIf { it.isNotEmpty() }?.let { playlists ->
-        item(key = "community_playlists_title") {
+        item(key = "community_playlists_title", contentType = "section_title") {
             NavigationTitle(
                 title = stringResource(R.string.from_the_community),
                 modifier = Modifier.animateItem(),
-                showDivider = true,
             )
         }
 
-        item(key = "community_playlists_content") {
+        item(key = "community_playlists_content", contentType = "carousel") {
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp).plusStart(deps.sideInset),
+                contentPadding = PaddingValues(horizontal = AppleTokens.Gutter).plusStart(deps.sideInset),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.animateItem().bleedStart(deps.sideInset)
             ) {
@@ -2159,7 +2287,7 @@ private fun LazyListScope.dailyDiscoverSection(
 ) {
     dailyDiscover?.takeIf { it.isNotEmpty() }?.let { discoverList ->
         //added a tittle new update
-        item(key = "daily_discover_title") {
+        item(key = "daily_discover_title", contentType = "section_title") {
             val title = stringResource(R.string.your_daily_discover)
             NavigationTitle(
                 title = title,
@@ -2177,10 +2305,9 @@ private fun LazyListScope.dailyDiscoverSection(
                         )
                     }
                 },
-                showDivider = true,
             )
         }
-        item(key = "daily_discover_content") {
+        item(key = "daily_discover_content", contentType = "carousel") {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2231,11 +2358,10 @@ private fun LazyListScope.keepListeningSection(
     tabView: Boolean = false,
 ) {
     keepListening?.takeIf { it.isNotEmpty() }?.let { keepListening ->
-        item(key = "keep_listening_title") {
+        item(key = "keep_listening_title", contentType = "section_title") {
             NavigationTitle(
                 title = stringResource(R.string.recently_played),
                 modifier = Modifier.animateItem(),
-                showDivider = true,
             )
         }
 
@@ -2247,7 +2373,7 @@ private fun LazyListScope.keepListeningSection(
         if (heroCount > 0) {
             val hero = keepListening.first()
             val companions = keepListening.drop(1).take(heroCount - 1)
-            item(key = "keep_listening_hero") {
+            item(key = "keep_listening_hero", contentType = "keep_listening_hero") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2273,35 +2399,58 @@ private fun LazyListScope.keepListeningSection(
             }
         }
 
-        // Laid out as rows of the outer LazyColumn rather than a LazyHorizontalGrid:
-        // a horizontal row hides most of the list off-screen, and the whole point of
-        // this section is that everything recently played is reachable by scrolling
-        // the page you are already scrolling. Rows stay lazy — only the visible ones
-        // compose — because each row is its own LazyColumn item.
-        val columns = keepListeningColumns
-        val rows = keepListening.drop(heroCount).chunked(columns)
-        rows.forEachIndexed { index, rowItems ->
-          item(key = "keep_listening_row_$index") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppleTokens.Gutter - AppleTokens.ItemGap / 2)
-                    .animateItem(),
-            ) {
-                rowItems.forEach { localItem ->
-                    Box(modifier = Modifier.weight(1f)) {
-                        deps.localGridItem(localItem)
+        // One horizontal row of tall spotlight cards, snapping a card at a time.
+        //
+        // This section used to be rows of the outer LazyColumn, on the reasoning that a
+        // horizontal row hides most of the list off-screen while vertical rows keep
+        // everything reachable by scrolling the page you are already scrolling. That is
+        // still true, and it is the cost of this layout: the tail of recently-played is
+        // now behind a sideways swipe. Taken deliberately -- the card carries artwork,
+        // reflection and title at a size a 2-up grid tile cannot, and recently-played is
+        // a "pick up where I left off" shelf, where the first few entries are the point.
+        val spotlightItems = keepListening.drop(heroCount)
+        if (spotlightItems.isNotEmpty()) {
+            item(key = "keep_listening_spotlight", contentType = "spotlight_row") {
+                // See the local shelf above: a pager spends the whole fling on one page,
+                // so this row felt inert next to the vertical list it sits in.
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = AppleTokens.Gutter)
+                        .plusStart(deps.sideInset),
+                    horizontalArrangement = Arrangement.spacedBy(SpotlightCardSpacing),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(SpotlightCardHeight)
+                        .animateItem()
+                        .bleedStart(deps.sideInset),
+                ) {
+                    items(
+                        spotlightItems,
+                        key = { it.id },
+                        contentType = { "spotlight_card" },
+                    ) { localItem ->
+                        SpotlightCard(
+                            thumbnailUrl = localItem.thumbnailUrl,
+                            title = localItem.title,
+                            subtitle = localItem.spotlightSubtitle(),
+                            onClick = { deps.onLocalItemClick(localItem) },
+                        )
                     }
                 }
-                // Keeps a short final row's tiles the same width as a full row's
-                // instead of stretching them across the gutter.
-                repeat(columns - rowItems.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
             }
-          }
         }
     }
+}
+
+/**
+ * Secondary line for a spotlight card. [LocalItem] only guarantees a title, so the
+ * artist has to come off the concrete type.
+ */
+private fun LocalItem.spotlightSubtitle(): String = when (this) {
+    is Song -> artists.joinToString(", ") { it.name }
+    is Album -> artists.joinToString(", ") { it.name }
+    // Neither carries a second line worth showing: an artist's name is already the
+    // title, and Playlist.title is playlist.name.
+    is Artist, is Playlist -> ""
 }
 
 private fun LazyListScope.accountPlaylistsSection(
@@ -2311,7 +2460,7 @@ private fun LazyListScope.accountPlaylistsSection(
     url: String?,
 ) {
     accountPlaylists?.takeIf { it.isNotEmpty() }?.let { accountPlaylists ->
-        item(key = "account_playlists_title") {
+        item(key = "account_playlists_title", contentType = "section_title") {
             NavigationTitle(
                 label = stringResource(R.string.your_youtube_playlists),
                 title = accountName,
@@ -2344,11 +2493,10 @@ private fun LazyListScope.accountPlaylistsSection(
                     deps.navController.navigate("account")
                 },
                 modifier = Modifier.animateItem(),
-                showDivider = true,
             )
         }
 
-        item(key = "account_playlists_list") {
+        item(key = "account_playlists_list", contentType = "carousel") {
             val distinctAccountPlaylists =
                 remember(accountPlaylists) { accountPlaylists.distinctBy { it.id } }
             LazyRow(
@@ -2377,7 +2525,7 @@ private fun LazyListScope.forgottenFavoritesSection(
     songMap: Map<String, Song>,
 ) {
     forgottenFavorites?.takeIf { it.isNotEmpty() }?.let { forgottenFavorites ->
-        item(key = "forgotten_favorites_title") {
+        item(key = "forgotten_favorites_title", contentType = "section_title") {
             val forgottenFavoritesTitle = stringResource(R.string.forgotten_favorites)
             NavigationTitle(
                 title = forgottenFavoritesTitle,
@@ -2390,11 +2538,10 @@ private fun LazyListScope.forgottenFavoritesSection(
                         )
                     )
                 },
-                showDivider = true,
             )
         }
 
-        item(key = "forgotten_favorites_list") {
+        item(key = "forgotten_favorites_list", contentType = "grid_carousel") {
             // take min in case list size is less than 4
             val rows = min(SongGridRows, forgottenFavorites.size)
             val distinctForgottenFavorites =
@@ -2404,8 +2551,9 @@ private fun LazyListScope.forgottenFavoritesSection(
                 rows = GridCells.Fixed(rows),
                 contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                     .asPaddingValues().plusStart(deps.sideInset),
-                flingBehavior = rememberSnapFlingBehavior(
-                    deps.forgottenFavoritesSnapLayoutInfoProvider
+                flingBehavior = rememberEdgeAwareFlingBehavior(
+                    deps.forgottenFavoritesGridState,
+                    rememberSnapFlingBehavior(deps.forgottenFavoritesSnapLayoutInfoProvider),
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2484,7 +2632,7 @@ private fun LazyListScope.similarRecommendationsSection(
 ) {
     val recommendation = similarRecommendations?.getOrNull(section.index)
     recommendation?.let {
-        item(key = "similar_to_title_${section.index}") {
+        item(key = "similar_to_title_${section.index}", contentType = "section_title") {
             NavigationTitle(
                 label = stringResource(R.string.similar_to),
                 title = recommendation.title.title,
@@ -2512,11 +2660,10 @@ private fun LazyListScope.similarRecommendationsSection(
                     }
                 },
                 modifier = Modifier.animateItem(),
-                showDivider = true,
             )
         }
 
-        item(key = "similar_to_list_${section.index}") {
+        item(key = "similar_to_list_${section.index}", contentType = "carousel") {
             LazyRow(
                 contentPadding = WindowInsets.systemBars
                     .only(WindowInsetsSides.Horizontal)
@@ -2547,7 +2694,7 @@ private fun LazyListScope.homePageSection(
         val isSongsOnlySection = sectionData.items.isNotEmpty() &&
                 sectionData.items.all { it is SongItem }
 
-        item(key = "home_section_title_${section.index}") {
+        item(key = "home_section_title_${section.index}", contentType = "section_title") {
             NavigationTitle(
                 title = sectionData.title,
                 label = sectionData.label,
@@ -2589,13 +2736,12 @@ private fun LazyListScope.homePageSection(
                     }
                 } else null,
                 modifier = Modifier.animateItem(),
-                showDivider = true,
             )
         }
 
         if (isSongsOnlySection) {
             // Render songs as a horizontal scrollable list (like Quick picks in YouTube Music)
-            item(key = "home_section_list_${section.index}") {
+            item(key = "home_section_list_${section.index}", contentType = "grid_carousel") {
                 val distinctSectionSongs =
                     remember(sectionSongs) { sectionSongs.distinctBy { it.id } }
                 LazyHorizontalGrid(
@@ -2666,7 +2812,7 @@ private fun LazyListScope.homePageSection(
             }
         } else {
             // Render mixed content as horizontal grid items (albums, playlists, artists, etc.)
-            item(key = "home_section_list_${section.index}") {
+            item(key = "home_section_list_${section.index}", contentType = "grid_carousel") {
                 LazyRow(
                     contentPadding = WindowInsets.systemBars
                         .only(WindowInsetsSides.Horizontal)
@@ -2693,17 +2839,16 @@ private fun LazyListScope.moodAndGenresSection(
     // Rendering it twice would be wrong regardless, so this
     // fixes the display and the crash in one place.
     explorePage?.moodAndGenres?.distinctBy { it.title }?.let { moodAndGenres ->
-        item(key = "mood_and_genres_title") {
+        item(key = "mood_and_genres_title", contentType = "section_title") {
             NavigationTitle(
                 title = stringResource(R.string.mood_and_genres),
                 onClick = {
                     deps.navController.navigate("mood_and_genres")
                 },
                 modifier = Modifier.animateItem(),
-                showDivider = true,
             )
         }
-        item(key = "mood_and_genres_list") {
+        item(key = "mood_and_genres_list", contentType = "grid_carousel") {
             // Two rows, two columns per screenful, scrolling sideways — so a 2x2
             // block is what you see at rest and the next block is one swipe away.
             // Card width is derived from the real available width rather than fixed,
@@ -2796,3 +2941,6 @@ private fun rememberSongsById(
     val songs by flow.collectAsStateWithLifecycle(initialValue = emptyList())
     return remember(songs) { songs.associateBy { it.id } }
 }
+
+/** Cards on local mode's spotlight shelf. A shelf, not the library. */
+private const val LocalSpotlightCount = 15

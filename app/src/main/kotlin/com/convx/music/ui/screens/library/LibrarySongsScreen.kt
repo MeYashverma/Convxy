@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -72,12 +73,16 @@ import com.convx.music.constants.SongSortTypeKey
 import com.convx.music.constants.YtmSyncKey
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
+import com.convx.music.ui.component.AlphabetScrollBar
+import com.convx.music.ui.component.AlphabetScrollBarMinItems
 import com.convx.music.ui.component.LargeScreenTitle
+import com.convx.music.ui.component.buildAlphabetSectionIndex
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.SongListItem
-import com.convx.music.ui.component.SortHeader
+import com.convx.music.ui.component.SortOption
+import com.convx.music.ui.component.SortPopupButton
 import com.convx.music.ui.menu.SongMenu
 import com.convx.music.utils.listItemShape
 import com.convx.music.utils.rememberEnumPreference
@@ -178,14 +183,7 @@ fun LibrarySongsScreen(
         LazyColumn(
             state = lazyListState,
             overscrollEffect = heroZoom.listOverscroll(),
-            modifier = Modifier.heroPullZoom(heroZoom, onRefresh = {
-                when (filter) {
-                    SongFilter.LIKED -> viewModel.syncLikedSongs()
-                    SongFilter.LIBRARY -> viewModel.syncLibrarySongs()
-                    SongFilter.UPLOADED -> viewModel.syncUploadedSongs()
-                    else -> Unit
-                }
-            }),
+            modifier = Modifier.heroPullZoom(heroZoom),
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
             item(
@@ -356,21 +354,24 @@ fun LibrarySongsScreen(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
+                    modifier = Modifier.padding(
+                        start = AppleTokens.Gutter,
+                        end = AppleTokens.Gutter - 8.dp,
+                    ),
                 ) {
-                    SortHeader(
-                        sortType = sortType,
-                        sortDescending = sortDescending,
-                        onSortTypeChange = onSortTypeChange,
-                        onSortDescendingChange = onSortDescendingChange,
-                        sortTypeText = { sortType ->
+                    // The current sort reads from this label rather than from the control,
+                    // which is what lets the control itself shrink to an icon.
+                    Text(
+                        text = stringResource(
                             when (sortType) {
                                 SongSortType.CREATE_DATE -> R.string.sort_by_create_date
                                 SongSortType.NAME -> R.string.sort_by_name
                                 SongSortType.ARTIST -> R.string.sort_by_artist
                                 SongSortType.PLAY_TIME -> R.string.sort_by_play_time
                             }
-                        },
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
 
                     Spacer(Modifier.weight(1f))
@@ -383,6 +384,14 @@ fun LibrarySongsScreen(
                         ),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.secondary,
+                    )
+
+                    SortPopupButton(
+                        options = songSortOptions,
+                        selected = sortType,
+                        descending = sortDescending,
+                        onSelectedChange = onSortTypeChange,
+                        onDescendingChange = onSortDescendingChange,
                     )
                 }
             }
@@ -439,6 +448,39 @@ fun LibrarySongsScreen(
             }
         }
 
+        // Fast-scrub rail. Alphabetical sorts only -- the letters mean nothing when the
+        // list is ordered by date added or play count, and a rail that scrolls somewhere
+        // unrelated to the letter under your thumb is worse than no rail.
+        if (sortType == SongSortType.NAME && filteredSongs.size >= AlphabetScrollBarMinItems) {
+            val sectionIndexMap = remember(filteredSongs) {
+                buildAlphabetSectionIndex(filteredSongs) { it.title }
+            }
+            // The songs are the last items in the LazyColumn, so whatever the header
+            // items add up to on this pass is exactly the difference between the list's
+            // item count and the song count. Derived inside the lambdas rather than in
+            // composition: layoutInfo is snapshot state, and reading it up here would
+            // recompose this screen on every scrolled pixel.
+            val headerOffset = {
+                (lazyListState.layoutInfo.totalItemsCount - filteredSongs.size)
+                    .coerceAtLeast(0)
+            }
+            AlphabetScrollBar(
+                sectionIndexMap = sectionIndexMap,
+                itemCount = filteredSongs.size,
+                isAtTarget = { lazyListState.firstVisibleItemIndex == it + headerOffset() },
+                // Not animateScrollToItem: a scrub samples many sections per second and
+                // each animation would be cancelled by the next, so the list would crawl
+                // behind the thumb instead of tracking it.
+                scrollToItem = { lazyListState.scrollToItem(it + headerOffset()) },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .padding(
+                        LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+                    ),
+            )
+        }
+
         HideOnScrollFAB(
             visible = filteredSongs.isNotEmpty(),
             lazyListState = lazyListState,
@@ -454,3 +496,10 @@ fun LibrarySongsScreen(
         )
     }
 }
+
+private val songSortOptions = listOf(
+    SortOption(SongSortType.CREATE_DATE, R.string.sort_by_create_date),
+    SortOption(SongSortType.NAME, R.string.sort_by_name),
+    SortOption(SongSortType.ARTIST, R.string.sort_by_artist),
+    SortOption(SongSortType.PLAY_TIME, R.string.sort_by_play_time),
+)

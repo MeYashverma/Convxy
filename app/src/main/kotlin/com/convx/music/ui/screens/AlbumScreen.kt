@@ -5,6 +5,7 @@
 
 package com.convx.music.ui.screens
 
+import com.convx.music.ui.utils.Motion
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -112,6 +113,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.convx.music.ui.utils.resize
 import com.convx.music.LocalDatabase
 import com.convx.music.LocalTabView
 import com.convx.music.LocalDownloadUtil
@@ -355,6 +359,15 @@ fun AlbumScreen(
     // same as it would any other already-rendered composable.
     Box(modifier = Modifier
             .nestedScroll(backdropFreeze.connection)
+
+            // OUTER layer, and it must come BEFORE layerBackdrop: the layer has to
+            // enclose the backdrop node, or that node's draw re-runs whenever anything
+            // else in the window redraws. The mini player, the playing indicator and
+            // the position poll are all siblings that tick on their own schedule, and
+            // each tick was re-recording this entire list. MainActivity pairs an outer
+            // and inner layer for exactly this; the screen-local backdrops were left
+            // with only the inner half.
+            .graphicsLayer()
             .layerBackdrop(listBackdrop, frozen = backdropFreeze.frozen)
             // Content becomes ONE cached RenderNode, so the backdrop's
             // layer.record { drawContent() } records a single drawRenderNode
@@ -365,7 +378,7 @@ fun AlbumScreen(
         state = lazyListState,
         // No bounce here: the top pull drives the hero zoom instead.
         overscrollEffect = heroZoom.listOverscroll(),
-        modifier = Modifier.heroPullZoom(heroZoom, onRefresh = viewModel::refresh),
+        modifier = Modifier.heroPullZoom(heroZoom),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         val albumWithSongs = albumWithSongs
@@ -433,10 +446,35 @@ fun AlbumScreen(
                                     scaleY = heroZoom.scale
                                 }
                         ) {
+                            // Same request the grid tile that opened this screen made:
+                            // same data URL, same decode size, same disk key, so the morph
+                            // lands on the bitmap Coil already has in memory instead of
+                            // decoding a second copy of it mid-animation. Nothing is lost
+                            // by matching -- the tile's diskCacheKey already pins these
+                            // bytes under the raw URL, so a larger request here was being
+                            // served the same pixels anyway.
+                            val heroRequest = remember(albumWithSongs.album.thumbnailUrl) {
+                                ImageRequest.Builder(context)
+                                    .data(albumWithSongs.album.thumbnailUrl?.resize(544, 544))
+                                    .diskCacheKey(albumWithSongs.album.thumbnailUrl)
+                                    .size(544, 544)
+                                    // Only override for the morph's own hero art: this is
+                                    // the one image in the app that has to fade in rather
+                                    // than pop, since it sits inside a card that is itself
+                                    // still growing out of the tile that opened it -- a hard
+                                    // cut here is the only thing left in the morph that
+                                    // still reads as "swapped", not "grown".
+                                    .crossfade(Motion.MorphEnterMillis)
+                                    .build()
+                            }
                             AsyncImage(
-                                model = albumWithSongs.album.thumbnailUrl,
+                                model = heroRequest,
                                 contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
+                                // Target half of the artwork morph: the tapped tile on the
+                                // previous screen grows into this header rather than the two
+                                // screens cross-fading past each other.
+                                modifier = Modifier
+                                    .fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
 

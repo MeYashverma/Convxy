@@ -1168,6 +1168,14 @@ fun BottomSheetPlayer(
         // above mark the two ends; see PlayerArtworkMorphOverlay's own doc for why this
         // draws a fresh AsyncImage rather than a captured GraphicsLayer).
         overlayContent = {
+            // Container first, artwork on top of it: the artwork is travelling across
+            // the same window and has to ride above the surface it is growing out of.
+            PlayerContainerMorphOverlay(
+                progress = state.progress,
+                handoffProgress = PLAYER_LAYER_HANDOFF_PROGRESS,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                expandedCornerRadius = rememberScreenCornerRadius(),
+            )
             PlayerArtworkMorphOverlay(
                 thumbnailUrl = mediaMetadata?.thumbnailUrl,
                 progress = state.progress,

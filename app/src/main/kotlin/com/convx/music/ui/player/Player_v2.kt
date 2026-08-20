@@ -404,6 +404,12 @@ fun PlayerV2(
                                         )
                                         .fillMaxWidth()
                                         .aspectRatio(1f)
+                                        // Target end of the mini-to-full artwork morph.
+                                        // Without this the overlay has no full rect to
+                                        // grow into and the morph silently does nothing
+                                        // on this player -- the classic player registers
+                                        // its own artwork the same way.
+                                        .registerFullArtworkRect()
                                         .customSoftShadow(
                                             elevation = playerThumbnailShadowElevation.dp, 
                                             cornerRadius = 12.dp, 

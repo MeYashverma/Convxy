@@ -182,6 +182,11 @@ fun FloatingMiniPlayer(
                 scaleY = pressScale
             }
             .then(modifier)
+            // Source end of the mini-to-full container morph. Outside .then(modifier)
+            // so it measures the pill as the nav bar actually places it, and after
+            // the press-scale layer so a half-pressed pill still reports its real
+            // resting bounds rather than the squashed ones.
+            .registerMiniContainerRect()
             .onSizeChanged { measuredHeightPx = it.height }
             .then(interactiveHighlight.modifier)
             .clipToBounds()

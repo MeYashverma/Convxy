@@ -406,10 +406,10 @@ fun OnlinePlaylistScreen(
                     if (isSearching) {
                         // No hero header in search mode — reserve the floating chrome's
                         // height so the first row doesn't start under the status bar.
-                        item(key = "search_chrome_spacer") { FloatingChromeSpacer() }
+                        item(key = "search_chrome_spacer", contentType = "spacer") { FloatingChromeSpacer() }
                     }
                     if (!isSearching) {
-                        item(key = "playlist_header") {
+                        item(key = "playlist_header", contentType = "header") {
                             OnlinePlaylistHeader(
                                 playlist = playlist,
                                 songs = songs,
@@ -424,7 +424,11 @@ fun OnlinePlaylistScreen(
                         }
                     }
 
-                    itemsIndexed(filteredSongs, key = { _, (_, item) -> item.id }) { index, (_, songItem) ->
+                    itemsIndexed(
+                        filteredSongs,
+                        key = { _, (_, item) -> item.id },
+                        contentType = { _, _ -> "song_row" }
+                    ) { index, (_, songItem) ->
                         val onCheckedChange: (Boolean) -> Unit = {
                             if (it) {
                                 selection.add(songItem.id)

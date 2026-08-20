@@ -160,7 +160,8 @@ fun CanvasArtworkPlayer(
                 .apply {
                 trackSelectionParameters = trackSelectionParameters
                     .buildUpon()
-                    .setForceHighestSupportedBitrate(true)
+                    .setMaxVideoFrameRate(30)
+                    .setMaxVideoBitrate(2_500_000)
                     .build()
                 setAudioAttributes(
                     AudioAttributes

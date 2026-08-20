@@ -94,6 +94,9 @@ import androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
 import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.request.bitmapConfig
+import coil3.request.crossfade
 import coil3.size.Size as CoilSize
 import com.music.innertube.models.AlbumItem
 import com.music.innertube.models.ArtistItem
@@ -1212,15 +1215,23 @@ fun MediaMetadataListItem(
 }
 
 
-/** Per-row DB lookup for a badge, used only when the screen did not hoist the data.
- *  Screens that render many rows should collect a map once and pass it down instead
- *  — these two exist so that leaving them alone stays correct, not fast. */
+private val rowSongCache = android.util.LruCache<String, Song>(256)
+private val rowAlbumCache = android.util.LruCache<String, Album>(128)
+
+/** Per-row DB lookup for a badge, cached in memory so fast scroll does not spam SQLite. */
 @Composable
 private fun rememberRowSong(item: YTItem): Song? {
     if (item !is SongItem) return null
+    val cached = rowSongCache.get(item.id)
+    if (cached != null) return cached
+
     val database = LocalDatabase.current
     val song by produceState<Song?>(initialValue = null, item.id) {
-        value = database.song(item.id).firstOrNull()
+        val result = database.song(item.id).firstOrNull()
+        if (result != null) {
+            rowSongCache.put(item.id, result)
+        }
+        value = result
     }
     return song
 }
@@ -1228,9 +1239,16 @@ private fun rememberRowSong(item: YTItem): Song? {
 @Composable
 private fun rememberRowAlbum(item: YTItem): Album? {
     if (item !is AlbumItem) return null
+    val cached = rowAlbumCache.get(item.id)
+    if (cached != null) return cached
+
     val database = LocalDatabase.current
     val album by produceState<Album?>(initialValue = null, item.id) {
-        value = database.album(item.id).firstOrNull()
+        val result = database.album(item.id).firstOrNull()
+        if (result != null) {
+            rowAlbumCache.put(item.id, result)
+        }
+        value = result
     }
     return album
 }
@@ -1531,6 +1549,9 @@ fun ItemThumbnail(
             // key for every distinct decode size requested across the app.
             .diskCacheKey(thumbnailUrl)
             .size(CoilSize(actualTargetSizePx, actualTargetSizePx))
+            .allowHardware(true)
+            .bitmapConfig(android.graphics.Bitmap.Config.HARDWARE)
+            .crossfade(false)
             .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
             .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
             .networkCachePolicy(coil3.request.CachePolicy.ENABLED)

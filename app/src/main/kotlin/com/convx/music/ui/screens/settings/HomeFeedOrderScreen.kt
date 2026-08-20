@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.convx.music.R
 import com.convx.music.constants.HomeSectionOrderKey
+import com.convx.music.constants.HomeSectionHiddenKey
 import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
 import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.utils.rememberPreference
@@ -83,6 +85,12 @@ fun HomeFeedOrderScreen(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val (savedOrder, onSavedOrderChange) = rememberPreference(HomeSectionOrderKey, "")
+    val (hiddenIds, onHiddenIdsChange) = rememberPreference(HomeSectionHiddenKey, "")
+    // Read straight off the preference rather than mirrored into local state: a switch
+    // writes one value and DataStore is the single source of truth for what is hidden.
+    val hidden = remember(hiddenIds) {
+        hiddenIds.lineSequence().map(String::trim).filter(String::isNotEmpty).toSet()
+    }
 
     // Seeded from the saved arrangement, with anything it does not mention appended in
     // default order — so a section added by a later release shows up here rather than
@@ -154,12 +162,28 @@ fun HomeFeedOrderScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            val isHidden = row.id in hidden
                             Text(
                                 text = stringResource(row.labelRes),
                                 style = MaterialTheme.typography.bodyLarge,
+                                color = if (isHidden) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
                                 overflow = TextOverflow.Ellipsis,
                                 maxLines = 1,
                                 modifier = Modifier.weight(1f),
+                            )
+                            // A hidden section keeps its place in the arrangement, so
+                            // switching it back on returns it where the user left it
+                            // instead of at the end of the list.
+                            Switch(
+                                checked = !isHidden,
+                                onCheckedChange = { show ->
+                                    val next = if (show) hidden - row.id else hidden + row.id
+                                    onHiddenIdsChange(next.joinToString("\n"))
+                                },
                             )
                             Icon(
                                 painter = painterResource(R.drawable.drag_handle),

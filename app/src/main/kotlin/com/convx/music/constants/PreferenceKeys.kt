@@ -138,6 +138,12 @@ val DataSaverEnabledKey = booleanPreferencesKey("dataSaverEnabled")
 // Local-only mode: one switch that rewires Home, Library and Search to the
 // on-device library. The screens and routes stay exactly where they are — only
 // what they read changes — so turning it off restores the normal app instantly.
+/**
+ * Home's local Albums shelf ordered by release year (true) rather than A-Z.
+ *
+ * Year comes from the file's own tag via MediaStore; untagged albums sort last.
+ */
+val LocalAlbumsByYearKey = booleanPreferencesKey("localAlbumsByYear")
 val LocalOnlyModeKey = booleanPreferencesKey("localOnlyMode")
 /** Folder paths (LocalFolderIndex.Folder.path) excluded from local scanning, joined by "". Empty = nothing excluded. */
 val LocalExcludedFoldersKey = stringPreferencesKey("localExcludedFolders") // delimiter-joined paths; see LocalFolderExclusion.kt
@@ -669,6 +675,12 @@ val HomeHeroCardEnabledKey = booleanPreferencesKey("homeHeroCardEnabled")
  * Empty means "no custom order", which is distinct from "an order that happens to match
  * the default": clearing it re-enables the default weights for good.
  */
+/**
+ * Newline-separated ids of Home sections the user switched off, same id space as
+ * [HomeSectionOrderKey]. Absent means shown, so a section added by a later release
+ * is visible by default rather than silently hidden.
+ */
+val HomeSectionHiddenKey = stringPreferencesKey("homeSectionHidden")
 val HomeSectionOrderKey = stringPreferencesKey("homeSectionOrder")
 
 /** Show YouTube's mood/genre filter chips (Energize, Relax, Feel good) in Home's top bar. */

@@ -143,6 +143,7 @@ import com.convx.music.constants.ShowHomeFabKey
 import com.convx.music.constants.HomeCardCornerRadiusOverrideKey
 import com.convx.music.constants.HomeGridColumnsOverrideKey
 import com.convx.music.constants.HomeHeroCardEnabledKey
+import com.convx.music.constants.HomeSectionHiddenKey
 import com.convx.music.constants.HomeSectionOrderKey
 import com.convx.music.constants.ShowHomeMoodFiltersKey
 import com.convx.music.constants.SpeedDialCardHeightOverrideKey
@@ -929,6 +930,7 @@ fun HomeScreen(
 
     val (heroCardEnabled) = rememberPreference(HomeHeroCardEnabledKey, true)
     val (savedSectionOrder) = rememberPreference(HomeSectionOrderKey, "")
+    val (hiddenSectionIds) = rememberPreference(HomeSectionHiddenKey, "")
     val (showMoodFilters) = rememberPreference(ShowHomeMoodFiltersKey, true)
     val (homeGridColumnsOverride) = rememberPreference(HomeGridColumnsOverrideKey, 0)
     val keepListeningColumns = if (homeGridColumnsOverride > 0) homeGridColumnsOverride else 2
@@ -947,6 +949,7 @@ fun HomeScreen(
         // Without this key a reorder saved in settings would not reach Home until
         // something else invalidated the list.
         savedSectionOrder,
+        hiddenSectionIds,
         randomSeed,
         speedDialItems,
         quickPicks,
@@ -959,6 +962,10 @@ fun HomeScreen(
         homePage?.sections,
         explorePage?.moodAndGenres
     ) {
+        val hidden = hiddenSectionIds.lineSequence()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .toSet()
         val list = mutableListOf<HomeSection>()
 
         if (heroCardEnabled && quickPicks?.isNotEmpty() == true) list.add(HomeSection.Hero)
@@ -985,6 +992,11 @@ fun HomeScreen(
         }
 
         if (explorePage?.moodAndGenres != null) list.add(HomeSection.MoodAndGenres)
+
+        // Filtered once here rather than at each `if` above: the section list is built
+        // from a dozen separate conditions, and a hidden check on every one of them is a
+        // dozen places for a new section to be added without it.
+        list.retainAll { it.id !in hidden }
 
         val customOrder = savedSectionOrder.lineSequence()
             .map(String::trim)
@@ -1105,8 +1117,12 @@ fun HomeScreen(
 
     PullToRefreshBox(
         state = pullRefreshState,
-        isRefreshing = isRefreshing,
-        onRefresh = viewModel::refresh,
+        // Local mode has nothing to pull for: there is no feed to re-fetch, and the
+        // rescan it used to trigger already runs on entering the library and from the
+        // scan screen. Both the action and its indicator are gated, so the gesture does
+        // nothing and shows nothing.
+        isRefreshing = isRefreshing && !localOnly,
+        onRefresh = { if (!localOnly) viewModel.refresh() },
         indicator = {
             // Material3's expressive LoadingIndicator morphs its shape on an
             // infinite animation for as long as it is composed — it does not
@@ -1114,7 +1130,7 @@ fun HomeScreen(
             // so the whole app recomposed and redrew every vsync at idle (~50
             // draws/s on a motionless Home) for an indicator scaled to nothing.
             // Compose it only while it can actually be seen.
-            if (isRefreshing || pullRefreshState.distanceFraction > 0f) {
+            if (!localOnly && (isRefreshing || pullRefreshState.distanceFraction > 0f)) {
                 PullToRefreshDefaults.LoadingIndicator(
                     state = pullRefreshState,
                     isRefreshing = isRefreshing,

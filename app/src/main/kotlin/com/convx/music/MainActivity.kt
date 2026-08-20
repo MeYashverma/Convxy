@@ -118,6 +118,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.window.Dialog
@@ -274,6 +275,8 @@ import com.convx.music.ui.component.rememberBottomSheetState
 import com.convx.music.ui.component.shimmer.ShimmerTheme
 import com.convx.music.ui.menu.YouTubeSongMenu
 import com.convx.music.ui.player.BottomSheetPlayer
+import com.convx.music.ui.player.InstallPlayerMorphLayers
+import com.convx.music.ui.player.PlayerMorph
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.rememberPagerState
 import com.convx.music.ui.screens.Screens
@@ -1193,6 +1196,16 @@ class MainActivity : ComponentActivity() {
                     expandedBound = maxHeight,
                 )
 
+                // Both ends of the mini-to-full morph are recorded into GraphicsLayers
+                // owned here, above both the player and the nav bar the pill docks into --
+                // remembering them any lower would release them mid-gesture.
+                InstallPlayerMorphLayers()
+
+                // See the zIndex on the player below.
+                val playerAboveBars by remember(playerBottomSheetState) {
+                    derivedStateOf { playerBottomSheetState.progress > 0f }
+                }
+
                 // Only reserve space for the docked player accessory on screens where the
                 // floating tab bar is actually visible; other screens (e.g. settings) get
                 // the full height. In search mode the mini player still docks (now part of
@@ -1802,11 +1815,21 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
 
-                                    BottomSheetPlayer(
-                                        state = playerBottomSheetState,
-                                        navController = navController,
-                                        pureBlack = pureBlack
-                                    )
+                                    Box(
+                                        // Above the bars for as long as the player is anything
+                                        // other than fully collapsed, so the growing container
+                                        // covers them instead of the bars having to get out of
+                                        // its way. Melox's own full player does exactly this.
+                                        // Derived, so it flips twice a gesture rather than
+                                        // recomposing per frame.
+                                        modifier = Modifier.zIndex(if (playerAboveBars) 1f else 0f),
+                                    ) {
+                                        BottomSheetPlayer(
+                                            state = playerBottomSheetState,
+                                            navController = navController,
+                                            pureBlack = pureBlack
+                                        )
+                                    }
 
                                     // Use graphicsLayer instead of offset to avoid recomposition
                                     // graphicsLayer runs during draw phase, not composition phase
@@ -1823,6 +1846,7 @@ class MainActivity : ComponentActivity() {
                                             val hideOffset = totalHeightPx * (1 - navBarHeightPx / NavigationBarHeight.toPx())
                                             slideOffset + hideOffset
                                         }
+
                                     }
 
                                     AppFloatingNavBar(
@@ -1862,14 +1886,16 @@ class MainActivity : ComponentActivity() {
                                                 val hiddenOffset =
                                                     size.height + (bottomInset + 8.dp).toPx()
                                                 val navBarHeightPx = navigationBarHeight.toPx()
+                                                // Held still for the whole gesture -- see the
+                                                // classic bar above. The pill docks in here, so
+                                                // a bar that slides drags the morph's source
+                                                // rect along with it.
                                                 translationY = if (navBarHeightPx == 0f) {
                                                     hiddenOffset
                                                 } else {
-                                                    val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
-                                                    val slideOffset = hiddenOffset * progress
-                                                    val hideOffset = hiddenOffset * (1 - navBarHeightPx / NavigationBarHeight.toPx())
-                                                    slideOffset + hideOffset
+                                                    hiddenOffset * (1 - navBarHeightPx / NavigationBarHeight.toPx())
                                                 }
+
                                             }
                                     )
 

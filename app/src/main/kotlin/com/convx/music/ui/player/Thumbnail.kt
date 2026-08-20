@@ -722,9 +722,24 @@ private fun ThumbnailItem(
             },
         contentAlignment = Alignment.Center
     ) {
+        val artworkDensity = androidx.compose.ui.platform.LocalDensity.current
         Box(
             modifier = Modifier
                 .size(dimensions.thumbnailSize)
+                // Target end of the mini-to-full cover morph, registered on the node that
+                // KNOWS the shape: a vinyl or clover is a circle for morph purposes (half
+                // its size), a card is its own corner radius. Also the copy that has to be
+                // hidden while the travelling one is in flight, or the cover is on screen
+                // twice from the handoff onward.
+                .registerFullArtworkRect(
+                    with(artworkDensity) {
+                        when (artworkStyle) {
+                            PlayerArtworkStyle.CARD -> dimensions.cornerRadius.toPx()
+                            else -> dimensions.thumbnailSize.toPx() / 2f
+                        }
+                    }
+                )
+                .hideWhileMorphing()
                 .graphicsLayer {
                     rotationZ = rotation.value
                 }

@@ -38,7 +38,7 @@
     <string name="home_section_forgotten_favorites">Forgotten favourites</string>
     <string name="show_mood_filters">Mood filters</string>
     <string name="show_mood_filters_desc">Show Energize, Relax and other filters at the top of Home</string>
-    <string name="home_feed_order">Arrange home feed</string>
+    <string name="home_feed_order">Arrange home feed (Beta)</string>
     <string name="home_feed_order_desc">Drag to choose the order sections appear in. Sections that come and go with your recommendations always follow the ones you arrange here.</string>
     <string name="home_feed_order_reset">Reset to default order</string>
 

@@ -11,6 +11,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -187,6 +190,13 @@ fun FloatingMiniPlayer(
             // the press-scale layer so a half-pressed pill still reports its real
             // resting bounds rather than the squashed ones.
             .registerMiniContainerRect()
+            // Source end of the shared container morph. Recorded here and drawn by the
+            // overlay instead of in place, so the pill does not sit in the nav bar while
+            // a copy of it is expanding across the screen.
+            .recordPlayerLayer(
+                layer = { PlayerMorph.miniLayer },
+                drawInPlace = { !PlayerMorph.active },
+            )
             .onSizeChanged { measuredHeightPx = it.height }
             .then(interactiveHighlight.modifier)
             .clipToBounds()
@@ -301,7 +311,11 @@ fun FloatingMiniPlayer(
                         // player (docked in the floating nav bar); MiniPlayer.kt's own
                         // collapsedContent renders at collapsedBound = 0.dp now and is
                         // never actually on screen.
-                        .registerMiniArtworkRect()
+                        .registerMiniArtworkRect(with(density) { artCornerRadius.toPx() })
+                        // The cover is flown by PlayerArtworkMorphOverlay for the whole
+                        // flight; without this the copy baked into the pill's recording
+                        // rides along underneath it.
+                        .hideWhileMorphing()
                         .clip(RoundedCornerShape(artCornerRadius)),
                 )
 
@@ -359,7 +373,11 @@ fun FloatingMiniPlayer(
                         // player (docked in the floating nav bar); MiniPlayer.kt's own
                         // collapsedContent renders at collapsedBound = 0.dp now and is
                         // never actually on screen.
-                        .registerMiniArtworkRect()
+                        .registerMiniArtworkRect(with(density) { artCornerRadius.toPx() })
+                        // The cover is flown by PlayerArtworkMorphOverlay for the whole
+                        // flight; without this the copy baked into the pill's recording
+                        // rides along underneath it.
+                        .hideWhileMorphing()
                         .clip(RoundedCornerShape(artCornerRadius)),
                 )
 
@@ -509,7 +527,11 @@ fun FloatingMiniPlayer(
                         // player (docked in the floating nav bar); MiniPlayer.kt's own
                         // collapsedContent renders at collapsedBound = 0.dp now and is
                         // never actually on screen.
-                        .registerMiniArtworkRect()
+                        .registerMiniArtworkRect(with(density) { artCornerRadius.toPx() })
+                        // The cover is flown by PlayerArtworkMorphOverlay for the whole
+                        // flight; without this the copy baked into the pill's recording
+                        // rides along underneath it.
+                        .hideWhileMorphing()
                         .clip(RoundedCornerShape(artCornerRadius)),
                 )
 

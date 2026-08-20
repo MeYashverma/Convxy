@@ -13,6 +13,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.SharedTransitionScope.OverlayClip
 import androidx.compose.animation.SharedTransitionScope.ResizeMode
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -291,8 +292,8 @@ fun Modifier.morphContainer(id: String?, isSource: Boolean): Modifier {
                 // still 80ms/90ms after that change, i.e. a sixth of the new flight
                 // instead of a fifth, which read as an abrupt little flash at the start
                 // of an otherwise slow, smooth motion.
-                enter = fadeIn(tween(110)),
-                exit = fadeOut(tween(130, delayMillis = 200)),
+                enter = fadeIn(tween(110, easing = FastOutSlowInEasing)),
+                exit = fadeOut(tween(120, delayMillis = 120, easing = FastOutSlowInEasing)),
                 clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(radius)),
             )
             .clip(RoundedCornerShape(radius))

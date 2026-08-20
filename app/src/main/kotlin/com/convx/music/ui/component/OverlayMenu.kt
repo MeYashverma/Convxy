@@ -10,8 +10,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,15 +23,12 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.convx.music.LocalPlayerAwareWindowInsets
@@ -84,27 +81,47 @@ fun OverlayMenu(
         ) {
             BackHandler(onBack = ::dismiss)
 
-            Column(
-                modifier = Modifier
-                    .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
-                    .imePadding()
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
-                    .widthIn(max = MenuMaxWidth)
-                    .fillMaxWidth()
-                    .background(background, ContinuousRoundedRectangle(28.dp))
-                    // Swallows taps so a press on the menu itself does not reach the
-                    // scrim's dismiss handler underneath.
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                    )
-                    // A long action list has to stay reachable on a short window; the
-                    // sheet got this from its own drag behaviour.
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                content = { state.content(this) },
-            )
+            // The scrim fades (above); the menu itself rises. Two AnimatedVisibilities
+            // rather than one enter spec, because a slide on the outer one would drag the
+            // full-screen scrim up with it.
+            AnimatedVisibility(
+                visible = state.isVisible,
+                enter = slideInVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                    initialOffsetY = { it },
+                ) + fadeIn(),
+                exit = slideOutVertically(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                    targetOffsetY = { it },
+                ) + fadeOut(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+                        .imePadding()
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                        .widthIn(max = MenuMaxWidth)
+                        .fillMaxWidth()
+                        .background(background, ContinuousRoundedRectangle(28.dp))
+                        // Swallows taps so a press on the menu itself does not reach the
+                        // scrim's dismiss handler underneath.
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        )
+                        // Deliberately NOT verticalScroll: the menus put a LazyColumn inside
+                        // this Column, and a lazy list measured inside a scrolling parent gets
+                        // an infinite height constraint and throws. The menus scroll
+                        // themselves; this Column only has to stay bounded, which the
+                        // fillMaxSize parent already guarantees.
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    content = { state.content(this) },
+                )
+            }
         }
     }
 }

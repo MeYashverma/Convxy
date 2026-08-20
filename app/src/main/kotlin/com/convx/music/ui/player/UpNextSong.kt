@@ -1,6 +1,5 @@
 package com.convx.music.ui.player
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -39,8 +38,6 @@ fun UpNextSong(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(subtitleColor.copy(alpha = 0.08f))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -66,6 +63,15 @@ fun UpNextSong(
                 color = titleColor,
                 maxLines = 1,
             )
+            val artist = nextItem.artists?.firstOrNull()?.name
+            if (!artist.isNullOrBlank()) {
+                Text(
+                    text = artist,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = subtitleColor.copy(alpha = 0.7f),
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

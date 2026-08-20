@@ -78,6 +78,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.size.Size as CoilSize
 import com.convx.music.extensions.SwipeGesture
 import com.convx.music.vivimusic.AudioDeviceBottomSheet
 import com.convx.music.vivimusic.getConnectedBluetoothDeviceName
@@ -409,7 +410,13 @@ fun PlayerV2(
                                         // grow into and the morph silently does nothing
                                         // on this player -- the classic player registers
                                         // its own artwork the same way.
-                                        .registerFullArtworkRect()
+                                        .registerFullArtworkRect(
+                                            with(androidx.compose.ui.platform.LocalDensity.current) { 12.dp.toPx() }
+                                        )
+                                        // The overlay owns the cover for the whole
+                                        // flight; without this both are on screen from
+                                        // the handoff onward.
+                                        .hideWhileMorphing()
                                         .customSoftShadow(
                                             elevation = playerThumbnailShadowElevation.dp, 
                                             cornerRadius = 12.dp, 
@@ -424,7 +431,11 @@ fun PlayerV2(
                                         )
                                 ) {
                                     AsyncImage(
-                                        model = mediaMetadata?.thumbnailUrl?.resize(1200, 1200),
+                                        model = ImageRequest.Builder(context)
+                                            .data(mediaMetadata?.thumbnailUrl?.resize(1200, 1200))
+                                            .size(CoilSize.ORIGINAL)
+                                            .crossfade(true)
+                                            .build(),
                                         contentDescription = "Cover Art",
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
@@ -545,17 +556,8 @@ fun PlayerV2(
                                         }
                                         }
                                     }
+                                    }
                                 }
-
-                                if (showUpNext) {
-                                    UpNextSong(
-                                        playerConnection = playerConnection,
-                                        titleColor = adaptivePrimary,
-                                        subtitleColor = adaptiveSecondary,
-                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                                    )
-                                }
-                            }
                         } else if (targetState == PlayerInternalState.LYRICS || targetState == PlayerInternalState.QUEUE) {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 // Apple Music Morphing Mini Header
@@ -800,7 +802,17 @@ fun PlayerV2(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(makeTimeString(currentPos), color = adaptiveSecondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        AudioQualityBadge(playerConnection, adaptivePrimary, isPlaying)
                         Text("-" + makeTimeString(maxOf(0L, duration - currentPos)), color = adaptiveSecondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+
+                    if (showUpNext) {
+                        UpNextSong(
+                            playerConnection = playerConnection,
+                            titleColor = adaptivePrimary,
+                            subtitleColor = adaptiveSecondary,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                        )
                     }
                 
                     Spacer(modifier = Modifier.height(16.dp))

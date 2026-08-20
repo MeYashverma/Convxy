@@ -97,6 +97,7 @@ import com.convx.music.constants.AutoDjMixingEnabledKey
 import com.convx.music.constants.CreativeTransitionsEnabledKey
 import com.convx.music.constants.CompactPlayerInTabViewKey
 import com.convx.music.constants.HideVolumeBarKey
+import com.convx.music.constants.LocalAlbumsByYearKey
 import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.CrossfadeEnabledKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -197,6 +198,10 @@ fun PlayerSettings(
     val (localOnlyMode, onLocalOnlyModeChange) = rememberPreference(
         LocalOnlyModeKey,
         defaultValue = false
+    )
+    val (localAlbumsByYear, onLocalAlbumsByYearChange) = rememberPreference(
+        LocalAlbumsByYearKey,
+        defaultValue = true
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
         PersistentQueueKey,
@@ -602,6 +607,33 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onLocalOnlyModeChange(!localOnlyMode) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.album),
+                    title = { Text(stringResource(R.string.local_albums_by_year)) },
+                    description = { Text(stringResource(R.string.local_albums_by_year_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = localAlbumsByYear,
+                            onCheckedChange = onLocalAlbumsByYearChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (localAlbumsByYear) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onLocalAlbumsByYearChange(!localAlbumsByYear) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.local_songs),
+                    title = { Text(stringResource(R.string.scan_local_files)) },
+                    description = { Text(stringResource(R.string.scan_local_files_desc)) },
+                    onClick = { navController.navigate("settings/scan_music") }
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.library_music),

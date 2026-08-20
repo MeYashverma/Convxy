@@ -172,6 +172,8 @@ fun PlayerThemeScreen(
     // Apple Music draws its own square artwork treatment, so the shape presets
     // have nothing to act on while it is selected.
     val artworkLocked = background == PlayerBackgroundStyle.APPLE_MUSIC
+    // V17 uses its own thumbnail layout — VINYL and CLOVER don't apply.
+    val v17Active = useAppleMusicPlayer
 
     // Preview the song that is actually playing; fall back to the app icon.
     val playerConnection = LocalPlayerConnection.current
@@ -186,11 +188,12 @@ fun PlayerThemeScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         SectionTitle(stringResource(R.string.player_theme_artwork))
-        if (artworkLocked) {
-            LockedNote(stringResource(R.string.player_theme_artwork_locked))
+        if (artworkLocked || v17Active) {
+            LockedNote(stringResource(if (v17Active) R.string.player_theme_artwork_locked_v17 else R.string.player_theme_artwork_locked))
         }
         PresetRow {
             PlayerArtworkStyle.entries.forEach { style ->
+                val disabledByV17 = v17Active && style != PlayerArtworkStyle.CARD
                 PresetCard(
                     label = when (style) {
                         PlayerArtworkStyle.CARD -> stringResource(R.string.player_theme_card)
@@ -198,7 +201,7 @@ fun PlayerThemeScreen(
                         PlayerArtworkStyle.CLOVER -> stringResource(R.string.player_theme_clover)
                     },
                     selected = artworkStyle == style,
-                    enabled = !artworkLocked,
+                    enabled = !artworkLocked && !disabledByV17,
                     onClick = { onArtworkStyleChange(style) },
                 ) {
                     PlayerPreview(
@@ -219,9 +222,11 @@ fun PlayerThemeScreen(
             PlayerBackgroundStyle.entries.filter {
                 it != PlayerBackgroundStyle.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             }.forEach { style ->
+                val disabledByV17 = v17Active && style == PlayerBackgroundStyle.APPLE_MUSIC
                 PresetCard(
                     label = backgroundLabel(style),
                     selected = background == style,
+                    enabled = !disabledByV17,
                     onClick = { onBackgroundChange(style) },
                 ) {
                     PlayerPreview(

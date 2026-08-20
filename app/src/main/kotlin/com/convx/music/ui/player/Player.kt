@@ -1031,13 +1031,13 @@ fun BottomSheetPlayer(
     val (oneTapFullscreenLyrics) = rememberPreference(OneTapFullscreenLyricsKey, defaultValue = false)
     val (fullscreenLyricsCollapseTop) = rememberPreference(FullscreenLyricsCollapseTopKey, defaultValue = true)
     val (hideVolumeBar) = rememberPreference(HideVolumeBarKey, defaultValue = false)
-    // Position update - only for local playback
+    // Position update - only for local playback when player is visible
     // When casting, we use castPosition directly to avoid sync issues
-    // Use isPlaying instead of playbackState to ensure continuous updates during playback
-    LaunchedEffect(isPlaying, isCasting) {
-        if (!isCasting && isPlaying) {
+    // Pauses polling when the full sheet is collapsed to prevent background recompositions
+    LaunchedEffect(isPlaying, isCasting, state.isCollapsed) {
+        if (!isCasting && isPlaying && !state.isCollapsed) {
             while (isActive) {
-                delay(100) // Update more frequently for smoother progress bar
+                delay(100) // Update for smooth progress bar while player is open
                 if (sliderPosition == null) { // Only update if user isn't dragging
                     position = playerConnection.player.currentPosition
                     duration = playerConnection.player.duration
@@ -1156,9 +1156,25 @@ fun BottomSheetPlayer(
         ?: (LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
     val diyOrientation = if (isLandscapeLayout) DiyOrientation.LANDSCAPE else DiyOrientation.PORTRAIT
 
+    // Publishes this sheet's progress to the shared container morph. Read only in the
+    // draw phase (see PlayerMorph), so nothing recomposes per frame because of it.
+    DisposableEffect(state) {
+        PlayerMorph.progressProvider = { state.progress }
+        PlayerMorph.onDragDelta = { state.dispatchRawDelta(it) }
+        PlayerMorph.onDragEnd = { state.performFling(it, null) }
+        PlayerMorph.onDragCancel = { state.snapTo(state.collapsedBound) }
+        onDispose {
+            PlayerMorph.progressProvider = { 0f }
+            PlayerMorph.onDragDelta = {}
+            PlayerMorph.onDragEnd = {}
+            PlayerMorph.onDragCancel = {}
+        }
+    }
+
     BottomSheet(
         state = state,
         modifier = modifier,
+        morphEnabled = true,
         contentMaxWidth = playerContentMaxWidth,
         // The sheet rounds to the device's real screen radius as it reaches full size, so
         // its corners sit on the glass rather than near it, then opens out to square once
@@ -1171,15 +1187,13 @@ fun BottomSheetPlayer(
             // Container first, artwork on top of it: the artwork is travelling across
             // the same window and has to ride above the surface it is growing out of.
             PlayerContainerMorphOverlay(
-                progress = state.progress,
-                handoffProgress = PLAYER_LAYER_HANDOFF_PROGRESS,
+                progress = { state.progress },
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 expandedCornerRadius = rememberScreenCornerRadius(),
             )
             PlayerArtworkMorphOverlay(
                 thumbnailUrl = mediaMetadata?.thumbnailUrl,
-                progress = state.progress,
-                handoffProgress = PLAYER_LAYER_HANDOFF_PROGRESS,
+                progress = { state.progress },
             )
         },
         background = {
@@ -1301,18 +1315,22 @@ fun BottomSheetPlayer(
                             label = "GlowAnimatedContent"
                         ) { colors ->
                             if (colors.isNotEmpty()) {
-                                val infiniteTransition =
-                                    rememberInfiniteTransition(label = "GlowAnimation")
+                                val progress: androidx.compose.runtime.State<Float> = if (isPlaying && !state.isCollapsed) {
+                                    val infiniteTransition =
+                                        rememberInfiniteTransition(label = "GlowAnimation")
 
-                                val progress = infiniteTransition.animateFloat(
-                                    initialValue = 0f,
-                                    targetValue = 1f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(20000, easing = LinearEasing),
-                                        repeatMode = RepeatMode.Restart
-                                    ),
-                                    label = "glowProgress"
-                                )
+                                    infiniteTransition.animateFloat(
+                                        initialValue = 0f,
+                                        targetValue = 1f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(20000, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "glowProgress"
+                                    )
+                                } else {
+                                    remember { mutableFloatStateOf(0f) }
+                                }
 
                                 Box(
                                     modifier = Modifier
@@ -1573,37 +1591,49 @@ fun BottomSheetPlayer(
                         }
                     }
                     PlayerBackgroundStyle.LIVE_MESH -> {
-                        val infiniteTransition = rememberInfiniteTransition(label = "liveMeshRotation")
-                        
-                        val anchorRotation by infiniteTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = -360f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(80000, easing = LinearEasing),
-                                repeatMode = RepeatMode.Restart
-                            ),
-                            label = "anchorRotation"
-                        )
-                        
-                        val fastRotation by infiniteTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = 360f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(40000, easing = LinearEasing),
-                                repeatMode = RepeatMode.Restart
-                            ),
-                            label = "fastRotation"
-                        )
-                        
-                        val slowRotation by infiniteTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = 360f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(60000, easing = LinearEasing),
-                                repeatMode = RepeatMode.Restart
-                            ),
-                            label = "slowRotation"
-                        )
+                        val shouldAnimateLiveMesh = isPlaying && !state.isCollapsed
+                        val anchorRotation: androidx.compose.runtime.State<Float>
+                        val fastRotation: androidx.compose.runtime.State<Float>
+                        val slowRotation: androidx.compose.runtime.State<Float>
+
+                        if (shouldAnimateLiveMesh) {
+                            val infiniteTransition = rememberInfiniteTransition(label = "liveMeshRotation")
+                            
+                            anchorRotation = infiniteTransition.animateFloat(
+                                initialValue = 0f,
+                                targetValue = -360f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(80000, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Restart
+                                ),
+                                label = "anchorRotation"
+                            )
+                            
+                            fastRotation = infiniteTransition.animateFloat(
+                                initialValue = 0f,
+                                targetValue = 360f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(40000, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Restart
+                                ),
+                                label = "fastRotation"
+                            )
+                            
+                            slowRotation = infiniteTransition.animateFloat(
+                                initialValue = 0f,
+                                targetValue = 360f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(60000, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Restart
+                                ),
+                                label = "slowRotation"
+                            )
+                        } else {
+                            val zero = remember { mutableFloatStateOf(0f) }
+                            anchorRotation = zero
+                            fastRotation = zero
+                            slowRotation = zero
+                        }
 
                         AnimatedContent(
                             targetState = mediaMetadata?.thumbnailUrl,
@@ -1647,7 +1677,7 @@ fun BottomSheetPlayer(
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .blur(100.dp)
-                                                .graphicsLayer { rotationZ = anchorRotation }
+                                                .graphicsLayer { rotationZ = anchorRotation.value }
                                         )
 
                                         // Layer 2: Fast Rotating Crop (Top-Left)
@@ -1665,7 +1695,7 @@ fun BottomSheetPlayer(
                                                 .fillMaxSize()
                                                 .blur(120.dp)
                                                 .graphicsLayer {
-                                                    rotationZ = fastRotation
+                                                    rotationZ = fastRotation.value
                                                     alpha = 0.6f
                                                 }
                                         )
@@ -1685,7 +1715,7 @@ fun BottomSheetPlayer(
                                                 .fillMaxSize()
                                                 .blur(120.dp)
                                                 .graphicsLayer {
-                                                    rotationZ = slowRotation
+                                                    rotationZ = slowRotation.value
                                                     alpha = 0.5f
                                                 }
                                         )
@@ -3270,7 +3300,10 @@ fun BottomSheetPlayer(
                         // PlayerArtworkMorphOverlay -- the standard (portrait,
                         // non-landscape) player only; see the mini player's own
                         // registerMiniArtworkRect() call for the other end.
-                        modifier = Modifier.weight(1f).registerFullArtworkRect(),
+                        // The morph's target rect is registered on the artwork ITSELF, down
+                        // in Thumbnail -- this column is far taller than the cover, and
+                        // flying the cover into these bounds landed it too big and too high.
+                        modifier = Modifier.weight(1f),
                     ) {
                         // Remember lambdas to prevent unnecessary recomposition
                         val currentSliderPosition by rememberUpdatedState(sliderPosition)

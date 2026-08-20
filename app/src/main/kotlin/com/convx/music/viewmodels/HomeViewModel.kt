@@ -29,6 +29,7 @@ import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.constants.DataSaverEnabledKey
 import com.convx.music.constants.HideYoutubeShortsKey
 import com.convx.music.constants.InnerTubeCookieKey
+import com.convx.music.constants.LocalAlbumsByYearKey
 import com.convx.music.constants.LocalOnlyModeKey
 import com.convx.music.constants.LocalSongSortDescendingKey
 import com.convx.music.constants.LocalSongSortTypeKey
@@ -132,7 +133,15 @@ class HomeViewModel @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { (sortType, descending) -> database.localSongs(sortType, descending) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val localAlbums: StateFlow<List<Album>> = database.albumsLocalByNameAsc()
+    // Newest release first by default, not A-Z: an on-device library is something the
+    // user assembled over time, so release order says more about it than the alphabet
+    // does. Files with no year tag sort last -- SQLite puts NULLs at the end on DESC.
+    val localAlbums: StateFlow<List<Album>> = context.dataStore.data
+        .map { it[LocalAlbumsByYearKey] ?: true }
+        .distinctUntilChanged()
+        .flatMapLatest { byYear ->
+            if (byYear) database.albumsLocalByYearDesc() else database.albumsLocalByNameAsc()
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val localArtists: StateFlow<List<com.convx.music.db.entities.Artist>> = database.artistsLocalByNameAsc()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

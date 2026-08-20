@@ -428,6 +428,7 @@ fun TopPlaylistScreen(
                     itemsIndexed(
                         items = filteredSongs,
                         key = { _, song -> song.id },
+                        contentType = { _, _ -> "song_row" },
                     ) { index, song ->
                         val onCheckedChange: (Boolean) -> Unit = {
                             if (it) {

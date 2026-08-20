@@ -41,6 +41,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -268,12 +269,14 @@ fun FloatingTabBar(
             { transition.currentState != transition.targetState }
         }
         CompositionLocalProvider(LocalTabBarBackdropFrozen provides frozenWhileAnimating) {
-        val gooeyModifier = if (gooeyProgress > 0.01f) Modifier.gooey { gooeyBlurPx * gooeyProgress } else Modifier
-        Box(gooeyModifier) {
-            transition.AnimatedContent(
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                contentAlignment = Alignment.BottomCenter
-            ) { targetVisual ->
+            Box {
+                transition.AnimatedContent(
+                    transitionSpec = {
+                        fadeIn(tween(220, easing = FastOutSlowInEasing)) togetherWith
+                            fadeOut(tween(180, easing = FastOutSlowInEasing))
+                    },
+                    contentAlignment = Alignment.BottomCenter
+                ) { targetVisual ->
             when (targetVisual) {
                 FloatingTabBarVisual.INLINE -> InlineBar(
                     scope = scope,

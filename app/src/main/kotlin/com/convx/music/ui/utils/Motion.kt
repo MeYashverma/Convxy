@@ -6,6 +6,7 @@ package com.convx.music.ui.utils
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -52,7 +53,7 @@ object Motion {
      * reference. That one number was most of why the morph did not read as iOS: the
      * curve shape was already close, the clock was wrong.
      */
-    const val MorphStiffness = 700f
+    const val MorphStiffness = 950f
 
     fun <T> morph(): FiniteAnimationSpec<T> = spring(
         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -60,46 +61,26 @@ object Motion {
     )
 
     /**
-     * Card growing OUT of its tile (push). Deliberately slower than [MorphStiffness]'s
-     * measured settle and on Apple's own system timing curve rather than a spring: a
-     * screen arriving into place should read as deliberate, not launched, and a tween
-     * on a named curve is what reads as "considered" on repeat viewing where a fast
-     * settle starts to feel rushed. No bounce -- growing INTO position is a landing,
-     * not a catch.
+     * Card growing OUT of its tile (push) with Melox 320ms FastOutSlowIn curve.
      */
-    const val MorphEnterMillis = 560
-    val MorphEnterEasing: Easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
+    const val MorphEnterMillis = 320
+    val MorphEnterEasing: Easing = FastOutSlowInEasing
 
     fun <T> morphEnter(): FiniteAnimationSpec<T> = tween(MorphEnterMillis, easing = MorphEnterEasing)
 
     /**
-     * Card shrinking BACK into its tile (pop).
-     *
-     * A tween, not the spring this used to be. A spring gave the close a small
-     * settle-catch bounce, but pop is also the transition predictive back scrubs
-     * live by the gesture's drag progress -- and a spring has no clean meaning at
-     * partial progress (it's a function of TIME and velocity, not of a 0..1
-     * fraction), which is what showed up as the outgoing and incoming screens both
-     * appearing to slide/shrink into place at once during a back-gesture drag. A
-     * tween interpolates by fraction natively, so the system can scrub it exactly
-     * as smoothly as the plain fade it now runs alongside (see the NavHost's
-     * popEnterTransition/popExitTransition in MainActivity). The bounce is the
-     * trade for that: gone on close. Push keeps its own curve on [morphEnter]
-     * unchanged -- opening a screen is never gesture-driven, so it has no scrub
-     * constraint to give anything up for.
+     * Card shrinking BACK into its tile (pop) with 240ms FastOutSlowIn curve.
      */
-    const val MorphExitMillis = 220
+    const val MorphExitMillis = 240
+    val MorphExitEasing: Easing = FastOutSlowInEasing
 
-    fun <T> morphExit(): FiniteAnimationSpec<T> = tween(MorphExitMillis, easing = MorphEnterEasing)
+    fun <T> morphExit(): FiniteAnimationSpec<T> = tween(MorphExitMillis, easing = MorphExitEasing)
 
     /**
      * Selection moving between two committed positions — the tab puck, a segmented
-     * control's thumb. Slightly softer than [morph]: it travels a shorter distance,
-     * and at morph stiffness a short travel finishes so fast it reads as a jump.
-     *
-     * ~0.26s natural period.
+     * control's thumb.
      */
-    const val SelectStiffness = 580f
+    const val SelectStiffness = 750f
 
     fun <T> select(): FiniteAnimationSpec<T> = spring(
         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -107,10 +88,7 @@ object Motion {
     )
 
     /**
-     * Press feedback — the scale-down under a finger and its release. Must resolve
-     * inside the time a tap takes or it feels laggy rather than responsive.
-     *
-     * ~0.18s natural period.
+     * Press feedback — the scale-down under a finger and its release.
      */
     const val PressStiffness = 1220f
 
@@ -121,12 +99,8 @@ object Motion {
 
     /**
      * Something arriving or leaving in place: a sheet, a chip row, an inline error.
-     * Slower than [morph] on purpose — an arrival has no source position for the eye
-     * to track, so it needs longer to be read as movement rather than a swap.
-     *
-     * ~0.32s natural period.
      */
-    const val AppearStiffness = 385f
+    const val AppearStiffness = 450f
 
     fun <T> appear(): FiniteAnimationSpec<T> = spring(
         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -135,15 +109,11 @@ object Motion {
 
     /**
      * [appear], but for the leaving half of a transition that predictive back can
-     * gesture-scrub -- a plain NavHost pop, or the generic item-open fallback in
-     * `sharedComposable` for a route with no matched shared id. Same reasoning as
-     * [morphExit]: a spring has no clean value at partial gesture progress, a tween
-     * does. Kept as a separate name from [morphExit] because the two aren't
-     * required to share a duration/curve, only the same scrub-safety constraint.
+     * gesture-scrub.
      */
-    const val AppearExitMillis = 220
+    const val AppearExitMillis = 240
 
-    fun <T> appearExit(): FiniteAnimationSpec<T> = tween(AppearExitMillis, easing = MorphEnterEasing)
+    fun <T> appearExit(): FiniteAnimationSpec<T> = tween(AppearExitMillis, easing = MorphExitEasing)
 
     // The overscroll bounce-back deliberately lives in `IosOverscroll.kt` instead of
     // here: it is velocity-adaptive (a hard flick gets a longer arc), which no single

@@ -68,7 +68,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          ./gradlew assembleUniversalGmsRelease -Pnightly=true --no-configuration-cache --console=plain --warning-mode summary -x lint
+          ./gradlew assembleUniversalGmsRelease -Pnightly=true -PnightlyRun=${{ github.run_number }} --no-configuration-cache --console=plain --warning-mode summary -x lint
 
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4

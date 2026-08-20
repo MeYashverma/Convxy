@@ -25,6 +25,12 @@ val DonationPromptDismissedKey = booleanPreferencesKey("donationPromptDismissed"
 val AppIconKey = stringPreferencesKey("appIcon")
 
 /** JSON map of player-control slot -> user-supplied glyph. See ui/player/customize/PlayerIcons.kt. */
+/**
+ * Long-press menus as a full-screen overlay (true) rather than a bottom sheet (false).
+ * One switch for the whole app -- see OverlayMenu, which shares MenuState with
+ * BottomSheetMenu so no call site knows which is in use.
+ */
+val OverlayMenuStyleKey = booleanPreferencesKey("overlayMenuStyle")
 val PlayerIconsKey = stringPreferencesKey("playerIcons")
 /** JSON map of V2 player-control slot -> user-supplied glyph. Separate from [PlayerIconsKey]. */
 val V2PlayerIconsKey = stringPreferencesKey("v2PlayerIcons")

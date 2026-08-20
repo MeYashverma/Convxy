@@ -529,48 +529,6 @@ fun Thumbnail(
             }
         }
 
-        // Non-rotating light overlay — stays fixed while the vinyl spins underneath
-        if (artworkStyle == PlayerArtworkStyle.VINYL && !hidePlayerThumbnail) {
-            Canvas(
-                Modifier
-                    .size(dimensions.thumbnailSize)
-                    .clip(CircleShape)
-            ) {
-                val r = size.minDimension / 2f
-                val c = Offset(size.width / 2f, size.height / 2f)
-
-                // Edge rim light
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.18f),
-                    radius = r * 0.98f,
-                    center = c,
-                    style = Stroke(width = 1.2.dp.toPx()),
-                )
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.06f),
-                    radius = r * 0.95f,
-                    center = c,
-                    style = Stroke(width = 0.6.dp.toPx()),
-                )
-
-                // Diagonal gloss shine — stays in place as if lit from above-right
-                drawOval(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.White.copy(alpha = 0.09f),
-                            Color.White.copy(alpha = 0.14f),
-                            Color.White.copy(alpha = 0.09f),
-                            Color.Transparent,
-                        ),
-                        start = Offset(size.width * 0.15f, 0f),
-                        end = Offset(size.width * 0.85f, size.height),
-                    ),
-                    topLeft = Offset(size.width * 0.08f, size.height * 0.22f),
-                    size = androidx.compose.ui.geometry.Size(size.width * 0.84f, size.height * 0.32f),
-                )
-            }
-        }
     }
 }
 

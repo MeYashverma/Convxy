@@ -184,6 +184,7 @@ import com.convx.music.constants.MiniPlayerHeight
 import com.convx.music.constants.DockedAccessoryHeight
 import com.convx.music.constants.NavigationBarAnimationSpec
 import com.convx.music.constants.NavigationBarHeight
+import com.convx.music.constants.OverlayMenuStyleKey
 import com.convx.music.constants.PauseListenHistoryKey
 import com.convx.music.constants.LiquidGlassGlobalEnabledKey
 import com.convx.music.constants.LiquidGlassPlayerEnabledKey
@@ -264,6 +265,7 @@ import com.convx.music.ui.component.SideBarSection
 import com.convx.music.ui.component.TabletWidthThreshold
 import com.convx.music.ui.component.AppNavigationRail
 import com.convx.music.ui.component.BottomSheetMenu
+import com.convx.music.ui.component.OverlayMenu
 import com.convx.music.ui.component.BottomSheetPage
 import com.convx.music.ui.component.ListenTogetherOverlay
 import com.convx.music.ui.component.LocalBottomSheetPageState
@@ -2338,10 +2340,18 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    BottomSheetMenu(
-                        state = LocalMenuState.current,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
+                    // One preference decides the presentation for every long-press menu
+                    // in the app. Both hosts read the same MenuState, so the ~30 call
+                    // sites are untouched either way.
+                    val (overlayMenuStyle) = rememberPreference(OverlayMenuStyleKey, defaultValue = true)
+                    if (overlayMenuStyle) {
+                        OverlayMenu(state = LocalMenuState.current)
+                    } else {
+                        BottomSheetMenu(
+                            state = LocalMenuState.current,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
 
                     BottomSheetPage(
                         state = LocalBottomSheetPageState.current,

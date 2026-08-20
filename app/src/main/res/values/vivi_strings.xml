@@ -1145,6 +1145,10 @@
     <string name="ios_overscroll_desc">iOS-style rubber-band overscroll on lists</string>
     <string name="force_tablet_layout">Tab view</string>
     <string name="force_tablet_layout_desc">Wide screens use the side bar automatically. Turn this on to force it on a phone too</string>
+    <string name="scan_result_summary">Found %1$d files — %2$d new, %3$d already in your library</string>
+    <string name="edit_tags">Edit tags</string>
+    <string name="edit_tags_desc">Open this file in a tag editor</string>
+    <string name="edit_tags_no_app">No tag editor installed</string>
     <string name="scan_device">Scan device</string>
     <string name="grant_permission">Grant permission</string>
     <string name="home_background">Home background</string>

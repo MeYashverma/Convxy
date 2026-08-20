@@ -72,6 +72,7 @@ import com.convx.music.ui.screens.settings.DiscordLoginScreen
 import com.convx.music.ui.screens.settings.PlayerSettings
 import com.convx.music.ui.screens.settings.JioSettings
 import com.convx.music.ui.screens.settings.LocalFoldersSettingsScreen
+import com.convx.music.ui.screens.settings.ScanMusicScreen
 import com.convx.music.ui.screens.settings.PrivacySettings
 import com.convx.music.ui.screens.settings.RomanizationSettings
 import com.convx.music.ui.screens.settings.AccountSettingsScreen
@@ -427,6 +428,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     sharedComposable("settings/player/jio") {
         JioSettings(navController, scrollBehavior)
+    }
+
+    sharedComposable("settings/scan_music") {
+        ScanMusicScreen(navController, scrollBehavior)
     }
 
     sharedComposable("settings/player/local_folders") {

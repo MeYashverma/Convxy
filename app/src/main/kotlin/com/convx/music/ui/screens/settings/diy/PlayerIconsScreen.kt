@@ -101,7 +101,12 @@ fun PlayerIconsScreen(
         val key = if (slot.isV2) V2PlayerIconsKey else PlayerIconsKey
         scope.launch {
             context.dataStore.edit { it[key] = set.toJson() }
-            withContext(Dispatchers.IO) { PlayerIconStore.pruneOrphans(context, set) }
+            // Prune the directory this slot actually lives in. Pruning the V1 directory
+            // against a V2 set (or the reverse) deletes every glyph the user picked for
+            // the other player, since the two use different file names.
+            withContext(Dispatchers.IO) {
+                PlayerIconStore.pruneOrphans(context, set, slot.isV2)
+            }
         }
     }
 

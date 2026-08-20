@@ -131,9 +131,13 @@ object PlayerIconStore {
      * Drops files no slot references any more. Called after a slot is cleared or overwritten so
      * a user who tries ten different play buttons is not left with ten orphaned images.
      */
-    fun pruneOrphans(context: Context, set: PlayerIconSet) {
+    fun pruneOrphans(context: Context, set: PlayerIconSet, isV2: Boolean = false) {
+        // [isV2] is not optional in practice: the two players keep their glyphs in
+        // separate directories, and pruning one directory against the other's set
+        // deletes every icon the user picked for the other player.
         val live = set.overrides.values.mapTo(mutableSetOf()) { it.fileName }
-        dir(context).listFiles()?.forEach { if (it.name !in live) it.delete() }
+        val target = if (isV2) v2Dir(context) else dir(context)
+        target.listFiles()?.forEach { if (it.name !in live) it.delete() }
     }
 }
 

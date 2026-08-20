@@ -177,6 +177,11 @@
     <string name="general_settings">General settings</string>
 
     <string name="player_background_style">Player background style</string>
+    <string name="apple_music_player_v17">Apple Music Player V17</string>
+    <string name="apple_music_player_v17_description">Alternate full-screen player layout in the Apple Music style. DIY stickers are not shown while this is active.</string>
+    <string name="apple_music_player_v17_options">Apple Music Player V17 options</string>
+    <string name="player_thumbnail_shadow">Thumbnail shadow</string>
+    <string name="player_thumbnail_shadow_elevation">Shadow elevation</string>
     <string name="player_background_solid">Solid</string>
     <string name="follow_theme">Follow theme</string>
     <string name="gradient">Gradient</string>

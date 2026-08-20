@@ -73,19 +73,24 @@ object Motion {
     fun <T> morphEnter(): FiniteAnimationSpec<T> = tween(MorphEnterMillis, easing = MorphEnterEasing)
 
     /**
-     * Card shrinking BACK into its tile (pop). A tween can't overshoot a Rect
-     * meaningfully -- pushing every corner past [0,1] the same way just makes the
-     * whole card briefly larger, not a "catch". A spring with damping below 1 does
-     * that naturally: each corner independently overshoots and rebounds, which is
-     * the small settle-catch iOS gives a card landing back on its source.
+     * Card shrinking BACK into its tile (pop).
+     *
+     * A tween, not the spring this used to be. A spring gave the close a small
+     * settle-catch bounce, but pop is also the transition predictive back scrubs
+     * live by the gesture's drag progress -- and a spring has no clean meaning at
+     * partial progress (it's a function of TIME and velocity, not of a 0..1
+     * fraction), which is what showed up as the outgoing and incoming screens both
+     * appearing to slide/shrink into place at once during a back-gesture drag. A
+     * tween interpolates by fraction natively, so the system can scrub it exactly
+     * as smoothly as the plain fade it now runs alongside (see the NavHost's
+     * popEnterTransition/popExitTransition in MainActivity). The bounce is the
+     * trade for that: gone on close. Push keeps its own curve on [morphEnter]
+     * unchanged -- opening a screen is never gesture-driven, so it has no scrub
+     * constraint to give anything up for.
      */
-    const val MorphExitStiffness = 260f
-    const val MorphExitDamping = 0.62f
+    const val MorphExitMillis = 220
 
-    fun <T> morphExit(): FiniteAnimationSpec<T> = spring(
-        dampingRatio = MorphExitDamping,
-        stiffness = MorphExitStiffness,
-    )
+    fun <T> morphExit(): FiniteAnimationSpec<T> = tween(MorphExitMillis, easing = MorphEnterEasing)
 
     /**
      * Selection moving between two committed positions — the tab puck, a segmented
@@ -128,6 +133,18 @@ object Motion {
         stiffness = AppearStiffness,
     )
 
+    /**
+     * [appear], but for the leaving half of a transition that predictive back can
+     * gesture-scrub -- a plain NavHost pop, or the generic item-open fallback in
+     * `sharedComposable` for a route with no matched shared id. Same reasoning as
+     * [morphExit]: a spring has no clean value at partial gesture progress, a tween
+     * does. Kept as a separate name from [morphExit] because the two aren't
+     * required to share a duration/curve, only the same scrub-safety constraint.
+     */
+    const val AppearExitMillis = 220
+
+    fun <T> appearExit(): FiniteAnimationSpec<T> = tween(AppearExitMillis, easing = MorphEnterEasing)
+
     // The overscroll bounce-back deliberately lives in `IosOverscroll.kt` instead of
     // here: it is velocity-adaptive (a hard flick gets a longer arc), which no single
     // constant can express.
@@ -135,9 +152,20 @@ object Motion {
     // ---- Navigation push/pop -------------------------------------------------
 
     /**
-     * Duration of a screen push/pop. UIKit's own is ~0.35s and the reference agrees.
+     * Duration of a screen push/pop.
+     *
+     * UIKit's own is ~0.35s and the reference agrees, but the app's glass chrome
+     * samples a RECORDED backdrop layer that freezes for the duration of a push to
+     * avoid re-recording the whole tree every frame (see NavTransitionFreeze) --
+     * freezing is invisible for a scroll or pager slide, where the backdrop only
+     * changes incrementally, but a push swaps the ENTIRE screen, so the longer the
+     * freeze window the longer the glass blur behind the chrome visibly shows the
+     * wrong (stale) content while the actual foreground slides underneath it. 350ms
+     * made that gap obvious. 260ms is the tradeoff: still slower and smoother than
+     * the original 200ms tween, short enough that the stale-backdrop window reads
+     * as a blur settling rather than a broken transition.
      */
-    const val PushMillis = 350
+    const val PushMillis = 260
 
     /**
      * UIKit's navigation curve. Not `FastOutSlowIn`: Material's curve pulls harder

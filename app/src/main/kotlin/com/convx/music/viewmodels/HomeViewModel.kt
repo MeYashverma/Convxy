@@ -479,14 +479,20 @@ class HomeViewModel @Inject constructor(
 
         getQuickPicks()
 
+        // On-device tracks are the whole of local-only mode, which is a separate Home
+        // (see localHomeContent). Leaking them into the online feed put files with no
+        // artwork and no metadata beside YouTube rows that have both, so every shelf
+        // they landed in looked broken.
+        quickPicks.value = quickPicks.value?.filterNot { it.song.isLocal }
+
         forgottenFavorites.value = database.forgottenFavorites().first()
-            .filterVideoSongs(hideVideoSongs).shuffled().take(20)
+            .filterVideoSongs(hideVideoSongs).filterNot { it.song.isLocal }.shuffled().take(20)
 
         val fromTimeStamp = System.currentTimeMillis() - 86400000L * 7 * 2
         val keepListeningSongs = database.mostPlayedSongs(fromTimeStamp, limit = 15, offset = 5).first()
-            .filterVideoSongs(hideVideoSongs).shuffled().take(10)
+            .filterVideoSongs(hideVideoSongs).filterNot { it.song.isLocal }.shuffled().take(10)
         val keepListeningAlbums = database.mostPlayedAlbums(fromTimeStamp, limit = 8, offset = 2).first()
-            .filter { it.album.thumbnailUrl != null }.shuffled().take(5)
+            .filter { !it.album.isLocal && it.album.thumbnailUrl != null }.shuffled().take(5)
         val keepListeningArtists = database.mostPlayedArtists(fromTimeStamp).first()
             .filter { it.artist.isYouTubeArtist && it.artist.thumbnailUrl != null }.shuffled().take(5)
         keepListening.value = (keepListeningSongs + keepListeningAlbums + keepListeningArtists).shuffled()

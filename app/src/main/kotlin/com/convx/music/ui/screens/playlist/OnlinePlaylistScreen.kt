@@ -5,6 +5,7 @@
 
 package com.convx.music.ui.screens.playlist
 
+import com.convx.music.ui.utils.FloatingChromeSpacer
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
@@ -67,7 +68,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
@@ -103,8 +103,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.compose.animation.AnimatedContent
@@ -128,7 +126,6 @@ import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.PlaylistEntity
 import com.convx.music.db.entities.PlaylistSongMap
 import com.convx.music.models.toMediaMetadata
-import com.convx.music.playback.ExoDownloadService
 import com.convx.music.playback.queues.YouTubePlaylistQueue
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.GlassCircleButton
@@ -176,7 +173,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.core.net.toUri
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.OnlineBlur
 import com.convx.music.constants.AppBarHeight
@@ -185,6 +181,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.CircularProgressIndicator
+import com.convx.music.playback.DownloadTarget
+import com.convx.music.playback.cancelDownloads
+import com.convx.music.playback.downloadSongs
+import com.convx.music.playback.removeDownloads
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -219,27 +219,27 @@ fun OnlinePlaylistScreen(
     var query by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
     val downloadUtil = LocalDownloadUtil.current
     val context = LocalContext.current
+    // Collected rather than folded into a LaunchedEffect so the current state of each
+    // download is also available at click time — the download and cancel actions filter
+    // on it, see DownloadActions.
+    val downloads by downloadUtil.downloads.collectAsState()
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
+    val downloadState = remember(songs, downloads) {
+        // Bound to a local first: `songs` is a delegated val, which blocks the smart cast
+        // the null check below would otherwise give us.
+        val current = songs
+        when {
+            current.isNullOrEmpty() -> Download.STATE_STOPPED
+            current.all { downloads[it.id]?.state == Download.STATE_COMPLETED } ->
+                Download.STATE_COMPLETED
 
-    LaunchedEffect(songs) {
-        if (songs.isNullOrEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it.id]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it.id]?.state == Download.STATE_QUEUED ||
-                                downloads[it.id]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it.id]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
+            current.all {
+                downloads[it.id]?.state == Download.STATE_QUEUED ||
+                    downloads[it.id]?.state == Download.STATE_DOWNLOADING ||
+                    downloads[it.id]?.state == Download.STATE_COMPLETED
+            } -> Download.STATE_DOWNLOADING
+
+            else -> Download.STATE_STOPPED
         }
     }
 
@@ -402,6 +402,11 @@ fun OnlinePlaylistScreen(
                 }
             } else {
                 playlist?.let { playlist ->
+                    if (isSearching) {
+                        // No hero header in search mode — reserve the floating chrome's
+                        // height so the first row doesn't start under the status bar.
+                        item(key = "search_chrome_spacer") { FloatingChromeSpacer() }
+                    }
                     if (!isSearching) {
                         item(key = "playlist_header") {
                             OnlinePlaylistHeader(
@@ -765,6 +770,7 @@ private fun OnlinePlaylistHeader(
     val playerConnection = LocalPlayerConnection.current ?: return
     val database = LocalDatabase.current
     val menuState = LocalMenuState.current
+    val downloads by LocalDownloadUtil.current.downloads.collectAsState()
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
@@ -1052,32 +1058,22 @@ private fun OnlinePlaylistHeader(
                             indication = ripple(),
                             onClick = {
                                 when (downloadState) {
-                                    Download.STATE_COMPLETED, Download.STATE_DOWNLOADING -> {
-                                        songs.forEach { song ->
-                                            DownloadService.sendRemoveDownload(
-                                                context,
-                                                ExoDownloadService::class.java,
-                                                song.id,
-                                                false,
-                                            )
-                                        }
-                                    }
-                                    else -> {
-                                        songs.forEach { song ->
-                                            val downloadRequest =
-                                                DownloadRequest
-                                                    .Builder(song.id, song.id.toUri())
-                                                    .setCustomCacheKey(song.id)
-                                                    .setData(song.title.toByteArray())
-                                                    .build()
-                                            DownloadService.sendAddDownload(
-                                                context,
-                                                ExoDownloadService::class.java,
-                                                downloadRequest,
-                                                false,
-                                            )
-                                        }
-                                    }
+                                    Download.STATE_COMPLETED ->
+                                        removeDownloads(context, songs.map { it.id })
+
+                                    // Cancel, not remove: this used to delete every song
+                                    // in the playlist, already-finished ones included.
+                                    Download.STATE_DOWNLOADING -> cancelDownloads(
+                                        context,
+                                        songs.map { it.id },
+                                        downloads,
+                                    )
+
+                                    else -> downloadSongs(
+                                        context,
+                                        songs.map { DownloadTarget(it.id, it.title) },
+                                        downloads,
+                                    )
                                 }
                             }
                         )

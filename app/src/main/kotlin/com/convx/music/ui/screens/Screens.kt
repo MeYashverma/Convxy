@@ -66,6 +66,9 @@ sealed class Screens(
     )
 
     companion object {
-        val MainScreens = listOf(Home, Search, ListenTogether, Library)
+        // Listen Together is reachable from the top bar and its own route, never as a
+        // tab: as a pager page it sat between Search and Library, so every tab switch
+        // that crossed it flashed the screen on the way past.
+        val MainScreens = listOf(Home, Search, Library)
     }
 }

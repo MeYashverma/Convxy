@@ -36,6 +36,9 @@ val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
 val PureBlackMiniPlayerKey = booleanPreferencesKey("pureBlackMiniPlayer")
 val MiniPlayerOutlineKey = booleanPreferencesKey("miniPlayerOutline")
+val UseAppleMusicPlayerKey = booleanPreferencesKey("useAppleMusicPlayer")
+val ShowPlayerThumbnailShadowKey = booleanPreferencesKey("showPlayerThumbnailShadow")
+val PlayerThumbnailShadowElevationKey = floatPreferencesKey("playerThumbnailShadowElevation")
 val SelectedFontKey = stringPreferencesKey("selected_font")
 
 enum class AppFont(val value: String) {
@@ -118,6 +121,7 @@ val EnableBetterLyricsKey = booleanPreferencesKey("enableBetterLyrics")
 val EnableSimpMusicKey = booleanPreferencesKey("enableSimpMusic")
 val EnableYouLyPlusKey = booleanPreferencesKey("enableYouLyPlus")
 val EnablePaxsenixKey = booleanPreferencesKey("enablePaxsenix")
+val EnableMusixmatchKey = booleanPreferencesKey("enableMusixmatch")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoSongsKey = booleanPreferencesKey("hideVideoSongs")
 val DataSaverEnabledKey = booleanPreferencesKey("dataSaverEnabled")
@@ -644,6 +648,22 @@ val HomeCardCornerRadiusOverrideKey = intPreferencesKey("homeCardCornerRadiusOve
  * it shows the same content without spending a screen height on one track.
  */
 val HomeHeroCardEnabledKey = booleanPreferencesKey("homeHeroCardEnabled")
+
+/**
+ * User's own Home section order: section ids, most-important first, newline separated.
+ *
+ * Stored as ids rather than indices so it survives sections being added, removed or
+ * renamed between versions — an unknown id is ignored and a section missing from the
+ * list falls back to its default weight, which means a release that adds a new section
+ * does not scramble everyone's saved arrangement.
+ *
+ * Empty means "no custom order", which is distinct from "an order that happens to match
+ * the default": clearing it re-enables the default weights for good.
+ */
+val HomeSectionOrderKey = stringPreferencesKey("homeSectionOrder")
+
+/** Show YouTube's mood/genre filter chips (Energize, Relax, Feel good) in Home's top bar. */
+val ShowHomeMoodFiltersKey = booleanPreferencesKey("showHomeMoodFilters")
 
 /** Columns in Home's vertical "Keep Listening" grid. 0 (default) = 2. */
 val HomeGridColumnsOverrideKey = intPreferencesKey("homeGridColumnsOverride")

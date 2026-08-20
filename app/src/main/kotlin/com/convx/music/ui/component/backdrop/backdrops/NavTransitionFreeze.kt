@@ -12,10 +12,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.flow.collectLatest
 
-// Covers Motion.PushMillis (350), the longest NavHost transition in MainActivity,
+// Covers Motion.PushMillis (260), the longest NavHost transition in MainActivity,
 // plus a buffer for frame-delivery slop. Must not be shorter than the transition:
-// thawing mid-slide puts the whole-tree re-record back exactly where it hurts.
-private const val NavTransitionFreezeWindowNs = 450_000_000L
+// thawing mid-slide puts the whole-tree re-record back exactly where it hurts. Also
+// must not be padded past that need: this window is how long the glass backdrop
+// behind chrome visibly shows stale content during a full-screen push (see
+// Motion.PushMillis) -- it was 450ms and that staleness was clearly visible.
+private const val NavTransitionFreezeWindowNs = 330_000_000L
 
 /**
  * Time-boxed freeze for the app-level [layerBackdrop] across a screen-to-screen

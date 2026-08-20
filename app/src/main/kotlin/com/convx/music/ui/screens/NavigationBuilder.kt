@@ -106,49 +106,49 @@ fun NavGraphBuilder.navigationBuilder(
     // iOS parallax push set at the NavHost level in MainActivity), multi-back-stack
     // via popUpTo/saveState/restoreState in onNavItemClick, same as everything else
     // in this file.
-    composable(Screens.Home.route) {
+    sharedComposable(Screens.Home.route) {
         HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
     }
 
-    composable(Screens.Library.route) {
+    sharedComposable(Screens.Library.route) {
         LibraryScreen(navController)
     }
 
-    composable(Screens.Settings.route) {
+    sharedComposable(Screens.Settings.route) {
         SettingsScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "listen_together_from_topbar",
     ) {
         ListenTogetherScreen(navController, showTopBar = true)
     }
 
-    composable("listen_together/chat") {
+    sharedComposable("listen_together/chat") {
         CommentTogetherScreen(navController)
     }
 
-    composable("history") {
+    sharedComposable("history") {
         HistoryScreen(navController)
     }
 
-    composable("stats") {
+    sharedComposable("stats") {
         StatsScreen(navController)
     }
 
-    composable("mood_and_genres") {
+    sharedComposable("mood_and_genres") {
         MoodAndGenresScreen(navController, scrollBehavior)
     }
 
-    composable("account") {
+    sharedComposable("account") {
         AccountScreen(navController, scrollBehavior)
     }
 
-    composable("new_release") {
+    sharedComposable("new_release") {
         NewReleaseScreen(navController, scrollBehavior)
     }
 
-    composable("charts_screen") {
+    sharedComposable("charts_screen") {
         ChartsScreen(navController)
     }
 
@@ -220,7 +220,7 @@ fun NavGraphBuilder.navigationBuilder(
         ArtistScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "artist/{artistId}/songs",
         arguments = listOf(
             navArgument("artistId") {
@@ -231,7 +231,7 @@ fun NavGraphBuilder.navigationBuilder(
         ArtistSongsScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "artist/{artistId}/albums",
         arguments = listOf(
             navArgument("artistId") {
@@ -242,7 +242,7 @@ fun NavGraphBuilder.navigationBuilder(
         ArtistAlbumsScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "artist/{artistId}/items?browseId={browseId}?params={params}",
         arguments = listOf(
             navArgument("artistId") {
@@ -283,7 +283,7 @@ fun NavGraphBuilder.navigationBuilder(
         LocalPlaylistScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "local_music",
     ) {
         LocalMusicScreen(navController, scrollBehavior)
@@ -349,113 +349,113 @@ fun NavGraphBuilder.navigationBuilder(
         YouTubeBrowseScreen(navController)
     }
 
-    composable("settings/update") {
+    sharedComposable("settings/update") {
        UpdateSettings(navController, scrollBehavior)
     }
 
-    composable("settings/account") {
+    sharedComposable("settings/account") {
         AccountSettingsScreen(navController, scrollBehavior)
     }
 
-    composable("settings/appearance") {
+    sharedComposable("settings/appearance") {
         AppearanceSettings(navController, scrollBehavior, activity, snackbarHostState)
     }
 
-    composable("settings/home_feed_order") {
+    sharedComposable("settings/home_feed_order") {
         HomeFeedOrderScreen(navController, scrollBehavior)
     }
 
-    composable("settings/appearance/theme") {
+    sharedComposable("settings/appearance/theme") {
         ThemeScreen(navController)
     }
 
-    composable("settings/appearance/font") {
+    sharedComposable("settings/appearance/font") {
         FontSelectionScreen(navController, scrollBehavior)
     }
 
-    composable("settings/appearance/appicon") {
+    sharedComposable("settings/appearance/appicon") {
         AppIconScreen(navController, scrollBehavior)
     }
 
-    composable("settings/appearance/presets") {
+    sharedComposable("settings/appearance/presets") {
         PresetsScreen(navController, scrollBehavior)
     }
 
-    composable("settings/appearance/playericons") {
+    sharedComposable("settings/appearance/playericons") {
         PlayerIconsScreen(navController, scrollBehavior)
     }
 
-    composable("settings/appearance/diy") {
+    sharedComposable("settings/appearance/diy") {
         DiyEditorScreen(navController)
     }
 
-    composable("settings/appearance/canvas") {
+    sharedComposable("settings/appearance/canvas") {
         CanvasSelection(navController, scrollBehavior)
     }
 
-    composable("settings/appearance/playertheme") {
+    sharedComposable("settings/appearance/playertheme") {
         PlayerThemeScreen(navController, scrollBehavior)
     }
 
-    composable("settings/appearance/liquidglass") {
+    sharedComposable("settings/appearance/liquidglass") {
         GlassEffectSettings(navController, scrollBehavior)
     }
 
-    composable("settings/content") {
+    sharedComposable("settings/content") {
         ContentSettings(navController, scrollBehavior)
     }
 
-    composable("settings/content/romanization") {
+    sharedComposable("settings/content/romanization") {
         RomanizationSettings(navController, scrollBehavior)
     }
 
-    composable("settings/ai") {
+    sharedComposable("settings/ai") {
         AiSettings(navController, scrollBehavior)
     }
     
-    composable("settings/player") {
+    sharedComposable("settings/player") {
         PlayerSettings(navController, scrollBehavior)
     }
 
-    composable("settings/player/jio") {
+    sharedComposable("settings/player/jio") {
         JioSettings(navController, scrollBehavior)
     }
 
-    composable("settings/player/local_folders") {
+    sharedComposable("settings/player/local_folders") {
         LocalFoldersSettingsScreen(navController, scrollBehavior)
     }
 
-    composable("settings/storage") {
+    sharedComposable("settings/storage") {
         StorageSettings(navController, scrollBehavior)
     }
 
-    composable("settings/equalizer") {
+    sharedComposable("settings/equalizer") {
         AxionEqScreen(onBackClick = { navController.navigateUp() })
     }
 
-    composable("settings/privacy") {
+    sharedComposable("settings/privacy") {
         PrivacySettings(navController, scrollBehavior)
     }
 
-    composable("settings/backup_restore") {
+    sharedComposable("settings/backup_restore") {
         BackupAndRestore(navController, scrollBehavior)
     }
 
-    composable("settings/spotify") {
+    sharedComposable("settings/spotify") {
         SpotifyScreen(navController, scrollBehavior)
     }
 
 
 
-    composable("settings/integrations") {
+    sharedComposable("settings/integrations") {
         IntegrationScreen(navController, scrollBehavior)
     }
 
-    composable("settings/modules") {
+    sharedComposable("settings/modules") {
         ModuleSourceScreen(navController, scrollBehavior)
     }
 
-    composable(
+    sharedComposable(
         route = "settings/modules/{moduleId}",
         arguments = listOf(
             navArgument("moduleId") {
@@ -466,47 +466,47 @@ fun NavGraphBuilder.navigationBuilder(
         ModuleDetailScreen(navController, scrollBehavior, it.arguments?.getString("moduleId") ?: "")
     }
 
-    composable("settings/integrations/discord") {
+    sharedComposable("settings/integrations/discord") {
         DiscordSettings(navController, scrollBehavior, snackbarHostState)
     }
 
-    composable("settings/integrations/lastfm") {
+    sharedComposable("settings/integrations/lastfm") {
         LastFMSettings(navController, scrollBehavior)
     }
 
-    composable(route = "settings/integrations/listen_together") {
+    sharedComposable(route = "settings/integrations/listen_together") {
         ListenTogetherSettings(navController, scrollBehavior)
     }
 
-    composable("settings/discord/login") {
+    sharedComposable("settings/discord/login") {
         DiscordLoginScreen(navController)
     }
 
-    composable("settings/about") {
+    sharedComposable("settings/about") {
         AboutScreen(navController, scrollBehavior)
     }
 
-    composable("update") {
+    sharedComposable("update") {
         UpdateScreen(navController)
     }
 
-    composable("login") {
+    sharedComposable("login") {
         LoginScreen(navController)
     }
 
-    composable("channel_picker") {
+    sharedComposable("channel_picker") {
         ChannelPickerScreen(navController)
     }
 
-    composable("switch_channel") {
+    sharedComposable("switch_channel") {
         SwitchChannelScreen(navController)
     }
 
-    composable("wrapped") {
+    sharedComposable("wrapped") {
         WrappedScreen(navController)
     }
 
-    composable("ambient_mode") {
+    sharedComposable("ambient_mode") {
         AmbientModeScreen(navController)
     }
 
@@ -514,17 +514,17 @@ fun NavGraphBuilder.navigationBuilder(
         EqScreen(navController = navController)
     }
 
-    composable("recognition") {
+    sharedComposable("recognition") {
         RecognitionScreen(navController)
     }
 
-    composable("recognition_history") {
+    sharedComposable("recognition_history") {
         RecognitionHistoryScreen(navController)
     }
-    composable("settings/changelog") {
+    sharedComposable("settings/changelog") {
         ChangelogScreen(navController,scrollBehavior)
     }
-    composable("settings/commits") {
+    sharedComposable("settings/commits") {
         CommitScreen(navController, scrollBehavior)
     }
 }
@@ -595,8 +595,10 @@ private fun NavGraphBuilder.sharedComposable(
                 .then(
                     if (!hasRealMorph) {
                         Modifier.animateEnterExit(
+                            // enter (push, never gesture-driven): spring is fine.
                             enter = fadeIn(Motion.appear()) + scaleIn(Motion.appear(), initialScale = 0.94f),
-                            exit = fadeOut(Motion.appear()) + scaleOut(Motion.appear(), targetScale = 0.94f),
+                            // exit (pop, predictive-back-scrubbed): tween, see appearExit().
+                            exit = fadeOut(Motion.appearExit()) + scaleOut(Motion.appearExit(), targetScale = 0.94f),
                         )
                     } else {
                         Modifier

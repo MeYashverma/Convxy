@@ -1168,7 +1168,7 @@ private fun FavoriteButton(
     }
 }
 @Composable
-private fun MiniPlayerColorExtractor(
+internal fun MiniPlayerColorExtractor(
     mediaMetadata: MediaMetadata?,
     miniPlayerBackground: PlayerBackgroundStyle,
     onGradientColorsChange: (List<Color>) -> Unit
@@ -1239,7 +1239,7 @@ private fun MiniPlayerColorExtractor(
 private val miniPlayerGradientCache = android.util.LruCache<String, List<Color>>(64)
 
 @Composable
-private fun MiniPlayerBackgroundLayer(
+internal fun MiniPlayerBackgroundLayer(
     style: PlayerBackgroundStyle,
     mediaMetadata: MediaMetadata?,
     gradientColors: List<Color>

@@ -197,6 +197,7 @@ import com.convx.music.utils.NetworkConnectivityObserver
 import com.convx.music.utils.ScrobbleManager
 import com.convx.music.utils.SyncUtils
 import com.convx.music.utils.YTPlayerUtils
+import com.convx.music.constants.StopMusicOnTaskClearKey
 import com.convx.music.utils.dataStore
 import com.convx.music.utils.get
 import com.convx.music.utils.reportException
@@ -3604,7 +3605,28 @@ class MusicService :
 
     override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
 
+    /**
+     * The user swiped the app out of recents.
+     *
+     * This is where "stop music on task clear" has to live. It used to be handled in
+     * MainActivity.onDestroy() behind an `isFinishing` check, and neither half of that
+     * holds for a task swipe: the activity is destroyed by the system rather than
+     * finishing, so `isFinishing` is false, and onDestroy is not guaranteed to run at all.
+     * The setting therefore only ever fired when someone backed out of the app
+     * deliberately -- never on the gesture it is named for.
+     *
+     * onTaskRemoved is the callback Android delivers precisely for this, and the service
+     * is the thing still holding playback, so it is also the thing that can stop it.
+     */
     override fun onTaskRemoved(rootIntent: Intent?) {
+        if (dataStore.get(StopMusicOnTaskClearKey, false)) {
+            Timber.tag(TAG).d("Task removed with stop-on-task-clear enabled, stopping playback")
+            player.stop()
+            // stopSelf as well as stop(): a paused-but-alive session leaves the
+            // notification sitting in the shade after the app is gone, which reads as the
+            // setting not having worked even though the audio did stop.
+            stopSelf()
+        }
         super.onTaskRemoved(rootIntent)
     }
 

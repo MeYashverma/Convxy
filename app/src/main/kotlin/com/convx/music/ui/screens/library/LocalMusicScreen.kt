@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import com.convx.music.constants.ThumbnailRoundedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -105,7 +105,15 @@ fun LocalMusicScreen(
                 when (sortMode) {
                     LocalSortMode.NAME -> list.sortedBy { it.title.lowercase() }
                     LocalSortMode.DURATION -> list.sortedByDescending { it.song.duration }
-                    LocalSortMode.RECENT -> list.sortedByDescending { it.song.dateModified ?: LocalDateTime.MIN }
+                    // "Recently added" means MediaStore's DATE_ADDED, which the scanner
+                    // stores in inLibrary — not dateModified, which is the file's mtime.
+                    // Copying a music folder onto the device preserves the source files'
+                    // mtimes, so sorting on it ordered songs by when they were authored
+                    // rather than when they landed on the phone. dateModified stays as a
+                    // fallback for rows written before the scanner recorded DATE_ADDED.
+                    LocalSortMode.RECENT -> list.sortedByDescending {
+                        it.song.inLibrary ?: it.song.dateModified ?: LocalDateTime.MIN
+                    }
                 }
             }
     }
@@ -545,7 +553,8 @@ fun LocalMusicScreen(
 private fun songScrollLabel(song: Song, mode: LocalSortMode): String = when (mode) {
     LocalSortMode.NAME -> song.title.firstOrNull()?.uppercase() ?: "#"
     LocalSortMode.DURATION -> formatDuration(song.song.duration)
-    LocalSortMode.RECENT -> song.song.dateModified?.year?.toString() ?: "—"
+    LocalSortMode.RECENT ->
+        (song.song.inLibrary ?: song.song.dateModified)?.year?.toString() ?: "—"
 }
 
 @Composable
@@ -705,7 +714,7 @@ private fun ArtistListItem(
             error = painterResource(R.drawable.thumbnail_fallback),
             modifier = Modifier
                 .size(48.dp)
-                .clip(CircleShape)
+                .clip(ThumbnailRoundedShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         )
 

@@ -48,8 +48,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.music.innertube.YouTube
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.music.innertube.models.MediaInfo
 import com.convx.music.LocalDatabase
 import com.convx.music.LocalPlayerConnection
@@ -83,6 +86,27 @@ fun ShowMediaInfo(videoId: String) {
     }
     LaunchedEffect(Unit, videoId) {
         database.format(videoId).collect { currentFormat = it }
+    }
+
+    // Local songs never get a FormatEntity row — only the YouTube playback/download path
+    // writes one — so contentLength was always null for them and the field read "N/A".
+    // A local song's id IS its MediaStore content URI, so the size can just be read off
+    // the file. Done on demand rather than stored: no schema change, and it stays right
+    // if the file is replaced.
+    var localFileSize by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(song?.song?.isLocal, videoId) {
+        localFileSize = if (song?.song?.isLocal != true) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver
+                        .openAssetFileDescriptor(videoId.toUri(), "r")
+                        ?.use { it.length }
+                        ?.takeIf { it >= 0 }
+                }.getOrNull()
+            }
+        }
     }
 
     // Shapes
@@ -278,7 +302,7 @@ fun ShowMediaInfo(videoId: String) {
                     ) {
                         InfoItem(
                             label = stringResource(R.string.file_size),
-                            value = currentFormat?.contentLength?.let {
+                            value = (localFileSize ?: currentFormat?.contentLength)?.let {
                                 Formatter.formatShortFileSize(context, it)
                             } ?: "N/A",
                             modifier = Modifier.weight(1f)

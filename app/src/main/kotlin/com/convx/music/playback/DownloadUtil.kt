@@ -15,6 +15,7 @@ import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -362,6 +363,23 @@ constructor(
                             map.toMutableMap().apply {
                                 set(download.request.id, download)
                             }
+                        }
+
+                        // finalException was being dropped on the floor, so a download
+                        // that failed left no trace of WHY anywhere — which is exactly
+                        // the situation in the "only half my songs download, and the
+                        // Hindi ones never do" reports: no way to tell a region block
+                        // from a dead stream URL from a network drop. Logged through
+                        // Timber so it lands in the in-app log viewer (Settings ->
+                        // Content -> Logs) and can be read off a user's device.
+                        if (download.state == Download.STATE_FAILED) {
+                            Timber.e(
+                                finalException,
+                                "Download failed: id=%s title=%s reason=%d",
+                                download.request.id,
+                                Util.fromUtf8Bytes(download.request.data),
+                                download.failureReason,
+                            )
                         }
 
                         scope.launch {

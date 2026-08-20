@@ -13,6 +13,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.DraggableState
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -39,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import com.convx.music.ui.player.SCREEN_CORNER_EXPANSION_MILLIS
+import com.convx.music.ui.player.sharedContainerCornerRadius
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.pointer.pointerInput
@@ -56,6 +60,14 @@ import kotlin.math.pow
 
 /** Mirrors BackdropFreeze.kt's identical constant: a safety net for drags that
  *  never deliver onDragEnd/onDragCancel (e.g. gesture stolen elsewhere). */
+/**
+ * Progress at which the collapsed and expanded layers hand over.
+ *
+ * One value for both halves so they cannot drift into overlapping again: the mini player
+ * is fully faded out here, and the expanded content starts fading in here.
+ */
+internal const val PLAYER_LAYER_HANDOFF_PROGRESS = 0.25f
+
 private const val BackdropFreezeSafetyNs = 900_000_000L
 
 /**
@@ -79,9 +91,36 @@ fun BottomSheet(
      *  dock regardless) is unaffected either way.
      *  [Dp.Unspecified] (default) lets content fill the sheet exactly as before. */
     contentMaxWidth: Dp = Dp.Unspecified,
+    /** Corner radius the sheet rounds to as it reaches full size. The player passes the
+     *  device's physical screen radius so the sheet's corners land on the glass; other
+     *  callers can leave it and keep the plain collapsed-to-square curve. */
+    expandedCornerRadius: Dp = 0.dp,
+    /** Corner radius while collapsed. */
+    collapsedCornerRadius: Dp = 16.dp,
+    /**
+     * Drawn as a sibling of the sheet's own draggable content, NOT nested inside it --
+     * the sheet applies its own `translationY` to track the drag, and this overlay needs
+     * plain, unshifted root/window coordinates to place things by. Null for every caller
+     * that doesn't need one (this is a generic sheet primitive; only the player's own
+     * `BottomSheet(...)` call passes one, for the mini-to-full artwork morph).
+     */
+    overlayContent: (@Composable BoxScope.() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val density = LocalDensity.current
+
+    // Second stage of the corner treatment: once the sheet has settled at full size, its
+    // corners open out to square over a short beat of their own, so the player ends up
+    // filling the display edge to edge with the device's own glass doing the rounding.
+    // Separate from the sheet's motion on purpose -- the corners resolve after the sheet
+    // arrives, not with it.
+    val cornerExpansion = remember { Animatable(0f) }
+    LaunchedEffect(state.isExpanded) {
+        cornerExpansion.animateTo(
+            targetValue = if (state.isExpanded) 1f else 0f,
+            animationSpec = tween(SCREEN_CORNER_EXPANSION_MILLIS),
+        )
+    }
 
     Box(
         modifier = modifier
@@ -131,7 +170,16 @@ fun BottomSheet(
                 )
             }
             .graphicsLayer {
-                val cornerRadius = if (!state.isExpanded) 16.dp.toPx() else 0f
+                // Was `if (!state.isExpanded) 16.dp else 0f` -- a hard switch, so the
+                // corners popped square the moment the sheet latched open and popped back
+                // on the first pixel of a drag. Both endpoints are unchanged; what is new
+                // is that the radius now travels between them.
+                val cornerRadius = sharedContainerCornerRadius(
+                    collapsedCornerRadius = collapsedCornerRadius.toPx(),
+                    expandedCornerRadius = expandedCornerRadius.toPx(),
+                    progress = state.progress,
+                    screenCornerExpansionProgress = cornerExpansion.value,
+                )
                 shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
                 clip = true
             }
@@ -146,7 +194,12 @@ fun BottomSheet(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        alpha = ((state.progress - 0.15f) * 4).coerceIn(0f, 1f)
+                        // Starts where the mini player has finished leaving, not before
+                        // it. The two used to overlap between 0.15 and 0.25, so for that
+                        // slice of every open and close both were on screen at partial
+                        // opacity and the artwork ghosted against itself.
+                        alpha = ((state.progress - PLAYER_LAYER_HANDOFF_PROGRESS) / 0.2f)
+                            .coerceIn(0f, 1f)
                     },
             ) {
                 Box(
@@ -170,7 +223,9 @@ fun BottomSheet(
                 modifier =
                 Modifier
                     .graphicsLayer {
-                        alpha = 1f - (state.progress * 4).coerceAtMost(1f)
+                        // Fully gone exactly where the expanded content starts to arrive.
+                        alpha = 1f - (state.progress / PLAYER_LAYER_HANDOFF_PROGRESS)
+                            .coerceIn(0f, 1f)
                     }.clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -180,6 +235,14 @@ fun BottomSheet(
                 content = collapsedContent,
             )
         }
+    }
+
+    // Sibling of the translated sheet Box above, not a child of it -- see the
+    // parameter doc. Unaffected by the sheet's own drag translationY, so the
+    // overlay's own translations (root-relative rects it was handed) land where
+    // they mean to instead of being shifted a second time.
+    if (overlayContent != null) {
+        Box(modifier = Modifier.fillMaxSize(), content = overlayContent)
     }
 }
 

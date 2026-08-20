@@ -291,6 +291,12 @@ fun FloatingMiniPlayer(
                     error = painterResource(R.drawable.thumbnail_fallback),
                     modifier = Modifier
                         .size(artSize)
+                        // Registers this box's on-screen bounds for
+                        // PlayerArtworkMorphOverlay -- this is the real, visible mini
+                        // player (docked in the floating nav bar); MiniPlayer.kt's own
+                        // collapsedContent renders at collapsedBound = 0.dp now and is
+                        // never actually on screen.
+                        .registerMiniArtworkRect()
                         .clip(RoundedCornerShape(artCornerRadius)),
                 )
 
@@ -343,6 +349,12 @@ fun FloatingMiniPlayer(
                     error = painterResource(R.drawable.thumbnail_fallback),
                     modifier = Modifier
                         .size(artSize)
+                        // Registers this box's on-screen bounds for
+                        // PlayerArtworkMorphOverlay -- this is the real, visible mini
+                        // player (docked in the floating nav bar); MiniPlayer.kt's own
+                        // collapsedContent renders at collapsedBound = 0.dp now and is
+                        // never actually on screen.
+                        .registerMiniArtworkRect()
                         .clip(RoundedCornerShape(artCornerRadius)),
                 )
 
@@ -487,6 +499,12 @@ fun FloatingMiniPlayer(
                     error = painterResource(R.drawable.thumbnail_fallback),
                     modifier = Modifier
                         .size(artSize)
+                        // Registers this box's on-screen bounds for
+                        // PlayerArtworkMorphOverlay -- this is the real, visible mini
+                        // player (docked in the floating nav bar); MiniPlayer.kt's own
+                        // collapsedContent renders at collapsedBound = 0.dp now and is
+                        // never actually on screen.
+                        .registerMiniArtworkRect()
                         .clip(RoundedCornerShape(artCornerRadius)),
                 )
 

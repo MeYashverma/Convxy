@@ -320,6 +320,7 @@ dependencies {
     implementation(project(":applecanvas"))
     implementation(project(":vivimusiccanvas"))
     implementation(project(":paxsenixlyrics"))
+    implementation(project(":musixmatchlyrics"))
     implementation(project(":jiosaavn"))
     implementation(project(":spotify"))
     implementation(project(":spine"))

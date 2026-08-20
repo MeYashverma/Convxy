@@ -37,7 +37,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,13 +55,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download.STATE_COMPLETED
 import androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
 import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
 import androidx.media3.exoplayer.offline.Download.STATE_STOPPED
-import androidx.media3.exoplayer.offline.DownloadRequest
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.music.innertube.YouTube
@@ -77,7 +73,10 @@ import com.convx.music.db.entities.Album
 import com.convx.music.db.entities.SpeedDialItem
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
-import com.convx.music.playback.ExoDownloadService
+import com.convx.music.playback.DownloadTarget
+import com.convx.music.playback.cancelDownloads
+import com.convx.music.playback.downloadSongs
+import com.convx.music.playback.removeDownloads
 import com.convx.music.playback.queues.ListQueue
 import com.convx.music.ui.component.AlbumListItem
 import com.convx.music.ui.component.ListDialog
@@ -118,26 +117,21 @@ fun AlbumMenu(
         }
     }
 
-    var downloadState by remember {
-        mutableIntStateOf(STATE_STOPPED)
-    }
+    // Collected rather than folded into a LaunchedEffect so the current state of each
+    // download is also available at click time — the download and cancel actions filter
+    // on it, see DownloadActions.
+    val downloads by downloadUtil.downloads.collectAsState()
+    val downloadState = remember(songs, downloads) {
+        when {
+            songs.isEmpty() -> STATE_STOPPED
+            songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
+            songs.all {
+                downloads[it.id]?.state == STATE_QUEUED ||
+                    downloads[it.id]?.state == STATE_DOWNLOADING ||
+                    downloads[it.id]?.state == STATE_COMPLETED
+            } -> STATE_DOWNLOADING
 
-    LaunchedEffect(songs) {
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it.id]?.state == STATE_COMPLETED }) {
-                    STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it.id]?.state == STATE_QUEUED ||
-                                downloads[it.id]?.state == STATE_DOWNLOADING ||
-                                downloads[it.id]?.state == STATE_COMPLETED
-                    }
-                ) {
-                    STATE_DOWNLOADING
-                } else {
-                    STATE_STOPPED
-                }
+            else -> STATE_STOPPED
         }
     }
 
@@ -482,14 +476,7 @@ fun AlbumMenu(
                                     )
                                 },
                                 onClick = {
-                                    songs.forEach { song ->
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            song.id,
-                                            false,
-                                        )
-                                    }
+                                    removeDownloads(context, songs.map { it.id })
                                 }
                             )
                         }
@@ -503,14 +490,9 @@ fun AlbumMenu(
                                     )
                                 },
                                 onClick = {
-                                    songs.forEach { song ->
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            song.id,
-                                            false,
-                                        )
-                                    }
+                                    // Cancel, not remove: this used to delete every song
+                                    // in the album including the already-finished ones.
+                                    cancelDownloads(context, songs.map { it.id }, downloads)
                                 }
                             )
                         }
@@ -525,20 +507,11 @@ fun AlbumMenu(
                                     )
                                 },
                                 onClick = {
-                                    songs.forEach { song ->
-                                        val downloadRequest =
-                                            DownloadRequest
-                                                .Builder(song.id, song.id.toUri())
-                                                .setCustomCacheKey(song.id)
-                                                .setData(song.song.title.toByteArray())
-                                                .build()
-                                        DownloadService.sendAddDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            downloadRequest,
-                                            false,
-                                        )
-                                    }
+                                    downloadSongs(
+                                        context,
+                                        songs.map { DownloadTarget(it.id, it.song.title) },
+                                        downloads,
+                                    )
                                 }
                             )
                         }

@@ -1,3 +1,9 @@
+/**
+ * Convx Project (C) 2026
+ * Licensed under GPL-3.0 | See git history for contributors
+ */
+// Ported from vivizzz007/vivi-music (https://github.com/vivizzz007/vivi-music), GPL-3.0.
+
 package com.convx.music.applecanvas
 
 import com.convx.music.canvas.CanvasArtwork

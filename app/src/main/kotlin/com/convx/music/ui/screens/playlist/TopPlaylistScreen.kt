@@ -5,6 +5,7 @@
 
 package com.convx.music.ui.screens.playlist
 
+import com.convx.music.ui.utils.FloatingChromeSpacer
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -50,7 +51,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,11 +84,8 @@ import com.convx.music.ui.utils.listOverscroll
 import com.convx.music.utils.rememberPreference
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.util.fastSumBy
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.convx.music.LocalDownloadUtil
@@ -100,7 +97,6 @@ import com.convx.music.R
 import com.convx.music.constants.MyTopFilter
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
-import com.convx.music.playback.ExoDownloadService
 import com.convx.music.playback.queues.ListQueue
 import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
@@ -141,6 +137,10 @@ import com.convx.music.ui.component.ChromeScrim
 import com.convx.music.ui.component.rememberChromeScrimProgress
 import androidx.compose.ui.draw.clip
 import java.time.LocalDateTime
+import com.convx.music.playback.DownloadTarget
+import com.convx.music.playback.cancelDownloads
+import com.convx.music.playback.downloadSongs
+import com.convx.music.playback.removeDownloads
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -216,28 +216,33 @@ fun TopPlaylistScreen(
     val name = stringResource(R.string.my_top) + " $maxSize"
 
     val downloadUtil = LocalDownloadUtil.current
-    var downloadState by remember { mutableIntStateOf(Download.STATE_STOPPED) }
+    // Collected rather than folded into a LaunchedEffect so the current state of each
+    // download is also available at click time — the download and cancel actions filter
+    // on it, see DownloadActions.
+    val downloads by downloadUtil.downloads.collectAsState()
+    val downloadState = remember(songs, downloads) {
+        // Bound to a local first: `songs` is a delegated val, which blocks the smart cast
+        // the null check below would otherwise give us.
+        val current = songs
+        when {
+            current.isNullOrEmpty() -> Download.STATE_STOPPED
+            current.all { downloads[it.song.id]?.state == Download.STATE_COMPLETED } ->
+                Download.STATE_COMPLETED
+
+            current.all {
+                downloads[it.song.id]?.state == Download.STATE_QUEUED ||
+                    downloads[it.song.id]?.state == Download.STATE_DOWNLOADING ||
+                    downloads[it.song.id]?.state == Download.STATE_COMPLETED
+            } -> Download.STATE_DOWNLOADING
+
+            else -> Download.STATE_STOPPED
+        }
+    }
 
     LaunchedEffect(songs) {
         mutableSongs.apply {
             clear()
             songs?.let { addAll(it) }
-        }
-        if (songs?.isEmpty() == true) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs?.all { downloads[it.song.id]?.state == Download.STATE_COMPLETED } == true) {
-                    Download.STATE_COMPLETED
-                } else if (songs?.all {
-                        downloads[it.song.id]?.state == Download.STATE_QUEUED ||
-                                downloads[it.song.id]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it.song.id]?.state == Download.STATE_COMPLETED
-                    } == true
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
         }
     }
 
@@ -263,14 +268,7 @@ fun TopPlaylistScreen(
                 TextButton(
                     onClick = {
                         showRemoveDownloadDialog = false
-                        songs!!.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.song.id,
-                                false,
-                            )
-                        }
+                        removeDownloads(context, songs?.map { it.song.id }.orEmpty())
                     },
                 ) {
                     Text(text = stringResource(android.R.string.ok))
@@ -376,6 +374,12 @@ fun TopPlaylistScreen(
                             )
                         }
                     } else {
+                        if (isSearching) {
+                            // No hero header in search mode — reserve the floating
+                            // chrome's height so the first row doesn't start under the
+                            // status bar.
+                            item(key = "search_chrome_spacer") { FloatingChromeSpacer() }
+                        }
                         if (!isSearching) {
                             item(key = "playlist_header") {
                                 TopPlaylistHeader(
@@ -684,6 +688,7 @@ private fun TopPlaylistHeader(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
+    val downloads by LocalDownloadUtil.current.downloads.collectAsState()
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
@@ -833,32 +838,19 @@ private fun TopPlaylistHeader(
                                 onDownload = {
                                     when (downloadState) {
                                         Download.STATE_COMPLETED -> onShowRemoveDownloadDialog()
-                                        Download.STATE_DOWNLOADING -> {
-                                            songs.forEach { song ->
-                                                DownloadService.sendRemoveDownload(
-                                                    context,
-                                                    ExoDownloadService::class.java,
-                                                    song.id,
-                                                    false,
-                                                )
-                                            }
-                                        }
+                                        // Cancel, not remove: this used to delete every
+                                        // song in the list, finished ones included.
+                                        Download.STATE_DOWNLOADING -> cancelDownloads(
+                                            context,
+                                            songs.map { it.id },
+                                            downloads,
+                                        )
 
-                                        else -> {
-                                            songs.forEach { song ->
-                                                val downloadRequest = DownloadRequest
-                                                    .Builder(song.id, song.id.toUri())
-                                                    .setCustomCacheKey(song.id)
-                                                    .setData(song.title.toByteArray())
-                                                    .build()
-                                                DownloadService.sendAddDownload(
-                                                    context,
-                                                    ExoDownloadService::class.java,
-                                                    downloadRequest,
-                                                    false,
-                                                )
-                                            }
-                                        }
+                                        else -> downloadSongs(
+                                            context,
+                                            songs.map { DownloadTarget(it.id, it.title) },
+                                            downloads,
+                                        )
                                     }
                                 },
                                 onDismiss = { menuState.dismiss() }

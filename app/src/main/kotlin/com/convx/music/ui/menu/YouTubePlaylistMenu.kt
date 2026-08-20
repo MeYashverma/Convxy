@@ -37,7 +37,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -51,10 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
-import androidx.media3.exoplayer.offline.DownloadService
 import coil3.compose.AsyncImage
 import com.music.innertube.YouTube
 import com.music.innertube.models.PlaylistItem
@@ -74,7 +70,6 @@ import com.convx.music.db.entities.PlaylistSongMap
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.models.MediaMetadata
 import com.convx.music.models.toMediaMetadata
-import com.convx.music.playback.ExoDownloadService
 import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.ui.component.DefaultDialog
 import com.convx.music.ui.component.ListDialog
@@ -90,6 +85,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.convx.music.playback.DownloadTarget
+import com.convx.music.playback.cancelDownloads
+import com.convx.music.playback.downloadSongs
+import com.convx.music.playback.removeDownloads
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MutableCollectionMutableState")
@@ -199,23 +198,23 @@ fun YouTubePlaylistMenu(
     )
     HorizontalDivider()
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
-    LaunchedEffect(songs) {
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it.id]?.state == Download.STATE_COMPLETED })
-                    Download.STATE_COMPLETED
-                else if (songs.all {
-                        downloads[it.id]?.state == Download.STATE_QUEUED
-                                || downloads[it.id]?.state == Download.STATE_DOWNLOADING
-                                || downloads[it.id]?.state == Download.STATE_COMPLETED
-                    })
-                    Download.STATE_DOWNLOADING
-                else
-                    Download.STATE_STOPPED
+    // Collected rather than folded into a LaunchedEffect so the current state of each
+    // download is also available at click time — the download and cancel actions filter
+    // on it, see DownloadActions.
+    val downloads by downloadUtil.downloads.collectAsState()
+    val downloadState = remember(songs, downloads) {
+        when {
+            songs.isEmpty() -> Download.STATE_STOPPED
+            songs.all { downloads[it.id]?.state == Download.STATE_COMPLETED } ->
+                Download.STATE_COMPLETED
+
+            songs.all {
+                downloads[it.id]?.state == Download.STATE_QUEUED ||
+                    downloads[it.id]?.state == Download.STATE_DOWNLOADING ||
+                    downloads[it.id]?.state == Download.STATE_COMPLETED
+            } -> Download.STATE_DOWNLOADING
+
+            else -> Download.STATE_STOPPED
         }
     }
     var showRemoveDownloadDialog by remember {
@@ -243,14 +242,7 @@ fun YouTubePlaylistMenu(
                 TextButton(
                     onClick = {
                         showRemoveDownloadDialog = false
-                        songs.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.id,
-                                false
-                            )
-                        }
+                        removeDownloads(context, songs.map { it.id })
                     }
                 ) {
                     Text(text = stringResource(android.R.string.ok))
@@ -549,7 +541,14 @@ fun YouTubePlaylistMenu(
                                             )
                                         },
                                         onClick = {
-                                            showRemoveDownloadDialog = true
+                                            // Cancel, not remove: this used to open the
+                                            // remove-download dialog, which deleted every
+                                            // song including the already-finished ones.
+                                            cancelDownloads(
+                                                context,
+                                                songs.map { it.id },
+                                                downloads,
+                                            )
                                         }
                                     )
                                 }
@@ -564,19 +563,11 @@ fun YouTubePlaylistMenu(
                                             )
                                         },
                                         onClick = {
-                                            songs.forEach { song ->
-                                                val downloadRequest =
-                                                    DownloadRequest.Builder(song.id, song.id.toUri())
-                                                        .setCustomCacheKey(song.id)
-                                                        .setData(song.title.toByteArray())
-                                                        .build()
-                                                DownloadService.sendAddDownload(
-                                                    context,
-                                                    ExoDownloadService::class.java,
-                                                    downloadRequest,
-                                                    false
-                                                )
-                                            }
+                                            downloadSongs(
+                                                context,
+                                                songs.map { DownloadTarget(it.id, it.title) },
+                                                downloads,
+                                            )
                                         }
                                     )
                                 }

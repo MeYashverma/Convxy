@@ -190,6 +190,7 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.UseNewMiniPlayerDesignKey
 import com.convx.music.constants.MiniBarTabStyleKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.constants.UseAppleMusicPlayerKey
 import com.convx.music.constants.UseNewPlayerDesignKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.ThumbnailCornerRadiusModal
@@ -242,6 +243,10 @@ fun AppearanceSettings(
     val (miniBarTabStyle, onMiniBarTabStyleChange) = rememberPreference(MiniBarTabStyleKey, defaultValue = false)
     val (_, _) = rememberPreference(DynamicThemeKey, defaultValue = true)
     val (useNewPlayerDesign, _) = rememberPreference(UseNewPlayerDesignKey, defaultValue = false)
+    // DIY stickers have no equivalent slot in the ported Apple Music Player V17
+    // layout, so its entry point is hidden rather than left dangling to a
+    // customization that would silently never render.
+    val (useAppleMusicPlayer, _) = rememberPreference(UseAppleMusicPlayerKey, defaultValue = false)
     val (showAudioQualityBadge, onShowAudioQualityBadgeChange) = rememberPreference(
         ShowAudioQualityBadgeKey,
         defaultValue = true
@@ -341,7 +346,7 @@ fun AppearanceSettings(
     val (homeHeroCardHeightOverride, onHomeHeroCardHeightOverrideChange) = rememberPreference(HomeHeroCardHeightOverrideKey, 0)
     val (speedDialCardHeightOverride, onSpeedDialCardHeightOverrideChange) = rememberPreference(SpeedDialCardHeightOverrideKey, 0)
     val (homeCardCornerRadiusOverride, onHomeCardCornerRadiusOverrideChange) = rememberPreference(HomeCardCornerRadiusOverrideKey, 0)
-    val (homeHeroCardEnabled, onHomeHeroCardEnabledChange) = rememberPreference(HomeHeroCardEnabledKey, false)
+    val (homeHeroCardEnabled, onHomeHeroCardEnabledChange) = rememberPreference(HomeHeroCardEnabledKey, true)
     val (homeGridColumnsOverride, onHomeGridColumnsOverrideChange) = rememberPreference(HomeGridColumnsOverrideKey, 0)
 
     // Density scale preferences
@@ -581,7 +586,7 @@ fun AppearanceSettings(
             Column {
         Material3SettingsGroup(
             title = stringResource(R.string.theme_colors),
-            items = listOf(
+            items = listOfNotNull(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),
                     title = { Text(stringResource(R.string.theme_colors)) },
@@ -620,12 +625,12 @@ fun AppearanceSettings(
                     description = { Text(stringResource(R.string.player_icons_desc)) },
                     onClick = { navController.navigate("settings/appearance/playericons") }
                 ),
-                Material3SettingsItem(
+                if (!useAppleMusicPlayer) Material3SettingsItem(
                     icon = painterResource(R.drawable.edit),
                     title = { Text(stringResource(R.string.diy)) },
                     description = { Text(stringResource(R.string.diy_desc)) },
                     onClick = { navController.navigate("settings/appearance/diy") }
-                )
+                ) else null
             )
         )
 

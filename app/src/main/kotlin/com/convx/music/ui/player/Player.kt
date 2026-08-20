@@ -69,6 +69,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -93,6 +94,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -196,6 +201,7 @@ import com.convx.music.constants.SliderStyleKey
 import com.convx.music.constants.SwipeLyricsKey
 import com.convx.music.constants.ThumbnailCornerRadius
 import com.convx.music.constants.ThumbnailRoundedShape
+import com.convx.music.constants.UseAppleMusicPlayerKey
 import com.convx.music.constants.UseNewPlayerDesignKey
 import com.convx.music.constants.ShowAudioQualityBadgeKey
 import com.convx.music.db.entities.LyricsEntity
@@ -211,6 +217,7 @@ import com.convx.music.vivimusic.isSpeaker
 import com.convx.music.vivimusic.AudioDeviceBottomSheet
 import com.convx.music.ui.component.DjReadout
 import com.convx.music.ui.component.BottomSheet
+import com.convx.music.ui.component.PLAYER_LAYER_HANDOFF_PROGRESS
 import com.convx.music.ui.component.BottomSheetState
 import com.convx.music.ui.component.LocalBottomSheetPageState
 import com.convx.music.ui.component.LocalMenuState
@@ -329,6 +336,14 @@ fun BottomSheetPlayer(
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
+
+    // Alternate player style, ported from vivizzz007/vivi-music. Off by default.
+    // Swapped in below as the BottomSheet's collapsed/expanded content slots (see
+    // collapsedContent/content near the BottomSheet(...) call) so it still goes
+    // through the sheet's real drag/expand/collapse mechanics -- an early return
+    // here used to skip that machinery entirely, which is why V17 used to render
+    // as an always-on-top full-bleed box instead of a proper mini/expanded player.
+    val (useAppleMusicPlayer) = rememberPreference(UseAppleMusicPlayerKey, defaultValue = false)
 
     // Shared between the background slot (BackgroundVideoView polls into it)
     // and the control pills below (read it via LocalBackdropLoopBucket) — see
@@ -596,18 +611,42 @@ fun BottomSheetPlayer(
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxSystemVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat() }
-    val systemVolume by produceState(initialValue = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxSystemVolume) {
+    // Seeded once and then refreshed ONLY by VOLUME_CHANGED_ACTION, this used to drift:
+    // that broadcast is undocumented and is not reliably delivered while the app is
+    // backgrounded, so changing the volume with the hardware keys and coming back left
+    // the slider showing whatever it last saw — 23% while the system was really at 54%.
+    // Re-reading on every resume means the slider can't sit on a stale number, whether or
+    // not the broadcast arrives.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var systemVolume by remember {
+        mutableFloatStateOf(
+            audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxSystemVolume
+        )
+    }
+    DisposableEffect(lifecycleOwner, maxSystemVolume) {
+        fun refresh() {
+            systemVolume =
+                audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxSystemVolume
+        }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == "android.media.VOLUME_CHANGED_ACTION") {
-                    value = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxSystemVolume
-                }
+                if (intent.action == "android.media.VOLUME_CHANGED_ACTION") refresh()
             }
         }
-        val filter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
-        context.registerReceiver(receiver, filter)
-        awaitDispose {
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter("android.media.VOLUME_CHANGED_ACTION"),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        refresh()
+        onDispose {
             context.unregisterReceiver(receiver)
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -1119,6 +1158,20 @@ fun BottomSheetPlayer(
         state = state,
         modifier = modifier,
         contentMaxWidth = playerContentMaxWidth,
+        // The sheet rounds to the device's real screen radius as it reaches full size, so
+        // its corners sit on the glass rather than near it, then opens out to square once
+        // settled. 0.dp on a device that reports no rounded corners, or in split screen.
+        expandedCornerRadius = rememberScreenCornerRadius(),
+        // Mini-to-full artwork morph (registerMiniArtworkRect/registerFullArtworkRect
+        // above mark the two ends; see PlayerArtworkMorphOverlay's own doc for why this
+        // draws a fresh AsyncImage rather than a captured GraphicsLayer).
+        overlayContent = {
+            PlayerArtworkMorphOverlay(
+                thumbnailUrl = mediaMetadata?.thumbnailUrl,
+                progress = state.progress,
+                handoffProgress = PLAYER_LAYER_HANDOFF_PROGRESS,
+            )
+        },
         background = {
             val glassConfig = LocalGlassEffectConfig.current
             val glassActive = isGlassAllowed()
@@ -1126,7 +1179,14 @@ fun BottomSheetPlayer(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    // OUTER layer, before layerBackdrop: without it every sibling tick
+                    // in the sheet (progress, waveform, the position poll) re-records
+                    // this whole background subtree instead of just redrawing itself.
+                    // Pairs with the inner graphicsLayer the same way MainActivity's
+                    // app backdrop does.
+                    .graphicsLayer()
                     .layerBackdrop(playerBackdrop, frozen = state.backdropFrozen)
+                    .graphicsLayer()
                     .then(
                         if (glassActive) {
                             // Unified Apple Music glass player background:
@@ -1735,12 +1795,24 @@ fun BottomSheetPlayer(
             playerConnection.player.clearMediaItems()
         },
         collapsedContent = {
-            MiniPlayer(
-                positionState = positionState,
-                durationState = durationState
-            )
+            if (useAppleMusicPlayer) {
+                AppleMiniPlayer(
+                    progressState = remember(positionState, durationState) {
+                        ProgressState(positionState, durationState)
+                    }
+                )
+            } else {
+                MiniPlayer(
+                    positionState = positionState,
+                    durationState = durationState
+                )
+            }
         },
     ) {
+        if (useAppleMusicPlayer) {
+            PlayerV2(state = state, navController = navController, modifier = Modifier)
+            return@BottomSheet
+        }
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
@@ -2683,6 +2755,7 @@ fun BottomSheetPlayer(
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(backButtonWeight)
+                                    .widthIn(min = 44.dp)
                             ) {
                                 PlayerGlyph(
                                     slot = PlayerIconSlot.PREVIOUS,
@@ -2722,6 +2795,7 @@ fun BottomSheetPlayer(
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(playPauseWeight)
+                                    .widthIn(min = 44.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -2773,8 +2847,8 @@ fun BottomSheetPlayer(
                                 ),
                                 modifier = Modifier
                                     .height(68.dp)
-                                    .weight(nextButtonWeight
-                                    )
+                                    .weight(nextButtonWeight)
+                                    .widthIn(min = 44.dp)
                             ) {
                                 PlayerGlyph(
                                     slot = PlayerIconSlot.NEXT,
@@ -3173,7 +3247,11 @@ fun BottomSheetPlayer(
 
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.weight(1f),
+                        // Registers this box's on-screen bounds for
+                        // PlayerArtworkMorphOverlay -- the standard (portrait,
+                        // non-landscape) player only; see the mini player's own
+                        // registerMiniArtworkRect() call for the other end.
+                        modifier = Modifier.weight(1f).registerFullArtworkRect(),
                     ) {
                         // Remember lambdas to prevent unnecessary recomposition
                         val currentSliderPosition by rememberUpdatedState(sliderPosition)
@@ -3373,10 +3451,10 @@ fun MoreActionsButton(
     val bottomSheetPageState = LocalBottomSheetPageState.current
 
     Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(40.dp)
+            .size(44.dp)
             .clip(RoundedCornerShape(24.dp))
-            .background(textButtonColor)
             .clickable {
                 menuState.show {
                     PlayerMenu(
@@ -3395,6 +3473,12 @@ fun MoreActionsButton(
                 }
             }
     ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(textButtonColor)
+        )
         // Routed through PlayerGlyph like every other control: this one drew the stock
         // glyph straight from resources, so the More slot in player-icon settings did
         // nothing here even though the sibling PlayerMoreMenuButton honoured it.
@@ -3421,9 +3505,8 @@ private fun PlayerMoreMenuButton(
         contentAlignment = Alignment.Center,
         modifier =
         Modifier
-            .size(40.dp)
+            .size(44.dp)
             .clip(RoundedCornerShape(24.dp))
-            .background(textButtonColor)
             .clickable {
                 menuState.show {
                     PlayerMenu(
@@ -3442,6 +3525,12 @@ private fun PlayerMoreMenuButton(
                 }
             },
     ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(textButtonColor)
+        )
         // PlayerGlyph, not a raw Image with an unconditional tint: a user's own
         // image for this slot was being flattened to a solid colour regardless of
         // the slot's per-icon tint flag, so a photo came out as a coloured blob.

@@ -121,6 +121,7 @@ import com.convx.music.ui.theme.AppleTokens
 import com.convx.music.ui.utils.marqueeWhenVisible
 import com.convx.music.ui.utils.rememberGridSpacing
 import com.convx.music.ui.utils.resize
+import com.convx.music.ui.utils.sharedArtworkSource
 import com.convx.music.utils.joinByBullet
 import com.convx.music.utils.makeTimeString
 import kotlinx.coroutines.CoroutineScope
@@ -555,7 +556,7 @@ fun SongGridItem(
                 makeTimeString(song.song.duration * 1000L)
             ),
             style = MaterialTheme.typography.bodySmall,
-            color = LocalContentColor.current.copy(alpha = 0.6f),
+            color = AppleTokens.Metadata,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -624,7 +625,7 @@ fun ArtistListItem(
             Box(
                 modifier = Modifier
                     .size(ListThumbnailSize)
-                    .clip(CircleShape)
+                    .clip(ThumbnailRoundedShape)
                     .background(LocalContentColor.current.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -650,7 +651,7 @@ fun ArtistListItem(
                 contentDescription = null,
                 modifier = Modifier
                     .size(ListThumbnailSize)
-                    .clip(CircleShape),
+                    .clip(ThumbnailRoundedShape),
             )
         }
     },
@@ -680,7 +681,7 @@ fun ArtistGridItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(CircleShape)
+                    .clip(ThumbnailRoundedShape)
                     .background(LocalContentColor.current.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -707,7 +708,7 @@ fun ArtistGridItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(CircleShape)
+                    .clip(ThumbnailRoundedShape)
             )
         }
     },
@@ -793,6 +794,7 @@ fun AlbumListItem(
                 isPlaying = isPlaying,
                 shape = ThumbnailRoundedShape,
                 targetSizePx = thumbnailPx(ListThumbnailSize),
+                sharedArtworkId = album.id,
                 modifier = Modifier.size(ListThumbnailSize)
             )
         }
@@ -864,7 +866,7 @@ fun AlbumGridItem(
         Text(
             text = album.artists.joinToString { it.name },
             style = MaterialTheme.typography.bodySmall,
-            color = LocalContentColor.current.copy(alpha = 0.6f),
+            color = AppleTokens.Metadata,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -892,6 +894,7 @@ fun AlbumGridItem(
                 isActive = isActive,
                 isPlaying = isPlaying,
                 shape = ThumbnailRoundedShape,
+                sharedArtworkId = album.id,
             )
         }
     },
@@ -1100,7 +1103,7 @@ fun PlaylistGridItem(
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodySmall,
-            color = LocalContentColor.current.copy(alpha = 0.6f),
+            color = AppleTokens.Metadata,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -1287,8 +1290,13 @@ fun YouTubeListItem(
                     isSelected = isSelected,
                     isActive = isActive,
                     isPlaying = isPlaying,
-                    shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
+                    // List rows keep one artwork shape for every item type; the circle
+                    // stays on artist tiles and heroes, where it reads as a portrait.
+                    shape = ThumbnailRoundedShape,
                     targetSizePx = thumbnailPx(ListThumbnailSize),
+                    // Songs open the player, not a detail screen with a hero, so they
+                    // stay out of the artwork morph -- the sheet has its own transition.
+                    sharedArtworkId = if (item is SongItem) null else item.id,
                     modifier = Modifier.size(ListThumbnailSize)
                 )
             },
@@ -1370,7 +1378,7 @@ fun YouTubeGridItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = LocalContentColor.current.copy(alpha = 0.6f),
+                color = AppleTokens.Metadata,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1382,7 +1390,8 @@ fun YouTubeGridItem(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else ThumbnailRoundedShape,
+            shape = ThumbnailRoundedShape,
+            sharedArtworkId = if (item is SongItem) null else item.id,
         )
     },
     thumbnailRatio = thumbnailRatio,
@@ -1438,7 +1447,7 @@ fun LocalArtistsGrid(
             thumbnailUrl = thumbnailUrl,
             isActive = false,
             isPlaying = false,
-            shape = CircleShape,
+            shape = ThumbnailRoundedShape,
             modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier,
             showCenterPlay = false,
             playButtonVisible = false
@@ -1502,6 +1511,11 @@ fun ItemThumbnail(
      *  user's general album-art setting, e.g. Home's Speed Dial. */
     forceContentScale: ContentScale? = null,
     showPausedPlayIcon: Boolean = true,
+    /** Id of the album/artist/playlist/song this artwork belongs to. Supplying it makes
+     *  the thumbnail the source of the artwork morph into that item's detail screen --
+     *  but only for the tile actually being opened, so the same album appearing in two
+     *  rails does not put two claimants on one key. See [sharedArtworkSource]. */
+    sharedArtworkId: String? = null,
 ) {
     val cropAlbumArtPref = LocalItemPrefs.current.cropAlbumArt
     val cropAlbumArt = forceContentScale == ContentScale.Crop || (forceContentScale == null && cropAlbumArtPref)
@@ -1528,6 +1542,9 @@ fun ItemThumbnail(
         modifier = modifier
             .fillMaxSize()
             .aspectRatio(thumbnailRatio)
+            // Before the clip, so the overlay animates the rounded artwork rather than a
+            // square that gets clipped at each end of the flight.
+            .sharedArtworkSource(sharedArtworkId, thumbnailUrl)
             .clip(shape)
     ) {
         if (albumIndex == null) {

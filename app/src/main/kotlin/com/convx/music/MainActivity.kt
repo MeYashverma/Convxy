@@ -1954,6 +1954,73 @@ class MainActivity : ComponentActivity() {
                                 CompositionLocalProvider(
                                     LocalSharedTransitionScope provides this@SharedTransitionLayout,
                                 ) {
+                                // Carries layerBackdrop now -- see the comment on the Search
+                                // AnimatedVisibility below for why this moved off NavHost's
+                                // own modifier and up to wrap both NavHost and Search.
+                                Box(
+                                    modifier = Modifier
+                                        // Skipped on WebView routes: layerBackdrop records
+                                        // this whole subtree into a GraphicsLayer so glass
+                                        // can sample it, which means the subtree is drawn
+                                        // twice per frame. A WebView renders on its own
+                                        // hardware canvas and does not survive that second
+                                        // pass intact â€” the page tears and flickers while
+                                        // still being usable, exactly the reported symptom.
+                                        // Those screens are plain full-bleed WebViews with
+                                        // their own Material top bar, so they have no glass
+                                        // to feed anyway.
+                                        // Also skipped when nothing would sample the backdrop:
+                                        // every glass component switched off, or a device where
+                                        // glass can't render at all (pre-Android 12, or low-RAM).
+                                        // Recording the screen into a GraphicsLayer costs the
+                                        // same whether or not anyone reads it, and on those
+                                        // devices nobody ever does â€” measured at ~25ms of
+                                        // display-list recording per frame on a Galaxy M34, on
+                                        // every screen including a plain settings list.
+                                        .then(
+                                            if (DIAG_DISABLE_BACKDROP ||
+                                                currentRoute in WebViewRoutes ||
+                                                !glassEffectConfig.anyComponentEnabled ||
+                                                !glassAllowed
+                                            ) {
+                                                Modifier
+                                            } else {
+                                                // graphicsLayer BEFORE layerBackdrop, not
+                                                // after: the layer must enclose the backdrop
+                                                // node, otherwise that node's draw still
+                                                // re-runs every time anything else in the
+                                                // window redraws. The mini player and nav bar
+                                                // are siblings of this Box, yet their
+                                                // per-frame ticks were forcing a full
+                                                // re-record of this subtree â€” 117ms/frame at
+                                                // idle with a song playing. Defaults only, so
+                                                // nothing about the rendered result changes.
+                                                Modifier
+                                                    // OUTER layer: isolates this subtree from
+                                                    // sibling redraws (mini player waveform,
+                                                    // 10Hz position poll), which were forcing
+                                                    // a full re-record. 117ms -> ~48ms idle
+                                                    // while playing.
+                                                    .graphicsLayer()
+                                                    .layerBackdrop(
+                                                        appBackdrop,
+                                                        frozen = backdropFrozenProvider,
+                                                    )
+                                                    // INNER layer: the content becomes ONE
+                                                    // cached RenderNode, so the backdrop's
+                                                    // layer.record { drawContent() } records a
+                                                    // single drawRenderNode instead of
+                                                    // re-issuing every op in the tree. Compose
+                                                    // keeps that node up to date incrementally
+                                                    // on its normal draw path.
+                                                    .graphicsLayer()
+                                            }
+                                        )
+                                        .nestedScroll(backdropFreezeConnection)
+                                        .nestedScroll(topBarChrome.connection)
+                                        .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
+                                        .nestedScroll(floatingNavBarScrollConnection)
+                                ) {
                                 // NavHost with animations (Material 3 Expressive style)
                                 NavHost(
                                     navController = navController,
@@ -1993,83 +2060,25 @@ class MainActivity : ComponentActivity() {
                                             } + fadeOut(Motion.push(), targetAlpha = Motion.PushDimAlpha)
                                         }
                                     },
+                                    // Pop is a plain crossfade -- both directions, every
+                                    // route, morph or not. Predictive back scrubs whatever
+                                    // spec is here by the GESTURE's live drag progress rather
+                                    // than running it on a timer, and only a plain alpha tween
+                                    // scrubs cleanly: a fraction of a fade is still a smaller
+                                    // fade, but a fraction of a slide-with-parallax-offset (or
+                                    // the morph's spring-driven shrink-to-tile) has no clean
+                                    // meaning at partial progress, which is what was showing up
+                                    // as the outgoing and incoming screens seemingly both
+                                    // sliding into place at once during a back-gesture drag.
+                                    // Push keeps its slide/morph above -- only pop needed to
+                                    // change, since only pop is ever gesture-driven.
                                     popEnterTransition = {
-                                        // Mirror of the exit above: the screen a morph
-                                        // shrinks back into was never moved, so it only has
-                                        // its dim to undo.
-                                        if (isMorphRoute(initialState.destination.route)) {
-                                            fadeIn(tween(200), initialAlpha = 0.7f)
-                                        } else {
-                                            slideInHorizontally(Motion.push()) {
-                                                Motion.parallaxOffset(it)
-                                            } + fadeIn(Motion.push(), initialAlpha = Motion.PushDimAlpha)
-                                        }
+                                        fadeIn(tween(220))
                                     },
                                     popExitTransition = {
-                                        slideOutHorizontally(Motion.push()) { it }
+                                        fadeOut(tween(220))
                                     },
-                                    modifier = Modifier
-                                        // Skipped on WebView routes: layerBackdrop records
-                                        // this whole subtree into a GraphicsLayer so glass
-                                        // can sample it, which means the subtree is drawn
-                                        // twice per frame. A WebView renders on its own
-                                        // hardware canvas and does not survive that second
-                                        // pass intact â€” the page tears and flickers while
-                                        // still being usable, exactly the reported symptom.
-                                        // Those screens are plain full-bleed WebViews with
-                                        // their own Material top bar, so they have no glass
-                                        // to feed anyway.
-                                        // Also skipped when nothing would sample the backdrop:
-                                        // every glass component switched off, or a device where
-                                        // glass can't render at all (pre-Android 12, or low-RAM).
-                                        // Recording the screen into a GraphicsLayer costs the
-                                        // same whether or not anyone reads it, and on those
-                                        // devices nobody ever does â€” measured at ~25ms of
-                                        // display-list recording per frame on a Galaxy M34, on
-                                        // every screen including a plain settings list.
-                                        .then(
-                                            if (DIAG_DISABLE_BACKDROP ||
-                                                currentRoute in WebViewRoutes ||
-                                                !glassEffectConfig.anyComponentEnabled ||
-                                                !glassAllowed
-                                            ) {
-                                                Modifier
-                                            } else {
-                                                // graphicsLayer BEFORE layerBackdrop, not
-                                                // after: the layer must enclose the backdrop
-                                                // node, otherwise that node's draw still
-                                                // re-runs every time anything else in the
-                                                // window redraws. The mini player and nav bar
-                                                // are siblings of the NavHost, yet their
-                                                // per-frame ticks were forcing a full
-                                                // re-record of this subtree â€” 117ms/frame at
-                                                // idle with a song playing. Defaults only, so
-                                                // nothing about the rendered result changes.
-                                                Modifier
-                                                    // OUTER layer: isolates this subtree from
-                                                    // sibling redraws (mini player waveform,
-                                                    // 10Hz position poll), which were forcing
-                                                    // a full re-record. 117ms -> ~48ms idle
-                                                    // while playing.
-                                                    .graphicsLayer()
-                                                    .layerBackdrop(
-                                                        appBackdrop,
-                                                        frozen = backdropFrozenProvider,
-                                                    )
-                                                    // INNER layer: the content becomes ONE
-                                                    // cached RenderNode, so the backdrop's
-                                                    // layer.record { drawContent() } records a
-                                                    // single drawRenderNode instead of
-                                                    // re-issuing every op in the tree. Compose
-                                                    // keeps that node up to date incrementally
-                                                    // on its normal draw path.
-                                                    .graphicsLayer()
-                                            }
-                                        )
-                                        .nestedScroll(backdropFreezeConnection)
-                                        .nestedScroll(topBarChrome.connection)
-                                        .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
-                                        .nestedScroll(floatingNavBarScrollConnection)
+                                    modifier = Modifier.fillMaxSize(),
                                 ) {
                                     navigationBuilder(
                                         navController = navController,
@@ -2078,12 +2087,24 @@ class MainActivity : ComponentActivity() {
                                         snackbarHostState = snackbarHostState,
                                     )
                                 }
+                                }
 
-                                // Search, over the tabs rather than beside them. Inside the
-                                // same backdrop-recorded subtree as the NavHost so the nav
-                                // bar's glass samples it exactly as it samples any screen,
-                                // and above it so the tab underneath keeps its scroll
-                                // position untouched while search is open.
+                                // Search, over the tabs rather than beside them. This box
+                                // (not NavHost's own modifier) is what carries layerBackdrop
+                                // now -- see the comment on it below. Moved OUT of NavHost's
+                                // modifier chain and made the shared parent of both NavHost
+                                // and this AnimatedVisibility specifically so glass sampling
+                                // covers search too.
+                                //
+                                // It didn't before: layerBackdrop lived on NavHost's own
+                                // modifier, and this AnimatedVisibility was a SIBLING call
+                                // after NavHost's closing brace -- outside the element that
+                                // modifier was attached to, not inside it. appBackdrop's
+                                // recorded layer therefore never contained search's content
+                                // at all; it kept showing whatever the tab underneath had
+                                // last drawn, frozen, for as long as search stayed open. That
+                                // is the "search's backdrop still holds the previous page"
+                                // bug -- not a freeze/throttle timing issue, a structural one.
                                 AnimatedVisibility(
                                     visible = searchOverlayOpen,
                                     enter = fadeIn(Motion.appear()),

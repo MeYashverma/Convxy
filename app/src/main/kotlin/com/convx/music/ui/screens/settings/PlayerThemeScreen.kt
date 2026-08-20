@@ -83,6 +83,7 @@ import com.convx.music.constants.PlayerBackgroundStyle
 import com.convx.music.constants.PlayerBackgroundStyleKey
 import com.convx.music.constants.UseAppleMusicPlayerKey
 import com.convx.music.constants.ShowPlayerThumbnailShadowKey
+import com.convx.music.constants.ShowUpNextKey
 import com.convx.music.constants.PlayerThumbnailShadowElevationKey
 import com.convx.music.constants.PlayerGradientAngleKey
 import com.convx.music.constants.PlayerGradientStopsKey
@@ -152,6 +153,7 @@ fun PlayerThemeScreen(
     val (playerThumbnailShadowElevation, onPlayerThumbnailShadowElevationChange) = rememberPreference(
         PlayerThumbnailShadowElevationKey, defaultValue = 8f
     )
+    val (showUpNext, onShowUpNextChange) = rememberPreference(ShowUpNextKey, defaultValue = false)
     val gradientStops = remember(gradientStopsRaw) { decodeGradientStops(gradientStopsRaw) }
 
     var showStaticPicker by rememberSaveable { mutableStateOf(false) }
@@ -271,6 +273,12 @@ fun PlayerThemeScreen(
                 )
             }
         }
+        SwitchPreference(
+            title = { Text(stringResource(R.string.show_up_next)) },
+            description = stringResource(R.string.show_up_next_desc),
+            checked = showUpNext,
+            onCheckedChange = onShowUpNextChange,
+        )
 
         if (background == PlayerBackgroundStyle.STATIC) {
             SettingRow(

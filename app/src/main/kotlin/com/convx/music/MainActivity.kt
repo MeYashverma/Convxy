@@ -834,11 +834,17 @@ class MainActivity : ComponentActivity() {
                 val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
 
                 val (listenTogetherInTopBar) = rememberPreference(ListenTogetherInTopBarKey, defaultValue = true)
-                val navigationItems = remember(listenTogetherInTopBar) {
+                // Read here rather than at its old spot further down: the tab row now
+                // depends on it, and a second rememberPreference for the same key would
+                // mean a second DataStore collector for one boolean.
+                val (localOnlyMode) = rememberPreference(LocalOnlyModeKey, false)
+                val navigationItems = remember(listenTogetherInTopBar, localOnlyMode) {
+                    // Local-only mode adds the flat all-songs tab after Home.
+                    val screens = Screens.mainScreens(localOnlyMode)
                     if (listenTogetherInTopBar) {
-                        Screens.MainScreens.filter { it != Screens.ListenTogether }
+                        screens.filter { it != Screens.ListenTogether }
                     } else {
-                        Screens.MainScreens
+                        screens
                     }
                 }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
@@ -1031,7 +1037,6 @@ class MainActivity : ComponentActivity() {
                 // navigation leaves both search routes.
                 var searchKeyboardActive by rememberSaveable { mutableStateOf(false) }
                 var storedSearchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
-                val (localOnlyMode) = rememberPreference(LocalOnlyModeKey, false)
                 // Local-only mode pins search to the on-device library; the stored
                 // preference is left alone so it returns when the mode is turned off.
                 val searchSource = if (localOnlyMode) SearchSource.LOCAL else storedSearchSource

@@ -21,6 +21,8 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import com.convx.music.R
 import com.convx.music.constants.PlayerIconsKey
+import androidx.datastore.preferences.core.Preferences
+import com.convx.music.constants.V2PlayerIconsKey
 import com.convx.music.utils.dataStore
 import com.convx.music.utils.get
 import com.convx.music.utils.rememberPreference
@@ -36,6 +38,7 @@ import java.io.File
 enum class PlayerIconSlot(
     @DrawableRes val fallback: Int,
     @StringRes val labelRes: Int,
+    val isV2: Boolean = false,
 ) {
     PLAY(R.drawable.play_applemusic, R.string.player_icon_play),
     PAUSE(R.drawable.pause_applemusic, R.string.player_icon_pause),
@@ -46,6 +49,18 @@ enum class PlayerIconSlot(
     LIKED(R.drawable.favorite, R.string.player_icon_liked),
     MORE(R.drawable.more_horiz, R.string.player_icon_more),
     SEEK_THUMB(R.drawable.play_applemusic, R.string.player_icon_seek_thumb),
+
+    // V2 Apple Music Player slots
+    V2_PLAY(R.drawable.play_applemusic, R.string.v2_player_icon_play, isV2 = true),
+    V2_PAUSE(R.drawable.pause_applemusic, R.string.v2_player_icon_pause, isV2 = true),
+    V2_PREVIOUS(R.drawable.apple_skip_previous, R.string.v2_player_icon_previous, isV2 = true),
+    V2_NEXT(R.drawable.apple_skip_next, R.string.v2_player_icon_next, isV2 = true),
+    V2_LIKE(R.drawable.favorite_border, R.string.v2_player_icon_like, isV2 = true),
+    V2_LIKED(R.drawable.favorite, R.string.v2_player_icon_liked, isV2 = true),
+    V2_MORE(R.drawable.more_horiz, R.string.v2_player_icon_more, isV2 = true),
+    V2_LYRICS(R.drawable.apple_lyrics, R.string.v2_player_icon_lyrics, isV2 = true),
+    V2_QUEUE(R.drawable.apple_queue, R.string.v2_player_icon_queue, isV2 = true),
+    V2_VOLUME_DOWN(R.drawable.speaker_apple, R.string.v2_player_icon_volume, isV2 = true),
     ;
 
     /** Slider thumbs are decorative-only and hidden unless the user supplies an image. */
@@ -100,11 +115,17 @@ object PlayerIconStore {
     fun dir(context: Context): File =
         File(context.filesDir, "player_icons").apply { mkdirs() }
 
-    fun fileFor(context: Context, override: PlayerIconOverride): File =
-        File(dir(context), override.fileName)
+    fun v2Dir(context: Context): File =
+        File(context.filesDir, "v2_player_icons").apply { mkdirs() }
 
-    fun load(context: Context): PlayerIconSet =
-        PlayerIconSet.fromJson(context.dataStore.get(PlayerIconsKey, "{}"))
+    fun fileFor(context: Context, override: PlayerIconOverride, isV2: Boolean = false): File =
+        File(if (isV2) v2Dir(context) else dir(context), override.fileName)
+
+    /** [key] selects which control set to read — the classic player's or the V2 player's. */
+    fun load(
+        context: Context,
+        key: Preferences.Key<String> = PlayerIconsKey,
+    ): PlayerIconSet = PlayerIconSet.fromJson(context.dataStore.get(key, "{}"))
 
     /**
      * Drops files no slot references any more. Called after a slot is cleared or overwritten so
@@ -127,12 +148,13 @@ object PlayerIconStore {
 @Composable
 fun rememberPlayerIcon(slot: PlayerIconSlot): PlayerIconPainter {
     val context = LocalContext.current
-    val (json) = rememberPreference(PlayerIconsKey, defaultValue = "{}")
+    val prefKey = if (slot.isV2) V2PlayerIconsKey else PlayerIconsKey
+    val (json) = rememberPreference(prefKey, defaultValue = "{}")
     val set = remember(json) { PlayerIconSet.fromJson(json) }
     val override = set.overrides[slot]
 
     val file = remember(override) {
-        override?.let { PlayerIconStore.fileFor(context, it) }?.takeIf { it.isFile }
+        override?.let { PlayerIconStore.fileFor(context, it, slot.isV2) }?.takeIf { it.isFile }
     }
 
     if (file == null) {

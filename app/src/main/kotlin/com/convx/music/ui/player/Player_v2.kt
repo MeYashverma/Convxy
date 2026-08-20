@@ -85,6 +85,15 @@ import com.convx.music.ui.component.CastButton
 import com.convx.music.BuildConfig
 import com.convx.music.R
 import com.convx.music.utils.rememberPreference
+import com.convx.music.constants.AppTextColorKey
+import com.convx.music.constants.ShowUpNextKey
+import com.convx.music.ui.player.customize.DiyStickerLayer
+import com.convx.music.ui.player.customize.PlayerGlyph
+import com.convx.music.ui.player.customize.PlayerIconSlot
+import com.convx.music.ui.player.customize.rememberDiyLayout
+import com.convx.music.ui.player.customize.DiyOrientation
+import com.convx.music.ui.player.customize.DiyDesignCanvas
+import com.convx.music.LocalPlayerConnection
 import kotlinx.coroutines.launch
 
 enum class PlayerInternalState { COVER, LYRICS, QUEUE }
@@ -212,6 +221,9 @@ fun PlayerV2(
     val showPlayerThumbnailShadow by rememberPreference(ShowPlayerThumbnailShadowKey, defaultValue = false)
     val playerThumbnailShadowElevation by rememberPreference(PlayerThumbnailShadowElevationKey, defaultValue = 8f)
     val enableGoogleCast by rememberPreference(EnableGoogleCastKey, defaultValue = true)
+    val (appTextColorInt) = rememberPreference(AppTextColorKey, defaultValue = 0)
+    val (showUpNext) = rememberPreference(ShowUpNextKey, defaultValue = false)
+    val diyLayout = rememberDiyLayout()
 
     var showAudioDeviceBottomSheet by remember { mutableStateOf(false) }
     
@@ -273,7 +285,7 @@ fun PlayerV2(
     }
 
     val adaptivePrimary by animateColorAsState(
-        targetValue = when (playerBackground) {
+        targetValue = if (appTextColorInt != 0) Color(appTextColorInt) else when (playerBackground) {
             PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onSurface
             PlayerBackgroundStyle.BLUR,
             PlayerBackgroundStyle.GRADIENT,
@@ -286,7 +298,7 @@ fun PlayerV2(
         label = "adaptivePrimary"
     )
     val adaptiveSecondary by animateColorAsState(
-        targetValue = when (playerBackground) {
+        targetValue = if (appTextColorInt != 0) Color(appTextColorInt).copy(alpha = 0.7f) else when (playerBackground) {
             PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onSurfaceVariant
             PlayerBackgroundStyle.BLUR,
             PlayerBackgroundStyle.GRADIENT,
@@ -416,6 +428,10 @@ fun PlayerV2(
                                         isPlaying = isPlaying,
                                         modifier = Modifier.fillMaxSize()
                                     )
+                                    DiyStickerLayer(
+                                        layout = diyLayout,
+                                        orientation = DiyOrientation.PORTRAIT,
+                                    )
                                 }
                                 
                                 Spacer(modifier = Modifier.weight(1f)) // Allows the content to lock down
@@ -478,10 +494,11 @@ fun PlayerV2(
                                         IconButton(
                                             onClick = playerConnection::toggleLike
                                         ) {
-                                            Icon(
-                                                painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),
-                                                contentDescription = "Like",
+                                            PlayerGlyph(
+                                                slot = if (isLiked) PlayerIconSlot.V2_LIKED else PlayerIconSlot.V2_LIKE,
+                                                fallback = if (isLiked) R.drawable.favorite else R.drawable.favorite_border,
                                                 tint = adaptivePrimary,
+                                                contentDescription = "Like",
                                             )
                                         }
                                         }
@@ -513,14 +530,24 @@ fun PlayerV2(
                                                 }
                                             }
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.MoreHoriz,
-                                                contentDescription = "Options",
+                                            PlayerGlyph(
+                                                slot = PlayerIconSlot.V2_MORE,
+                                                fallback = R.drawable.more_horiz,
                                                 tint = adaptivePrimary,
+                                                contentDescription = "Options",
                                             )
                                         }
                                         }
                                     }
+                                }
+
+                                if (showUpNext) {
+                                    UpNextSong(
+                                        playerConnection = playerConnection,
+                                        titleColor = adaptivePrimary,
+                                        subtitleColor = adaptiveSecondary,
+                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                                    )
                                 }
                             }
                         } else if (targetState == PlayerInternalState.LYRICS || targetState == PlayerInternalState.QUEUE) {
@@ -785,7 +812,13 @@ fun PlayerV2(
                                 .size(64.dp)
                                 .alpha(if (isListenTogetherGuest || !canSkipPrevious) 0.4f else 1f)
                         ) {
-                            Icon(painter = painterResource(R.drawable.apple_skip_previous), contentDescription = "Previous", tint = adaptivePrimary, modifier = Modifier.size(48.dp))
+                            PlayerGlyph(
+                                slot = PlayerIconSlot.V2_PREVIOUS,
+                                fallback = R.drawable.apple_skip_previous,
+                                tint = adaptivePrimary,
+                                modifier = Modifier.size(48.dp),
+                                contentDescription = "Previous",
+                            )
                         }
                 
                         IconButton(
@@ -806,11 +839,12 @@ fun PlayerV2(
                                     tint = adaptivePrimary
                                 )
                             } else {
-                                Icon(
-                                    painter = painterResource(if (isPlaying) R.drawable.pause_applemusic else R.drawable.play_applemusic),
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                PlayerGlyph(
+                                    slot = if (isPlaying) PlayerIconSlot.V2_PAUSE else PlayerIconSlot.V2_PLAY,
+                                    fallback = if (isPlaying) R.drawable.pause_applemusic else R.drawable.play_applemusic,
+                                    tint = adaptivePrimary,
                                     modifier = Modifier.size(80.dp),
-                                    tint = adaptivePrimary
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
                                 )
                             }
                         }
@@ -822,7 +856,13 @@ fun PlayerV2(
                                 .size(64.dp)
                                 .alpha(if (isListenTogetherGuest || !canSkipNext) 0.4f else 1f)
                         ) {
-                            Icon(painter = painterResource(R.drawable.apple_skip_next), contentDescription = "Next", tint = adaptivePrimary, modifier = Modifier.size(48.dp))
+                            PlayerGlyph(
+                                slot = PlayerIconSlot.V2_NEXT,
+                                fallback = R.drawable.apple_skip_next,
+                                tint = adaptivePrimary,
+                                modifier = Modifier.size(48.dp),
+                                contentDescription = "Next",
+                            )
                         }
                     }
                     
@@ -900,11 +940,12 @@ fun PlayerV2(
                 IconButton(
                     onClick = { playerState = if (isLyricsActive) PlayerInternalState.COVER else PlayerInternalState.LYRICS }
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.apple_lyrics),
-                        contentDescription = "Lyrics", 
-                        tint = if (isLyricsActive) adaptivePrimary else adaptiveSecondary, 
-                        modifier = Modifier.size(28.dp)
+                    PlayerGlyph(
+                        slot = PlayerIconSlot.V2_LYRICS,
+                        fallback = R.drawable.apple_lyrics,
+                        tint = if (isLyricsActive) adaptivePrimary else adaptiveSecondary,
+                        modifier = Modifier.size(28.dp),
+                        contentDescription = "Lyrics",
                     )
                 }
 
@@ -942,11 +983,12 @@ fun PlayerV2(
                             onClick = { showAudioDeviceBottomSheet = true },
                             modifier = Modifier.background(Color.Transparent, RoundedCornerShape(12.dp))
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.speaker_apple),
-                                contentDescription = "Speaker", 
-                                tint = adaptiveSecondary, 
-                                modifier = Modifier.size(28.dp)
+                            PlayerGlyph(
+                                slot = PlayerIconSlot.V2_VOLUME_DOWN,
+                                fallback = R.drawable.speaker_apple,
+                                tint = adaptiveSecondary,
+                                modifier = Modifier.size(28.dp),
+                                contentDescription = "Speaker",
                             )
                         }
                     }
@@ -956,11 +998,12 @@ fun PlayerV2(
                 IconButton(
                     onClick = { playerState = if (isQueueActive) PlayerInternalState.COVER else PlayerInternalState.QUEUE }
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.apple_queue),
-                        contentDescription = "Queue", 
-                        tint = if (isQueueActive) adaptivePrimary else adaptiveSecondary, 
-                        modifier = Modifier.size(28.dp)
+                    PlayerGlyph(
+                        slot = PlayerIconSlot.V2_QUEUE,
+                        fallback = R.drawable.apple_queue,
+                        tint = if (isQueueActive) adaptivePrimary else adaptiveSecondary,
+                        modifier = Modifier.size(28.dp),
+                        contentDescription = "Queue",
                     )
                 }
                 }

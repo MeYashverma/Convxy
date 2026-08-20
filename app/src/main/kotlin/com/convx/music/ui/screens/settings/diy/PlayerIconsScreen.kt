@@ -54,6 +54,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.navigation.NavController
 import com.convx.music.R
 import com.convx.music.constants.PlayerIconsKey
+import com.convx.music.constants.UseAppleMusicPlayerKey
+import com.convx.music.constants.V2PlayerIconsKey
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.player.customize.DiyOrientation
 import com.convx.music.ui.player.customize.DiyPlayerMockup
@@ -86,16 +88,20 @@ fun PlayerIconsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val (useAppleMusicPlayer, _) = rememberPreference(UseAppleMusicPlayerKey, defaultValue = false)
     val (json) = rememberPreference(PlayerIconsKey, defaultValue = "{}")
-    val set = remember(json) { PlayerIconSet.fromJson(json) }
+    val v1Set = remember(json) { PlayerIconSet.fromJson(json) }
+    val (v2Json) = rememberPreference(V2PlayerIconsKey, defaultValue = "{}")
+    val v2Set = remember(v2Json) { PlayerIconSet.fromJson(v2Json) }
 
     var pendingSlot by remember { mutableStateOf<PlayerIconSlot?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    fun persist(next: PlayerIconSet) {
+    fun persist(slot: PlayerIconSlot, set: PlayerIconSet) {
+        val key = if (slot.isV2) V2PlayerIconsKey else PlayerIconsKey
         scope.launch {
-            context.dataStore.edit { it[PlayerIconsKey] = next.toJson() }
-            withContext(Dispatchers.IO) { PlayerIconStore.pruneOrphans(context, next) }
+            context.dataStore.edit { it[key] = set.toJson() }
+            withContext(Dispatchers.IO) { PlayerIconStore.pruneOrphans(context, set) }
         }
     }
 
@@ -111,12 +117,14 @@ fun PlayerIconsScreen(
             } else {
                 MediaImport.Kind.PLAYER_ICON
             }
+            val destDir = if (slot.isV2) PlayerIconStore.v2Dir(context) else PlayerIconStore.dir(context)
+            val currentSet = if (slot.isV2) v2Set else v1Set
             val result = withContext(Dispatchers.IO) {
                 MediaImport.import(
                     context = context,
                     uri = uri,
                     kind = kind,
-                    destDir = PlayerIconStore.dir(context),
+                    destDir = destDir,
                     baseName = slot.name.lowercase(),
                 )
             }
@@ -125,11 +133,12 @@ fun PlayerIconsScreen(
                     errorMessage = context.getString(importErrorRes(result.error))
 
                 is MediaImport.Result.Ok -> persist(
-                    set.with(
+                    slot,
+                    currentSet.with(
                         slot,
                         PlayerIconOverride(
                             fileName = result.file.name,
-                            tint = set.overrides[slot]?.tint ?: false,
+                            tint = currentSet.overrides[slot]?.tint ?: false,
                         ),
                     ),
                 )
@@ -200,17 +209,45 @@ fun PlayerIconsScreen(
                 )
             }
 
-            PlayerIconSlot.entries.forEach { slot ->
+            PlayerIconSlot.entries.filter { !it.isV2 }.forEach { slot ->
                 SlotRow(
                     slot = slot,
-                    override = set.overrides[slot],
+                    override = v1Set.overrides[slot],
                     onPick = { pendingSlot = slot; pickLauncher.launch(ACCEPTED_TYPES) },
-                    onClear = { persist(set.with(slot, null)) },
+                    onClear = { persist(slot, v1Set.with(slot, null)) },
                     onTintChange = { tint ->
-                        val current = set.overrides[slot] ?: return@SlotRow
-                        persist(set.with(slot, current.copy(tint = tint)))
+                        val current = v1Set.overrides[slot] ?: return@SlotRow
+                        persist(slot, v1Set.with(slot, current.copy(tint = tint)))
                     },
                 )
+            }
+
+            if (useAppleMusicPlayer) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.v2_player_icons),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+                Text(
+                    text = stringResource(R.string.v2_player_icons_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                PlayerIconSlot.entries.filter { it.isV2 }.forEach { slot ->
+                    SlotRow(
+                        slot = slot,
+                        override = v2Set.overrides[slot],
+                        onPick = { pendingSlot = slot; pickLauncher.launch(ACCEPTED_TYPES) },
+                        onClear = { persist(slot, v2Set.with(slot, null)) },
+                        onTintChange = { tint ->
+                            val current = v2Set.overrides[slot] ?: return@SlotRow
+                            persist(slot, v2Set.with(slot, current.copy(tint = tint)))
+                        },
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
         }

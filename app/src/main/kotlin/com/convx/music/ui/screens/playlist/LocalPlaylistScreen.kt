@@ -109,6 +109,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import com.convx.music.ui.component.buildAlphabetSectionIndex
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -156,7 +158,6 @@ import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.ListQueue
 import com.convx.music.ui.component.ActionPromptDialog
 import com.convx.music.ui.component.DefaultDialog
-import com.convx.music.ui.component.DraggableScrollbar
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.ChromeScrim
@@ -916,15 +917,24 @@ fun LocalPlaylistScreen(
         }
         }
 
-        DraggableScrollbar(
-            modifier = Modifier
-                .padding(
-                    LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime)
-                        .asPaddingValues()
-                )
-                .align(Alignment.CenterEnd),
-            scrollState = lazyListState,
-            headerItems = 2
+        ListScrollRail(
+            lazyListState = lazyListState,
+            itemCount = filteredSongs.size,
+            sectionIndexMap = when (sortType) {
+                PlaylistSongSortType.NAME ->
+                    remember(filteredSongs) {
+                        buildAlphabetSectionIndex(filteredSongs) { it.song.song.title }
+                    }
+
+                PlaylistSongSortType.ARTIST ->
+                    remember(filteredSongs) {
+                        buildAlphabetSectionIndex(filteredSongs) { entry ->
+                            entry.song.artists.firstOrNull()?.name.orEmpty()
+                        }
+                    }
+
+                else -> null
+            },
         )
 
         // Floating glass chrome over the tinted background, replacing the

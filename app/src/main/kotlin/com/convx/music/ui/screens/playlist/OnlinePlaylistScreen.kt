@@ -127,6 +127,7 @@ import com.convx.music.db.entities.PlaylistEntity
 import com.convx.music.db.entities.PlaylistSongMap
 import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.YouTubePlaylistQueue
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.ChromeScrim
@@ -572,6 +573,14 @@ fun OnlinePlaylistScreen(
             }
         }
         }
+
+        // A YouTube playlist keeps its own track order, so the rail is a proportional
+        // thumb rather than letters.
+        ListScrollRail(
+            lazyListState = lazyListState,
+            itemCount = songs.size,
+            sectionIndexMap = null,
+        )
 
         // Floating glass chrome over the tinted background, replacing the
         // Material TopAppBar. Select mode and in-place search keep their exact

@@ -100,8 +100,9 @@ import com.convx.music.constants.YtmSyncKey
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
+import com.convx.music.ui.component.buildAlphabetSectionIndex
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
-import com.convx.music.ui.component.DraggableScrollbar
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.GlassCircleButton
@@ -496,15 +497,24 @@ fun AutoPlaylistScreen(
                 }
                 }
 
-                DraggableScrollbar(
-                    modifier = Modifier
-                        .padding(
-                            LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime)
-                                .asPaddingValues(),
-                        )
-                        .align(Alignment.CenterEnd),
-                    scrollState = lazyListState,
-                    headerItems = 2,
+                ListScrollRail(
+                    lazyListState = lazyListState,
+                    itemCount = filteredSongs.size,
+                    sectionIndexMap = when (sortType) {
+                        SongSortType.NAME ->
+                            remember(filteredSongs) {
+                                buildAlphabetSectionIndex(filteredSongs) { it.title }
+                            }
+
+                        SongSortType.ARTIST ->
+                            remember(filteredSongs) {
+                                buildAlphabetSectionIndex(filteredSongs) { song ->
+                                    song.artists.firstOrNull()?.name.orEmpty()
+                                }
+                            }
+
+                        else -> null
+                    },
                 )
 
                 // Top bar

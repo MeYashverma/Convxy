@@ -196,6 +196,7 @@ import com.convx.music.constants.FullscreenLyricsCollapseTopKey
 import com.convx.music.constants.PlayerButtonsStyleKey
 import com.convx.music.constants.PlayerHorizontalPadding
 import com.convx.music.constants.QueuePeekHeight
+import com.convx.music.constants.ShowUpNextKey
 import com.convx.music.constants.SliderStyle
 import com.convx.music.constants.SliderStyleKey
 import com.convx.music.constants.SwipeLyricsKey
@@ -711,6 +712,7 @@ fun BottomSheetPlayer(
     // read it indirectly via MaterialTheme.colorScheme.onBackground. Take the
     // global color directly, for every style, whenever the user has set one.
     val (appTextColorInt) = rememberPreference(AppTextColorKey, defaultValue = 0)
+    val (showUpNext) = rememberPreference(ShowUpNextKey, defaultValue = false)
     val TextBackgroundColor by animateColorAsState(
         targetValue = if (appTextColorInt != 0) Color(appTextColorInt) else when (playerBackground) {
             PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
@@ -2035,6 +2037,15 @@ fun BottomSheetPlayer(
                     }
 
                     DjReadout(modifier = Modifier.padding(top = 2.dp))
+
+                    if (showUpNext) {
+                        UpNextSong(
+                            playerConnection = playerConnection,
+                            titleColor = TextBackgroundColor,
+                            subtitleColor = TextBackgroundColor.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))

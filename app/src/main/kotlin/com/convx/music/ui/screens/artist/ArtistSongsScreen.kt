@@ -48,6 +48,7 @@ import androidx.compose.runtime.Composable
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.runtime.collectAsState
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.ui.Alignment
@@ -90,6 +91,8 @@ import com.convx.music.extensions.toMediaItem
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.playback.queues.ListQueue
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.component.buildAlphabetSectionIndex
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.HideOnScrollFAB
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.IconButton
@@ -256,6 +259,16 @@ fun ArtistSongsScreen(
                         contentDescription = null,
                     )
                 }
+            },
+        )
+
+        ListScrollRail(
+            lazyListState = lazyListState,
+            itemCount = songs.size,
+            sectionIndexMap = if (sortType == ArtistSongSortType.NAME) {
+                remember(songs) { buildAlphabetSectionIndex(songs) { it.title } }
+            } else {
+                null
             },
         )
 

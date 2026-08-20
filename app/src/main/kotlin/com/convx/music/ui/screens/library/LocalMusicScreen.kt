@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -69,7 +70,7 @@ import com.convx.music.db.entities.Artist
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
-import com.convx.music.ui.component.DraggableScrollbar
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.menu.SongMenu
 import java.time.LocalDateTime
@@ -153,23 +154,6 @@ fun LocalMusicScreen(
     }
 
     val lazyListState = rememberLazyListState()
-
-    /**
-     * Keyed by list item key rather than by index: the list is several sections deep
-     * with optional permission/scanning/result rows above them, so any index-based
-     * mapping would silently drift the moment one of those appears. The keys are the
-     * same ones the items below are emitted with.
-     */
-    val scrollLabels = remember(displaySongs, displayAlbums, displayArtists, sortMode) {
-        buildMap {
-            put("songs_header", "Songs")
-            put("albums_header", "Albums")
-            put("artists_header", "Artists")
-            displaySongs.take(50).forEach { put(it.localMediaId(), songScrollLabel(it, sortMode)) }
-            displayAlbums.forEach { put(it.id, it.title.firstOrNull()?.uppercase() ?: "#") }
-            displayArtists.forEach { put(it.id, it.title.firstOrNull()?.uppercase() ?: "#") }
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
@@ -439,7 +423,7 @@ fun LocalMusicScreen(
                 )
             }
 
-            val songRows = displaySongs.take(50)
+            val songRows = displaySongs.take(LocalMusicSongRowCap)
             itemsIndexed(
                 items = songRows,
                 key = { _, it -> it.localMediaId() },
@@ -465,10 +449,10 @@ fun LocalMusicScreen(
                 if (index != songRows.lastIndex) HorizontalDivider()
             }
 
-            if (displaySongs.size > 50) {
+            if (displaySongs.size > LocalMusicSongRowCap) {
                 item(key = "songs_more") {
                     Text(
-                        text = "+ ${displaySongs.size - 50} more songs",
+                        text = "+ ${displaySongs.size - LocalMusicSongRowCap} more songs",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
@@ -536,25 +520,25 @@ fun LocalMusicScreen(
         }
     }
 
-        DraggableScrollbar(
-            scrollState = lazyListState,
+        // This screen stacks three sections in one column, so the rail scrubs raw lazy
+        // indices rather than one block's indices with a header offset. The count is
+        // derived from the data plus the fixed rows around it; a proportional rail maps
+        // a fraction of the rail to a fraction of the list, so being a row or two out
+        // near the very bottom costs nothing, and an over-long index is caught by
+        // scrollToItem's own guards.
+        val railItemCount = displaySongs.size.coerceAtMost(LocalMusicSongRowCap) +
+            displayAlbums.size + displayArtists.size + LocalMusicFixedRows
+        ListScrollRail(
+            sectionIndexMap = null,
+            itemCount = railItemCount,
+            isAtTarget = { lazyListState.firstVisibleItemIndex == it },
+            scrollToItem = { lazyListState.scrollToItem(it) },
             modifier = Modifier
                 .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues())
-                .align(Alignment.CenterEnd),
-            label = { _ ->
-                val key = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull()?.key as? String
-                key?.let { scrollLabels[it] }.orEmpty()
-            },
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight(),
         )
     }
-}
-
-/** What the fast-scroll bubble says for a song row, in the terms the list is sorted by. */
-private fun songScrollLabel(song: Song, mode: LocalSortMode): String = when (mode) {
-    LocalSortMode.NAME -> song.title.firstOrNull()?.uppercase() ?: "#"
-    LocalSortMode.DURATION -> formatDuration(song.song.duration)
-    LocalSortMode.RECENT ->
-        (song.song.inLibrary ?: song.song.dateModified)?.year?.toString() ?: "—"
 }
 
 @Composable
@@ -737,6 +721,12 @@ private fun ArtistListItem(
         }
     }
 }
+
+/** The song section is capped; the rest spills into the dedicated songs screen. */
+private const val LocalMusicSongRowCap = 50
+
+/** Header, search, actions, three section headers, "more songs", bottom spacer. */
+private const val LocalMusicFixedRows = 8
 
 private enum class LocalSortMode { NAME, DURATION, RECENT }
 

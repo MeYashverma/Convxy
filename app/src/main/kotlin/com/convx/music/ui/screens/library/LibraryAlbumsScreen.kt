@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,6 +73,8 @@ import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.YtmSyncKey
+import com.convx.music.ui.component.buildAlphabetSectionIndex
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.EmptyPlaceholder
@@ -244,6 +247,13 @@ fun LibraryAlbumsScreen(
         }
     }
 
+    // Hoisted: both view types filtered and de-duped the same list separately, and the
+    // scroll rail needs the resulting count too.
+    val visibleAlbums = remember(albums, hideExplicit) {
+        (if (hideExplicit) albums.filter { !it.album.explicit } else albums)
+            .distinctBy { it.id }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -287,13 +297,8 @@ fun LibraryAlbumsScreen(
                             }
                         }
 
-                        val filteredAlbumsForList = if (hideExplicit) {
-                            albums.filter { !it.album.explicit }
-                        } else {
-                            albums
-                        }
                         items(
-                            items = filteredAlbumsForList.distinctBy { it.id },
+                            items = visibleAlbums,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_ALBUM },
                         ) { album ->
@@ -354,13 +359,8 @@ fun LibraryAlbumsScreen(
                             }
                         }
 
-                        val filteredAlbumsForGrid = if (hideExplicit) {
-                            albums.filter { !it.album.explicit }
-                        } else {
-                            albums
-                        }
                         items(
-                            items = filteredAlbumsForGrid.distinctBy { it.id },
+                            items = visibleAlbums,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_ALBUM },
                         ) { album ->
@@ -379,5 +379,27 @@ fun LibraryAlbumsScreen(
                     }
                 }
         }
+
+        ListScrollRail(
+            lazyListState = lazyListState,
+            lazyGridState = lazyGridState,
+            isGrid = viewType == LibraryViewType.GRID,
+            itemCount = visibleAlbums.size,
+            sectionIndexMap = when (sortType) {
+                AlbumSortType.NAME ->
+                    remember(visibleAlbums) {
+                        buildAlphabetSectionIndex(visibleAlbums) { it.album.title }
+                    }
+
+                AlbumSortType.ARTIST ->
+                    remember(visibleAlbums) {
+                        buildAlphabetSectionIndex(visibleAlbums) { album ->
+                            album.artists.firstOrNull()?.name.orEmpty()
+                        }
+                    }
+
+                else -> null
+            },
+        )
     }
 }

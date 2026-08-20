@@ -26,6 +26,8 @@ val AppIconKey = stringPreferencesKey("appIcon")
 
 /** JSON map of player-control slot -> user-supplied glyph. See ui/player/customize/PlayerIcons.kt. */
 val PlayerIconsKey = stringPreferencesKey("playerIcons")
+/** JSON map of V2 player-control slot -> user-supplied glyph. Separate from [PlayerIconsKey]. */
+val V2PlayerIconsKey = stringPreferencesKey("v2PlayerIcons")
 
 /** JSON sticker arrangement drawn over the player. See ui/player/customize/DiyLayout.kt. */
 val DiyLayoutKey = stringPreferencesKey("diyLayout")
@@ -87,6 +89,7 @@ val SwipeToSongKey = booleanPreferencesKey("SwipeToSong")
 val SwipeToRemoveSongKey = booleanPreferencesKey("SwipeToRemoveSong")
 val UseNewPlayerDesignKey= booleanPreferencesKey("useNewPlayerDesign")
 val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
+val ShowUpNextKey = booleanPreferencesKey("showUpNext")
 /** Tab view only: caps the expanded player to a phone-like width instead of stretching
  *  it across the wide screen. The mini player stays full-width either way. */
 val CompactPlayerInTabViewKey = booleanPreferencesKey("compactPlayerInTabView")

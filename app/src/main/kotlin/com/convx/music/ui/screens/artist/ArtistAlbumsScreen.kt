@@ -104,6 +104,7 @@ import com.convx.music.constants.GridItemsSizeKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.ui.utils.appTopBarWindowInsets
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.ui.component.LibraryAlbumGridItem
@@ -152,6 +153,8 @@ fun ArtistAlbumsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val visibleAlbums = remember(albums) { albums.distinctBy { it.id } }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -180,7 +183,7 @@ fun ArtistAlbumsScreen(
             }
 
             items(
-                items = albums.distinctBy { it.id },
+                items = visibleAlbums,
                 key = { it.id },
                 contentType = { CONTENT_TYPE_ALBUM }
             ) { album ->
@@ -195,6 +198,14 @@ fun ArtistAlbumsScreen(
                 )
             }
         }
+
+        // No sort control on this screen -- albums arrive in release order -- so the rail
+        // is a proportional thumb rather than letters.
+        ListScrollRail(
+            lazyGridState = lazyGridState,
+            itemCount = visibleAlbums.size,
+            sectionIndexMap = null,
+        )
 
         TopAppBar(
             windowInsets = appTopBarWindowInsets(),

@@ -92,6 +92,8 @@ import com.convx.music.constants.ShowUploadedPlaylistKey
 import com.convx.music.constants.YtmSyncKey
 import com.convx.music.db.entities.Playlist
 import com.convx.music.db.entities.PlaylistEntity
+import com.convx.music.ui.component.buildAlphabetSectionIndex
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.CreatePlaylistDialog
 import com.convx.music.ui.component.HideOnScrollFAB
@@ -312,6 +314,10 @@ fun LibraryPlaylistsScreen(
         }
     }
 
+    // Hoisted: both view types de-duped the same list separately, and the scroll rail
+    // needs the resulting count too.
+    val visiblePlaylists = remember(playlists) { playlists.distinctBy { it.id } }
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -426,7 +432,7 @@ fun LibraryPlaylistsScreen(
                         }
 
                         items(
-                            items = playlists.distinctBy { it.id },
+                            items = visiblePlaylists,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) { playlist ->
@@ -564,7 +570,7 @@ fun LibraryPlaylistsScreen(
                         }
 
                         items(
-                            items = playlists.distinctBy { it.id },
+                            items = visiblePlaylists,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) { playlist ->
@@ -588,6 +594,20 @@ fun LibraryPlaylistsScreen(
                 )
             }
         }
+
+        ListScrollRail(
+            lazyListState = lazyListState,
+            lazyGridState = lazyGridState,
+            isGrid = viewType == LibraryViewType.GRID,
+            itemCount = visiblePlaylists.size,
+            sectionIndexMap = if (sortType == PlaylistSortType.NAME) {
+                remember(visiblePlaylists) {
+                    buildAlphabetSectionIndex(visiblePlaylists) { it.playlist.name }
+                }
+            } else {
+                null
+            },
+        )
     }
 }
 

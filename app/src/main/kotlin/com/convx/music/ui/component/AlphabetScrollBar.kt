@@ -5,6 +5,7 @@
 package com.convx.music.ui.component
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -15,6 +16,14 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import com.convx.music.LocalPlayerAwareWindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,7 +65,13 @@ val AlphabetSections: List<String> = listOf("0") + ('A'..'Z').map(Char::toString
  * Below this the rail is clutter: a list you can reach the end of in two flings does not
  * need a scrubber, and the rail costs real estate on every row it overlaps.
  */
-const val AlphabetScrollBarMinItems = 30
+const val AlphabetScrollBarMinItems = 20
+
+/** Wide enough to be a comfortable thumb target, narrow enough not to cover list text. */
+private val RailWidth = 28.dp
+
+/** Rail slot that jumps to index 0 rather than to a section. Drawn above "0". */
+private const val ScrollTopSection = "↑"
 
 /**
  * Fast-scrub rail pinned to the trailing edge of a long list: drag a finger down it and
@@ -84,10 +99,20 @@ fun AlphabetScrollBar(
     scrollToItem: suspend (Int) -> Unit,
     modifier: Modifier = Modifier,
     sections: List<String> = AlphabetSections,
+    showScrollTop: Boolean = true,
+    labelOf: (String) -> String = { it },
+    showIndicator: Boolean = true,
 ) {
     val view = LocalView.current
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val scope = rememberCoroutineScope()
+
+    // The rail draws one extra slot above the letters. It is part of the same scrub
+    // surface -- dragging up past "0" reaches the top of the list -- so it has to share
+    // the cell geometry rather than sit outside the Column as a separate button.
+    val railItems = remember(sections, showScrollTop) {
+        if (showScrollTop) listOf(ScrollTopSection) + sections else sections
+    }
 
     var scrollJob by remember { mutableStateOf<Job?>(null) }
     var selectedSection by remember { mutableStateOf<String?>(null) }
@@ -98,24 +123,29 @@ fun AlphabetScrollBar(
     val currentItemCount by rememberUpdatedState(itemCount)
     val currentSectionIndexMap by rememberUpdatedState(sectionIndexMap)
     val currentSections by rememberUpdatedState(sections)
+    val currentRailItems by rememberUpdatedState(railItems)
     val currentIsAtTarget by rememberUpdatedState(isAtTarget)
     val currentScrollToItem by rememberUpdatedState(scrollToItem)
 
     fun updateSelection(index: Int) {
-        if (index !in currentSections.indices || index == lastSelectedIndex) return
+        if (index !in currentRailItems.indices || index == lastSelectedIndex) return
         lastSelectedIndex = index
-        val section = currentSections[index]
+        val section = currentRailItems[index]
         selectedSection = section
         indicatorSection = section
         indicatorVisible = true
 
         val maxIndex = currentItemCount - 1
         if (maxIndex < 0) return
-        val target = findAlphabetTargetIndex(
-            section = section,
-            sectionIndexMap = currentSectionIndexMap,
-            sections = currentSections,
-        ).coerceIn(0, maxIndex)
+        val target = if (section == ScrollTopSection) {
+            0
+        } else {
+            findAlphabetTargetIndex(
+                section = section,
+                sectionIndexMap = currentSectionIndexMap,
+                sections = currentSections,
+            ).coerceIn(0, maxIndex)
+        }
 
         if (!currentIsAtTarget(target)) {
             scrollJob?.cancel()
@@ -142,14 +172,18 @@ fun AlphabetScrollBar(
     }
 
     BoxWithConstraints(modifier = modifier) {
-        if (sections.isEmpty() || maxHeight <= 0.dp) return@BoxWithConstraints
+        if (railItems.isEmpty() || maxHeight <= 0.dp) return@BoxWithConstraints
 
         // Captured into a local: BoxWithConstraintsScope and RowScope both carry
         // @LayoutScopeMarker, so inside the Row below the outer scope is shadowed and
         // maxHeight stops resolving.
         val railHeight = maxHeight
-        val cellSize = railHeight / sections.size.toFloat()
+        val cellSize = railHeight / railItems.size.toFloat()
         val cellHeightPx = with(LocalDensity.current) { cellSize.toPx() }
+        val trackAlpha by animateFloatAsState(
+            targetValue = if (indicatorVisible) 0.9f else 0f,
+            label = "railTrackAlpha",
+        )
 
         Row(
             modifier = Modifier
@@ -158,17 +192,29 @@ fun AlphabetScrollBar(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AlphabetIndicator(section = indicatorSection, visible = indicatorVisible)
+            AlphabetIndicator(
+                section = indicatorSection?.let(labelOf),
+                visible = indicatorVisible && showIndicator,
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier
-                    .width(cellSize.coerceAtLeast(20.dp))
+                    .width(RailWidth)
                     .height(railHeight)
+                    // A track, not bare floating letters: it reads as a control, and it
+                    // only appears while a scrub is in progress so a resting list stays
+                    // clean.
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(
+                            alpha = trackAlpha,
+                        ),
+                        shape = ContinuousRoundedRectangle(RailWidth / 2),
+                    )
                     // The rail is a scrub surface, not 28 buttons. Announcing every
                     // letter would bury the list itself in the accessibility tree, and
                     // a scrub gesture is not reachable that way regardless.
                     .clearAndSetSemantics {}
-                    .pointerInput(sections, cellHeightPx, sectionIndexMap) {
+                    .pointerInput(railItems, cellHeightPx, sectionIndexMap) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             down.consume()
@@ -190,7 +236,7 @@ fun AlphabetScrollBar(
                                         updateSelection(
                                             (change.position.y / cellHeightPx)
                                                 .toInt()
-                                                .coerceIn(0, sections.lastIndex),
+                                                .coerceIn(0, railItems.lastIndex),
                                         )
                                     }
                                 }
@@ -202,15 +248,183 @@ fun AlphabetScrollBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                sections.forEach { section ->
+                railItems.forEach { section ->
                     AlphabetCell(
-                        section = section,
+                        section = labelOf(section),
                         selected = selectedSection == section,
                         size = cellSize,
                     )
                 }
             }
         }
+    }
+}
+
+/** Number of scrub stops the proportional rail offers. Matches the alphabet rail's height. */
+private const val ProportionalRailStops = 27
+
+/** Every stop draws the same tick; the rail is a position, not a label. */
+private const val ProportionalRailTick = "·"
+
+/**
+ * The one call site every long list uses.
+ *
+ * Pass [sectionIndexMap] when the list is sorted alphabetically and the rail shows
+ * letters. Pass null for any other sort — the rail stays, but becomes a proportional
+ * fast-scroll thumb instead of vanishing, which is the whole point: a scrubber that
+ * disappears when you change the sort order is a scrubber nobody can rely on.
+ *
+ * The proportional mode is the same rail with synthetic sections spaced evenly through
+ * the list, so both modes share one gesture, one geometry and one haptic.
+ */
+@Composable
+fun ListScrollRail(
+    sectionIndexMap: Map<String, Int>?,
+    itemCount: Int,
+    isAtTarget: (Int) -> Boolean,
+    scrollToItem: suspend (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (itemCount < AlphabetScrollBarMinItems) return
+
+    if (sectionIndexMap != null) {
+        // A descending sort runs Z->A down the list, so the rail has to run Z->A down the
+        // screen too or the thumb travels opposite to the content. Detected from the map
+        // rather than passed in, so no call site can get the two out of step.
+        val sections = remember(sectionIndexMap) {
+            if (sectionIndexIsDescending(sectionIndexMap)) {
+                AlphabetSections.asReversed()
+            } else {
+                AlphabetSections
+            }
+        }
+        AlphabetScrollBar(
+            sectionIndexMap = sectionIndexMap,
+            itemCount = itemCount,
+            isAtTarget = isAtTarget,
+            scrollToItem = scrollToItem,
+            modifier = modifier,
+            sections = sections,
+        )
+        return
+    }
+
+    val stops = remember { List(ProportionalRailStops) { it.toString() } }
+    val proportionalIndex = remember(itemCount) {
+        buildProportionalSectionIndex(itemCount, ProportionalRailStops)
+    }
+    AlphabetScrollBar(
+        sectionIndexMap = proportionalIndex,
+        itemCount = itemCount,
+        isAtTarget = isAtTarget,
+        scrollToItem = scrollToItem,
+        modifier = modifier,
+        sections = stops,
+        labelOf = { section -> if (section == ScrollTopSection) section else ProportionalRailTick },
+        showIndicator = false,
+    )
+}
+
+/**
+ * The rail, positioned and offset for a [LazyListState] whose scrubbable items are the
+ * last ones in the layout.
+ *
+ * Screens put headers, chips and sort buttons above their list, so rail index 0 is not
+ * lazy index 0. Whatever the headers add up to on this pass is exactly the difference
+ * between the layout's item count and [itemCount]. It is read inside the lambdas rather
+ * than in composition on purpose: `layoutInfo` is snapshot state, and reading it during
+ * composition would recompose the whole screen on every scrolled pixel.
+ */
+@Composable
+fun BoxScope.ListScrollRail(
+    lazyListState: LazyListState,
+    itemCount: Int,
+    sectionIndexMap: Map<String, Int>?,
+    modifier: Modifier = Modifier,
+) {
+    val headerOffset = {
+        (lazyListState.layoutInfo.totalItemsCount - itemCount).coerceAtLeast(0)
+    }
+    ListScrollRail(
+        sectionIndexMap = sectionIndexMap,
+        itemCount = itemCount,
+        isAtTarget = { lazyListState.firstVisibleItemIndex == it + headerOffset() },
+        // Not animateScrollToItem: a scrub samples many sections per second and each
+        // animation would be cancelled by the next, so the list would crawl behind the
+        // thumb instead of tracking it.
+        scrollToItem = { lazyListState.scrollToItem(it + headerOffset()) },
+        modifier = modifier
+            .align(Alignment.CenterEnd)
+            .fillMaxHeight()
+            .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
+    )
+}
+
+/**
+ * As above, for the library screens that switch between a list and a grid of the same
+ * items. Keeps the rail on screen across the view-type toggle instead of making every
+ * such screen branch at its own call site.
+ */
+@Composable
+fun BoxScope.ListScrollRail(
+    lazyListState: LazyListState,
+    lazyGridState: LazyGridState,
+    isGrid: Boolean,
+    itemCount: Int,
+    sectionIndexMap: Map<String, Int>?,
+    modifier: Modifier = Modifier,
+) {
+    if (isGrid) {
+        ListScrollRail(lazyGridState, itemCount, sectionIndexMap, modifier)
+    } else {
+        ListScrollRail(lazyListState, itemCount, sectionIndexMap, modifier)
+    }
+}
+
+/** As above, for grid-backed screens (albums, artists, playlists). */
+@Composable
+fun BoxScope.ListScrollRail(
+    lazyGridState: LazyGridState,
+    itemCount: Int,
+    sectionIndexMap: Map<String, Int>?,
+    modifier: Modifier = Modifier,
+) {
+    val headerOffset = {
+        (lazyGridState.layoutInfo.totalItemsCount - itemCount).coerceAtLeast(0)
+    }
+    ListScrollRail(
+        sectionIndexMap = sectionIndexMap,
+        itemCount = itemCount,
+        isAtTarget = { lazyGridState.firstVisibleItemIndex == it + headerOffset() },
+        scrollToItem = { lazyGridState.scrollToItem(it + headerOffset()) },
+        modifier = modifier
+            .align(Alignment.CenterEnd)
+            .fillMaxHeight()
+            .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
+    )
+}
+
+/**
+ * True when the sections appear in reverse alphabetical order down the list.
+ *
+ * Compares the first and last populated sections in alphabet order: if "A" starts later
+ * in the list than "Z" does, the list is sorted descending.
+ */
+internal fun sectionIndexIsDescending(sectionIndexMap: Map<String, Int>): Boolean {
+    val populated = AlphabetSections.mapNotNull { section ->
+        sectionIndexMap[section]
+    }
+    if (populated.size < 2) return false
+    return populated.first() > populated.last()
+}
+
+/** Spread [stops] evenly over [itemCount], keyed the way the rail keys its sections. */
+internal fun buildProportionalSectionIndex(itemCount: Int, stops: Int): Map<String, Int> {
+    if (itemCount <= 0 || stops <= 0) return emptyMap()
+    val lastItem = itemCount - 1
+    return (0 until stops).associate { stop ->
+        val fraction = if (stops == 1) 0f else stop.toFloat() / (stops - 1)
+        stop.toString() to (fraction * lastItem).toInt().coerceIn(0, lastItem)
     }
 }
 
@@ -223,16 +437,16 @@ private fun AlphabetIndicator(section: String?, visible: Boolean) {
     ) {
         Box(
             modifier = Modifier
-                .size(50.dp)
+                .size(64.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
-                    shape = ContinuousRoundedRectangle(25.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.92f),
+                    shape = ContinuousRoundedRectangle(32.dp),
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = section.orEmpty(),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
@@ -247,13 +461,17 @@ private fun AlphabetCell(section: String, selected: Boolean, size: Dp) {
     // The rail always spans the full available height, so on a short window the cells
     // get small rather than the rail getting shorter. Type steps down to match.
     val fontSize = when {
-        size < 8.dp -> 4.sp
-        size < 12.dp -> 6.sp
-        size < 16.dp -> 8.sp
-        else -> 9.sp
+        size < 8.dp -> 6.sp
+        size < 12.dp -> 8.sp
+        size < 16.dp -> 10.sp
+        else -> 12.sp
     }
     Box(
-        modifier = Modifier.size(size),
+        // Height from the rail's own division, width from the rail: a tall window would
+        // otherwise make each cell wider than the track it sits in.
+        modifier = Modifier
+            .height(size)
+            .fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
         Text(

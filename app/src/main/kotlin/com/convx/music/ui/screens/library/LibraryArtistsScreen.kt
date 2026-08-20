@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -70,6 +71,8 @@ import com.convx.music.constants.GridThumbnailHeight
 import com.convx.music.constants.LibraryIconsOnlyKey
 import com.convx.music.constants.LibraryViewType
 import com.convx.music.constants.YtmSyncKey
+import com.convx.music.ui.component.buildAlphabetSectionIndex
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.ChipsRow
 import com.convx.music.ui.component.EmptyPlaceholder
@@ -236,6 +239,10 @@ fun LibraryArtistsScreen(
         }
     }
 
+    // Hoisted: both view types de-duped the same list separately, and the scroll rail
+    // needs the resulting count too.
+    val visibleArtists = remember(artists) { artists.distinctBy { it.id } }
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -280,7 +287,7 @@ fun LibraryArtistsScreen(
                         }
 
                         items(
-                            items = artists.distinctBy { it.id },
+                            items = visibleArtists,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_ARTIST },
                         ) { artist ->
@@ -340,7 +347,7 @@ fun LibraryArtistsScreen(
                         }
 
                         items(
-                            items = artists.distinctBy { it.id },
+                            items = visibleArtists,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_ARTIST },
                         ) { artist ->
@@ -356,5 +363,19 @@ fun LibraryArtistsScreen(
                     }
                 }
         }
+
+        ListScrollRail(
+            lazyListState = lazyListState,
+            lazyGridState = lazyGridState,
+            isGrid = viewType == LibraryViewType.GRID,
+            itemCount = visibleArtists.size,
+            sectionIndexMap = if (sortType == ArtistSortType.NAME) {
+                remember(visibleArtists) {
+                    buildAlphabetSectionIndex(visibleArtists) { it.artist.name }
+                }
+            } else {
+                null
+            },
+        )
     }
 }

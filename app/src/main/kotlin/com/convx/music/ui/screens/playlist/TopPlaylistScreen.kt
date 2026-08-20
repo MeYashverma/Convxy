@@ -98,10 +98,11 @@ import com.convx.music.constants.MyTopFilter
 import com.convx.music.db.entities.Song
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.ListQueue
+import com.convx.music.ui.component.buildAlphabetSectionIndex
+import com.convx.music.ui.component.ListScrollRail
 import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.component.DefaultDialog
-import com.convx.music.ui.component.DraggableScrollbar
 import com.convx.music.ui.component.EmptyPlaceholder
 import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.IconButton
@@ -506,15 +507,12 @@ fun TopPlaylistScreen(
             }
 
 
-            DraggableScrollbar(
-                modifier = Modifier
-                    .padding(
-                        LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime)
-                            .asPaddingValues()
-                    )
-                    .align(Alignment.CenterEnd),
-                scrollState = state,
-                headerItems = 2
+            // Ranked by play count, never alphabetically, so the rail is a
+            // proportional thumb rather than letters.
+            ListScrollRail(
+                lazyListState = state,
+                itemCount = filteredSongs.size,
+                sectionIndexMap = null,
             )
 
             // Top bar logic

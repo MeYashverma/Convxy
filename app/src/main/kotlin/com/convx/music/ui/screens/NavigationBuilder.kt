@@ -45,6 +45,7 @@ import com.convx.music.ui.screens.equalizer.EqScreen
 import com.convx.music.ui.screens.library.LocalFolderScreen
 import com.convx.music.ui.screens.library.LocalMusicScreen
 import com.convx.music.ui.screens.library.LibraryScreen
+import com.convx.music.ui.screens.library.LocalSongsScreen
 import com.convx.music.ui.screens.settings.SettingsScreen
 import com.convx.music.ui.screens.playlist.AutoPlaylistScreen
 import com.convx.music.ui.screens.playlist.CachePlaylistScreen
@@ -108,6 +109,13 @@ fun NavGraphBuilder.navigationBuilder(
     // in this file.
     sharedComposable(Screens.Home.route) {
         HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
+    }
+
+    // Only ever reachable as a tab while local-only mode is on (see Screens.mainScreens),
+    // but the route is always registered: a saved back stack entry from a session that
+    // had the mode on must still resolve after it is turned off.
+    sharedComposable(Screens.Songs.route) {
+        LocalSongsScreen(navController)
     }
 
     sharedComposable(Screens.Library.route) {

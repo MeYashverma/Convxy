@@ -7,6 +7,7 @@ package com.convx.music.ui.screens
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 
@@ -240,6 +241,12 @@ private const val QuickPicksGridRows = 4
 private const val MaxSimilarSections = 2
 private const val MaxHomePageSections = 3
 
+/** Rows of album/artist tiles a local shelf shows before the full list takes over. */
+private const val LocalShelfRows = 2
+
+/** Playlist and folder rows on Home. The rest are one tap away in Library. */
+private const val LocalListPreview = 6
+
 sealed class HomeSection(val id: String, val baseWeight: Int) {
     /** The "star of the day" card. Always first, never shuffled. */
     data object Hero : HomeSection("hero", 110)
@@ -254,9 +261,6 @@ sealed class HomeSection(val id: String, val baseWeight: Int) {
     data class HomePageSection(val index: Int) : HomeSection("home_page_section_$index", 10)
     data object MoodAndGenres : HomeSection("mood_and_genres", 5)
 }
-
-/** The browse categories Home offers while local-only mode is on. */
-enum class LocalCategory { SONGS, ALBUMS, ARTISTS, PLAYLISTS, FOLDERS }
 
 @Composable
 fun CommunityPlaylistCard(
@@ -654,7 +658,6 @@ fun HomeScreen(
     val localArtists by viewModel.localArtists.collectAsStateWithLifecycle()
     val localPlaylists by viewModel.localPlaylists.collectAsStateWithLifecycle()
     val localFolders by viewModel.localFolders.collectAsStateWithLifecycle()
-    var localCategory by rememberSaveable { mutableStateOf(LocalCategory.SONGS) }
 
     // Wide layout: Home's recently-played row grows a hero tile (see keepListeningSection).
     val tabView = LocalTabView.current
@@ -1307,15 +1310,11 @@ fun HomeScreen(
                 if (localOnly) {
                     localHomeContent(
                         deps = deps,
-                        category = localCategory,
-                        onCategoryChange = { localCategory = it },
                         songs = localSongs,
                         albums = localAlbums,
                         artists = localArtists,
                         playlists = localPlaylists,
                         folders = localFolders,
-                        mediaMetadata = mediaMetadata,
-                        isPlaying = isPlaying,
                         columns = keepListeningColumns,
                     )
                 } else homeSectionsContent(
@@ -1556,84 +1555,20 @@ private fun LazyListScope.homeSectionsContent(
 @OptIn(ExperimentalFoundationApi::class)
 private fun LazyListScope.localHomeContent(
     deps: HomeSectionDeps,
-    category: LocalCategory,
-    onCategoryChange: (LocalCategory) -> Unit,
     songs: List<Song>,
     albums: List<Album>,
     artists: List<Artist>,
     playlists: List<Playlist>,
     folders: List<LocalFolderIndex.Folder>,
-    mediaMetadata: MediaMetadata?,
-    isPlaying: Boolean,
     columns: Int,
 ) {
-    // Local mode gets the same spotlight shelf the online Home leads with, built from
-    // the newest songs on the device. Without it local mode opened straight onto a chip
-    // row and a dense list -- correct, but nothing to look at, and nothing that used the
-    // artwork the user actually owns.
-    if (songs.isNotEmpty()) {
-        item(key = "local_spotlight_title", contentType = "section_title") {
-            NavigationTitle(
-                title = stringResource(R.string.recently_added),
-                modifier = Modifier.animateItem(),
-            )
-        }
-        item(key = "local_spotlight", contentType = "spotlight_row") {
-            // Newest first, capped: this is a shelf, not the library. The full list is
-            // one chip away under Songs.
-            val spotlightSongs = remember(songs) {
-                songs.sortedByDescending { it.song.inLibrary ?: it.song.dateModified }
-                    .take(LocalSpotlightCount)
-            }
-            // LazyRow, not HorizontalPager. A pager consumes the whole fling to advance
-            // exactly one page, so a hard flick and a nudge travel the same distance --
-            // which is the "no physics on the horizontal shelves" report. A lazy row
-            // keeps the platform decay, so velocity decides how far the shelf goes.
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = AppleTokens.Gutter)
-                    .plusStart(deps.sideInset),
-                horizontalArrangement = Arrangement.spacedBy(SpotlightCardSpacing),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(SpotlightCardHeight)
-                    .animateItem()
-                    .bleedStart(deps.sideInset),
-            ) {
-                items(spotlightSongs, key = { it.id }, contentType = { "spotlight_card" }) { song ->
-                    SpotlightCard(
-                        thumbnailUrl = song.thumbnailUrl,
-                        title = song.title,
-                        subtitle = song.artists.joinToString(", ") { it.name },
-                        onClick = { deps.onLocalItemClick(song) },
-                    )
-                }
-            }
-        }
-    }
-
-    item(key = "local_categories", contentType = "local_categories") {
-        ChipsRow(
-            chips = listOf(
-                LocalCategory.SONGS to stringResource(R.string.songs),
-                LocalCategory.ALBUMS to stringResource(R.string.albums),
-                LocalCategory.ARTISTS to stringResource(R.string.artists),
-                LocalCategory.PLAYLISTS to stringResource(R.string.playlists),
-                LocalCategory.FOLDERS to stringResource(R.string.folders),
-            ),
-            currentValue = category,
-            onValueUpdate = onCategoryChange,
-            modifier = Modifier.animateItem(),
-        )
-    }
-
-    val isEmpty = when (category) {
-        LocalCategory.SONGS -> songs.isEmpty()
-        LocalCategory.ALBUMS -> albums.isEmpty()
-        LocalCategory.ARTISTS -> artists.isEmpty()
-        LocalCategory.PLAYLISTS -> playlists.isEmpty()
-        LocalCategory.FOLDERS -> folders.isEmpty()
-    }
-    if (isEmpty) {
+    // Local mode used to open on a chip row over one flat list: correct, but it showed a
+    // single category at a time and nothing to look at. It is now the same shelf
+    // architecture the online Home uses, sourced entirely from the device.
+    //
+    // Every shelf is derived in memory from lists the view model already holds -- no
+    // extra queries. That is the point of keeping the local library as a list.
+    if (songs.isEmpty()) {
         item(key = "local_empty", contentType = "empty") {
             Text(
                 text = stringResource(R.string.no_local_files),
@@ -1647,174 +1582,204 @@ private fun LazyListScope.localHomeContent(
         return
     }
 
-    when (category) {
-        LocalCategory.SONGS -> {
-            item(key = "local_songs_sort", contentType = "sort_row") {
-                val (sortType, onSortTypeChange) = rememberEnumPreference(
-                    LocalSongSortTypeKey,
-                    SongSortType.NAME,
-                )
-                val (sortDescending, onSortDescendingChange) =
-                    rememberPreference(LocalSongSortDescendingKey, false)
-                SortHeader(
-                    sortType = sortType,
-                    sortDescending = sortDescending,
-                    onSortTypeChange = onSortTypeChange,
-                    onSortDescendingChange = onSortDescendingChange,
-                    sortTypeText = {
-                        when (it) {
-                            SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                            SongSortType.NAME -> R.string.sort_by_name
-                            SongSortType.ARTIST -> R.string.sort_by_artist
-                            SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                        }
-                    },
-                    modifier = Modifier.padding(horizontal = AppleTokens.Gutter),
-                )
-            }
-
-            item(key = "local_shuffle_all", contentType = "shuffle_row") {
-                val (accentColor, onAccentColor) = rememberGlobalAccentColors()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppleTokens.Gutter),
-                    horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap),
-                ) {
-                    Button(
-                        onClick = {
-                            deps.playerConnection.playQueue(
-                                ListQueue(items = songs.map { it.toMediaItem() }, startIndex = 0),
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = accentColor,
-                            contentColor = onAccentColor,
-                        ),
-                    ) { Text(stringResource(R.string.play)) }
-                    Button(
-                        onClick = {
-                            deps.playerConnection.playQueue(
-                                ListQueue(items = songs.shuffled().map { it.toMediaItem() }, startIndex = 0),
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = accentColor,
-                            contentColor = onAccentColor,
-                        ),
-                    ) { Text(stringResource(R.string.shuffle)) }
-                }
-            }
-
-            itemsIndexed(
-                items = songs,
-                key = { _, song -> "local_song_${song.id}" },
-                contentType = { _, _ -> "local_song" },
-            ) { index, song ->
-                SongListItem(
-                    song = song,
-                    isActive = song.id == mediaMetadata?.id,
-                    isPlaying = isPlaying,
-                    // Nothing here is liked or downloaded from YouTube — the icons
-                    // would be dead weight on every row.
-                    showLikedIcon = false,
-                    showDownloadIcon = false,
-                    shape = listItemShape(index, songs.size),
-                    trailingContent = {
-                        IconButton(
-                            onClick = {
-                                deps.menuState.show {
-                                    SongMenu(
-                                        originalSong = song,
-                                        navController = deps.navController,
-                                        onDismiss = deps.menuState::dismiss,
-                                    )
-                                }
-                            },
-                        ) {
-                            Icon(painter = painterResource(R.drawable.more_vert), contentDescription = null)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .bounceClick {
-                            if (song.id == mediaMetadata?.id) {
-                                deps.playerConnection.togglePlayPause()
-                            } else {
-                                deps.playerConnection.playQueue(
-                                    ListQueue(items = songs.map { it.toMediaItem() }, startIndex = index),
-                                )
-                            }
-                        },
-                )
-            }
+    item(key = "local_actions", contentType = "shuffle_row") {
+        val (accentColor, onAccentColor) = rememberGlobalAccentColors()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppleTokens.Gutter)
+                .animateItem(),
+            horizontalArrangement = Arrangement.spacedBy(AppleTokens.ItemGap),
+        ) {
+            Button(
+                onClick = {
+                    deps.playerConnection.playQueue(
+                        ListQueue(items = songs.map { it.toMediaItem() }, startIndex = 0),
+                    )
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accentColor,
+                    contentColor = onAccentColor,
+                ),
+            ) { Text(stringResource(R.string.play)) }
+            Button(
+                onClick = {
+                    deps.playerConnection.playQueue(
+                        ListQueue(items = songs.shuffled().map { it.toMediaItem() }, startIndex = 0),
+                    )
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accentColor,
+                    contentColor = onAccentColor,
+                ),
+            ) { Text(stringResource(R.string.shuffle)) }
         }
+    }
 
-        LocalCategory.ALBUMS -> localItemRows(deps, "local_album", albums, columns)
-        LocalCategory.ARTISTS -> localItemRows(deps, "local_artist", artists, columns)
+    localSongShelf(
+        deps = deps,
+        key = "local_recently_added",
+        titleRes = R.string.recently_added,
+        songs = songs.sortedByDescending { it.song.inLibrary ?: it.song.dateModified }
+            .take(LocalSpotlightCount),
+    )
 
-        LocalCategory.PLAYLISTS -> {
-            itemsIndexed(
-                items = playlists,
-                key = { _, playlist -> "local_playlist_${playlist.id}" },
-                contentType = { _, _ -> "local_playlist" },
-            ) { index, playlist ->
-                PlaylistListItem(
-                    playlist = playlist,
-                    shape = listItemShape(index, playlists.size),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .bounceClick { deps.navController.navigate("local_playlist/${playlist.id}") },
-                )
-            }
+    // Only once something has actually been played -- a shelf of zero-play songs is
+    // "recently added" again in a different order.
+    val mostPlayed = songs.filter { it.song.totalPlayTime > 0 }
+        .sortedByDescending { it.song.totalPlayTime }
+        .take(LocalSpotlightCount)
+    localSongShelf(
+        deps = deps,
+        key = "local_most_played",
+        titleRes = R.string.most_played_songs,
+        songs = mostPlayed,
+    )
+
+    if (albums.isNotEmpty()) {
+        item(key = "local_albums_title", contentType = "section_title") {
+            NavigationTitle(
+                title = stringResource(R.string.albums),
+                modifier = Modifier.animateItem(),
+            )
         }
+        localItemRows(deps, "local_album", albums.take(LocalShelfRows * columns), columns)
+    }
 
-        LocalCategory.FOLDERS -> {
-            // Built once for the whole category, not per row — a per-row scan over every
-            // local song to find a folder's thumbnail is the same "expensive work in a
-            // LazyColumn row" mistake as a per-row DB query.
-            //
-            // No `remember` here: this branch runs in localHomeContent's own (non-@Composable)
-            // function body, not inside an item{}/itemsIndexed{} composable lambda — remember
-            // isn't callable at this scope. It's still built once per localHomeContent call
-            // rather than once per row, which is what actually mattered.
-            val songById = songs.associateBy { it.id }
+    if (artists.isNotEmpty()) {
+        item(key = "local_artists_title", contentType = "section_title") {
+            NavigationTitle(
+                title = stringResource(R.string.artists),
+                modifier = Modifier.animateItem(),
+            )
+        }
+        localItemRows(deps, "local_artist", artists.take(LocalShelfRows * columns), columns)
+    }
 
-            itemsIndexed(
-                items = folders,
-                key = { _, folder -> "local_folder_${folder.path}" },
-                contentType = { _, _ -> "local_folder" },
-            ) { index, folder ->
-                val thumbnailUrl = remember(folder, songById) {
-                    folder.songIds.firstNotNullOfOrNull { songById[it]?.song?.thumbnailUrl }
-                }
-                ListItem(
-                    title = folder.name,
-                    subtitle = pluralStringResource(
-                        R.plurals.n_song,
-                        folder.songIds.size,
-                        folder.songIds.size,
-                    ),
-                    thumbnailContent = {
-                        AsyncImage(
-                            model = thumbnailUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(R.drawable.thumbnail_fallback),
-                            error = painterResource(R.drawable.thumbnail_fallback),
-                            modifier = Modifier
-                                .size(ListThumbnailSize)
-                                .clip(RoundedCornerShape(AppleTokens.Control)),
-                        )
+    if (playlists.isNotEmpty()) {
+        item(key = "local_playlists_title", contentType = "section_title") {
+            NavigationTitle(
+                title = stringResource(R.string.playlists),
+                modifier = Modifier.animateItem(),
+            )
+        }
+        val shownPlaylists = playlists.take(LocalListPreview)
+        itemsIndexed(
+            items = shownPlaylists,
+            key = { _, playlist -> "local_playlist_" + playlist.id },
+            contentType = { _, _ -> "local_playlist" },
+        ) { index, playlist ->
+            PlaylistListItem(
+                playlist = playlist,
+                shape = listItemShape(index, shownPlaylists.size),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bounceClick { deps.navController.navigate("local_playlist/" + playlist.id) },
+            )
+        }
+    }
+
+    if (folders.isNotEmpty()) {
+        item(key = "local_folders_title", contentType = "section_title") {
+            NavigationTitle(
+                title = stringResource(R.string.folders),
+                modifier = Modifier.animateItem(),
+            )
+        }
+        // Built once for the whole section, not per row -- a per-row scan over every
+        // local song to find a folder thumbnail is the same "expensive work in a
+        // LazyColumn row" mistake as a per-row DB query.
+        //
+        // No `remember` here: this runs in the function body, not inside an item{}
+        // lambda, so remember is not callable at this scope. It is still built once per
+        // call rather than once per row, which is what actually mattered.
+        val songById = songs.associateBy { it.id }
+        val shownFolders = folders.take(LocalListPreview)
+
+        itemsIndexed(
+            items = shownFolders,
+            key = { _, folder -> "local_folder_" + folder.path },
+            contentType = { _, _ -> "local_folder" },
+        ) { index, folder ->
+            val thumbnailUrl = remember(folder, songById) {
+                folder.songIds.firstNotNullOfOrNull { songById[it]?.song?.thumbnailUrl }
+            }
+            ListItem(
+                title = folder.name,
+                subtitle = pluralStringResource(
+                    R.plurals.n_song,
+                    folder.songIds.size,
+                    folder.songIds.size,
+                ),
+                thumbnailContent = {
+                    AsyncImage(
+                        model = thumbnailUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.thumbnail_fallback),
+                        error = painterResource(R.drawable.thumbnail_fallback),
+                        modifier = Modifier
+                            .size(ListThumbnailSize)
+                            .clip(RoundedCornerShape(AppleTokens.Control)),
+                    )
+                },
+                shape = listItemShape(index, shownFolders.size),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bounceClick {
+                        deps.navController.navigate("local_folder/" + Uri.encode(folder.path))
                     },
-                    shape = listItemShape(index, folders.size),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .bounceClick {
-                            deps.navController.navigate("local_folder/${Uri.encode(folder.path)}")
-                        },
+            )
+        }
+    }
+}
+
+/**
+ * One horizontal shelf of songs, drawn with the card the online Home leads with.
+ *
+ * LazyRow, not HorizontalPager: a pager consumes the whole fling to advance exactly one
+ * page, so a hard flick and a nudge travel the same distance -- which was the "no physics
+ * on the horizontal shelves" report. A lazy row keeps the platform decay, so velocity
+ * decides how far the shelf goes.
+ */
+private fun LazyListScope.localSongShelf(
+    deps: HomeSectionDeps,
+    key: String,
+    @StringRes titleRes: Int,
+    songs: List<Song>,
+) {
+    if (songs.isEmpty()) return
+
+    item(key = key + "_title", contentType = "section_title") {
+        NavigationTitle(
+            title = stringResource(titleRes),
+            modifier = Modifier.animateItem(),
+            onPlayAllClick = {
+                deps.playerConnection.playQueue(
+                    ListQueue(items = songs.map { it.toMediaItem() }, startIndex = 0),
+                )
+            },
+        )
+    }
+    item(key = key, contentType = "spotlight_row") {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = AppleTokens.Gutter)
+                .plusStart(deps.sideInset),
+            horizontalArrangement = Arrangement.spacedBy(SpotlightCardSpacing),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SpotlightCardHeight)
+                .animateItem()
+                .bleedStart(deps.sideInset),
+        ) {
+            items(songs, key = { it.id }, contentType = { "spotlight_card" }) { song ->
+                SpotlightCard(
+                    thumbnailUrl = song.thumbnailUrl,
+                    title = song.title,
+                    subtitle = song.artists.joinToString(", ") { it.name },
+                    onClick = { deps.onLocalItemClick(song) },
                 )
             }
         }

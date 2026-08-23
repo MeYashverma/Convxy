@@ -37,7 +37,7 @@ class VideoFormatSelectorTest {
         averageBitrate = averageBitrate,
         audioQuality = if (height == null) "AUDIO_QUALITY_MEDIUM" else null,
         approxDurationMs = "240000",
-        audioSampleRate = if (height == null) "44100" else null,
+        audioSampleRate = if (height == null) 44100 else null,
         audioChannels = if (height == null) 2 else null,
         loudnessDb = null,
         lastModified = null,

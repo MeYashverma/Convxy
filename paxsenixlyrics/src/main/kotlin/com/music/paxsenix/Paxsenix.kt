@@ -459,7 +459,7 @@ object Paxsenix {
     private fun convertTTMLToAppFormat(ttml: String): String {
         return try {
             val parsedLines = TTMLParser.parseTTML(ttml)
-            TTMLParser.toLRC(parsedLines)
+            TTMLParser.toLRC(parsedLines, TTMLParser.parseAgents(ttml))
         } catch (e: Exception) {
             Timber.e(e, "TTML conversion failed: ${e.message}")
             ""

@@ -5,7 +5,7 @@ import org.w3c.dom.Node
 import javax.xml.parsers.DocumentBuilderFactory
 
 object TTMLParser {
-    
+
     data class ParsedLine(
         val text: String,
         val startTime: Double,
@@ -14,12 +14,27 @@ object TTMLParser {
         val isBackground: Boolean = false,
         val backgroundLines: List<ParsedLine> = emptyList()
     )
-    
+
     data class ParsedWord(
         val text: String,
         val startTime: Double,
         val endTime: Double
     )
+
+    /**
+     * A vocalist declared in the TTML metadata registry, mirroring Apple's
+     * `<ttm:agent type="person" xml:id="v1"><ttm:name type="full">Name</ttm:name></ttm:agent>`.
+     *
+     * @param id the voice id referenced by `ttm:agent` attributes (e.g. "v1").
+     * @param name the performer's display name, when delivered.
+     * @param type "person", "group" (shared vocals, conventionally v1000) or "other".
+     */
+    data class TtmlAgent(
+        val id: String,
+        val name: String?,
+        val type: String?
+    )
+
     
     private data class SpanInfo(
         val text: String,
@@ -50,6 +65,61 @@ object TTMLParser {
         return ""
     }
     
+    /**
+     * Extracts the vocalist registry from the TTML `<head><metadata>` section.
+     *
+     * Elements with local name "agent" are collected regardless of namespace
+     * prefix (`ttm:agent` or bare). The performer name is read from a child
+     * `ttm:name` element first (Apple's delivery format) and from a `ttm:name`
+     * attribute as fallback. Returns an empty list for TTML documents without
+     * agent metadata (anonymous v1/v2 duets), which remain fully functional.
+     */
+    fun parseAgents(ttml: String): List<TtmlAgent> {
+        return try {
+            val factory = DocumentBuilderFactory.newInstance()
+            factory.isNamespaceAware = true
+            val builder = factory.newDocumentBuilder()
+            val doc = builder.parse(ttml.byteInputStream())
+
+            val agents = mutableListOf<TtmlAgent>()
+            val allElements = doc.getElementsByTagName("*")
+            for (i in 0 until allElements.length) {
+                val element = allElements.item(i) as? Element ?: continue
+                val localName = element.localName?.takeIf { it.isNotEmpty() }
+                    ?: element.nodeName.substringAfterLast(':')
+                if (localName != "agent") continue
+
+                // xml:id is the reference used by ttm:agent attributes
+                val id = element.getAttributeByLocalName("id")
+                if (id.isEmpty()) continue
+
+                val type = element.getAttributeByLocalName("type").takeIf { it.isNotEmpty() }
+
+                var name: String? = null
+                val children = element.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType != Node.ELEMENT_NODE) continue
+                    val childElement = child as? Element ?: continue
+                    val childLocalName = childElement.localName?.takeIf { it.isNotEmpty() }
+                        ?: childElement.nodeName.substringAfterLast(':')
+                    if (childLocalName == "name") {
+                        name = childElement.textContent?.trim()?.takeIf { it.isNotEmpty() }
+                        break
+                    }
+                }
+                if (name == null) {
+                    name = element.getAttributeByLocalName("name").takeIf { it.isNotEmpty() }
+                }
+
+                agents.add(TtmlAgent(id = id, name = name, type = type))
+            }
+            agents
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     fun parseTTML(ttml: String): List<ParsedLine> {
         val lines = mutableListOf<ParsedLine>()
         
@@ -289,8 +359,17 @@ object TTMLParser {
         return words
     }
     
-    fun toLRC(lines: List<ParsedLine>): String {
+    fun toLRC(lines: List<ParsedLine>, agents: List<TtmlAgent> = emptyList()): String {
         return buildString {
+            // Singer registry header so named vocalists survive the TTML -> LRC flattening
+            val namedAgents = agents.filter { !it.name.isNullOrBlank() }
+            if (namedAgents.isNotEmpty()) {
+                appendLine(
+                    "[singers:" + namedAgents.joinToString("|") { agent ->
+                        "${agent.id}=${agent.name}"
+                    } + "]"
+                )
+            }
             lines.forEach { line ->
                 val timeMs = (line.startTime * 1000).toLong()
                 val minutes = timeMs / 60000

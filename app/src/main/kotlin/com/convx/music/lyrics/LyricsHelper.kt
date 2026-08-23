@@ -8,6 +8,7 @@ package com.convx.music.lyrics
 import android.content.Context
 import android.util.LruCache
 import com.convx.music.constants.LyricsProviderOrderKey
+import com.convx.music.constants.PreferSingerLyricsKey
 import com.convx.music.constants.PreferredLyricsProvider
 import com.convx.music.constants.PreferredLyricsProviderKey
 import com.convx.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
@@ -81,9 +82,16 @@ constructor(
             return LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
         }
 
+        val preferences = context.dataStore.data.first()
+        val preferSingerLyrics = preferences[PreferSingerLyricsKey] != false
+
         val providers = resolveLyricsProviders()
         val scope = CoroutineScope(SupervisorJob())
         val deferred = scope.async {
+            // When "prefer singer metadata" is on, keep looking past the first
+            // hit until a provider returns duet/multi-singer lyrics; otherwise
+            // (and as fallback when none has them) use the first success.
+            var firstResult: LyricsWithProvider? = null
             for (provider in providers) {
                 if (provider.isEnabled(context)) {
                     try {
@@ -95,7 +103,13 @@ constructor(
                             mediaMetadata.album?.title,
                         )
                         result.onSuccess { lyrics ->
-                            return@async LyricsWithProvider(lyrics, provider.name)
+                            val candidate = LyricsWithProvider(lyrics, provider.name)
+                            if (!preferSingerLyrics || LyricsUtils.hasSingerMetadata(lyrics)) {
+                                return@async candidate
+                            }
+                            if (firstResult == null) {
+                                firstResult = candidate
+                            }
                         }.onFailure {
                             reportException(it)
                         }
@@ -105,7 +119,7 @@ constructor(
                     }
                 }
             }
-            return@async LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
+            firstResult ?: LyricsWithProvider(LYRICS_NOT_FOUND, "Unknown")
         }
 
         val result = deferred.await()

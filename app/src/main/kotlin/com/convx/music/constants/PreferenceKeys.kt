@@ -591,6 +591,12 @@ val DeeplFormalityKey = stringPreferencesKey("deeplFormality")
 val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
 val AppleMusicLyricsBlurKey = booleanPreferencesKey("appleMusicLyricsBlur")
 val LyricsStandardBlurKey = booleanPreferencesKey("lyricsStandardBlur")
+/** Show the "who is singing" badge when lyrics contain multi-singer metadata (duets/shared vocals). */
+val ShowSingerLabelsKey = booleanPreferencesKey("showSingerLabels")
+/** Color each vocalist's lines distinctly when lyrics contain multi-singer metadata. */
+val SingerColorsKey = booleanPreferencesKey("singerColors")
+/** Keep searching past the first lyrics provider until one returns multi-singer (duet) lyrics. */
+val PreferSingerLyricsKey = booleanPreferencesKey("preferSingerLyrics")
 
 val LiquidGlassGlobalEnabledKey = booleanPreferencesKey("liquidGlassGlobalEnabled")
 val LiquidGlassAdaptiveContrastKey = booleanPreferencesKey("liquidGlassAdaptiveContrast")

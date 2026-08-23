@@ -154,6 +154,9 @@ import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LyricsAnimationStyleKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LyricsStandardBlurKey
+import com.convx.music.constants.ShowSingerLabelsKey
+import com.convx.music.constants.SingerColorsKey
+import com.convx.music.constants.PreferSingerLyricsKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
 import com.convx.music.constants.LyricsTextPositionKey
 import com.convx.music.ui.utils.appTopBarWindowInsets
@@ -306,6 +309,9 @@ fun AppearanceSettings(
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 30f)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = true)
+    val (showSingerLabels, onShowSingerLabelsChange) = rememberPreference(ShowSingerLabelsKey, defaultValue = true)
+    val (singerColors, onSingerColorsChange) = rememberPreference(SingerColorsKey, defaultValue = true)
+    val (preferSingerLyrics, onPreferSingerLyricsChange) = rememberPreference(PreferSingerLyricsKey, defaultValue = true)
     val (appleMusicLyricsBlur, onAppleMusicLyricsBlurChange) = rememberPreference(AppleMusicLyricsBlurKey, defaultValue = true)
     val (lyricsStandardBlur, onLyricsStandardBlurChange) = rememberPreference(LyricsStandardBlurKey, defaultValue = false)
     val (swipeLyrics, onSwipeLyricsChange) = rememberPreference(SwipeLyricsKey, defaultValue = false)
@@ -995,6 +1001,69 @@ fun AppearanceSettings(
                         )
                     },
                     onClick = { onLyricsGlowEffectChange(!lyricsGlowEffect) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.singer_labels)) },
+                    description = { Text(stringResource(R.string.singer_labels_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = showSingerLabels,
+                            onCheckedChange = onShowSingerLabelsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showSingerLabels) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onShowSingerLabelsChange(!showSingerLabels) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.singer_colors)) },
+                    description = { Text(stringResource(R.string.singer_colors_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = singerColors,
+                            onCheckedChange = onSingerColorsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (singerColors) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onSingerColorsChange(!singerColors) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.lyrics),
+                    title = { Text(stringResource(R.string.prefer_singer_lyrics)) },
+                    description = { Text(stringResource(R.string.prefer_singer_lyrics_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = preferSingerLyrics,
+                            onCheckedChange = onPreferSingerLyricsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (preferSingerLyrics) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onPreferSingerLyricsChange(!preferSingerLyrics) }
                 ),
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && lyricsAnimationStyle == LyricsAnimationStyle.VIVIMUSIC_1) {
                     Material3SettingsItem(

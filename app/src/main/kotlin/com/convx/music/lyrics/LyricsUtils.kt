@@ -25,6 +25,12 @@ object LyricsUtils {
     private val AGENT_REGEX = "\\{agent:([^}]+)\\}".toRegex()
     private val BACKGROUND_REGEX = "^\\{bg\\}".toRegex()
 
+    // Duet prefix dialect: "[00:12.00]v2: Nothing stays forever"
+    private val AGENT_PREFIX_REGEX = Regex("^v(\\d+)\\s*:")
+
+    // Singer registry header: "[singers:v1=Artist A|v2=Artist B|v1000=Both]"
+    private val SINGERS_HEADER_REGEX = Regex("^\\[singers?\\s*:\\s*(.*)\\]$", RegexOption.IGNORE_CASE)
+
     private val KANA_ROMAJI_MAP: Map<String, String> = mapOf(
         // Digraphs (Yōon - combinations like kya, sho)
         "キャ" to "kya", "キュ" to "kyu", "キョ" to "kyo",
@@ -346,35 +352,98 @@ object LyricsUtils {
             .replace("&nbsp;", " ")
             .replace("&amp;", "&")
 
-    fun parseLyrics(lyrics: String): List<LyricsEntry> {
-        // Unescape JSON string if needed
-        val unescapedLyrics = lyrics
-            .trim()
-            .removePrefix("\"")
-            .removeSuffix("\"")
-            .replace("\\\\", "\\")
-            .replace("\\n", "\n")
-            .replace("\\r", "\r")
-            .replace("\\t", "\t")
+    fun parseLyrics(lyrics: String): List<LyricsEntry> = parseLyricsWithSingers(lyrics).entries
 
-        // Decode HTML entities (e.g. &#x27; -> ', &amp; -> &)
-        val decodedLyrics = decodeHtmlEntities(unescapedLyrics)
-        
-        val lines = decodedLyrics.lines()
+    /**
+     * Parses a lyric document into its timed lines plus the singer registry
+     * declared by an optional `[singers:v1=Name|v2=Name]` header.
+     *
+     * The header is an additive extension of Convxy's LRC dialect: it is a
+     * standard bracket tag, so legacy parsers (including older Convxy builds)
+     * simply skip it, which keeps the format fully backward compatible.
+     */
+    fun parseLyricsWithSingers(lyrics: String): ParsedLyrics {
+        // Unescape JSON string if needed, then decode HTML entities
+        val decodedLyrics = decodeHtmlEntities(unescapeJsonLyrics(lyrics))
+
+        val rawLines = decodedLyrics.lines()
+
+        val singers = parseSingersHeader(rawLines)
+
+        val lines = rawLines
             .filter { it.isNotBlank() && !it.trim().startsWith("[offset:") }
-        
+
         // Check if this is rich sync format (contains <MM:SS.mm> patterns)
         val isRichSync = lines.any { line ->
-            RICH_SYNC_LINE_REGEX.matches(line.trim()) && 
+            RICH_SYNC_LINE_REGEX.matches(line.trim()) &&
             RICH_SYNC_WORD_REGEX.containsMatchIn(line)
         }
-        
-        return if (isRichSync) {
+
+        val entries = if (isRichSync) {
             parseRichSyncLyrics(lines)
         } else {
             parseStandardLyrics(lines)
         }
+        return ParsedLyrics(entries, singers)
     }
+
+    private fun unescapeJsonLyrics(lyrics: String): String = lyrics
+        .trim()
+        .removePrefix("\"")
+        .removeSuffix("\"")
+        .replace("\\\\", "\\")
+        .replace("\\n", "\n")
+        .replace("\\r", "\r")
+        .replace("\\t", "\t")
+
+    /**
+     * Fast check (no full parse) for whether a lyric document carries singer
+     * attribution: either a `[singers:…]` registry header or per-line agent
+     * markers. Used by [LyricsHelper] to prefer multi-singer results when the
+     * user enabled it, so duets surface without manual provider reordering.
+     */
+    fun hasSingerMetadata(lyrics: String): Boolean =
+        lyrics.contains("[singers:") || lyrics.contains("{agent:") || lyrics.contains("{bg}")
+
+    /**
+     * Extracts the singer registry from a `[singers:...]` header line.
+     *
+     * Entry syntax: `id=Display Name`, entries separated by `|`. An empty name
+     * (`v1000=`) registers the voice as unnamed, letting the UI fall back to
+     * artist inference or a localized label. The group id [GROUP_AGENT_ID] is
+     * always flagged as shared vocals.
+     */
+    private fun parseSingersHeader(lines: List<String>): Map<String, SingerInfo> {
+        val headerLine = lines.firstOrNull { SINGERS_HEADER_REGEX.matches(it.trim()) }
+            ?: return emptyMap()
+        val body = SINGERS_HEADER_REGEX.matchEntire(headerLine.trim())
+            ?.groupValues?.get(1)?.trim()
+            ?: return emptyMap()
+        if (body.isEmpty()) return emptyMap()
+
+        val singers = LinkedHashMap<String, SingerInfo>()
+        body.split('|').forEach { entry ->
+            val trimmedEntry = entry.trim()
+            if (trimmedEntry.isEmpty()) return@forEach
+
+            val separatorIndex = trimmedEntry.indexOf('=')
+            val (id, name) = if (separatorIndex >= 0) {
+                trimmedEntry.substring(0, separatorIndex).trim() to
+                    trimmedEntry.substring(separatorIndex + 1).trim().takeIf { it.isNotEmpty() }
+            } else {
+                trimmedEntry to null
+            }
+            if (id.isNotEmpty()) {
+                singers[id] = SingerInfo(
+                    id = id,
+                    name = name,
+                    isGroup = id == GROUP_AGENT_ID,
+                )
+            }
+        }
+        return singers
+    }
+
     
     /**
      * Parse rich sync lyrics format: [MM:SS.mm]<MM:SS.mm> word <MM:SS.mm> word ...
@@ -396,10 +465,17 @@ object LyricsUtils {
                 
                 var content = matchResult.groupValues[4].trimStart()
                 
+                // Parse duet prefix "v2:" (e.g. "[00:12.00]<...>v2: text")
+                var agent: String? = null
+                AGENT_PREFIX_REGEX.find(content)?.let { prefixMatch ->
+                    agent = "v" + prefixMatch.groupValues[1]
+                    content = content.removeRange(prefixMatch.range).trimStart()
+                }
+                
                 // Parse agent marker {agent:v1}
                 val agentMatch = AGENT_REGEX.find(content)
-                val agent = agentMatch?.groupValues?.get(1)
                 if (agentMatch != null) {
+                    agent = agentMatch.groupValues[1]
                     content = content.replaceFirst(AGENT_REGEX, "")
                 }
                 
@@ -545,10 +621,17 @@ object LyricsUtils {
         var text = matchResult.groupValues[3]
         val timeMatchResults = TIME_REGEX.findAll(times)
         
+        // Parse duet prefix "v2:" (e.g. "[00:12.00]v2: Nothing stays forever")
+        var agent: String? = null
+        AGENT_PREFIX_REGEX.find(text)?.let { prefixMatch ->
+            agent = "v" + prefixMatch.groupValues[1]
+            text = text.removeRange(prefixMatch.range).trimStart()
+        }
+        
         // Parse agent marker {agent:v1}
         val agentMatch = AGENT_REGEX.find(text)
-        val agent = agentMatch?.groupValues?.get(1)
         if (agentMatch != null) {
+            agent = agentMatch.groupValues[1]
             text = text.replaceFirst(AGENT_REGEX, "")
         }
         

@@ -2,7 +2,7 @@ package com.convx.music.ui.component
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
-import com.convx.music.constants.LyricsPosition
+import com.convx.music.ui.screens.settings.LyricsPosition
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

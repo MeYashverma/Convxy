@@ -37,7 +37,7 @@ import com.convx.music.lyrics.GROUP_AGENT_ID
 import com.convx.music.lyrics.LyricsEntry
 import com.convx.music.lyrics.SingerInfo
 import com.convx.music.lyrics.primaryAgentId
-import com.convx.music.constants.LyricsPosition
+import com.convx.music.ui.screens.settings.LyricsPosition
 
 /**
  * Assigns a stable, distinguishable color to every lead vocalist of a song.

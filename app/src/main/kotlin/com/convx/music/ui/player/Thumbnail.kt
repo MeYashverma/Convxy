@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -107,6 +108,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import com.convx.music.constants.SeekExtraSeconds
 import com.convx.music.constants.SwipeThumbnailKey
 import com.convx.music.constants.ThumbnailCornerRadiusKey
+import com.convx.music.constants.WatchVideoKey
 import com.convx.music.constants.ThumbnailCornerRadius
 import com.convx.music.listentogether.RoomRole
 import com.convx.music.ui.component.CastButton
@@ -316,6 +318,11 @@ fun Thumbnail(
         defaultValue = PlayerBackgroundStyle.APPLE_MUSIC
     )
     val thumbnailCornerRadius by rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 3f)
+    val watchVideo by rememberPreference(WatchVideoKey, false)
+    val currentFormat by playerConnection.currentFormat.collectAsState()
+    // Full YouTube video mode: on when the toggle is set AND the stream the
+    // resolver picked actually carries video (muxed format in the DB).
+    val videoPlaybackActive = watchVideo && currentFormat?.mimeType?.startsWith("video") == true
     
     // Pre-calculate text color based on background style
     val textBackgroundColor = getTextColor(playerBackground)
@@ -417,6 +424,17 @@ fun Thumbnail(
     Box(
         modifier = modifier
     ) {
+        if (videoPlaybackActive) {
+            // Full-video mode replaces the artwork carousel with the song's
+            // video, keeping the player's layout and gestures untouched.
+            VideoPlaybackSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(thumbnailCornerRadius.dp)),
+            )
+            return@Box
+        }
         // Error view
         AnimatedVisibility(
             visible = error != null,

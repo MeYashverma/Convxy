@@ -210,6 +210,9 @@ object YTPlayerUtils {
          *  times (stall/parsing errors) — skips the Spine and Tidal intercepts
          *  entirely and resolves the plain YouTube stream for this call only. */
         forceStandardAudio: Boolean = false,
+        /** When true, resolve a muxed (audio+video) stream so the player can show
+         *  the song's full YouTube video. Skips the audio-only intercepts. */
+        videoMode: Boolean = false,
     ): Result<PlaybackData> {
         // ── JioSaavn intercept ───────────────────────────────────────────────
         // If the user has enabled JioSaavn streaming, try to resolve the stream
@@ -224,7 +227,7 @@ object YTPlayerUtils {
             // ── 8spine module intercept ─────────────────────────────────────────
             // Try enabled 8spine modules for streaming before other sources.
             // Falls through to TIDAL/Saavn/YouTube on ANY failure.
-            if (!forceStandardAudio) {
+            if (!forceStandardAudio && !videoMode) {
             Timber.tag(TAG).d("═══ SPINE INTERCEPT START ═══ videoId=$videoId")
             val enabledModulesJson = context.dataStore.get(EnabledModulesKey, "[]")
             val moduleSourcesJson = context.dataStore.get(ModuleSourcesKey, "[]")
@@ -513,7 +516,7 @@ object YTPlayerUtils {
             // ── Lossless (TIDAL) intercept ───────────────────────────────────────
             // Opt-in FLAC from a public hifi-api instance. Tried BEFORE JioSaavn so
             // lossless wins. Falls through to Saavn/YouTube on ANY failure.
-            if (!forceStandardAudio && !forceSelectedQuality && allowLossless && context.dataStore.get(EnableTidalStreamingKey, false)) {
+            if (!videoMode && !forceStandardAudio && !forceSelectedQuality && allowLossless && context.dataStore.get(EnableTidalStreamingKey, false)) {
                 Timber.tag(TAG).d("Lossless enabled — trying TIDAL for videoId=$videoId")
                 val tidalResult = runCatching {
                     val (currentSong, meta) = coroutineScope {
@@ -641,7 +644,7 @@ object YTPlayerUtils {
             }
             // ── End TIDAL intercept ──────────────────────────────────────────────
 
-            val saavnEnabled = context.dataStore.get(EnableSaavnStreamingKey, false)
+            val saavnEnabled = !videoMode && context.dataStore.get(EnableSaavnStreamingKey, false)
             if (saavnEnabled) {
                 Timber.tag(TAG).d("JioSaavn streaming enabled — trying Saavn for videoId=$videoId")
                 val saavnResult = runCatching {
@@ -1103,12 +1106,25 @@ object YTPlayerUtils {
                 // Skip NewPipe - use direct URLs or custom cipher in findUrlOrNull
                 val responseToUse = streamPlayerResponse
 
-                format =
+                format = if (videoMode) {
+                    // Full-video playback: prefer a progressive muxed stream; if this
+                    // client exposes none, degrade to the normal audio format rather
+                    // than failing playback — the toggle simply stays inert visually.
+                    selectMuxedVideoFormat(responseToUse.streamingData?.formats)
+                        ?: findFormat(
+                            responseToUse,
+                            audioQuality,
+                            connectivityManager,
+                        )?.also {
+                            Timber.tag(logTag).d("videoMode: no muxed format on this client, falling back to audio")
+                        }
+                } else {
                     findFormat(
                         responseToUse,
                         audioQuality,
                         connectivityManager,
                     )
+                }
 
                 if (format == null) {
                     Timber.tag(logTag).d("No suitable format found for client: ${if (clientIndex == -1) MAIN_CLIENT.clientName else STREAM_FALLBACK_CLIENTS[clientIndex].clientName}")

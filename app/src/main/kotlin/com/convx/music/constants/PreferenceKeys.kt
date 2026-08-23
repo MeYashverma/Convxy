@@ -597,6 +597,8 @@ val ShowSingerLabelsKey = booleanPreferencesKey("showSingerLabels")
 val SingerColorsKey = booleanPreferencesKey("singerColors")
 /** Keep searching past the first lyrics provider until one returns multi-singer (duet) lyrics. */
 val PreferSingerLyricsKey = booleanPreferencesKey("preferSingerLyrics")
+/** When on, songs play their full YouTube video (muxed stream) instead of audio-only. */
+val WatchVideoKey = booleanPreferencesKey("watchVideo")
 
 val LiquidGlassGlobalEnabledKey = booleanPreferencesKey("liquidGlassGlobalEnabled")
 val LiquidGlassAdaptiveContrastKey = booleanPreferencesKey("liquidGlassAdaptiveContrast")

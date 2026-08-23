@@ -200,6 +200,7 @@ import com.convx.music.constants.ShowUpNextKey
 import com.convx.music.constants.SliderStyle
 import com.convx.music.constants.SliderStyleKey
 import com.convx.music.constants.SwipeLyricsKey
+import com.convx.music.constants.WatchVideoKey
 import com.convx.music.constants.ThumbnailCornerRadius
 import com.convx.music.constants.ThumbnailRoundedShape
 import com.convx.music.constants.UseAppleMusicPlayerKey
@@ -345,6 +346,7 @@ fun BottomSheetPlayer(
     // here used to skip that machinery entirely, which is why V17 used to render
     // as an always-on-top full-bleed box instead of a proper mini/expanded player.
     val (useAppleMusicPlayer) = rememberPreference(UseAppleMusicPlayerKey, defaultValue = false)
+    val (watchVideo, onWatchVideoChange) = rememberPreference(WatchVideoKey, defaultValue = false)
 
     // Shared between the background slot (BackgroundVideoView polls into it)
     // and the control pills below (read it via LocalBackdropLoopBucket) — see
@@ -2192,6 +2194,24 @@ fun BottomSheetPlayer(
                                     }
                                 }
                             }
+                        }
+
+                        // Full YouTube video toggle: swaps the artwork for the
+                        // song's video (muxed stream) and back.
+                        FilledIconButton(
+                            onClick = { onWatchVideoChange(!watchVideo) },
+                            shape = shareShape,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = if (watchVideo) MaterialTheme.colorScheme.primary else textButtonColor,
+                                contentColor = if (watchVideo) MaterialTheme.colorScheme.onPrimary else iconButtonColor,
+                            ),
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.slow_motion_video),
+                                contentDescription = stringResource(R.string.watch_video),
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
 
                         AnimatedContent(targetState = showInlineLyrics, label = "LikeButton") { showLyrics ->

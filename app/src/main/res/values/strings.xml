@@ -472,6 +472,8 @@
     <string name="singer_labels_desc">Show who is singing when lyrics support multiple vocalists (duets and shared vocals)</string>
     <string name="singer_colors">Singer colors</string>
     <string name="singer_colors_desc">Give each vocalist a distinct color when lyrics support multiple vocalists</string>
+    <string name="watch_video">Watch video</string>
+    <string name="watch_video_desc">Play the song\'s full YouTube video instead of audio only, when one is available</string>
     <string name="prefer_singer_lyrics">Prefer multi-singer lyrics</string>
     <string name="prefer_singer_lyrics_desc">Keep searching past the first lyrics source until one returns duet/multi-singer lyrics</string>
     <string name="listen_together_smart_resync">Smart Network Resync</string>

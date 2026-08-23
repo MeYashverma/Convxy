@@ -1,15 +1,16 @@
 <div align="center">
-  <h1>CONVX</h1>
-  <h3>Convx is an open-source, Liquid Glass music player for Android</h3>
+  <h1>BERLUNE</h1>
+  <h3>BERLUNE is an open-source, Liquid Glass music player for Android</h3>
+  <p><sub>Fork of <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a> by <a href="https://github.com/MeYashverma">MeYashverma</a> — with Apple Music-style multi-singer synced lyrics and more.</sub></p>
 
   <p>
-    <a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.5.2">
-      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20CONVX%201.5.2-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convx 1.5.2">
+    <a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">
+      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20FROM%20ACTIONS-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download BERLUNE from GitHub Actions">
     </a>
   </p>
   <p>
-    <b><a href="https://github.com/cosmictaserdev-creator/Convx/releases/tag/v1.5.2">⬇️ DOWNLOAD CONVX 1.5.2</a></b>
-    — Latest release. Works on Android 8.0+.
+    <b><a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">⬇️ GET THE LATEST BUILD</a></b>
+    — From the CI artifacts. Works on Android 8.0+.
   </p>
 
   <h3>📸 Screenshots</h3>
@@ -102,6 +103,7 @@
       <h3>📝 Lyrics & Social</h3>
       <ul>
         <li><b>Synced, karaoke-style lyrics</b> with word-by-word highlighting.</li>
+        <li><b>Multi-singer lyrics (Apple Music-style duets):</b> per-vocalist colors and a "who is singing" badge for songs with multiple vocalists, including shared vocals — automatically active when the lyrics source provides singer metadata (<a href="docs/MULTI_SINGER_LYRICS.md">details</a>).</li>
         <li><b>Discord Rich Presence:</b> show what you're listening to on your profile.</li>
         <li><b>Listen Together:</b> sync playback with friends in real time.</li>
       </ul>

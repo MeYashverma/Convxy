@@ -839,7 +839,7 @@ object YTPlayerUtils {
         }
         // ── End JioSaavn intercept ───────────────────────────────────────────
 
-        val firstAttempt = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
+        val firstAttempt = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager, videoMode = videoMode)
 
         // A geo-restricted video fails the same way on a retry — rotating a
         // guest session or re-attempting as-is can't fix a region block, so
@@ -858,7 +858,7 @@ object YTPlayerUtils {
             Timber.tag(TAG).w("Playback failed for $label. Rotating session and retrying...")
             PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for $label", "Triggering bot detection mitigation (rotating guest session)")
             BotDetectionMitigator.rotateGuestSession()
-            val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager)
+            val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager, videoMode = videoMode)
             retryResult.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
             return retryResult
         }
@@ -872,6 +872,7 @@ object YTPlayerUtils {
         playlistId: String? = null,
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
+        videoMode: Boolean = false,
     ): Result<PlaybackData> = runCatching {
         Timber.tag(logTag).d("Fetching player response for videoId: $videoId, playlistId: $playlistId")
         PlaybackLogManager.log(PlaybackLogLevel.INFO, "Resolving playback data", "Video: $videoId")

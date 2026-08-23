@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
-import com.convx.music.playback.LocalPlayerConnection
+import com.convx.music.LocalPlayerConnection
 
 /**
  * Renders the video track of the shared music player (full YouTube video

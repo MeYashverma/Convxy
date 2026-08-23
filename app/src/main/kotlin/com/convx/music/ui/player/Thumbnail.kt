@@ -319,7 +319,7 @@ fun Thumbnail(
     )
     val thumbnailCornerRadius by rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 3f)
     val watchVideo by rememberPreference(WatchVideoKey, false)
-    val currentFormat by playerConnection.currentFormat.collectAsState()
+    val currentFormat by playerConnection.currentFormat.collectAsState(initialValue = null)
     // Full YouTube video mode: on when the toggle is set AND the stream the
     // resolver picked actually carries video (muxed format in the DB).
     val videoPlaybackActive = watchVideo && currentFormat?.mimeType?.startsWith("video") == true

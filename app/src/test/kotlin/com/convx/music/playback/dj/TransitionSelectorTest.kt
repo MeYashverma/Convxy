@@ -34,7 +34,11 @@ class TransitionSelectorTest {
     }
 
     @Test
-    fun `a mismatched pair ending at full energy gets echoed`() {
+    fun `a mismatched pair ending at full energy stays transparent below full dj`() {
+        // SMART_CROSSFADE carries no EQ/effects camouflage (DjMixPlanner's tier
+        // contract). Echo used to be scored here too and won on every
+        // mismatched pair — heard as the outgoing track stuttering rather than
+        // a deliberate effect — which is why it is now a FULL_DJ-only move.
         val style = TransitionSelector.select(
             tier = DjMixTier.SMART_CROSSFADE,
             outgoing = analysis(confidence = 0.9f, profile = loudThroughout()),
@@ -43,12 +47,13 @@ class TransitionSelectorTest {
             creativeEnabled = true,
         )
 
-        assertEquals(TransitionStyle.ECHO_FREEZE, style)
+        assertEquals(TransitionStyle.TRANSPARENT, style)
     }
 
     @Test
-    fun `a track that fades out is echoed rather than looped`() {
-        // Looping a fade-out just repeats the fade.
+    fun `a track that fades out is not looped at smart crossfade`() {
+        // Looping a fade-out just repeats the fade — and with echo restricted
+        // to FULL_DJ, a fade-out below that tier mixes transparently.
         val style = TransitionSelector.select(
             tier = DjMixTier.SMART_CROSSFADE,
             outgoing = analysis(confidence = 0.9f, profile = fadesOut()),
@@ -57,7 +62,7 @@ class TransitionSelectorTest {
             creativeEnabled = true,
         )
 
-        assertEquals(TransitionStyle.ECHO_FREEZE, style)
+        assertEquals(TransitionStyle.TRANSPARENT, style)
     }
 
     @Test
@@ -89,11 +94,13 @@ class TransitionSelectorTest {
 
     @Test
     fun `the same move does not land twice in a row`() {
+        // Uses TAPE_STOP, the effect that still fires at PLAIN_CROSSFADE on
+        // hopeless tempos with a loud intro.
         val args = { recent: List<TransitionStyle> ->
             TransitionSelector.select(
-                tier = DjMixTier.SMART_CROSSFADE,
-                outgoing = analysis(confidence = 0.9f, profile = loudThroughout()),
-                incoming = analysis(confidence = 0.9f, profile = loudThroughout()),
+                tier = DjMixTier.PLAIN_CROSSFADE,
+                outgoing = analysis(confidence = 0.2f, profile = loudThroughout()),
+                incoming = analysis(confidence = 0.2f, profile = loudThroughout()),
                 outgoingDurationMs = DURATION_MS,
                 creativeEnabled = true,
                 recentStyles = recent,
@@ -103,7 +110,7 @@ class TransitionSelectorTest {
         val first = args(emptyList())
         val second = args(listOf(first))
 
-        assertEquals(TransitionStyle.ECHO_FREEZE, first)
+        assertEquals(TransitionStyle.TAPE_STOP, first)
         assertNotEquals(first, second)
     }
 
@@ -125,9 +132,9 @@ class TransitionSelectorTest {
 
     @Test
     fun `an effect stays locked out until several plain transitions have passed`() {
-        val loud = analysis(confidence = 0.9f, profile = loudThroughout())
+        val loud = analysis(confidence = 0.2f, profile = loudThroughout())
         fun select(recent: List<TransitionStyle>) = TransitionSelector.select(
-            tier = DjMixTier.SMART_CROSSFADE,
+            tier = DjMixTier.PLAIN_CROSSFADE,
             outgoing = loud,
             incoming = loud,
             outgoingDurationMs = DURATION_MS,
@@ -137,16 +144,16 @@ class TransitionSelectorTest {
 
         // An effect one transition ago locks the next few out entirely — an
         // effect on every song is a plugin, not a DJ.
-        val justUsed = listOf(TransitionStyle.ECHO_FREEZE)
+        val justUsed = listOf(TransitionStyle.TAPE_STOP)
         assertEquals(TransitionStyle.TRANSPARENT, select(justUsed))
         assertEquals(
             TransitionStyle.TRANSPARENT,
-            select(listOf(TransitionStyle.TRANSPARENT, TransitionStyle.ECHO_FREEZE)),
+            select(listOf(TransitionStyle.TRANSPARENT, TransitionStyle.TAPE_STOP)),
         )
 
         // Once enough transparent transitions have gone by, effects return.
-        val cooledDown = List(4) { TransitionStyle.TRANSPARENT } + TransitionStyle.ECHO_FREEZE
-        assertNotEquals(TransitionStyle.TRANSPARENT, select(cooledDown))
+        val cooledDown = List(4) { TransitionStyle.TRANSPARENT } + TransitionStyle.TAPE_STOP
+        assertEquals(TransitionStyle.TAPE_STOP, select(cooledDown))
     }
 
     @Test

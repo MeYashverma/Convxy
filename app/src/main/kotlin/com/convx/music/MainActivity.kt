@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -2174,7 +2174,8 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            com.convx.music.ui.component.DonationPromptHost()
+                            // Donation prompt removed for the BERLUNE fork: it pointed
+                            // at the upstream developer's payment accounts.
 
                             // Both float OVER the full-width NavHost, exactly as the
                             // bottom bar does on a phone: nothing reserves layout

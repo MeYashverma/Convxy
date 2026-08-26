@@ -2465,8 +2465,3 @@ private const val vivimusic_FAST_SEEK_DURATION = 600L // Less aggressive seeking
 
 // Lyrics constants
 val LyricsPreviewTime = 2.seconds
-L // Slower user interaction
-private const val vivimusic_FAST_SEEK_DURATION = 600L // Less aggressive seeking
-
-// Lyrics constants
-val LyricsPreviewTime = 2.seconds

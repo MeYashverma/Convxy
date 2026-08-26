@@ -1,7 +1,7 @@
 <div align="center">
-  <h1>BERLUNE</h1>
-  <h3>BERLUNE is an open-source, Liquid Glass music player for Android</h3>
-  <p><sub>Fork of <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a> by <a href="https://github.com/MeYashverma">MeYashverma</a> — with Apple Music-style multi-singer synced lyrics and more.</sub></p>
+  <h1>CONVXY</h1>
+  <h3>Convxy is an open-source, Liquid Glass music player for Android</h3>
+  <p><sub>Fork of <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a>, developed by <a href="https://github.com/MeYashverma">Yash Verma (MeYashverma)</a> — with Apple Music-style multi-singer synced lyrics and more. 🌐 <a href="https://meyashverma.github.io/Convxy/">meyashverma.github.io/Convxy</a></sub></p>
 
   <p>
     <a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">
@@ -15,65 +15,62 @@
 
   <h3>📸 Screenshots</h3>
   <div>
-    <img src="docs/screenshots/Screenshot_20260802_202411_Convx-portrait.png" width="30%" alt="Convx Liquid Glass music player now playing screen with frosted glass controls">
-    <img src="docs/screenshots/Screenshot_20260802_205400_Convx-portrait.png" width="30%" alt="Convx Android music player home screen with glass chrome">
-    <img src="docs/screenshots/Screenshot_20260802_205417_Convx-portrait.png" width="30%" alt="Convx music player library view with Liquid Glass blur">
+    <img src="docs/screenshots/Screenshot_20260802_202411_Convx-portrait.png" width="30%" alt="Convxy Liquid Glass music player now playing screen with frosted glass controls">
+    <img src="docs/screenshots/Screenshot_20260802_205400_Convx-portrait.png" width="30%" alt="Convxy Android music player home screen with glass chrome">
+    <img src="docs/screenshots/Screenshot_20260802_205417_Convx-portrait.png" width="30%" alt="Convxy music player library view with Liquid Glass blur">
     <br>
-    <img src="docs/screenshots/Screenshot_20260802_205427_Convx-portrait.png" width="30%" alt="Convx music player search screen with frosted glass UI">
-    <img src="docs/screenshots/mobile%20%283%29-portrait.png" width="30%" alt="Convx Liquid Glass music player UI showing the frosted player screen">
-    <img src="docs/screenshots/mobile%20%284%29-portrait.png" width="30%" alt="Convx music player now playing screen with artwork and glass controls">
+    <img src="docs/screenshots/Screenshot_20260802_205427_Convx-portrait.png" width="30%" alt="Convxy music player search screen with frosted glass UI">
+    <img src="docs/screenshots/mobile%20%283%29-portrait.png" width="30%" alt="Convxy Liquid Glass music player UI showing the frosted player screen">
+    <img src="docs/screenshots/mobile%20%284%29-portrait.png" width="30%" alt="Convxy music player now playing screen with artwork and glass controls">
     <br>
-    <img src="docs/screenshots/mobile%20%285%29-portrait.png" width="30%" alt="Convx music player queue screen with Liquid Glass surfaces">
-    <img src="docs/screenshots/mobile%20%287%29-portrait.png" width="30%" alt="Convx Android music player synced lyrics screen">
-    <img src="docs/screenshots/mobile%20%289%29-portrait.png" width="30%" alt="Convx music player album page with refractive glass chrome">
+    <img src="docs/screenshots/mobile%20%285%29-portrait.png" width="30%" alt="Convxy music player queue screen with Liquid Glass surfaces">
+    <img src="docs/screenshots/mobile%20%287%29-portrait.png" width="30%" alt="Convxy Android music player synced lyrics screen">
+    <img src="docs/screenshots/mobile%20%289%29-portrait.png" width="30%" alt="Convxy music player album page with refractive glass chrome">
     <br>
-    <img src="docs/screenshots/mobile%20%2810%29-portrait.png" width="30%" alt="Convx music player settings screen with frosted glass panels">
-    <img src="docs/screenshots/mobile%20%2811%29-portrait.png" width="30%" alt="Convx music player artist page with glass design">
-    <img src="docs/screenshots/mobile%20%2812%29-portrait.png" width="30%" alt="Convx music player Android Auto playback controls">
+    <img src="docs/screenshots/mobile%20%2810%29-portrait.png" width="30%" alt="Convxy music player settings screen with frosted glass panels">
+    <img src="docs/screenshots/mobile%20%2811%29-portrait.png" width="30%" alt="Convxy music player artist page with glass design">
+    <img src="docs/screenshots/mobile%20%2812%29-portrait.png" width="30%" alt="Convxy music player Android Auto playback controls">
     <br>
-    <img src="docs/screenshots/mobile%20%2813%29-portrait.png" width="30%" alt="Convx music player equalizer with Liquid Glass UI">
-    <img src="docs/screenshots/lyrics%20screen-portrait.png" width="30%" alt="Convx music player karaoke-style lyrics with word-by-word highlighting">
-    <img src="docs/screenshots/users%20%282%29-portrait.png" width="30%" alt="Convx Listen Together shared playback with friends">
+    <img src="docs/screenshots/mobile%20%2813%29-portrait.png" width="30%" alt="Convxy music player equalizer with Liquid Glass UI">
+    <img src="docs/screenshots/lyrics%20screen-portrait.png" width="30%" alt="Convxy music player karaoke-style lyrics with word-by-word highlighting">
+    <img src="docs/screenshots/users%20%282%29-portrait.png" width="30%" alt="Convxy Listen Together shared playback with friends">
     <br>
-    <img src="docs/screenshots/tabview%20%281%29-landscape.png" width="30%" alt="Convx Liquid Glass music player tablet home view">
-    <img src="docs/screenshots/tabview%20%282%29-landscape.png" width="30%" alt="Convx music player tablet library browsing">
-    <img src="docs/screenshots/tabview%20%283%29-landscape.png" width="30%" alt="Convx music player tablet now playing screen">
+    <img src="docs/screenshots/tabview%20%281%29-landscape.png" width="30%" alt="Convxy Liquid Glass music player tablet home view">
+    <img src="docs/screenshots/tabview%20%282%29-landscape.png" width="30%" alt="Convxy music player tablet library browsing">
+    <img src="docs/screenshots/tabview%20%283%29-landscape.png" width="30%" alt="Convxy music player tablet now playing screen">
     <br>
-    <img src="docs/screenshots/users%20%283%29-portrait.png" width="30%" alt="Convx Discord Rich Presence showing what you are listening to">
-    <img src="docs/screenshots/users%20%285%29-landscape.png" width="30%" alt="Convx music player shared sessions and community">
+    <img src="docs/screenshots/users%20%283%29-portrait.png" width="30%" alt="Convxy Discord Rich Presence showing what you are listening to">
+    <img src="docs/screenshots/users%20%285%29-landscape.png" width="30%" alt="Convxy music player shared sessions and community">
   </div>
 
   <p>
-    <a href="https://github.com/cosmictaserdev-creator/Convx/releases">
-      <img src="https://img.shields.io/github/downloads/cosmictaserdev-creator/Convx/total?style=for-the-badge&color=blue" alt="Downloads">
+    <a href="https://github.com/MeYashverma/Convxy/releases">
+      <img src="https://img.shields.io/github/downloads/MeYashverma/Convxy/total?style=for-the-badge&color=blue" alt="Downloads">
     </a>
     <a href="LICENSE">
-      <img src="https://img.shields.io/github/license/cosmictaserdev-creator/Convx?style=for-the-badge" alt="License">
+      <img src="https://img.shields.io/github/license/MeYashverma/Convxy?style=for-the-badge" alt="License">
     </a>
-    <a href="https://discord.gg/Ejeb4cmzfd">
+    <a href="https://discord.gg/GquSGfs2u">
       <img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
     </a>
-    <a href="https://ko-fi.com/cosmictaser">
-      <img src="https://img.shields.io/badge/Ko--fi-Support%20Us-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support on Ko-fi">
-    </a>
-    <a href="https://cosmictaser.de5.net">
-      <img src="https://img.shields.io/badge/Convx-Website-8A2BE2?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Visit Convx Website">
+    <a href="https://meyashverma.github.io/Convxy/">
+      <img src="https://img.shields.io/badge/Convxy-Website-8A2BE2?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Visit Convxy Website">
     </a>
   </p>
   <p>
-    ☕ <b>Support:</b> <a href="https://ko-fi.com/cosmictaser">Ko-fi</a> &nbsp;•&nbsp;
-    💸 <b>UPI:</b> <code>cosmictaser@okicici</code> &nbsp;•&nbsp;
-    🌐 <b>Website:</b> <a href="https://cosmictaser.de5.net">cosmictaser.de5.net</a>
+    👨💻 <b>Developer:</b> <a href="https://github.com/MeYashverma">Yash Verma</a> &nbsp;•&nbsp;
+    🌐 <b>About me:</b> <a href="https://meyashverma.github.io/yashverma-dev/">yashverma-dev</a> &nbsp;•&nbsp;
+    🌐 <b>Website:</b> <a href="https://meyashverma.github.io/Convxy/">meyashverma.github.io/Convxy</a>
   </p>
 </div>
 
 <hr>
 
-<h2>🎵 About Convx</h2>
+<h2>🎵 About Convxy</h2>
 
-<p><b>Convx</b> is a free, open-source music player for Android that streams from YouTube Music, built with <b>Jetpack Compose</b> on a <b>Media3</b> ExoPlayer core. The UI is a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
+<p><b>Convxy</b> is a free, open-source music player for Android that streams from YouTube Music, built with <b>Jetpack Compose</b> on a <b>Media3</b> ExoPlayer core. The UI is a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
 
-<p>Convx started as a fork of <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a>; see <a href="#-credits">Credits</a> below.</p>
+<p>Lineage: <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a> → <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a> → <b>Convxy</b>; see <a href="#-credits">Credits</a> below.</p>
 
 <hr>
 
@@ -137,7 +134,7 @@
 
 <h2>🚗 Android Auto Setup</h2>
 
-<p>If Convx doesn't appear in Android Auto:</p>
+<p>If Convxy doesn't appear in Android Auto:</p>
 
 <ol>
   <li>Open <strong>Android Auto</strong> on your phone</li>
@@ -167,7 +164,7 @@
 
 <h2>🛡️ Privacy & Data Collection</h2>
 
-<p>At <strong>Convx</strong>, your privacy is our top priority. We believe that your music and data belong exclusively to you.</p>
+<p>At <strong>Convxy</strong>, your privacy is our top priority. We believe that your music and data belong exclusively to you.</p>
 
 <ul>
   <li><strong>Zero Data Collection:</strong> we do <strong>not</strong> collect, store, or share any of your personal information, usage habits, or listening history.</li>
@@ -183,7 +180,7 @@
 
 <p>Any trademark, service mark, trade name, or other intellectual property rights used in this project are owned by their respective owners.</p>
 
-<p><strong>Convx</strong> is an independent project created for educational and personal use purposes.</p>
+<p><strong>Convxy</strong> is an independent project created for educational and personal use purposes.</p>
 
 <hr>
 
@@ -199,14 +196,14 @@
         <h3>💬 Community & Support</h3>
         <p>Connect with other listeners, suggest features, report bugs, and stay updated on releases.</p>
         <br>
-        <a href="https://discord.gg/Ejeb4cmzfd">
+        <a href="https://discord.gg/GquSGfs2u">
           <img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
         </a>
         <br><br>
         <sub>
-          <a href="https://github.com/cosmictaserdev-creator/Convx/issues">🐞 Report Bugs</a> &nbsp;•&nbsp;
-          <a href="https://github.com/cosmictaserdev-creator/Convx/discussions">💬 Discussions</a> &nbsp;•&nbsp;
-          <a href="https://github.com/cosmictaserdev-creator/Convx/releases">🚀 Releases</a>
+          <a href="https://github.com/MeYashverma/Convxy/issues">🐞 Report Bugs</a> &nbsp;•&nbsp;
+          <a href="https://github.com/MeYashverma/Convxy/discussions">💬 Discussions</a> &nbsp;•&nbsp;
+          <a href="https://github.com/MeYashverma/Convxy/releases">🚀 Releases</a>
         </sub>
       </td>
     </tr>
@@ -219,7 +216,7 @@
 
   <h2>🙏 Credits</h2>
 
-  <p>Convx is developed and maintained by <a href="https://github.com/cosmictaserdev-creator">Aryan (CosmicTaser)</a>. See <a href="https://cosmictaser.de5.net">cosmic-taser.netlify.app</a> for the portfolio.</p>
+  <p>Convxy is developed and maintained by <a href="https://github.com/MeYashverma">Yash Verma (MeYashverma)</a> — <a href="https://meyashverma.github.io/yashverma-dev/">portfolio</a>. Built on Convx by <a href="https://github.com/cosmictaserdev-creator">Aryan (CosmicTaser)</a>, see <a href="https://cosmictaser.de5.net">cosmictaser.de5.net</a>.</p>
 
   <table border="0" cellpadding="10" cellspacing="0" width="90%">
     <tr valign="top">
@@ -246,5 +243,5 @@
   <p align="center">The open-source community for tools, libraries, and APIs that make this project possible.</p>
   <hr width="60%">
   <p align="center"><strong>Made with ❤️ for music lovers everywhere</strong></p>
-  <p align="center">⭐ Star this repo if you enjoy Convx!</p>
+  <p align="center">⭐ Star this repo if you enjoy Convxy!</p>
 </div>

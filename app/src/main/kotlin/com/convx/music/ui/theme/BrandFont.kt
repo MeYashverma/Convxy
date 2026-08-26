@@ -14,8 +14,8 @@ import com.convx.music.R
 import com.convx.music.constants.BrandFontEnabledKey
 import com.convx.music.utils.rememberPreference
 
-/** The product wordmark, always set in caps. */
-const val BrandName = "CONVX"
+/** The product wordmark. */
+const val BrandName = "Convxy"
 
 /** Chillax — the display face used for the wordmark and artist names. */
 val ChillaxFontFamily = FontFamily(

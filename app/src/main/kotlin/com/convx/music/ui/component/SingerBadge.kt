@@ -167,7 +167,7 @@ fun resolveSingerDisplays(
         }
     }
 
-    return leadCounts.keys.associate { id ->
+    return leadCounts.keys.associateWith { id ->
         val isGroup = id == GROUP_AGENT_ID || singers[id]?.isGroup == true
         SingerDisplay(id, registryNames[id] ?: inferredNames[id], isGroup)
     }

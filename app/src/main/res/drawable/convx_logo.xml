@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Convxy monogram: a crescent moon with an eighth note resting in its hollow.
-     Generated geometrically; kept as @drawable/convx_logo so every existing
-     reference (About, settings, wrapped, player) picks up the new mark. -->
+<!-- Convxy monogram: the brand "C" ring with the five-bar waveform resting in
+     its hollow (matches app_icons/Convxy.png). Kept as @drawable/convx_logo so
+     every existing reference (About, settings, wrapped, player) picks up the
+     new mark. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -10,8 +11,20 @@
     android:tint="@android:color/white">
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M 21.970,14.152 C 20.899,19.115 16.342,22.534 11.278,22.174 C 6.214,21.815 2.185,17.786 1.826,12.722 C 1.466,7.658 4.885,3.101 9.848,2.030 C 10.319,13.681 13.487,16.849 18.557,17.054 C 9.848,2.030 6.946,5.443 7.151,10.513 Z" />
+        android:pathData="M 19.66,18.43 A 10,10 0 1 1 19.66,5.57 L 16.21,8.46 A 5.5,5.5 0 1 0 16.21,15.54 Z" />
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M 16.382,13.483 C 16.666,14.262 16.075,15.191 15.063,15.560 C 14.051,15.928 13.001,15.595 12.718,14.817 C 12.434,14.038 13.025,13.109 14.037,12.740 C 15.049,12.372 16.099,12.705 16.382,13.483 Z M 15.541,13.516 L 15.541,6.316 L 17.041,6.316 L 17.041,13.516 Z M 17.041,6.316 C 19.641,7.416 19.241,9.316 17.441,10.416 L 17.441,9.216 C 18.441,8.516 18.441,7.516 17.041,7.016 Z" />
+        android:pathData="M 8,10.8 A 0.8,0.8 0 0 1 9.6,10.8 L 9.6,13.2 A 0.8,0.8 0 0 1 8,13.2 Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 9.6,9.3 A 0.8,0.8 0 0 1 11.2,9.3 L 11.2,14.7 A 0.8,0.8 0 0 1 9.6,14.7 Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 11.2,7.8 A 0.8,0.8 0 0 1 12.8,7.8 L 12.8,16.2 A 0.8,0.8 0 0 1 11.2,16.2 Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 12.8,9.3 A 0.8,0.8 0 0 1 14.4,9.3 L 14.4,14.7 A 0.8,0.8 0 0 1 12.8,14.7 Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 14.4,10.8 A 0.8,0.8 0 0 1 16,10.8 L 16,13.2 A 0.8,0.8 0 0 1 14.4,13.2 Z" />
 </vector>

@@ -57,6 +57,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.convx.music.BuildConfig
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
@@ -145,17 +148,40 @@ fun AboutScreen(
         }
         
         // Developer Section
+        // The avatar is loaded live from GitHub's avatar endpoint, which always
+        // redirects to the current profile photo — updating the GitHub profile
+        // picture updates the app automatically, no release needed.
         Material3SettingsGroup(
             title = stringResource(R.string.developer_section),
             items = listOf(
                 Material3SettingsItem(
-                    icon = painterResource(R.drawable.dev),
+                    leadingContent = {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data("https://github.com/MeYashverma.png")
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = stringResource(R.string.developer_name),
+                            placeholder = painterResource(R.drawable.dev),
+                            error = painterResource(R.drawable.dev),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(cookieShape),
+                        )
+                    },
                     title = { Text(stringResource(R.string.developer_name)) },
                     description = { Text(stringResource(R.string.app_developer), color = MaterialTheme.colorScheme.primary) },
                     tintIcon = false,
                     iconShape = cookieShape,
                     onClick = { uriHandler.safeOpenUri(context, "https://github.com/MeYashverma") }
-                )
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.web_link),
+                    title = { Text(stringResource(R.string.developer_website)) },
+                    description = { Text(stringResource(R.string.developer_website_desc)) },
+                    onClick = { uriHandler.safeOpenUri(context, "https://meyashverma.github.io/yashverma-dev/") }
+                ),
             )
         )
         Spacer(modifier = Modifier.height(27.dp))
@@ -169,6 +195,12 @@ fun AboutScreen(
                     title = { Text(stringResource(R.string.github_repository)) },
                     description = { Text(stringResource(R.string.view_source_code)) },
                     onClick = { uriHandler.safeOpenUri(context, "https://github.com/MeYashverma/Convxy") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.discord),
+                    title = { Text(stringResource(R.string.join_discord)) },
+                    description = { Text(stringResource(R.string.join_discord_desc)) },
+                    onClick = { uriHandler.safeOpenUri(context, "https://discord.gg/GquSGfs2u") }
                 ),
             )
         )

@@ -102,28 +102,62 @@ data class SingerDisplay(
 )
 
 /**
- * Resolves the singer attribution of an agent id against, in order:
+ * Resolves the singer attribution of every lead voice of a song in one pass.
+ *
+ * Name sources, in order of trust:
  *  1. the song's singer registry (Apple TTML `ttm:name` / `[singers:…]` header),
- *  2. the track's artist list (`v1` -> first artist, `v2` -> second, …),
+ *  2. vocal-dominance inference against the track's artist list,
  *  3. nothing (null name) — the UI then falls back to a localized label for
- *     shared vocals or hides the badge entirely for unknown solo voices.
+ *     shared vocals or hides the badge entirely for unknown voices.
+ *
+ * Apple's `v1`/`v2` voice ids are *not* artist indices, so a positional
+ * fallback (`v2` -> second artist) mislabels duets whenever a featured artist
+ * sings first or a solo-artist track carries two detected voices. Instead the
+ * voices are matched to the credited artists by vocal dominance: the
+ * first-billed artist typically sings the most lines, so track artists are
+ * assigned to the unnamed lead voices in descending order of led lines. The
+ * inference only runs when the shape of the data is believable (at least two
+ * credited artists and no more lead voices than artists); otherwise the
+ * voices keep their colors but show no name — a missing name is always better
+ * than a wrong one.
  */
-fun resolveSingerDisplay(
-    agentId: String,
+fun resolveSingerDisplays(
+    entries: List<LyricsEntry>,
     singers: Map<String, SingerInfo>,
     trackArtists: List<String>,
-): SingerDisplay {
-    val isGroup = agentId == GROUP_AGENT_ID
-    val registered = singers[agentId]
-    val registryName = registered?.name?.takeIf { it.isNotBlank() }
-    if (registryName != null) {
-        return SingerDisplay(agentId, registryName, isGroup || registered.isGroup)
+): Map<String, SingerDisplay> {
+    val leadCounts = LinkedHashMap<String, Int>()
+    entries.forEach { entry ->
+        if (entry.isBackground) return@forEach
+        val agent = entry.agent ?: return@forEach
+        val id = primaryAgentId(agent)
+        leadCounts[id] = (leadCounts[id] ?: 0) + 1
     }
-    val voiceIndex = agentId.removePrefix("v").toIntOrNull()
-    val inferredName = voiceIndex
-        ?.takeIf { it > 0 }
-        ?.let { index -> trackArtists.getOrNull(index - 1) }
-    return SingerDisplay(agentId, inferredName, isGroup)
+    if (leadCounts.size < 2) return emptyMap()
+
+    val registryNames = HashMap<String, String>()
+    leadCounts.keys.forEach { id ->
+        singers[id]?.name?.takeIf { it.isNotBlank() }?.let { registryNames[id] = it }
+    }
+
+    val unnamedLeads = leadCounts.keys.filter { it !in registryNames && it != GROUP_AGENT_ID }
+    val creditedArtists = trackArtists.map { it.trim() }.filter { it.isNotEmpty() }
+    // Artists already claimed by a registry name cannot be inferred again.
+    val availableArtists = creditedArtists.filter { artist -> artist !in registryNames.values }
+    val inferredNames = HashMap<String, String>()
+    val plausible = unnamedLeads.isNotEmpty() &&
+        availableArtists.size >= 2 &&
+        unnamedLeads.size <= availableArtists.size
+    if (plausible) {
+        unnamedLeads
+            .sortedByDescending { leadCounts[it] ?: 0 }
+            .forEachIndexed { rank, id -> inferredNames[id] = availableArtists[rank] }
+    }
+
+    return leadCounts.keys.associate { id ->
+        val isGroup = id == GROUP_AGENT_ID || singers[id]?.isGroup == true
+        SingerDisplay(id, registryNames[id] ?: inferredNames[id], isGroup)
+    }
 }
 
 /**

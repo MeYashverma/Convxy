@@ -232,7 +232,7 @@
     <string name="slim">Slim</string>
     <string name="waveform">Waveform</string>
     <string name="brand_font">Display font</string>
-    <string name="brand_font_desc">Use Chillax for the CONVX wordmark and the artist page title</string>
+    <string name="brand_font_desc">Use Chillax for the Convxy wordmark and the artist page title</string>
     <string name="custom_font">Custom font</string>
     <string name="custom_font_none">Tap to install a .ttf or .otf font, applied app-wide</string>
     <string name="custom_font_set">Custom font installed — tap to replace</string>

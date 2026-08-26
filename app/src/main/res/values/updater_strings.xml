@@ -35,7 +35,7 @@
     <string name="mobile_network_warning">Downloading updates over a mobile network or while roaming may cause additional charges.</string>
     <string name="update_size">Update size: %1$s MB</string>
     <string name="check_internet_connection">Check your internet connection and try again.</string>
-    <string name="vivi_music_version">CONVX version %1$s</string>
+    <string name="vivi_music_version">Convxy version %1$s</string>
     <string name="last_checked">Last checked: %1$s</string>
     <string name="install">Install</string>
     <string name="check_for_update">Check for update</string>
@@ -61,6 +61,9 @@
     <string name="developer_name">MeYashverma</string>
     <string name="app_developer">Lead Developer</string>
     <string name="website">Website</string>
+    <string name="developer_website">Website</string>
+    <string name="developer_website_desc">Yash Verma — Systems, Widgets &amp; Weird Automation</string>
+    <string name="join_discord_desc">Chat, feedback &amp; release news</string>
     <string name="collaborator_tboyke">T-Boyke</string>
     <string name="collaborator_role">Collaborator</string>
     <string name="installed_date_title">Installed Date</string>

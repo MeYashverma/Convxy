@@ -50,6 +50,7 @@ fun LyricsLineV2(
     isPast: Boolean,
     effectivePlaybackPosition: Long,
     expressiveAccent: Color,
+    glowEnabled: Boolean = true,
     inactiveAlpha: Float,
     baseFontSize: Float,
     lineHeight: Float,
@@ -81,6 +82,7 @@ fun LyricsLineV2(
                     isLinePast = isPast,
                     effectivePlaybackPosition = effectivePlaybackPosition,
                     expressiveAccent = expressiveAccent,
+                    glowEnabled = glowEnabled,
                     inactiveAlpha = inactiveAlpha,
                     fontSize = if (entry.isBackground) baseFontSize * 0.85f else baseFontSize,
                     lineHeight = lineHeight.coerceAtMost(baseFontSize * 1.3f),
@@ -104,6 +106,11 @@ fun LyricsLineV2(
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                 fontStyle = if (entry.isBackground) FontStyle.Italic else FontStyle.Normal,
                 lineHeight = lineHeight.coerceAtMost(baseFontSize * 1.3f).sp,
+                shadow = if (glowEnabled && isActive) Shadow(
+                    color = expressiveAccent.copy(alpha = 0.45f),
+                    offset = Offset.Zero,
+                    blurRadius = 16f,
+                ) else null,
             ),
             color = expressiveAccent.copy(alpha = if (isActive) 1f else inactiveAlpha),
             textAlign = agentTextAlign,
@@ -135,6 +142,7 @@ fun AnimatedWordV2(
     isLinePast: Boolean,
     effectivePlaybackPosition: Long,
     expressiveAccent: Color,
+    glowEnabled: Boolean = true,
     inactiveAlpha: Float,
     fontSize: Float,
     lineHeight: Float,
@@ -168,10 +176,10 @@ fun AnimatedWordV2(
         label = "WordFloatOffset"
     )
 
-    // Glow intensity
+    // Glow intensity — honors the global "glow effect" preference like every other style
     val glowProgress = (progress * 2f).coerceAtMost(1f)
-    val glowAlpha = if (isWordActive) glowProgress * 0.45f else 0f
-    val glowRadius = if (isWordActive) glowProgress * 12f else 0f
+    val glowAlpha = if (glowEnabled && isWordActive) glowProgress * 0.45f else 0f
+    val glowRadius = if (glowEnabled && isWordActive) glowProgress * 12f else 0f
 
     val density = LocalDensity.current
     val fontWeight = if (isLineActive) FontWeight.Bold else FontWeight.SemiBold

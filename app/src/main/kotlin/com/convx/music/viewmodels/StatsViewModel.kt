@@ -173,7 +173,7 @@ constructor(
         combine(selectedOption, indexChips) { selection, t -> selection to t }
             .flatMapLatest { (selection, t) ->
                 val (from, to) = statsRange(selection, t)
-                database.getTotalPlayTimeInRange(from, to)
+                database.getTotalPlayTimeInRange(from, to).map { it ?: 0L }
             }
             .distinctUntilChanged()
             .stateIn(viewModelScope, SharingStarted.Lazily, 0L)

@@ -565,7 +565,6 @@
     <string name="wrapped_thank_you">Thank you for listening</string>
     <string name="wrapped_special_thanks">Special thanks to every open-source contributor who helped make Convxy possible</string>
 =======
-    <string name="wrapped_special_thanks">Special thanks to every open-source contributor who helped make Convxy possible</string>
     <string name="wrapped_close">Close wrapped</string>
     <string name="wrapped_playlist_title">Your %s Wrapped</string>
     <string name="wrapped_create_playlist">Create playlist</string>

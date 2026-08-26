@@ -185,12 +185,10 @@ private fun buildWordKaraokeTimed(
                 val endStop = (p + 0.02f).coerceAtMost(1f)
                 SpanStyle(
                     brush = Brush.horizontalGradient(
-                        colorStops = arrayOf(
-                            0f to activeColor,
-                            p to activeColor,
-                            endStop to dimColor,
-                            1f to dimColor,
-                        ),
+                        0f to activeColor,
+                        p to activeColor,
+                        endStop to dimColor,
+                        1f to dimColor,
                     ),
                 )
             }

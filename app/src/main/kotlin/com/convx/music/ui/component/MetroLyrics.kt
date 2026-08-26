@@ -201,29 +201,8 @@ fun MetroLyricsLine(
         .padding(horizontal = 24.dp, vertical = (8 * lyricsLineSpacing).dp)
         .blur(animatedBlur.dp)
 
-    val agentAlignment = when {
-        entry.isBackground -> Alignment.CenterHorizontally
-        entry.agent == "v1" -> Alignment.Start
-        entry.agent == "v2" -> Alignment.End
-        entry.agent == "v1000" -> Alignment.CenterHorizontally
-        else -> when (lyricsTextPosition) {
-            LyricsPosition.LEFT -> Alignment.Start
-            LyricsPosition.CENTER -> Alignment.CenterHorizontally
-            LyricsPosition.RIGHT -> Alignment.End
-        }
-    }
-
-    val agentTextAlign = when {
-        entry.isBackground -> TextAlign.Center
-        entry.agent == "v1" -> TextAlign.Left
-        entry.agent == "v2" -> TextAlign.Right
-        entry.agent == "v1000" -> TextAlign.Center
-        else -> when (lyricsTextPosition) {
-            LyricsPosition.LEFT -> TextAlign.Left
-            LyricsPosition.CENTER -> TextAlign.Center
-            LyricsPosition.RIGHT -> TextAlign.Right
-        }
-    }
+    val agentAlignment = singerLineAlignment(entry.agent, entry.isBackground, lyricsTextPosition)
+    val agentTextAlign = singerTextAlign(entry.agent, entry.isBackground, lyricsTextPosition)
 
     val lyricStyle = TextStyle(
         fontSize = lyricsTextSize.sp,

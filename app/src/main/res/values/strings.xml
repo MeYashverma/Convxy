@@ -23,6 +23,10 @@
     <!-- Home -->
     <string name="history">History</string>
     <string name="stats">Stats</string>
+    <string name="stats_listening_time">Listening time</string>
+    <string name="apple_music_karaoke">Apple Music</string>
+    <string name="stats_total_plays">Plays</string>
+    <string name="stats_unique_songs">Unique songs</string>
     <string name="mood_and_genres">Mood and Genres</string>
     <string name="account">Account</string>
     <string name="quick_picks">Quick picks</string>
@@ -442,7 +446,7 @@
     <string name="restore_failed">Failed to restore backup</string>
 
     <string name="discord_integration">Discord Integration</string>
-    <string name="discord_information">Convx uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\Convx will only extract your token, and everything else is stored locally.</string>
+    <string name="discord_information">Convxy uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\Convxy will only extract your token, and everything else is stored locally.</string>
     <string name="dismiss">Dismiss</string>
     <string name="options">Options</string>
     <string name="preview">Preview</string>
@@ -467,6 +471,15 @@
     <string name="bluetooth_headphones">Bluetooth headphones</string>
     <string name="license">GNU General Public License v3.0</string>
     <string name="standard_lyrics_blur">Standard lyrics blur</string>
+    <string name="shared_vocals">Both</string>
+    <string name="singer_labels">Singer labels</string>
+    <string name="singer_labels_desc">Show who is singing when lyrics support multiple vocalists (duets and shared vocals)</string>
+    <string name="singer_colors">Singer colors</string>
+    <string name="singer_colors_desc">Give each vocalist a distinct color when lyrics support multiple vocalists</string>
+    <string name="watch_video">Watch video</string>
+    <string name="watch_video_desc">Play the song\'s full YouTube video instead of audio only, when one is available</string>
+    <string name="prefer_singer_lyrics">Prefer multi-singer lyrics</string>
+    <string name="prefer_singer_lyrics_desc">Keep searching past the first lyrics source until one returns duet/multi-singer lyrics</string>
     <string name="listen_together_smart_resync">Smart Network Resync</string>
     <string name="listen_together_smart_resync_desc">Automatically catch up with the host after a connection drop</string>
     <string name="listen_together_host_controls">The host controls playback in this session</string>
@@ -509,7 +522,7 @@
 
     <!-- App icon -->
     <string name="app_icon">App icon</string>
-    <string name="app_icon_desc">Pick the icon Convx shows on your home screen</string>
+    <string name="app_icon_desc">Pick the icon Convxy shows on your home screen</string>
     <string name="app_icon_change_warning">The icon may take a few seconds to update, and some launchers drop the shortcut from your home screen until you re-add it.</string>
     <string name="app_icon_white">White</string>
     <string name="app_icon_azure">Azure</string>
@@ -540,7 +553,7 @@
     <string name="preset_imported">Preset imported</string>
     <string name="preset_import_failed">That file is not a valid preset.</string>
     <string name="preset_import_too_large">That preset is too large to import.</string>
-    <string name="preset_import_newer_version">That preset was made with a newer version of Convx.</string>
+    <string name="preset_import_newer_version">That preset was made with a newer version of Convxy.</string>
     <string name="preset_category_colors">Colors</string>
     <string name="preset_category_layout">Layout and sizing</string>
     <string name="preset_category_font">Fonts</string>
@@ -591,7 +604,7 @@
 
     <string name="media_import_too_large">That file is too large.</string>
     <string name="media_import_unsupported">Only PNG, JPEG, WebP and SVG images are supported.</string>
-    <string name="media_import_unsafe_svg">That SVG uses features Convx will not render.</string>
+    <string name="media_import_unsafe_svg">That SVG uses features Convxy will not render.</string>
     <string name="media_import_corrupt">That image could not be read.</string>
     <string name="media_import_too_many_pixels">That image is too big to decode safely.</string>
     <string name="media_import_io">Could not read that file.</string>

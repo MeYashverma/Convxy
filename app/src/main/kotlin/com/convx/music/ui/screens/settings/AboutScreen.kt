@@ -59,9 +59,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.convx.music.BuildConfig
 import com.convx.music.LocalPlayerAwareWindowInsets
-import com.convx.music.constants.DonationKofiUrl
-import com.convx.music.constants.DonationUpiId
-import com.convx.music.constants.DonationUpiUri
 import com.convx.music.R
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.Material3SettingsGroup
@@ -157,7 +154,7 @@ fun AboutScreen(
                     description = { Text(stringResource(R.string.app_developer), color = MaterialTheme.colorScheme.primary) },
                     tintIcon = false,
                     iconShape = cookieShape,
-                    onClick = { uriHandler.safeOpenUri(context, "https://github.com/cosmictaserdev-creator") }
+                    onClick = { uriHandler.safeOpenUri(context, "https://github.com/MeYashverma") }
                 )
             )
         )
@@ -171,34 +168,7 @@ fun AboutScreen(
                     icon = painterResource(R.drawable.github),
                     title = { Text(stringResource(R.string.github_repository)) },
                     description = { Text(stringResource(R.string.view_source_code)) },
-                    onClick = { uriHandler.safeOpenUri(context, "https://github.com/cosmictaserdev-creator/Convx") }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.discord),
-                    title = { Text(stringResource(R.string.discord_channel)) },
-                    description = { Text(stringResource(R.string.join_discord)) },
-                    onClick = { uriHandler.safeOpenUri(context, "https://discord.gg/Ejeb4cmzfd") }
-                )
-            )
-        )
-
-        Spacer(modifier = Modifier.height(27.dp))
-
-        // Support Section
-        Material3SettingsGroup(
-            title = stringResource(R.string.support_section),
-            items = listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.favorite),
-                    title = { Text(stringResource(R.string.support_upi)) },
-                    description = { Text(DonationUpiId) },
-                    onClick = { uriHandler.safeOpenUri(context, DonationUpiUri) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.favorite),
-                    title = { Text(stringResource(R.string.support_kofi)) },
-                    description = { Text(stringResource(R.string.support_kofi_desc)) },
-                    onClick = { uriHandler.safeOpenUri(context, DonationKofiUrl) }
+                    onClick = { uriHandler.safeOpenUri(context, "https://github.com/MeYashverma/Convxy") }
                 ),
             )
         )
@@ -222,7 +192,7 @@ fun AboutScreen(
                     icon = painterResource(R.drawable.license_vivi),
                     title = { Text(stringResource(R.string.license)) },
                     description = { Text("GPL-3.0 • Free Open Source Software") },
-                    onClick = { uriHandler.safeOpenUri(context, "https://github.com/cosmictaserdev-creator/Convx/blob/main/LICENSE") }
+                    onClick = { uriHandler.safeOpenUri(context, "https://github.com/MeYashverma/Convxy/blob/main/LICENSE") }
                 ),
             )
         )

@@ -591,6 +591,14 @@ val DeeplFormalityKey = stringPreferencesKey("deeplFormality")
 val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
 val AppleMusicLyricsBlurKey = booleanPreferencesKey("appleMusicLyricsBlur")
 val LyricsStandardBlurKey = booleanPreferencesKey("lyricsStandardBlur")
+/** Show the "who is singing" badge when lyrics contain multi-singer metadata (duets/shared vocals). */
+val ShowSingerLabelsKey = booleanPreferencesKey("showSingerLabels")
+/** Color each vocalist's lines distinctly when lyrics contain multi-singer metadata. */
+val SingerColorsKey = booleanPreferencesKey("singerColors")
+/** Keep searching past the first lyrics provider until one returns multi-singer (duet) lyrics. */
+val PreferSingerLyricsKey = booleanPreferencesKey("preferSingerLyrics")
+/** When on, songs play their full YouTube video (muxed stream) instead of audio-only. */
+val WatchVideoKey = booleanPreferencesKey("watchVideo")
 
 val LiquidGlassGlobalEnabledKey = booleanPreferencesKey("liquidGlassGlobalEnabled")
 val LiquidGlassAdaptiveContrastKey = booleanPreferencesKey("liquidGlassAdaptiveContrast")
@@ -744,6 +752,7 @@ enum class LyricsAnimationStyle {
     VIVIMUSIC_1,
     LYRICS_V2,
     METRO_LYRICS,
+    APPLE_MUSIC,
 }
 
 val LyricsTextSizeKey = floatPreferencesKey("lyricsTextSize")

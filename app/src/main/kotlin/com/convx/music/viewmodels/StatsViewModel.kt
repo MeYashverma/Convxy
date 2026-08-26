@@ -155,6 +155,47 @@ constructor(
                 .distinctUntilChanged()
                 .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    /**
+     * ArchiveTune-style live statistics overview: listening time, play count
+     * and unique-song count for the currently selected stats range.
+     */
+    private fun statsRange(selection: OptionStats, t: Int): Pair<Long, Long> =
+        Pair(
+            statToPeriod(selection, t),
+            if (selection == OptionStats.CONTINUOUS || t == 0) {
+                LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()
+            } else {
+                statToPeriod(selection, t - 1)
+            },
+        )
+
+    val listeningTimeMs =
+        combine(selectedOption, indexChips) { selection, t -> selection to t }
+            .flatMapLatest { (selection, t) ->
+                val (from, to) = statsRange(selection, t)
+                database.getTotalPlayTimeInRange(from, to).map { it ?: 0L }
+            }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Lazily, 0L)
+
+    val totalPlays =
+        combine(selectedOption, indexChips) { selection, t -> selection to t }
+            .flatMapLatest { (selection, t) ->
+                val (from, to) = statsRange(selection, t)
+                database.getPlayCountInRange(from, to)
+            }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Lazily, 0)
+
+    val uniqueSongs =
+        combine(selectedOption, indexChips) { selection, t -> selection to t }
+            .flatMapLatest { (selection, t) ->
+                val (from, to) = statsRange(selection, t)
+                database.getUniqueSongCountInRange(from, to)
+            }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Lazily, 0)
+
     val firstEvent =
         database
             .firstEvent()

@@ -151,6 +151,24 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "ARCHITECTURE", "\"debug\"")
         }
+        create("optimized") {
+            // Installable performance build for CI distribution: fully minified
+            // and resource-shrunk like release, but signed with the debug key so
+            // workflow artifacts install without a release keystore. Not
+            // debuggable — avoids the debug-build interpreter/JIT overhead that
+            // made the distributed test builds lag.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isCrunchPngs = false
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("debug")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            buildConfigField("String", "ARCHITECTURE", "\"optimized\"")
+        }
     }
 
     compileOptions {

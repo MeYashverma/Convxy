@@ -495,6 +495,9 @@ interface DatabaseDao {
     @Query("SELECT COUNT(DISTINCT songId) FROM event WHERE timestamp >= :fromTimeStamp AND timestamp <= :toTimeStamp")
     fun getUniqueSongCountInRange(fromTimeStamp: Long, toTimeStamp: Long): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM event WHERE timestamp >= :fromTimeStamp AND timestamp <= :toTimeStamp")
+    fun getPlayCountInRange(fromTimeStamp: Long, toTimeStamp: Long): Flow<Int>
+
     @Query(
         """
         SELECT COUNT(DISTINCT artistId)

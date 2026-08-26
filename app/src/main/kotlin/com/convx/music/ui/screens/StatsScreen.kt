@@ -55,6 +55,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -119,6 +122,9 @@ fun StatsScreen(
     val mostPlayedArtists by viewModel.mostPlayedArtists.collectAsState()
     val mostPlayedAlbums by viewModel.mostPlayedAlbums.collectAsState()
     val firstEvent by viewModel.firstEvent.collectAsState()
+    val listeningTimeMs by viewModel.listeningTimeMs.collectAsState()
+    val totalPlays by viewModel.totalPlays.collectAsState()
+    val uniqueSongs by viewModel.uniqueSongs.collectAsState()
     val currentDate = LocalDateTime.now()
 
     val coroutineScope = rememberCoroutineScope()
@@ -289,6 +295,16 @@ fun StatsScreen(
                         currentValue = indexChips,
                         onValueUpdate = { viewModel.indexChips.value = it },
                     )
+                }
+
+                if (listeningTimeMs > 0L || totalPlays > 0) {
+                    item(key = "listeningOverview") {
+                        StatsOverviewHeader(
+                            listeningTimeMs = listeningTimeMs,
+                            totalPlays = totalPlays,
+                            uniqueSongs = uniqueSongs,
+                        )
+                    }
                 }
 
                 if (mostPlayedSongs.isNotEmpty()) {
@@ -526,6 +542,84 @@ fun StatsScreen(
             }
         }
       }
+    }
+}
+
+/**
+ * ArchiveTune-style live-statistics overview: listening time, plays and
+ * unique songs for the selected range, rendered as three glassy tiles.
+ */
+@Composable
+private fun StatsOverviewHeader(
+    listeningTimeMs: Long,
+    totalPlays: Int,
+    uniqueSongs: Int,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        StatsOverviewTile(
+            value = formatListeningTime(listeningTimeMs),
+            label = stringResource(R.string.stats_listening_time),
+            modifier = Modifier.weight(1f),
+        )
+        StatsOverviewTile(
+            value = totalPlays.toString(),
+            label = stringResource(R.string.stats_total_plays),
+            modifier = Modifier.weight(1f),
+        )
+        StatsOverviewTile(
+            value = uniqueSongs.toString(),
+            label = stringResource(R.string.stats_unique_songs),
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun StatsOverviewTile(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(vertical = 16.dp, horizontal = 8.dp)
+            .fillMaxWidth(),
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private fun formatListeningTime(ms: Long): String {
+    val totalMinutes = ms / 60000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+        hours >= 100 -> "${hours / 24}d ${hours % 24}h"
+        hours > 0 -> "${hours}h ${minutes}m"
+        else -> "${minutes}m"
     }
 }
 

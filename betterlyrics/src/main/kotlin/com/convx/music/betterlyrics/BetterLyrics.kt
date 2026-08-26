@@ -77,8 +77,9 @@ object BetterLyrics {
         if (parsedLines.isEmpty()) {
             throw IllegalStateException("Failed to parse lyrics")
         }
-        
-        TTMLParser.toLRC(parsedLines)
+
+        // Carry vocalist names (Apple TTML ttm:agent registry) into the LRC output
+        TTMLParser.toLRC(parsedLines, TTMLParser.parseAgents(ttml))
     }
 
     suspend fun getAllLyrics(

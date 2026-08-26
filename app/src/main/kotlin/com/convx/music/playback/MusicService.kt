@@ -117,6 +117,7 @@ import com.convx.music.constants.EnableLastFMScrobblingKey
 import com.convx.music.constants.HideExplicitKey
 import com.convx.music.constants.HideVideoSongsKey
 import com.convx.music.constants.DataSaverEnabledKey
+import com.convx.music.constants.WatchVideoKey
 import com.convx.music.constants.ListenBrainzEnabledKey
 import com.convx.music.constants.ListenBrainzTokenKey
 import com.convx.music.constants.HistoryDuration
@@ -754,6 +755,44 @@ class MusicService :
                     Timber.tag("MusicService").d("Set bypass cache flag for $mediaId")
 
                     // Reload player at same position
+                    player.stop()
+                    player.seekTo(currentIndex, currentPosition)
+                    player.prepare()
+                    if (wasPlaying) {
+                        player.play()
+                    }
+                }
+        }
+
+        // Watch for full-video mode changes: reload the current song so the
+        // muxed (or plain audio) stream is resolved under its own cache key.
+        var isFirstVideoModeEmit = true
+        scope.launch {
+            dataStore.data
+                .map { prefs -> prefs[WatchVideoKey] ?: false }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    if (isFirstVideoModeEmit) {
+                        isFirstVideoModeEmit = false
+                        return@collect
+                    }
+                    val mediaId = player.currentMediaItem?.mediaId ?: return@collect
+                    val currentPosition = player.currentPosition
+                    val wasPlaying = player.isPlaying
+                    val currentIndex = player.currentMediaItemIndex
+
+                    Timber.tag("MusicService").i("VIDEO MODE CHANGED: $enabled — reloading $mediaId at ${currentPosition}ms")
+                    songUrlCache.remove(mediaId)
+                    songUrlCache.remove("$mediaId#video")
+                    runBlocking(Dispatchers.IO) {
+                        try {
+                            playerCache.removeResource(mediaId)
+                            playerCache.removeResource("$mediaId#video")
+                        } catch (e: Exception) {
+                            Timber.tag("MusicService").e(e, "Failed to clear cache for video mode change")
+                        }
+                    }
+                    bypassCacheForQualityChange.add(mediaId)
                     player.stop()
                     player.seekTo(currentIndex, currentPosition)
                     player.prepare()
@@ -3212,7 +3251,9 @@ class MusicService :
             // Spine streams also use lossless namepacing to avoid cache collisions.
             val losslessOn = dataStore.get(EnableTidalStreamingKey, false)
             val spineEnabled = dataStore.get(EnabledModulesKey, "[]") != "[]"
+            val videoMode = dataStore.get(WatchVideoKey, false)
             val effKey = when {
+                videoMode -> "$mediaId#video"
                 losslessOn || spineEnabled -> "$mediaId#flac"
                 else -> mediaId
             }
@@ -3262,6 +3303,7 @@ class MusicService :
                         connectivityManager = connectivityManager,
                         context = this@MusicService,
                         forceStandardAudio = forceStandardAudioMediaIds.contains(mediaId),
+                        videoMode = videoMode,
                     )
                 }.getOrElse { throwable ->
                     when (throwable) {

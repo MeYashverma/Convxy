@@ -304,7 +304,7 @@ fun AppearanceSettings(
     )
     val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(
         LyricsAnimationStyleKey,
-        defaultValue = LyricsAnimationStyle.VIVIMUSIC_1
+        defaultValue = LyricsAnimationStyle.APPLE_MUSIC
     )
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 30f)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
@@ -476,6 +476,7 @@ fun AppearanceSettings(
                     LyricsAnimationStyle.VIVIMUSIC_1 -> stringResource(R.string.vivimusic_1)
                     LyricsAnimationStyle.LYRICS_V2 -> stringResource(R.string.lyrics_v2_fluid)
                     LyricsAnimationStyle.METRO_LYRICS -> stringResource(R.string.lyrics_animation_metro)
+                    LyricsAnimationStyle.APPLE_MUSIC -> stringResource(R.string.apple_music_karaoke)
                 }
             }
         )
@@ -976,6 +977,7 @@ fun AppearanceSettings(
                                 LyricsAnimationStyle.APPLE_V2 -> stringResource(R.string.apple_music_style_letter)
                                 LyricsAnimationStyle.LYRICS_V2 -> stringResource(R.string.lyrics_v2_fluid)
                                 LyricsAnimationStyle.METRO_LYRICS -> stringResource(R.string.lyrics_animation_metro)
+                                LyricsAnimationStyle.APPLE_MUSIC -> stringResource(R.string.apple_music_karaoke)
                             }
                         )
                     },

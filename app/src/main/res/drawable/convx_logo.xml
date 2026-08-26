@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- BERLUNE monogram: a crescent moon with an eighth note resting in its hollow.
+<!-- Convxy monogram: a crescent moon with an eighth note resting in its hollow.
      Generated geometrically; kept as @drawable/convx_logo so every existing
      reference (About, settings, wrapped, player) picks up the new mark. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"

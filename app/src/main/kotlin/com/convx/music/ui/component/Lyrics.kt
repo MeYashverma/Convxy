@@ -965,6 +965,8 @@ fun Lyrics(
                     // near the active line). Everything else keeps rendering without
                     // recomposing on every tick, which keeps plain LRC lyrics smooth.
                     val needsPlaybackPosition = when (lyricsAnimationStyle) {
+                        LyricsAnimationStyle.APPLE_MUSIC ->
+                            isSynced && kotlin.math.abs(index - displayedCurrentLineIndex) <= 1
                         LyricsAnimationStyle.METRO_LYRICS ->
                             isSynced && kotlin.math.abs(index - displayedCurrentLineIndex) <= 3
                         LyricsAnimationStyle.VIVIMUSIC_1 -> item.words?.isNotEmpty() == true
@@ -998,7 +1000,76 @@ fun Lyrics(
                         null
                     }
 
-                    if (lyricsAnimationStyle == LyricsAnimationStyle.VIVIMUSIC_1 && item.words?.isNotEmpty() == true) {
+                    if (lyricsAnimationStyle == LyricsAnimationStyle.APPLE_MUSIC && isSynced) {
+                        val currentLineTime = if (displayedCurrentLineIndex >= 0 && displayedCurrentLineIndex < lines.size) {
+                            lines[displayedCurrentLineIndex].time
+                        } else -1L
+                        val isLineAtSameTime = item.time == currentLineTime
+                        val isActiveByIndex = index == displayedCurrentLineIndex
+                        val isActiveByTime = isLineAtSameTime && displayedCurrentLineIndex >= 0
+
+                        Column {
+                            AnimatedSingerBadge(
+                                visible = showSingerBadge,
+                                name = singerBadgeName,
+                                color = lineAccent
+                            )
+                            AppleMusicLyricsLine(
+                                entry = item,
+                                nextEntryTime = lines.getOrNull(index + 1)?.time,
+                                effectivePlaybackPosition = effectivePlaybackPosition,
+                                isSynced = isSynced,
+                                isActive = isActiveByIndex || isActiveByTime,
+                                distanceFromCurrent = index - displayedCurrentLineIndex,
+                                lyricsTextPosition = lyricsTextPosition,
+                                textColor = lineAccent,
+                                textSize = lyricsTextSize,
+                                lineSpacing = lyricsLineSpacing,
+                                onClick = {
+                                    if (isSelectionModeActive) {
+                                        if (isSelected) {
+                                            selectedIndices.remove(index)
+                                            if (selectedIndices.isEmpty()) isSelectionModeActive = false
+                                        } else {
+                                            if (selectedIndices.size < maxSelectionLimit) selectedIndices.add(index)
+                                            else showMaxSelectionToast = true
+                                        }
+                                    } else if (isSynced && changeLyrics && !isGuest) {
+                                        val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
+                                        playerConnection.seekTo((item.time - lyricsOffset).coerceAtLeast(0))
+                                        scope.launch {
+                                            lazyListState.scrollToItem(index = index)
+                                            val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                                            if (itemInfo != null) {
+                                                val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
+                                                val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight / 2)
+                                                val itemCenter = itemInfo.offset + itemInfo.size / 2
+                                                val offset = itemCenter - center
+                                                if (kotlin.math.abs(offset) > 10) {
+                                                    lazyListState.animateScrollBy(
+                                                        value = offset.toFloat(),
+                                                        animationSpec = tween(durationMillis = 1500)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        lastPreviewTime = 0L
+                                    }
+                                },
+                                onLongClick = {
+                                    if (!isSelectionModeActive) {
+                                        isSelectionModeActive = true
+                                        selectedIndices.add(index)
+                                    } else if (!isSelected && selectedIndices.size < maxSelectionLimit) {
+                                        selectedIndices.add(index)
+                                    } else if (!isSelected) {
+                                        showMaxSelectionToast = true
+                                    }
+                                }
+                            )
+                        }
+                        return@itemsIndexed
+                    } else if (lyricsAnimationStyle == LyricsAnimationStyle.VIVIMUSIC_1 && item.words?.isNotEmpty() == true) {
                         val currentLineTime = if (displayedCurrentLineIndex >= 0 && displayedCurrentLineIndex < lines.size) {
                             lines[displayedCurrentLineIndex].time
                         } else -1L

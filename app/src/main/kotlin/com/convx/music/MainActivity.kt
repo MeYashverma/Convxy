@@ -2174,7 +2174,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // Donation prompt removed for the BERLUNE fork: it pointed
+                            // Donation prompt removed for the Convxy fork: it pointed
                             // at the upstream developer's payment accounts.
 
                             // Both float OVER the full-width NavHost, exactly as the

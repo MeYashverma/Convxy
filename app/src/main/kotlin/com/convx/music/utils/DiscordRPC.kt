@@ -59,7 +59,7 @@ class DiscordRPC(
         }
         if (button2Visible) {
             val resolvedText = resolveVariables(
-                button2Text.ifEmpty { "Visit BERLUNE" },
+                button2Text.ifEmpty { "Visit Convxy" },
                 song
             )
             buttonsList.add(resolvedText to "https://github.com/MeYashverma/Convxy")

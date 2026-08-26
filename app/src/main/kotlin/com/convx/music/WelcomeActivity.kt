@@ -512,7 +512,7 @@ fun WelcomePagerScreen(onFinished: () -> Unit) {
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "BERLUNE is open-source and depends on community support to grow. Your help makes a difference!",
+                        text = "Convxy is open-source and depends on community support to grow. Your help makes a difference!",
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontFamily = GoogleSansFlex
                         ),

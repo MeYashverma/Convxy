@@ -135,29 +135,71 @@ fun resolveSingerDisplays(
     }
     if (leadCounts.size < 2) return emptyMap()
 
+    val creditedArtists = trackArtists.map { it.trim() }.filter { it.isNotEmpty() }
+
+    // 1. Keep registry names only when they look like a real person, then
+    //    rewrite them to the matching track-artist spelling when we can.
     val registryNames = HashMap<String, String>()
     leadCounts.keys.forEach { id ->
-        singers[id]?.name?.takeIf { it.isNotBlank() }?.let { registryNames[id] = it }
+        val raw = usableSingerName(singers[id]?.name) ?: return@forEach
+        val matched = creditedArtists.firstOrNull { namesLikelySame(it, raw) }
+        registryNames[id] = matched ?: raw
     }
 
+    // 2. Remaining unnamed voices: match leftover artists by vocal dominance
+    //    only when the shape is unambiguous (clear majority + 1:1 leftover
+    //    count). A missing name is always better than swapping two singers.
     val unnamedLeads = leadCounts.keys.filter { it !in registryNames && it != GROUP_AGENT_ID }
-    val creditedArtists = trackArtists.map { it.trim() }.filter { it.isNotEmpty() }
-    // Artists already claimed by a registry name cannot be inferred again.
-    val availableArtists = creditedArtists.filter { artist -> artist !in registryNames.values }
+    val claimed = registryNames.values.map { normalizePersonName(it) }.toSet()
+    val availableArtists = creditedArtists.filter { normalizePersonName(it) !in claimed }
     val inferredNames = HashMap<String, String>()
+    val ranked = unnamedLeads.sortedByDescending { leadCounts[it] ?: 0 }
+    val top = leadCounts[ranked.firstOrNull()] ?: 0
+    val second = leadCounts[ranked.getOrNull(1)] ?: 0
+    val clearMajority = ranked.size == 1 || top >= second * 3 / 2 + 1
     val plausible = unnamedLeads.isNotEmpty() &&
+        availableArtists.size >= unnamedLeads.size &&
         availableArtists.size >= 2 &&
-        unnamedLeads.size <= availableArtists.size
+        clearMajority
     if (plausible) {
-        unnamedLeads
-            .sortedByDescending { leadCounts[it] ?: 0 }
-            .forEachIndexed { rank, id -> inferredNames[id] = availableArtists[rank] }
+        ranked.forEachIndexed { rank, id ->
+            if (rank < availableArtists.size) inferredNames[id] = availableArtists[rank]
+        }
     }
 
     return leadCounts.keys.associate { id ->
         val isGroup = id == GROUP_AGENT_ID || singers[id]?.isGroup == true
         SingerDisplay(id, registryNames[id] ?: inferredNames[id], isGroup)
     }
+}
+
+/** Role / placeholder labels Apple sometimes ships instead of a real name. */
+private val GENERIC_SINGER_NAME = Regex(
+    """^(v\d+|voice\s*\d*|singer\s*\d*|vocal(ist)?\s*\d*|male|female|background|bgv?|both|all|group|duet|chorus|choir|lead|harmony)$""",
+    RegexOption.IGNORE_CASE,
+)
+
+internal fun usableSingerName(raw: String?): String? {
+    val name = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    if (GENERIC_SINGER_NAME.matches(name)) return null
+    return name
+}
+
+internal fun normalizePersonName(name: String): String =
+    name.lowercase()
+        .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
+        .trim()
+
+internal fun namesLikelySame(a: String, b: String): Boolean {
+    val left = normalizePersonName(a)
+    val right = normalizePersonName(b)
+    if (left.isEmpty() || right.isEmpty()) return false
+    if (left == right) return true
+    if (left.contains(right) || right.contains(left)) return true
+    val leftTokens = left.split(' ').filter { it.length > 1 }.toSet()
+    val rightTokens = right.split(' ').filter { it.length > 1 }.toSet()
+    return leftTokens.isNotEmpty() && rightTokens.isNotEmpty() &&
+        leftTokens.intersect(rightTokens).isNotEmpty()
 }
 
 /**

@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.convx.music.constants.AppleMusicLyricsBlurKey
+import com.convx.music.constants.LyricsGlowEffectKey
 import com.convx.music.lyrics.LyricsEntry
 import com.convx.music.ui.screens.settings.LyricsPosition
 import com.convx.music.utils.rememberPreference
@@ -81,6 +82,7 @@ fun ViviMusicLyricsLine(
     modifier: Modifier = Modifier
 ) {
     val (appleMusicLyricsBlur) = rememberPreference(AppleMusicLyricsBlurKey, true)
+    val (lyricsGlowEffect) = rememberPreference(LyricsGlowEffectKey, true)
 
     val targetBlur = if (!appleMusicLyricsBlur || !isAutoScrollActive || isActive || !isSynced || isSelectionModeActive) {
         0f
@@ -235,11 +237,13 @@ fun ViviMusicLyricsLine(
                         // Cap internal line height for wrapped words
                         lineHeight = (textSize * lineSpacing.coerceAtMost(1.3f)).sp,
                         textAlign = agentTextAlign,
-                        shadow = androidx.compose.ui.graphics.Shadow(
-                            color = textColor.copy(alpha = 0.6f * progress),
-                            offset = Offset.Zero,
-                            blurRadius = (12f * progress).coerceAtLeast(0.1f)
-                        )
+                        shadow = if (lyricsGlowEffect && progress > 0f) {
+                            androidx.compose.ui.graphics.Shadow(
+                                color = textColor.copy(alpha = 0.6f * progress),
+                                offset = Offset.Zero,
+                                blurRadius = (12f * progress).coerceAtLeast(0.1f)
+                            )
+                        } else null
                     )
                 )
                 if (index != wordData.lastIndex) {
@@ -249,7 +253,7 @@ fun ViviMusicLyricsLine(
                         color = textColor.copy(alpha = if (lineRelTime >= endRelative) 1f else 0.45f), // Increased from 0.35f
                         lineHeight = (textSize * lineSpacing.coerceAtMost(1.3f)).sp,
                         style = TextStyle(
-                            shadow = if (lineRelTime >= endRelative) {
+                            shadow = if (lyricsGlowEffect && lineRelTime >= endRelative) {
                                 androidx.compose.ui.graphics.Shadow(
                                     color = textColor.copy(alpha = 0.3f),
                                     offset = Offset.Zero,

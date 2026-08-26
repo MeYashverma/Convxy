@@ -384,7 +384,28 @@ object LyricsUtils {
         } else {
             parseStandardLyrics(lines)
         }
-        return ParsedLyrics(entries, singers)
+        return ParsedLyrics(carryForwardAgents(entries), singers)
+    }
+
+    /**
+     * Apple / ELRC convention: a line without an agent continues the previous
+     * lead voice. Filling those gaps here (instead of at each renderer) keeps
+     * colors, badges and left/right alignment consistent across every style.
+     */
+    internal fun carryForwardAgents(entries: List<LyricsEntry>): List<LyricsEntry> {
+        var lastAgent: String? = null
+        return entries.map { entry ->
+            if (entry.isBackground) {
+                entry
+            } else if (entry.agent != null) {
+                lastAgent = entry.agent
+                entry
+            } else if (lastAgent != null) {
+                entry.copy(agent = lastAgent)
+            } else {
+                entry
+            }
+        }
     }
 
     private fun unescapeJsonLyrics(lyrics: String): String = lyrics

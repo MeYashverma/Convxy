@@ -196,13 +196,23 @@ private fun buildWordKaraokeTimed(
     positionMs: Long,
     activeColor: Color,
     dimColor: Color,
+    glow: Shadow?,
 ) = buildAnnotatedString {
     val positionSec = positionMs / 1000.0
     words.forEachIndexed { index, word ->
         val span = (word.endTime - word.startTime).coerceAtLeast(0.001)
         val progress = ((positionSec - word.startTime) / span).coerceIn(0.0, 1.0)
+        val wordGlow = if (glow != null && progress > 0.0) {
+            Shadow(
+                color = glow.color,
+                offset = glow.offset,
+                blurRadius = glow.blurRadius * (0.45f + 0.55f * progress.toFloat()),
+            )
+        } else {
+            null
+        }
         val spanStyle = when {
-            progress >= 1.0 -> SpanStyle(color = activeColor)
+            progress >= 1.0 -> SpanStyle(color = activeColor, shadow = wordGlow)
             progress <= 0.0 -> SpanStyle(color = dimColor)
             else -> {
                 val p = progress.toFloat()
@@ -214,6 +224,7 @@ private fun buildWordKaraokeTimed(
                         endStop to dimColor,
                         1f to dimColor,
                     ),
+                    shadow = wordGlow,
                 )
             }
         }

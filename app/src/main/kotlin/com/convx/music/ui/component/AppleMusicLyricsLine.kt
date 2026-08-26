@@ -37,8 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.convx.music.constants.AppleMusicLyricsBlurKey
+import com.convx.music.constants.LyricsGlowEffectKey
 import com.convx.music.lyrics.LyricsEntry
 import com.convx.music.ui.screens.settings.LyricsPosition
 import com.convx.music.utils.rememberPreference
@@ -71,6 +74,7 @@ fun AppleMusicLyricsLine(
     modifier: Modifier = Modifier,
 ) {
     val (appleMusicLyricsBlur) = rememberPreference(AppleMusicLyricsBlurKey, true)
+    val (lyricsGlowEffect) = rememberPreference(LyricsGlowEffectKey, true)
 
     // Distance is only meaningful for synced lyrics; unsynced docs always
     // render at full emphasis so the style doubles as a plain lyrics viewer.
@@ -139,6 +143,14 @@ fun AppleMusicLyricsLine(
             contentAlignment = alignment,
             modifier = Modifier.fillMaxWidth(),
         ) {
+            // Same preference-driven accent glow on the active line as every other style
+            val activeLineGlow = if (lyricsGlowEffect && (isActive || !isSynced)) {
+                Shadow(
+                    color = textColor.copy(alpha = 0.5f),
+                    offset = Offset.Zero,
+                    blurRadius = 18f,
+                )
+            } else null
             if (activeAnnotated != null) {
                 Text(
                     text = activeAnnotated,
@@ -146,6 +158,7 @@ fun AppleMusicLyricsLine(
                     fontWeight = fontWeight,
                     textAlign = textAlign,
                     color = textColor,
+                    style = androidx.compose.ui.text.TextStyle(shadow = activeLineGlow),
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
@@ -155,6 +168,7 @@ fun AppleMusicLyricsLine(
                     fontWeight = fontWeight,
                     textAlign = textAlign,
                     color = textColor,
+                    style = androidx.compose.ui.text.TextStyle(shadow = activeLineGlow),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

@@ -58,6 +58,22 @@ private fun youtubeCardSubtitle(video: WebVideo): String =
         .joinToString(separator = " • ")
 
 /**
+ * Opens the watch screen for [video], passing its metadata through
+ * [com.convx.music.utils.YouTubePlaybackState.pendingVideo] so playback starts
+ * instantly (the watch page then only refines the UI, not the queue start).
+ */
+fun androidx.navigation.NavController.navigateYouTubeWatch(
+    video: WebVideo,
+    positionMs: Long = 0,
+) {
+    com.convx.music.utils.YouTubePlaybackState.pendingVideo = video
+    navigate(
+        if (positionMs > 0) "youtube_watch/${video.id}?position=$positionMs"
+        else "youtube_watch/${video.id}"
+    )
+}
+
+/**
  * Round icon button in Convxy's floating-control style (solid surface circle,
  * no ripple). Deliberately does NOT use the liquid-glass [com.convx.music.ui.component.GlassCircleButton]:
  * the glass modifier records backdrops, and keeping the YouTube screens on the
@@ -94,6 +110,8 @@ fun YouTubeVideoCard(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     onOverflowClick: (() -> Unit)? = null,
+    /** Tapping the channel text opens the channel page (null = inert). */
+    onChannelClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -154,9 +172,17 @@ fun YouTubeVideoCard(
             verticalAlignment = Alignment.Top,
         ) {
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (onChannelClick != null && !video.channelName.isNullOrBlank()) {
+                            Modifier.clickable(onClick = onChannelClick)
+                        } else {
+                            Modifier
+                        }
+                    ),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
+                ) {
                 Text(
                     text = video.title,
                     style = MaterialTheme.typography.bodyMedium,
@@ -201,6 +227,8 @@ fun YouTubeVideoRow(
     onOverflowClick: (() -> Unit)? = null,
     /** Replaces the default overflow icon (e.g. history-row delete buttons). */
     trailingContent: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
+    /** Tapping the title/channel text opens the channel page (null = inert). */
+    onChannelClick: (() -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -277,9 +305,17 @@ fun YouTubeVideoRow(
         Spacer(Modifier.width(12.dp))
 
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (onChannelClick != null && !video.channelName.isNullOrBlank()) {
+                        Modifier.clickable(onClick = onChannelClick)
+                    } else {
+                        Modifier
+                    }
+                ),
             verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
+            ) {
             Text(
                 text = video.title,
                 style = MaterialTheme.typography.bodyMedium,

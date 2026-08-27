@@ -268,7 +268,7 @@ fun YouTubeChannelScreen(
                                     items(content.shorts, key = { "ch_short_${it.id}" }) { short ->
                                         YouTubeShortsCard(
                                             video = short,
-                                            onClick = { navController.navigate("youtube_watch/${short.id}") },
+                                            onClick = { navController.navigateYouTubeWatch(short) },
                                         )
                                     }
                                 }
@@ -279,9 +279,10 @@ fun YouTubeChannelScreen(
                                 Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                                     YouTubeVideoRow(
                                         video = video,
+                                        onChannelClick = { video.channelId?.let { id -> navController.navigate("youtube_channel/$id") } },
                                         isActive = mediaMetadata?.id == video.id,
                                         isPlaying = isPlaying,
-                                        onClick = { navController.navigate("youtube_watch/${video.id}") },
+                                        onClick = { navController.navigateYouTubeWatch(video) },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             menuState.show {
@@ -516,6 +517,7 @@ fun YouTubePlaylistScreen(
                         Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                             YouTubeVideoRow(
                                 video = video,
+                                        onChannelClick = { video.channelId?.let { id -> navController.navigate("youtube_channel/$id") } },
                                 isActive = mediaMetadata?.id == video.id,
                                 isPlaying = isPlaying,
                                 onClick = {
@@ -643,11 +645,12 @@ fun YouTubeHistoryScreen(
                 Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                     YouTubeVideoRow(
                         video = video,
+                                        onChannelClick = { video.channelId?.let { id -> navController.navigate("youtube_channel/$id") } },
                         progress = entry.takeIf { it.progressFraction > 0.01f },
                         onClick = {
-                            navController.navigate(
-                                if (entry.isResumable) "youtube_watch/${entry.videoId}?position=${entry.positionSeconds * 1000L}"
-                                else "youtube_watch/${entry.videoId}"
+                            navController.navigateYouTubeWatch(
+                                video,
+                                positionMs = if (entry.isResumable) entry.positionSeconds * 1000L else 0,
                             )
                         },
                         onLongClick = {
@@ -747,7 +750,8 @@ fun YouTubeSavedScreen(
                 Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                     YouTubeVideoRow(
                         video = video,
-                        onClick = { navController.navigate("youtube_watch/${savedVideo.videoId}") },
+                                        onChannelClick = { video.channelId?.let { id -> navController.navigate("youtube_channel/$id") } },
+                        onClick = { navController.navigateYouTubeWatch(video) },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             menuState.show {

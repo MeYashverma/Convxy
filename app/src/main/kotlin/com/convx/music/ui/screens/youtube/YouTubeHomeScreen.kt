@@ -159,7 +159,10 @@ fun YouTubeHomeScreen(
                         ContinueWatchingCard(
                             entry = entry,
                             onClick = {
-                                navController.navigate("youtube_watch/${entry.videoId}?position=${entry.positionSeconds * 1000L}")
+                                navController.navigateYouTubeWatch(
+                                    entry.toWebVideo(),
+                                    positionMs = entry.positionSeconds * 1000L,
+                                )
                             },
                             onLongClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -194,9 +197,9 @@ fun YouTubeHomeScreen(
                         RecentWatchCard(
                             entry = entry,
                             onClick = {
-                                navController.navigate(
-                                    if (entry.isResumable) "youtube_watch/${entry.videoId}?position=${entry.positionSeconds * 1000L}"
-                                    else "youtube_watch/${entry.videoId}"
+                                navController.navigateYouTubeWatch(
+                                    entry.toWebVideo(),
+                                    positionMs = if (entry.isResumable) entry.positionSeconds * 1000L else 0,
                                 )
                             },
                             onLongClick = {
@@ -239,7 +242,7 @@ fun YouTubeHomeScreen(
                                 durationSeconds = saved.durationSeconds,
                                 lastWatchedAt = saved.savedAt,
                             ),
-                            onClick = { navController.navigate("youtube_watch/${saved.videoId}") },
+                            onClick = { navController.navigateYouTubeWatch(saved.toWebVideo()) },
                             onLongClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 menuState.show {
@@ -290,7 +293,7 @@ fun YouTubeHomeScreen(
                             items(feed.shorts, key = { "short_${it.id}" }) { short ->
                                 com.convx.music.ui.screens.youtube.YouTubeShortsCard(
                                     video = short,
-                                    onClick = { navController.navigate("youtube_watch/${short.id}") },
+                                    onClick = { navController.navigateYouTubeWatch(short) },
                                 )
                             }
                         }
@@ -306,10 +309,9 @@ fun YouTubeHomeScreen(
                     Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                         YouTubeVideoCard(
                             video = video,
+                                        onChannelClick = { video.channelId?.let { id -> navController.navigate("youtube_channel/$id") } },
                             isPlaying = mediaMetadata?.id == video.id && isPlaying,
-                            onClick = {
-                                navController.navigate("youtube_watch/${video.id}")
-                            },
+                            onClick = { navController.navigateYouTubeWatch(video) },
                             onLongClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 menuState.show {

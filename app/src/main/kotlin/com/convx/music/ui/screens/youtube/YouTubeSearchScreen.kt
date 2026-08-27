@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -143,6 +146,7 @@ fun YouTubeSearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .background(MaterialTheme.colorScheme.background),
     ) {
         // Search field row.
@@ -244,7 +248,9 @@ fun YouTubeSearchScreen(
 
         LazyColumn(
             state = lazyListState,
-            contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+            contentPadding = LocalPlayerAwareWindowInsets.current
+                .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                .asPaddingValues(),
             modifier = Modifier.fillMaxSize(),
         ) {
             val state = uiState
@@ -372,9 +378,10 @@ fun YouTubeSearchScreen(
                                 Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                                     YouTubeVideoRow(
                                         video = video,
+                                        onChannelClick = { video.channelId?.let { id -> navController.navigate("youtube_channel/$id") } },
                                         isActive = mediaMetadata?.id == video.id,
                                         isPlaying = isPlaying,
-                                        onClick = { navController.navigate("youtube_watch/${video.id}") },
+                                        onClick = { navController.navigateYouTubeWatch(video) },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             menuState.show {

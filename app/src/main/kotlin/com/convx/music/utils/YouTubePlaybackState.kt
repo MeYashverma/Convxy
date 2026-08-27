@@ -39,6 +39,15 @@ object YouTubePlaybackState {
     var lastVideoId: String? = null
         private set
 
+    /**
+     * Metadata of the video the user just tapped, handed to the watch screen so
+     * the queue can start IMMEDIATELY with real title/thumbnail instead of
+     * waiting for the watch-page round trip. Always keyed by id on use, and
+     * cleared after consumption — a stale entry can never apply elsewhere.
+     */
+    @Volatile
+    var pendingVideo: com.music.innertube.models.WebVideo? = null
+
     fun isActive(): Boolean = _sessionActive.value
 
     /**

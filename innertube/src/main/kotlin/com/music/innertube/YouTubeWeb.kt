@@ -104,8 +104,8 @@ object YouTubeWeb {
         }
         engine {
             config {
-                connectTimeout(20, TimeUnit.SECONDS)
-                readTimeout(30, TimeUnit.SECONDS)
+                connectTimeout(10, TimeUnit.SECONDS)
+                readTimeout(20, TimeUnit.SECONDS)
                 retryOnConnectionFailure(true)
                 // Qualified on purpose: OkHttpConfig also declares `proxy`, and the
                 // unqualified name would silently read the (always-null) builder one.
@@ -122,9 +122,9 @@ object YouTubeWeb {
             }
         }
         install(HttpTimeout) {
-            requestTimeoutMillis = 30000
-            connectTimeoutMillis = 20000
-            socketTimeoutMillis = 30000
+            requestTimeoutMillis = 20000
+            connectTimeoutMillis = 10000
+            socketTimeoutMillis = 20000
         }
         // Every endpoint below posts relative paths ("search", "browse", "next")
         // — without a base URL Ktor rejects them as invalid request URLs.

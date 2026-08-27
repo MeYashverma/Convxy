@@ -5,6 +5,8 @@
 
 package com.convx.music.utils
 
+import android.content.Context
+import com.convx.music.constants.VideoQualityCapKey
 import com.music.innertube.models.response.PlayerResponse
 
 /**
@@ -27,9 +29,11 @@ import com.music.innertube.models.response.PlayerResponse
  */
 fun selectMuxedVideoFormat(
     formats: List<PlayerResponse.StreamingData.Format>?,
+    /** Highest allowed height in px; the user's video-quality cap. */
+    maxHeightCap: Int = 1080,
 ): PlayerResponse.StreamingData.Format? =
     formats.orEmpty()
-        .filter { format -> format.height != null && format.height in 1..1080 }
+        .filter { format -> (format.height ?: 0) in 1..maxHeightCap.coerceIn(144, 1080) }
         .maxByOrNull { format ->
             muxedVideoCodecRank(format.mimeType) * 10_000_000 +
                 (format.height ?: 0) * 1_000 +
@@ -51,3 +55,10 @@ private fun muxedVideoCodecRank(mimeType: String?): Int {
         else -> 2
     }
 }
+
+/**
+ * The user's muxed video quality cap (max height in px; 1080 = Auto).
+ * Read from DataStore on the IO dispatcher only.
+ */
+suspend fun videoQualityCap(context: Context): Int =
+    context.dataStore.get(VideoQualityCapKey, 1080)

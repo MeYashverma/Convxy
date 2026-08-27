@@ -188,6 +188,9 @@ val ForceSelectedQualityKey = booleanPreferencesKey("forceSelectedQuality")
 
 // Lossless (TIDAL via hifi-api). Opt-in, off by default. Streaming only for now.
 val EnableTidalStreamingKey = booleanPreferencesKey("enableTidalStreaming")
+
+/** Cap for muxed video quality in the native YouTube watch screen (0/1080 = auto). */
+val VideoQualityCapKey = intPreferencesKey("videoQualityCap")
 val TidalQualityKey         = stringPreferencesKey("tidalQuality")
 val TidalInstanceUrlKey     = stringPreferencesKey("tidalInstanceUrl")
 

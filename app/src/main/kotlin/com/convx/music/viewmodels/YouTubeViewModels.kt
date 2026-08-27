@@ -78,7 +78,13 @@ constructor(
             _uiState.value = YouTubeHomeUiState.Loading
             YouTubeWeb.home()
                 .onSuccess { feed ->
-                    _uiState.value = YouTubeHomeUiState.Ready(feed = feed)
+                    _uiState.value = if (feed.sections.isEmpty() && feed.shorts.isEmpty()) {
+                        // A 200-with-nothing payload (consent wall, parse miss)
+                        // must not render as an empty feed — surface a retry.
+                        YouTubeHomeUiState.Error(message = "Couldn't load the YouTube feed.")
+                    } else {
+                        YouTubeHomeUiState.Ready(feed = feed)
+                    }
                 }
                 .onFailure { error ->
                     reportException(error)

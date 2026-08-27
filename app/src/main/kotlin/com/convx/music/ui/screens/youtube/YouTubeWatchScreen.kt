@@ -13,6 +13,7 @@ import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -70,6 +72,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.convx.music.LocalDatabase
+import com.convx.music.constants.VideoQualityCapKey
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.db.entities.YouTubeWatchHistoryEntity
@@ -81,6 +84,7 @@ import com.convx.music.ui.menu.YouTubeVideoMenu
 import com.convx.music.ui.player.VideoSurface
 import com.convx.music.ui.utils.combinedBounceClick
 import com.convx.music.utils.YouTubePlaybackState
+import com.convx.music.utils.rememberPreference
 import com.convx.music.utils.makeTimeString
 import com.convx.music.viewmodels.YouTubeWatchUiState
 import com.convx.music.viewmodels.YouTubeWatchViewModel
@@ -127,6 +131,9 @@ fun YouTubeWatchScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var playbackSpeed by rememberSaveable { mutableFloatStateOf(1f) }
     var audioOnly by rememberSaveable { mutableStateOf(false) }
+    // Double-tap seek feedback: +1 = forward 10s, -1 = back 10s, 0 = hidden.
+    var seekFeedback by remember { mutableStateOf(0) }
+    var videoQualityCap by rememberPreference(VideoQualityCapKey, 1080)
 
     val player = playerConnection.player
     val watchPage = (uiState as? YouTubeWatchUiState.Ready)?.page
@@ -153,27 +160,28 @@ fun YouTubeWatchScreen(
             return@LaunchedEffect
         }
         val state = uiState
+        // The tapped card's own metadata starts playback INSTANTLY (no watch-page
+        // wait); the page only refines the UI from here. Deep links and re-entries
+        // without a handoff fall back to watch-page/history metadata.
+        val pending = YouTubePlaybackState.pendingVideo?.takeIf { it.id == videoId }
+        YouTubePlaybackState.pendingVideo = null
+        val rootVideo = pending
+            ?: (state as? YouTubeWatchUiState.Ready)?.page?.video
+            ?: if (state is YouTubeWatchUiState.Error) bareVideo(videoId, historyEntry) else null
         when {
-            state is YouTubeWatchUiState.Ready -> {
-                Timber.tag("YouTubeVideo").i("playQueue(YouTubeVideoQueue) for %s", videoId)
+            rootVideo != null -> {
+                Timber.tag("YouTubeVideo").i("playQueue(YouTubeVideoQueue) for %s (pending=%b)", videoId, pending != null)
                 playerConnection.playQueue(
                     YouTubeVideoQueue(
-                        video = state.page.video,
+                        video = rootVideo,
                         autoplayRelated = true,
                         startPositionMs = startPositionMs,
                     )
                 )
             }
-            // Page in flight — wait for it so the queue root carries the real
-            // metadata into the notification/mini player.
-            state is YouTubeWatchUiState.Loading -> Unit
-            else -> playerConnection.playQueue(
-                YouTubeVideoQueue(
-                    video = bareVideo(videoId, historyEntry),
-                    autoplayRelated = true,
-                    startPositionMs = startPositionMs,
-                )
-            )
+            // Page in flight with no handoff (deep link) — wait for it so the
+            // queue root carries real metadata into the notification/mini player.
+            else -> Unit
         }
     }
 
@@ -256,6 +264,22 @@ fun YouTubeWatchScreen(
         }
     }
 
+    // Auto-hide the double-tap seek feedback pill.
+    LaunchedEffect(seekFeedback) {
+        if (seekFeedback != 0) {
+            delay(700)
+            seekFeedback = 0
+        }
+    }
+
+    // Double-tap on the video: right half seeks +10s, left half −10s (YouTube-style).
+    val onDoubleTapSeek: (Boolean) -> Unit = { forward ->
+        val target = (positionMs + if (forward) 10_000L else -10_000L)
+            .coerceIn(0L, durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
+        playerConnection.seekTo(target)
+        seekFeedback = if (forward) 1 else -1
+    }
+
     // Auto-hide the overlay controls while playing.
     LaunchedEffect(controlsVisible, isPlaying) {
         if (controlsVisible && isPlaying) {
@@ -282,6 +306,7 @@ fun YouTubeWatchScreen(
             onExitFullscreen = { isFullscreen = false },
             onToggleControls = { controlsVisible = !controlsVisible },
             controlsVisible = controlsVisible,
+            onDoubleTapSeek = onDoubleTapSeek,
             isWaitingForStream = playbackState == Player.STATE_IDLE && uiState is YouTubeWatchUiState.Loading,
             playbackSpeed = playbackSpeed,
             onSpeedChange = { speed ->
@@ -305,7 +330,15 @@ fun YouTubeWatchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                        .background(Color.Black),
+                        .background(Color.Black)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { controlsVisible = !controlsVisible },
+                                onDoubleTap = { offset ->
+                                    onDoubleTapSeek(offset.x > size.width / 2f)
+                                },
+                            )
+                        },
                 ) {
                     // PlayerView-hosted SurfaceView (the Flow/NewPipe pattern):
                     // PlayerView owns surface lifecycle, aspect ratio and
@@ -371,15 +404,56 @@ fun YouTubeWatchScreen(
                         }
                     }
 
+                    // Double-tap seek feedback.
+                    if (seekFeedback != 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .align(if (seekFeedback > 0) Alignment.CenterEnd else Alignment.CenterStart)
+                                .padding(horizontal = 20.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    if (seekFeedback > 0) R.drawable.navigate_next else R.drawable.arrow_back
+                                ),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(15.dp),
+                            )
+                            Text(
+                                text = " 10s",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
+
+                    // Fullscreen entry point: always available, not only while the
+                    // transient control overlay is up.
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(34.dp)
+                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                            .clickable { isFullscreen = true },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.slow_motion_video),
+                            contentDescription = "Fullscreen",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+
                     if (controlsVisible) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.35f))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                ) { controlsVisible = false },
+                                .background(Color.Black.copy(alpha = 0.35f)),
                         ) {
                             IconButton(
                                 onClick = { navController.navigateUp() },
@@ -462,16 +536,6 @@ fun YouTubeWatchScreen(
                                 )
                             }
                         }
-                    } else {
-                        // Invisible tap target to bring controls back.
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                ) { controlsVisible = true },
-                        )
                     }
                 }
 
@@ -508,6 +572,17 @@ fun YouTubeWatchScreen(
                         onSpeedChange = { speed ->
                             playbackSpeed = speed
                             runCatching { player.setPlaybackSpeed(speed) }
+                        },
+                    )
+                    QualityButton(
+                        cap = videoQualityCap,
+                        onCapChange = { newCap ->
+                            videoQualityCap = newCap
+                            // Re-resolve the current stream under the new cap
+                            // (drops the cached URL/bytes, restarts at position).
+                            if (mediaMetadata?.id == videoId) {
+                                playerConnection.service.reloadCurrentStreamForVideoMode(videoId)
+                            }
                         },
                     )
                 }
@@ -581,6 +656,7 @@ fun YouTubeWatchScreen(
             Box(modifier = Modifier.padding(horizontal = 8.dp)) {
                 YouTubeVideoRow(
                     video = video,
+                                        onChannelClick = { video.channelId?.let { id -> navController.navigate("youtube_channel/$id") } },
                     onClick = {
                         // Shuffle off ⇒ queue order == timeline order, offset from current.
                         playerConnection.player.seekTo(currentTimelineIndex + offset + 1, 0)
@@ -742,6 +818,63 @@ private fun ActionChip(
     }
 }
 
+/**
+ * Muxed video quality cap for the watch screen. Auto (1080) picks the best
+ * available progressive stream; picking a height re-resolves capped.
+ */
+@Composable
+private fun QualityButton(
+    cap: Int,
+    onCapChange: (Int) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Text(
+                text = when (cap) {
+                    720 -> "720p"
+                    480 -> "480p"
+                    360 -> "360p"
+                    else -> "Auto"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
+            )
+        }
+        if (open) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(12.dp),
+                shadowElevation = 4.dp,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.width(170.dp),
+            ) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    listOf(
+                        1080 to "Auto (up to 1080p)",
+                        720 to "720p",
+                        480 to "480p",
+                        360 to "360p (data saver)",
+                    ).forEach { (value, label) ->
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (value == cap) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onCapChange(value)
+                                    open = false
+                                }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Compact speed selector (0.5x–2x). */
 @Composable
 private fun SpeedButton(
@@ -846,6 +979,7 @@ private fun FullscreenPlayer(
     onExitFullscreen: () -> Unit,
     onToggleControls: () -> Unit,
     controlsVisible: Boolean,
+    onDoubleTapSeek: (Boolean) -> Unit,
     isWaitingForStream: Boolean,
     playbackSpeed: Float,
     onSpeedChange: (Float) -> Unit,
@@ -853,7 +987,15 @@ private fun FullscreenPlayer(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(Color.Black)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onToggleControls() },
+                    onDoubleTap = { offset ->
+                        onDoubleTapSeek(offset.x > size.width / 2f)
+                    },
+                )
+            },
     ) {
         VideoSurface(
             player = player,
@@ -882,11 +1024,7 @@ private fun FullscreenPlayer(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { onToggleControls() },
+                    .background(Color.Black.copy(alpha = 0.35f)),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -983,15 +1121,6 @@ private fun FullscreenPlayer(
                     )
                 }
             }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { onToggleControls() },
-            )
         }
     }
 }

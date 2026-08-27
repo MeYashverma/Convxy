@@ -35,6 +35,7 @@ class YouTubeVideoQueue(
     override val preloadItem: MediaMetadata? = null
 
     override suspend fun getInitialStatus(): Queue.Status = withContext(IO) {
+        timber.log.Timber.tag("YouTubeVideo").i("queue initial status: root=%s autoplay=%s", video.id, autoplayRelated)
         val root = listOf(video.toMediaMetadata().toMediaItem())
         if (!autoplayRelated) {
             return@withContext Queue.Status(

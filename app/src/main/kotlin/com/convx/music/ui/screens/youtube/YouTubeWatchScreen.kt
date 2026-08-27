@@ -86,6 +86,7 @@ import com.convx.music.viewmodels.YouTubeWatchUiState
 import com.convx.music.viewmodels.YouTubeWatchViewModel
 import com.music.innertube.models.WebVideo
 import kotlinx.coroutines.delay
+import timber.log.Timber
 
 /**
  * The native watch screen: a responsive player (the shared MusicService
@@ -140,24 +141,29 @@ fun YouTubeWatchScreen(
     // can't be fetched we still play from the bare video so playback never dies
     // on a metadata outage.
     LaunchedEffect(videoId, uiState) {
+        Timber.tag("YouTubeVideo").i("watch start effect: videoId=%s state=%s playerCurrent=%s", videoId, uiState::class.simpleName, playerConnection.mediaMetadata.value?.id)
         val currentId = playerConnection.mediaMetadata.value?.id
         YouTubePlaybackState.begin(videoId)
         if (currentId == videoId) {
             // Already playing this video (queue autoplay or re-entry): take over
             // the stream, re-resolving with video if it was started audio-only.
+            Timber.tag("YouTubeVideo").i("already current — reload for video mode")
             if (startPositionMs > 0L) player.seekTo(startPositionMs)
             playerConnection.service.reloadCurrentStreamForVideoMode(videoId)
             return@LaunchedEffect
         }
         val state = uiState
         when {
-            state is YouTubeWatchUiState.Ready -> playerConnection.playQueue(
-                YouTubeVideoQueue(
-                    video = state.page.video,
-                    autoplayRelated = true,
-                    startPositionMs = startPositionMs,
+            state is YouTubeWatchUiState.Ready -> {
+                Timber.tag("YouTubeVideo").i("playQueue(YouTubeVideoQueue) for %s", videoId)
+                playerConnection.playQueue(
+                    YouTubeVideoQueue(
+                        video = state.page.video,
+                        autoplayRelated = true,
+                        startPositionMs = startPositionMs,
+                    )
                 )
-            )
+            }
             // Page in flight — wait for it so the queue root carries the real
             // metadata into the notification/mini player.
             state is YouTubeWatchUiState.Loading -> Unit
@@ -300,7 +306,13 @@ fun YouTubeWatchScreen(
                         .aspectRatio(16f / 9f)
                         .background(Color.Black),
                 ) {
-                    VideoPlaybackSurface(modifier = Modifier.fillMaxSize())
+                    // SurfaceView backend: static layout (no Compose transforms) and
+                    // by far the most robust video path — TextureView has crashed
+                    // natively on some devices at first video render.
+                    VideoPlaybackSurface(
+                        modifier = Modifier.fillMaxSize(),
+                        useSurfaceView = true,
+                    )
 
                     // Waiting for the watch page to resolve before the queue
                     // starts (deep links) — show why nothing is moving.
@@ -840,7 +852,10 @@ private fun FullscreenPlayer(
             .fillMaxSize()
             .background(Color.Black),
     ) {
-        VideoPlaybackSurface(modifier = Modifier.fillMaxSize())
+        VideoPlaybackSurface(
+            modifier = Modifier.fillMaxSize(),
+            useSurfaceView = true,
+        )
 
         if (isWaitingForStream && !isBuffering) {
             androidx.compose.material3.CircularProgressIndicator(

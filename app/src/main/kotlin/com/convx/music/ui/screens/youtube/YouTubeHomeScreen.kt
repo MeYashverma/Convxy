@@ -80,6 +80,7 @@ fun YouTubeHomeScreen(
     navController: NavController,
     viewModel: YouTubeHomeViewModel = hiltViewModel(),
 ) {
+    timber.log.Timber.tag("YouTubeVideo").i("home screen compose enter")
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return

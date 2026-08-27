@@ -266,6 +266,7 @@ fun YouTubeWatchScreen(
 
     if (isFullscreen) {
         FullscreenPlayer(
+            player = player,
             title = currentVideoTitle,
             channelName = currentChannelName,
             isPlaying = isPlaying,
@@ -829,6 +830,7 @@ private fun VideoSeekBar(
 /** Landscape immersive player. */
 @Composable
 private fun FullscreenPlayer(
+    player: Player?,
     title: String,
     channelName: String,
     isPlaying: Boolean,

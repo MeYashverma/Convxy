@@ -23,14 +23,14 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.defaultRequest
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.request.userAgent
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +38,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToJsonElement
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -138,7 +141,7 @@ object YouTubeWeb {
         header("X-Origin", ORIGIN)
         header("Referer", "$ORIGIN/")
         visitorData?.let { header("X-Goog-Visitor-Id", it) }
-        userAgent(YouTubeClient.USER_AGENT_WEB)
+        header(HttpHeaders.UserAgent, YouTubeClient.USER_AGENT_WEB)
         parameter("key", WEB_API_KEY)
         parameter("prettyPrint", "false")
     }
@@ -365,12 +368,10 @@ object YouTubeWeb {
                 httpClient.post("navigation/resolve_url") {
                     ytHeaders()
                     setBody(
-                        JsonObject(
-                            mapOf(
-                                "context" to context(),
-                                "url" to JsonPrimitive(url),
-                            )
-                        )
+                        buildJsonObject {
+                            put("context", json.encodeToJsonElement(context()))
+                            put("url", JsonPrimitive(url))
+                        }
                     )
                 }.body<JsonElement>()
             }
@@ -696,7 +697,7 @@ object YouTubeWeb {
 
         // Handle ( vanity url ), best effort.
         val handle = metadata.path("vanityChannelUrl").jsonPrimitiveOrNull?.contentOrNullStrict
-            ?.substringAfterLast("/").takeIf { it.startsWith("@") }
+            ?.substringAfterLast("/")?.takeIf { it.startsWith("@") }
 
         val tabs = response.path("contents")
             .path("twoColumnBrowseResultsRenderer")
@@ -1200,7 +1201,7 @@ object YouTubeWeb {
     }
 
     /** Depth-first search for the first object stored under [key]. */
-    private fun JsonElement.find(key: String): JsonElement? {
+    private fun JsonElement?.find(key: String): JsonElement? {
         when (this) {
             is JsonObject -> {
                 get(key)?.let { return it }
@@ -1213,7 +1214,7 @@ object YouTubeWeb {
     }
 
     /** Depth-first collection of every object stored under [key]. */
-    private fun JsonElement.findAll(key: String): List<JsonObject> {
+    private fun JsonElement?.findAll(key: String): List<JsonObject> {
         val out = mutableListOf<JsonObject>()
         when (this) {
             is JsonObject -> {
@@ -1227,7 +1228,7 @@ object YouTubeWeb {
     }
 
     /** Visits every (key, object) pair anywhere in the tree. */
-    private inline fun walkAllRenderers(root: JsonElement?, crossinline onObject: (String, JsonObject) -> Unit) {
+    private fun walkAllRenderers(root: JsonElement?, onObject: (String, JsonObject) -> Unit) {
         when (root) {
             is JsonObject -> {
                 root.forEach { (key, value) ->
@@ -1243,7 +1244,7 @@ object YouTubeWeb {
     }
 
     /** Finds a browse-style continuation token anywhere in the element. */
-    private fun JsonElement.findContinuation(): String? {
+    private fun JsonElement?.findContinuation(): String? {
         findAll("continuationItemRenderer").forEach { renderer ->
             val token = renderer.path("continuationEndpoint")
                 .path("continuationCommand")
@@ -1332,12 +1333,10 @@ object YouTubeWeb {
                 httpClient.post("navigation/resolve_url") {
                     ytHeaders()
                     setBody(
-                        JsonObject(
-                            mapOf(
-                                "context" to context(),
-                                "url" to JsonPrimitive(url),
-                            )
-                        )
+                        buildJsonObject {
+                            put("context", json.encodeToJsonElement(context()))
+                            put("url", JsonPrimitive(url))
+                        }
                     )
                 }.body<JsonElement>()
             }

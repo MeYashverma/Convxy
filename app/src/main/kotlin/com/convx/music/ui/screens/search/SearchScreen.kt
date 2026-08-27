@@ -169,6 +169,14 @@ fun SearchScreen(
                     is YouTubeUrlParser.ParsedUrl.Artist -> {
                         navController.navigate("artist/${parsedUrl.id}")
                     }
+                    // Regular-YouTube channel/playlist links open the native
+                    // YouTube section instead of being searched as text.
+                    is YouTubeUrlParser.ParsedUrl.Channel -> {
+                        navController.navigate("youtube_channel/${parsedUrl.id}")
+                    }
+                    is YouTubeUrlParser.ParsedUrl.Playlist -> {
+                        navController.navigate("youtube_playlist/${parsedUrl.id}")
+                    }
                     null -> {
                         navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
                     }

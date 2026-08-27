@@ -479,7 +479,8 @@ constructor(
             tabContent = state.tabContent + (index to (state.tabContent[index] ?: YouTubeChannelTabContent(isLoading = true))),
         )
         viewModelScope.launch {
-            if (tab.params == null) {
+            val params = tab.params
+            if (params == null) {
                 // Home tab: contents already arrived with the page when it has no params.
                 _uiState.value = (_uiState.value as? YouTubeChannelUiState.Ready)?.let { current ->
                     current.copy(
@@ -488,7 +489,7 @@ constructor(
                 } ?: return@launch
                 return@launch
             }
-            YouTubeWeb.channelTab(state.page.channel.id, tab.params)
+            YouTubeWeb.channelTab(state.page.channel.id, params)
                 .onSuccess { content ->
                     val current = _uiState.value as? YouTubeChannelUiState.Ready ?: return@onSuccess
                     if (current.selectedTabIndex != index) return@onSuccess

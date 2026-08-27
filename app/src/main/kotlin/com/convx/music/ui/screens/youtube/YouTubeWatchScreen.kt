@@ -73,6 +73,8 @@ import com.convx.music.LocalDatabase
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.db.entities.YouTubeWatchHistoryEntity
+import com.convx.music.extensions.metadata
+import com.convx.music.playback.queues.YouTubeVideoQueue
 import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.menu.YouTubeVideoMenu

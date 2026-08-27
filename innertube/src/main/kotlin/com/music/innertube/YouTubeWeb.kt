@@ -169,7 +169,7 @@ object YouTubeWeb {
      */
     private suspend fun <T> withVisitorFallback(
         isUsable: (T) -> Boolean,
-        block: () -> Result<T>,
+        block: suspend () -> Result<T>,
     ): Result<T> {
         val first = block()
         if (first.isSuccess && isUsable(first.getOrThrow())) return first

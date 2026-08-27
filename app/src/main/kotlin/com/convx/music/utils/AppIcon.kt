@@ -24,6 +24,10 @@ import com.convx.music.WelcomeActivity
  *
  * [previewRes] is the adaptive icon's *foreground* layer; the picker composes it over
  * [R.color.ic_launcher_tile] to reproduce what the launcher shows.
+ *
+ * The default (WHITE in the enum, labelled "Color") is the full-colour Convxy mark —
+ * the same adaptive icon as `@mipmap/ic_launcher`. The alias is still called
+ * `.LauncherWhite` so upgrades keep the enabled component and just swap the asset.
  */
 enum class AppIcon(
     val id: String,
@@ -31,7 +35,7 @@ enum class AppIcon(
     @DrawableRes val previewRes: Int,
     @StringRes val labelRes: Int,
 ) {
-    WHITE("white", ".LauncherWhite", R.mipmap.ic_launcher_white_fg, R.string.app_icon_white),
+    WHITE("white", ".LauncherWhite", R.mipmap.ic_launcher_foreground, R.string.app_icon_color),
     AZURE("azure", ".LauncherAzure", R.mipmap.ic_launcher_azure_fg, R.string.app_icon_azure),
     SKY("sky", ".LauncherSky", R.mipmap.ic_launcher_sky_fg, R.string.app_icon_sky),
     TEAL("teal", ".LauncherTeal", R.mipmap.ic_launcher_teal_fg, R.string.app_icon_teal),

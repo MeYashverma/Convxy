@@ -188,13 +188,16 @@
         </activity>
 
         <!-- App-icon variants. Exactly one is enabled; see utils/AppIcon.kt. -->
+        <!-- Default launcher: the full-colour Convxy mark. The alias name stays
+             `.LauncherWhite` so existing installs (which already have this
+             component enabled) pick up the new icon without a migration. -->
         <activity-alias
             android:name=".LauncherWhite"
             android:enabled="true"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_white"
+            android:icon="@mipmap/ic_launcher"
             android:label="@string/app_name"
-            android:roundIcon="@mipmap/ic_launcher_white"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:targetActivity=".WelcomeActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

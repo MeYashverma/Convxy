@@ -525,6 +525,7 @@
     <string name="app_icon_desc">Pick the icon Convxy shows on your home screen</string>
     <string name="app_icon_change_warning">The icon may take a few seconds to update, and some launchers drop the shortcut from your home screen until you re-add it.</string>
     <string name="app_icon_white">White</string>
+    <string name="app_icon_color">Color</string>
     <string name="app_icon_azure">Azure</string>
     <string name="app_icon_sky">Sky</string>
     <string name="app_icon_teal">Teal</string>

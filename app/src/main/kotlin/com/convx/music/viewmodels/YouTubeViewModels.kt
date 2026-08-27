@@ -8,9 +8,13 @@ package com.convx.music.viewmodels
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.music.innertube.YouTube
 import com.music.innertube.YouTubeWeb
+import com.music.innertube.models.HomePage
+import com.music.innertube.models.SongItem
 import com.music.innertube.models.WebChannelPage
 import com.music.innertube.models.WebFeed
+import com.music.innertube.models.WebFeedSection
 import com.music.innertube.models.WebPlaylist
 import com.music.innertube.models.WebPlaylistPage
 import com.music.innertube.models.WebSearchFilter
@@ -78,9 +82,32 @@ constructor(
             _uiState.value = YouTubeHomeUiState.Loading
             YouTubeWeb.home()
                 .onSuccess { feed ->
-                    _uiState.value = if (feed.sections.isEmpty() && feed.shorts.isEmpty()) {
-                        // A 200-with-nothing payload (consent wall, parse miss)
-                        // must not render as an empty feed — surface a retry.
+                    if (feed.sections.isNotEmpty() || feed.shorts.isNotEmpty()) {
+                        _uiState.value = YouTubeHomeUiState.Ready(feed = feed)
+                    } else {
+                        // Empty WEB feed (consent wall / parse miss) — try the
+                        // music home shelf before giving up with an error.
+                        loadMusicHomeFallback()
+                    }
+                }
+                .onFailure { error ->
+                    reportException(error)
+                    loadMusicHomeFallback()
+                }
+        }
+    }
+
+    /**
+     * Last-resort feed: the YouTube Music home (WEB_REMIX) usually works even
+     * when the youtube-tab browse is region/consent-blocked, and its video
+     * entries play through the same pipeline. Mapped into feed sections.
+     */
+    private fun loadMusicHomeFallback() {
+        loadJob = viewModelScope.launch {
+            YouTube.home()
+                .onSuccess { page ->
+                    val feed = musicHomeFeed(page)
+                    _uiState.value = if (feed.sections.isEmpty()) {
                         YouTubeHomeUiState.Error(message = "Couldn't load the YouTube feed.")
                     } else {
                         YouTubeHomeUiState.Ready(feed = feed)
@@ -90,6 +117,37 @@ constructor(
                     reportException(error)
                     _uiState.value = YouTubeHomeUiState.Error(message = youtubeErrorMessage(error))
                 }
+        }
+    }
+
+    private fun musicHomeFeed(page: HomePage): WebFeed {
+        val videos = page.sections
+            .flatMap { section -> section.items }
+            .mapNotNull { item ->
+                when (item) {
+                    is SongItem ->
+                        WebVideo(
+                            id = item.id,
+                            title = item.title,
+                            channelId = item.artists.firstOrNull()?.id,
+                            channelName = item.artists.firstOrNull()?.name,
+                            thumbnail = item.thumbnail,
+                            durationSeconds = item.duration,
+                            viewsText = null,
+                            publishedText = null,
+                        )
+                    else -> null
+                }
+            }
+            .distinctBy { it.id }
+        return if (videos.isEmpty()) {
+            WebFeed(sections = emptyList(), shorts = emptyList(), continuation = null)
+        } else {
+            WebFeed(
+                sections = listOf(WebFeedSection(title = "Recommended", videos = videos)),
+                shorts = emptyList(),
+                continuation = null,
+            )
         }
     }
 

@@ -47,6 +47,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import timber.log.Timber
 import java.net.Proxy
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -140,9 +141,49 @@ object YouTubeWeb {
         header("X-Origin", ORIGIN)
         header("Referer", "$ORIGIN/")
         visitorData?.let { header("X-Goog-Visitor-Id", it) }
+        // Standard consent bypass (same value NewPipe/yt-dlp send): without a
+        // SOCS cookie some regions get a consent page instead of innertube data.
+        header(HttpHeaders.Cookie, "SOCS=CAI")
         header(HttpHeaders.UserAgent, YouTubeClient.USER_AGENT_WEB)
         parameter("key", WEB_API_KEY)
         parameter("prettyPrint", "false")
+    }
+
+    /**
+     * Diagnostics for the on-device file log: one line per endpoint call with
+     * parse counts (or the failure), tag-prefixed so "Playback logs → Share"
+     * captures why browse fails on a given device/network.
+     */
+    private fun <T> logEndpoint(name: String, result: Result<T>, summarize: (T) -> String): Result<T> {
+        result
+            .onSuccess { Timber.tag("YouTubeWeb").i("%s OK: %s", name, summarize(it)) }
+            .onFailure { Timber.tag("YouTubeWeb").e(it, "%s FAILED", name) }
+        return result
+    }
+
+    /**
+     * Visitor-less retry for browse endpoints: a session visitorData rejected
+     * by the WEB backend (stale, account-bound, consent-tangled) fails every
+     * browse that carries it; one anonymous retry distinguishes that from the
+     * content genuinely being unavailable. The field is restored on both paths.
+     */
+    private suspend fun <T> withVisitorFallback(
+        isUsable: (T) -> Boolean,
+        block: () -> Result<T>,
+    ): Result<T> {
+        val first = block()
+        if (first.isSuccess && isUsable(first.getOrThrow())) return first
+        val saved = visitorData ?: return first
+        Timber.tag("YouTubeWeb").w(
+            "browse unusable (%s) — retrying without visitorData",
+            first.exceptionOrNull()?.message ?: "empty result",
+        )
+        visitorData = null
+        return try {
+            block()
+        } finally {
+            visitorData = saved
+        }
     }
 
     private fun context() = com.music.innertube.models.Context(
@@ -241,14 +282,33 @@ object YouTubeWeb {
 
     /** YouTube home ("what to watch") feed. */
     suspend fun home(continuation: String? = null): Result<WebFeed> = withNetworkResult {
-        val response = withRetry {
-            httpClient.post("browse") {
-                ytHeaders()
-                setBody(BrowseBody(context = context(), browseId = "FEwhat_to_watch", params = null, continuation = continuation))
-                parameter("continuation", continuation)
-            }.body<JsonElement>()
+        if (continuation != null) {
+            val response = withRetry {
+                httpClient.post("browse") {
+                    ytHeaders()
+                    setBody(BrowseBody(context = context(), browseId = "FEwhat_to_watch", params = null, continuation = continuation))
+                    parameter("continuation", continuation)
+                }.body<JsonElement>()
+            }
+            logEndpoint("homeContinuation", parseHomeFeed(response)) { feed ->
+                "sections=${feed.sections.size} shorts=${feed.shorts.size} cont=${feed.continuation != null}"
+            }
+        } else {
+            val result = withVisitorFallback(
+                isUsable = { feed -> feed.sections.isNotEmpty() || feed.shorts.isNotEmpty() },
+            ) {
+                val response = withRetry {
+                    httpClient.post("browse") {
+                        ytHeaders()
+                        setBody(BrowseBody(context = context(), browseId = "FEwhat_to_watch", params = null, continuation = null))
+                    }.body<JsonElement>()
+                }
+                parseHomeFeed(response)
+            }
+            logEndpoint("home", result) { feed ->
+                "videos=${feed.sections.sumOf { section -> section.videos.size }} shorts=${feed.shorts.size} cont=${feed.continuation != null}"
+            }
         }
-        parseHomeFeed(response)
     }
 
     /** Watch page: title/views/date/description/channel + first page of related videos. */
@@ -303,13 +363,21 @@ object YouTubeWeb {
      */
     suspend fun channel(idOrHandleOrUrl: String): Result<WebChannelPage> = withNetworkResult {
         val browseId = normalizeChannelId(idOrHandleOrUrl)
-        val response = withRetry {
-            httpClient.post("browse") {
-                ytHeaders()
-                setBody(BrowseBody(context = context(), browseId = browseId, params = null, continuation = null))
-            }.body<JsonElement>()
+        val result = withVisitorFallback(
+            isUsable = { page -> page.tabs.isNotEmpty() },
+        ) {
+            val response = withRetry {
+                httpClient.post("browse") {
+                    ytHeaders()
+                    setBody(BrowseBody(context = context(), browseId = browseId, params = null, continuation = null))
+                }.body<JsonElement>()
+            }
+            parseChannelPage(response, browseId)
         }
-        parseChannelPage(response, browseId)
+        logEndpoint("channel", result) { page ->
+            "id=${page.channel.id} tabs=${page.tabs.map { it.title }} subs=${page.channel.subscriberText}"
+        }
+        result
     }
 
     /** One tab (Videos / Shorts / Playlists / Live / Home) of a channel. */

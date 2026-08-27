@@ -1337,15 +1337,18 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Immersive YouTube fullscreen: activity-level chrome steps aside.
+                val ytVideoFullscreen by com.convx.music.utils.YouTubePlaybackState.isFullscreenActive.collectAsState()
+
                 var shouldShowTopBar by rememberSaveable { mutableStateOf(false) }
 
                 // Keyed on effectiveRoute (not navBackStackEntry) so this reacts to a
                 // pager tab switch too -- the real NavHost entry no longer changes
                 // when switching between Home/Search/Library/ListenTogether/Settings.
-                LaunchedEffect(effectiveRoute, listenTogetherInTopBar, showRail) {
+                LaunchedEffect(effectiveRoute, listenTogetherInTopBar, showRail, ytVideoFullscreen) {
                     val isListenTogetherScreen = effectiveRoute == Screens.ListenTogether.route ||
                         currentRoute == "listen_together_from_topbar"
-                    shouldShowTopBar = !showRail &&
+                    shouldShowTopBar = !ytVideoFullscreen && !showRail &&
                         effectiveRoute in topLevelScreens &&
                         effectiveRoute != "settings" &&
                         !(isListenTogetherScreen && listenTogetherInTopBar)
@@ -1791,7 +1794,7 @@ class MainActivity : ComponentActivity() {
                             // Pre-calculate values for graphicsLayer to avoid reading state during composition
                             val navBarTotalHeight = bottomInset + NavigationBarHeight
 
-                            if (!showRail && !showSettingDialoge && currentRoute?.startsWith("settings/") != true && currentRoute !in setOf("wrapped", "update", "listen_together/chat", "login", "equalizer", "ambient_mode")) {
+                            if (!ytVideoFullscreen && !showRail && !showSettingDialoge && currentRoute?.startsWith("settings/") != true && currentRoute !in setOf("wrapped", "update", "listen_together/chat", "login", "equalizer", "ambient_mode")) {
                                 Box {
                                     // Apple Music-style progressive scrim: content fades out under
                                     // the floating glass bar instead of hard-clipping, so the bar

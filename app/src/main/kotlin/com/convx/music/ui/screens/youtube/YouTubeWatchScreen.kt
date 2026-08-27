@@ -217,6 +217,8 @@ fun YouTubeWatchScreen(
 
     // ── Fullscreen / screen-on / back handling ──────────────────────────────
     LaunchedEffect(isFullscreen) {
+        // Activity-level chrome (floating nav bar, mini player dock) reads this.
+        YouTubePlaybackState.isFullscreenActive.value = isFullscreen
         val window = activity?.window ?: return@LaunchedEffect
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         if (isFullscreen) {
@@ -237,6 +239,7 @@ fun YouTubeWatchScreen(
                 controller.show(WindowInsetsCompat.Type.systemBars())
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
+            YouTubePlaybackState.isFullscreenActive.value = false
             // Final progress snapshot so Continue Watching never trails by the poll interval.
             persistProgress(viewModel, player)
             // Playback keeps going in the mini player; just drop the video-mode session.

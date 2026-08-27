@@ -67,6 +67,7 @@ import java.net.URI
 import java.io.IOException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Higher first. Ranks Tidal search-result candidates so the matcher below tries
  *  the best-quality candidate first instead of Tidal's own (unordered w.r.t.
@@ -1047,10 +1048,51 @@ object YTPlayerUtils {
         // "index 1 = TVHTML5" while index 1 was actually WEB_REMIX -- the array had been
         // reordered and the magic number silently stopped meaning what it claimed. Any
         // future reordering now moves this with it.
-        val startIndex = when {
+        var startIndex = when {
             isPrivateTrack -> STREAM_FALLBACK_CLIENTS.indexOf(TVHTML5).coerceAtLeast(0)
             isAgeRestricted -> 0
             else -> -1
+        }
+
+        // Video mode speed-up: the sequential fallback walk costs one player
+        // round-trip per client, and most fallback clients are audio-only — the
+        // first muxed-capable client can be several hops in (measured ~5s+).
+        // When the main client has no muxed format, probe the likely-muxed
+        // fallbacks CONCURRENTLY (one round-trip wall-clock) and enter the
+        // regular sequential loop directly at the best one. The loop keeps its
+        // own onward fallback if that client's stream later fails validation.
+        if (videoMode && startIndex == -1 &&
+            selectMuxedVideoFormat(mainPlayerResponse.streamingData?.formats) == null
+        ) {
+            val probeCandidates = listOf(1, 2, 8, 9, 5, 6, 7).filter { it < STREAM_FALLBACK_CLIENTS.size }
+            val probeResults: Map<Int, List<PlayerResponse.StreamingData.Format>?> =
+                kotlinx.coroutines.coroutineScope {
+                    probeCandidates.associateWith { idx ->
+                        async {
+                            try {
+                                withTimeoutOrNull(6_000L) {
+                                    YouTube.player(
+                                        videoId,
+                                        playlistId,
+                                        STREAM_FALLBACK_CLIENTS[idx],
+                                        signatureTimestamp = null,
+                                        poToken = null,
+                                    ).getOrNull()?.streamingData?.formats
+                                }
+                            } catch (e: Exception) {
+                                Timber.tag(logTag).d("videoMode probe failed for ${STREAM_FALLBACK_CLIENTS[idx].clientName}: ${e.message}")
+                                null
+                            }
+                        }
+                    }.mapValues { it.value.await() }
+                }
+            val winner = probeResults.entries
+                .firstOrNull { (_, formats) -> formats != null && selectMuxedVideoFormat(formats) != null }
+                ?.key
+            if (winner != null) {
+                Timber.tag(logTag).d("videoMode probe: entering chain at ${STREAM_FALLBACK_CLIENTS[winner].clientName}")
+                startIndex = winner
+            }
         }
 
         for (clientIndex in (startIndex until STREAM_FALLBACK_CLIENTS.size)) {

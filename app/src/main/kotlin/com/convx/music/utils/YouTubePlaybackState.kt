@@ -32,6 +32,14 @@ import kotlinx.coroutines.flow.asStateFlow
 object YouTubePlaybackState {
     private val _sessionActive = MutableStateFlow(false)
 
+    /**
+     * True while the watch screen is in immersive fullscreen. The activity
+     * level floating nav bar / mini player dock read this to step out of the
+     * video's way — they are drawn above every destination and would otherwise
+     * float over the fullscreen player.
+     */
+    val isFullscreenActive = MutableStateFlow(false)
+
     /** Observable for debugging/tests; the hot path reads [isActive]. */
     val sessionActive: StateFlow<Boolean> = _sessionActive.asStateFlow()
 

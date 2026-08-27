@@ -43,6 +43,24 @@ object TTMLParser {
         val hasTrailingSpace: Boolean
     )
     
+    /**
+     * Walks this element and its ancestors for a `ttm:agent` (or unprefixed
+     * `agent`) attribute. Apple often stamps the voice on the enclosing `<div>`
+     * and omits it on continuation `<p>`s — without inheritance those lines
+     * get painted as the wrong singer.
+     */
+    private fun Element.findAgent(): String? {
+        var current: Node? = this
+        while (current != null) {
+            if (current is Element) {
+                val value = current.getAttributeByLocalName("agent")
+                if (value.isNotEmpty()) return value
+            }
+            current = current.parentNode
+        }
+        return null
+    }
+
     // Helper function to get attribute by local name (handles namespace prefixes)
     private fun Element.getAttributeByLocalName(localName: String): String {
         // First try namespace-aware lookup
@@ -141,8 +159,10 @@ object TTMLParser {
                 val spanInfos = mutableListOf<SpanInfo>()
                 val backgroundLines = mutableListOf<ParsedLine>()
                 
-                // Get agent/vocalist info (ttm:agent attribute)
-                val agent = pElement.getAttributeByLocalName("agent").ifEmpty { null }
+                // Get agent/vocalist info (ttm:agent on the <p>, or inherited
+                // from a parent <div> — Apple often stamps the voice on the
+                // verse block and omits it on continuation lines).
+                val agent = pElement.findAgent()
                 
                 // Parse child nodes to preserve whitespace between spans
                 val childNodes = pElement.childNodes
@@ -221,8 +241,20 @@ object TTMLParser {
         } catch (e: Exception) {
             return emptyList()
         }
-        
-        return lines
+
+        // Carry the last known lead voice onto lines that still have none.
+        // Apple's convention is "agent persists until it changes"; a missing
+        // attribute is a continuation, not a different singer.
+        var lastAgent: String? = null
+        return lines.map { line ->
+            if (line.isBackground) {
+                line
+            } else {
+                val agent = line.agent ?: lastAgent
+                if (agent != null) lastAgent = agent
+                if (agent == line.agent) line else line.copy(agent = agent)
+            }
+        }
     }
     
     private fun parseBackgroundSpan(span: Element, parentStartTime: Double): ParsedLine? {

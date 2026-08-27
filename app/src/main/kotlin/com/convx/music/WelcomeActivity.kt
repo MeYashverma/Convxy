@@ -32,6 +32,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -916,7 +917,6 @@ fun RotatingShapeContainer(modifier: Modifier = Modifier) {
     )
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    val backgroundColor = MaterialTheme.colorScheme.background
 
     Box(
         modifier = modifier,
@@ -931,11 +931,12 @@ fun RotatingShapeContainer(modifier: Modifier = Modifier) {
                 .rotate(rotation)
         )
 
-        Icon(
-            painter = painterResource(com.convx.music.R.mipmap.ic_launcher_monochrome),
+        Image(
+            painter = painterResource(com.convx.music.R.drawable.icon),
             contentDescription = null,
-            modifier = Modifier.size(220.dp),
-            tint = backgroundColor
+            modifier = Modifier
+                .size(200.dp)
+                .clip(CircleShape)
         )
     }
 }

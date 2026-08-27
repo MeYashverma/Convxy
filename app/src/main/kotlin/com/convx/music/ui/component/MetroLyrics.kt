@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.constants.AppleMusicLyricsBlurKey
+import com.convx.music.constants.LyricsGlowEffectKey
 import com.convx.music.constants.LyricsRomanizeAsMainKey
 import com.convx.music.lyrics.LyricsEntry
 import com.convx.music.ui.screens.settings.LyricsPosition
@@ -318,6 +319,7 @@ private fun WordLevelCanvasLyrics(
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
+    val (lyricsGlowEffect) = rememberPreference(LyricsGlowEffectKey, true)
     val glowPaint = remember {
         android.graphics.Paint().apply {
             isAntiAlias = true
@@ -817,7 +819,7 @@ private fun WordLevelCanvasLyrics(
                             )
                         }
                     }) {
-                        if (shouldGlow) {
+                        if (shouldGlow && lyricsGlowEffect) {
                             val sMs = wordItem!!.startTime * 1000
                             val eMs = wordItem.endTime * 1000
                             val dur = eMs - sMs

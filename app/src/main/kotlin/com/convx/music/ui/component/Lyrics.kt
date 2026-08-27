@@ -960,16 +960,13 @@ fun Lyrics(
                     // animate against it (word-timed Vivi lines, Metro's word canvas
                     // near the active line). Everything else keeps rendering without
                     // recomposing on every tick, which keeps plain LRC lyrics smooth.
-                    val needsPlaybackPosition = when (lyricsAnimationStyle) {
-                        LyricsAnimationStyle.APPLE_MUSIC ->
-                            isSynced && kotlin.math.abs(index - displayedCurrentLineIndex) <= 1
-                        LyricsAnimationStyle.METRO_LYRICS ->
-                            isSynced && kotlin.math.abs(index - displayedCurrentLineIndex) <= 3
-                        LyricsAnimationStyle.VIVIMUSIC_1 -> item.words?.isNotEmpty() == true
-                        LyricsAnimationStyle.LYRICS_V2 ->
-                            kotlin.math.abs(index - displayedCurrentLineIndex) <= 1
-                        else -> false
-                    }
+                    // Word-level glow / karaoke fill reads this position. Every
+                    // style that paints per-word (Apple, Glow, Karaoke, Fade,
+                    // Slide, V2, Metro, …) must see a live clock — otherwise
+                    // the glow preference appears to "sometimes" do nothing
+                    // because isWordActive is computed against 0L.
+                    val needsPlaybackPosition = isSynced &&
+                        kotlin.math.abs(index - displayedCurrentLineIndex) <= 3
                     val effectivePlaybackPosition =
                         if (needsPlaybackPosition) currentPlaybackPosition + lyricsOffset else 0L
 
@@ -1478,6 +1475,7 @@ fun Lyrics(
                                     }
                                     // Enhanced shadow for active words
                                     val wordShadow = when {
+                                        !lyricsGlowEffect -> null
                                         isWordActive && fadeProgress > 0.2f -> Shadow(
                                             color = lineAccent.copy(alpha = 0.35f * fadeProgress),
                                             offset = Offset.Zero,

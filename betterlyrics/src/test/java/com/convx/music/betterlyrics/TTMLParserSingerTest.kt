@@ -112,4 +112,46 @@ class TTMLParserSingerTest {
         assertTrue(TTMLParser.parseAgents("not xml at all <broken").isEmpty())
         assertTrue(TTMLParser.parseAgents("").isEmpty())
     }
+
+    @Test
+    fun `agent on parent div is inherited by child paragraphs`() {
+        val nested = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <tt xmlns="http://www.w3.org/ns/ttml"
+                xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+              <body>
+                <div ttm:agent="v2">
+                  <p begin="00:01.000" end="00:02.000">Featured first</p>
+                  <p begin="00:02.000" end="00:03.000">Still featured</p>
+                </div>
+                <div ttm:agent="v1">
+                  <p begin="00:03.000" end="00:04.000">Primary later</p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val lines = TTMLParser.parseTTML(nested)
+        assertEquals(listOf("v2", "v2", "v1"), lines.map { it.agent })
+    }
+
+    @Test
+    fun `missing agent on a continuation line keeps the previous singer`() {
+        val sparse = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <tt xmlns="http://www.w3.org/ns/ttml"
+                xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+              <body>
+                <div>
+                  <p begin="00:01.000" ttm:agent="v1">Line one</p>
+                  <p begin="00:02.000">Line two continues</p>
+                  <p begin="00:03.000" ttm:agent="v2">Other singer</p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val lines = TTMLParser.parseTTML(sparse)
+        assertEquals(listOf("v1", "v1", "v2"), lines.map { it.agent })
+    }
 }

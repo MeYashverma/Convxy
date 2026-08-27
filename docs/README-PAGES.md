@@ -1,7 +1,8 @@
 # GitHub Pages for the Convxy website
 
-`docs/index.html` is the project website (terminal-style one-pager with live
-GitHub data). It is fully static and self-contained — no build step.
+`docs/index.html` is the project website (terminal-style product page with live
+GitHub data). It is fully static and self-contained — no build step. The
+favicon / hero mark is `docs/icon.png` (generated from `app_icons/Convxy.png`).
 
 ## One-time enable (repo owner)
 

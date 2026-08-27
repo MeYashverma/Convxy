@@ -116,11 +116,29 @@ fun AppleMusicLyricsLine(
 
     val fontWeight = if (isActive || !isSynced) FontWeight.Bold else FontWeight.SemiBold
     val dimColor = textColor.copy(alpha = 0.45f)
+    val glowShadow = if (lyricsGlowEffect && (isActive || !isSynced)) {
+        Shadow(
+            color = textColor.copy(alpha = 0.55f),
+            offset = Offset.Zero,
+            blurRadius = 18f,
+        )
+    } else {
+        null
+    }
 
     // Only the active line recomputes its karaoke fill on position ticks;
     // every other line renders plain text and stays jank-free.
+    // Shadow lives on each SpanStyle: Compose drops TextStyle.shadow whenever
+    // a span paints with a Brush, which is why the glow used to vanish on
+    // word-timed lines.
     val activeAnnotated = if (isActive && isSynced && !entry.words.isNullOrEmpty()) {
-        buildWordKaraokeTimed(entry.words!!, effectivePlaybackPosition, textColor, dimColor)
+        buildWordKaraokeTimed(
+            words = entry.words!!,
+            positionMs = effectivePlaybackPosition,
+            activeColor = textColor,
+            dimColor = dimColor,
+            glow = glowShadow,
+        )
     } else {
         null
     }
@@ -143,14 +161,6 @@ fun AppleMusicLyricsLine(
             contentAlignment = alignment,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            // Same preference-driven accent glow on the active line as every other style
-            val activeLineGlow = if (lyricsGlowEffect && (isActive || !isSynced)) {
-                Shadow(
-                    color = textColor.copy(alpha = 0.5f),
-                    offset = Offset.Zero,
-                    blurRadius = 18f,
-                )
-            } else null
             if (activeAnnotated != null) {
                 Text(
                     text = activeAnnotated,
@@ -158,7 +168,7 @@ fun AppleMusicLyricsLine(
                     fontWeight = fontWeight,
                     textAlign = textAlign,
                     color = textColor,
-                    style = androidx.compose.ui.text.TextStyle(shadow = activeLineGlow),
+                    style = androidx.compose.ui.text.TextStyle(shadow = glowShadow),
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
@@ -168,7 +178,7 @@ fun AppleMusicLyricsLine(
                     fontWeight = fontWeight,
                     textAlign = textAlign,
                     color = textColor,
-                    style = androidx.compose.ui.text.TextStyle(shadow = activeLineGlow),
+                    style = androidx.compose.ui.text.TextStyle(shadow = glowShadow),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -186,13 +196,23 @@ private fun buildWordKaraokeTimed(
     positionMs: Long,
     activeColor: Color,
     dimColor: Color,
+    glow: Shadow?,
 ) = buildAnnotatedString {
     val positionSec = positionMs / 1000.0
     words.forEachIndexed { index, word ->
         val span = (word.endTime - word.startTime).coerceAtLeast(0.001)
         val progress = ((positionSec - word.startTime) / span).coerceIn(0.0, 1.0)
+        val wordGlow = if (glow != null && progress > 0.0) {
+            Shadow(
+                color = glow.color,
+                offset = glow.offset,
+                blurRadius = glow.blurRadius * (0.45f + 0.55f * progress.toFloat()),
+            )
+        } else {
+            null
+        }
         val spanStyle = when {
-            progress >= 1.0 -> SpanStyle(color = activeColor)
+            progress >= 1.0 -> SpanStyle(color = activeColor, shadow = wordGlow)
             progress <= 0.0 -> SpanStyle(color = dimColor)
             else -> {
                 val p = progress.toFloat()
@@ -204,6 +224,7 @@ private fun buildWordKaraokeTimed(
                         endStop to dimColor,
                         1f to dimColor,
                     ),
+                    shadow = wordGlow,
                 )
             }
         }

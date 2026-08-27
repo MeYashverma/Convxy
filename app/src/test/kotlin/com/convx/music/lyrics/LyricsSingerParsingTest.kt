@@ -185,6 +185,15 @@ class LyricsSingerParsingTest {
     }
 
     @Test
+    fun `lines without an agent inherit the previous singer`() {
+        val parsed = LyricsUtils.parseLyricsWithSingers(
+            "[00:01.00]{agent:v1}First\n[00:02.00]Continues\n[00:03.00]{agent:v2}Switch\n[00:04.00]Still two"
+        )
+        assertEquals(listOf("v1", "v1", "v2", "v2"), parsed.entries.map { it.agent })
+        assertTrue(parsed.hasMultipleSingers)
+    }
+
+    @Test
     fun `rich sync lyrics keep agent metadata`() {
         val parsed = LyricsUtils.parseLyricsWithSingers(
             "[00:01.00]{agent:v1}<00:01.00>Hello <00:01.50>world\n" +

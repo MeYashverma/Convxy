@@ -22,6 +22,12 @@ class SingerPaletteTest {
     private fun entry(agent: String?, background: Boolean = false) =
         LyricsEntry(time = 0L, text = "x", agent = agent, isBackground = background)
 
+    private fun displays(
+        agents: List<String>,
+        singers: Map<String, SingerInfo> = emptyMap(),
+        artists: List<String> = emptyList(),
+    ) = resolveSingerDisplays(agents.map { entry(it) }, singers, artists)
+
     @Test
     fun `colors assigned by first appearance and only for lead voices`() {
         val entries = listOf(entry("v1"), entry("v2"), entry("v1"), entry("v1000"), entry(null))
@@ -70,38 +76,106 @@ class SingerPaletteTest {
     fun `registry names win over inference`() {
         val singers = mapOf(
             "v1" to SingerInfo("v1", "Ryan Gosling"),
+            "v2" to SingerInfo("v2", "Emma Stone"),
             "v1000" to SingerInfo("v1000", null, isGroup = true),
         )
+        val result = displays(
+            agents = listOf("v1", "v2", "v1000"),
+            singers = singers,
+            artists = listOf("Someone Else", "Another"),
+        )
 
-        val display = resolveSingerDisplay("v1", singers, listOf("Someone Else"))
-        assertEquals("Ryan Gosling", display.name)
-        assertFalse(display.isGroup)
-
-        val group = resolveSingerDisplay("v1000", singers, emptyList())
-        assertTrue(group.isGroup)
-        assertNull(group.name)
+        assertEquals("Ryan Gosling", result.getValue("v1").name)
+        assertFalse(result.getValue("v1").isGroup)
+        assertTrue(result.getValue("v1000").isGroup)
+        assertNull(result.getValue("v1000").name)
     }
 
     @Test
-    fun `names inferred from track artists when registry is missing`() {
-        val artists = listOf("Ariana Grande", "Mac Miller")
-
-        assertEquals("Ariana Grande", resolveSingerDisplay("v1", emptyMap(), artists).name)
-        assertEquals("Mac Miller", resolveSingerDisplay("v2", emptyMap(), artists).name)
-        assertNull(resolveSingerDisplay("v3", emptyMap(), artists).name)
-        assertNull(resolveSingerDisplay("v2", emptyMap(), emptyList()).name)
+    fun `generic registry names are ignored`() {
+        val singers = mapOf(
+            "v1" to SingerInfo("v1", "Singer 1"),
+            "v2" to SingerInfo("v2", "Voice 2"),
+        )
+        val result = displays(
+            agents = listOf("v1", "v1", "v1", "v2"),
+            singers = singers,
+            artists = listOf("Ariana Grande", "Mac Miller"),
+        )
+        // Generic labels discarded; dominant voice gets the first-billed artist.
+        assertEquals("Ariana Grande", result.getValue("v1").name)
+        assertEquals("Mac Miller", result.getValue("v2").name)
     }
 
     @Test
-    fun `non voice ids are not inferred from artists`() {
-        assertNull(resolveSingerDisplay("main", emptyMap(), listOf("Ariana Grande")).name)
+    fun `registry name is rewritten to the matching track artist`() {
+        val singers = mapOf(
+            "v1" to SingerInfo("v1", "Ariana"),
+            "v2" to SingerInfo("v2", "Mac"),
+        )
+        val result = displays(
+            agents = listOf("v1", "v2"),
+            singers = singers,
+            artists = listOf("Ariana Grande", "Mac Miller"),
+        )
+        assertEquals("Ariana Grande", result.getValue("v1").name)
+        assertEquals("Mac Miller", result.getValue("v2").name)
+    }
+
+    @Test
+    fun `names inferred from track artists by vocal dominance not position`() {
+        // Featured artist sings first (v1) but the billed artist sings more lines.
+        val entries = listOf(
+            entry("v1"),
+            entry("v2"), entry("v2"), entry("v2"), entry("v2"),
+        )
+        val result = resolveSingerDisplays(
+            entries,
+            emptyMap(),
+            listOf("Ariana Grande", "Mac Miller"),
+        )
+        assertEquals("Ariana Grande", result.getValue("v2").name)
+        assertEquals("Mac Miller", result.getValue("v1").name)
+    }
+
+    @Test
+    fun `close line counts do not guess names`() {
+        val entries = listOf(entry("v1"), entry("v1"), entry("v2"), entry("v2"))
+        val result = resolveSingerDisplays(
+            entries,
+            emptyMap(),
+            listOf("Ariana Grande", "Mac Miller"),
+        )
+        assertNull(result.getValue("v1").name)
+        assertNull(result.getValue("v2").name)
+    }
+
+    @Test
+    fun `solo artist with two voices gets no guessed names`() {
+        val result = displays(
+            agents = listOf("v1", "v2", "v1", "v2"),
+            artists = listOf("Taylor Swift"),
+        )
+        assertNull(result["v1"]?.name)
+        assertNull(result["v2"]?.name)
     }
 
     @Test
     fun `named group agent keeps its name`() {
         val singers = mapOf("v1000" to SingerInfo("v1000", "Whole Choir", isGroup = true))
-        val display = resolveSingerDisplay("v1000", singers, emptyList())
-        assertEquals("Whole Choir", display.name)
-        assertTrue(display.isGroup)
+        val result = displays(
+            agents = listOf("v1", "v2", "v1000"),
+            singers = singers,
+        )
+        assertEquals("Whole Choir", result.getValue("v1000").name)
+        assertTrue(result.getValue("v1000").isGroup)
+    }
+
+    @Test
+    fun `usableSingerName rejects placeholders`() {
+        assertNull(usableSingerName("Singer 1"))
+        assertNull(usableSingerName("v2"))
+        assertNull(usableSingerName("Male"))
+        assertEquals("Emma Stone", usableSingerName("Emma Stone"))
     }
 }

@@ -22,6 +22,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.convx.music.db.daos.SpeedDialDao
+import com.convx.music.db.daos.YouTubeDao
 import com.convx.music.db.entities.AlbumArtistMap
 import com.convx.music.db.entities.AlbumEntity
 import com.convx.music.db.entities.ArtistEntity
@@ -43,6 +44,9 @@ import com.convx.music.db.entities.SongEntity
 import com.convx.music.db.entities.SpeedDialItem
 import com.convx.music.db.entities.SortedSongAlbumMap
 import com.convx.music.db.entities.SortedSongArtistMap
+import com.convx.music.db.entities.YouTubeSavedVideoEntity
+import com.convx.music.db.entities.YouTubeSearchHistoryEntity
+import com.convx.music.db.entities.YouTubeWatchHistoryEntity
 import com.convx.music.extensions.toSQLiteQuery
 import timber.log.Timber
 import java.time.Instant
@@ -57,6 +61,9 @@ class MusicDatabase(
 ) : DatabaseDao by delegate.dao {
     val speedDialDao: SpeedDialDao
         get() = delegate.speedDialDao
+
+    val youTubeDao: YouTubeDao
+        get() = delegate.youTubeDao
 
     val openHelper: SupportSQLiteOpenHelper
         get() = delegate.openHelper
@@ -110,14 +117,17 @@ class MusicDatabase(
         PlayCountEntity::class,
         RecognitionHistory::class,
         SpeedDialItem::class,
-        SongAnalysisEntity::class
+        SongAnalysisEntity::class,
+        YouTubeWatchHistoryEntity::class,
+        YouTubeSavedVideoEntity::class,
+        YouTubeSearchHistoryEntity::class
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 37,
+    version = 38,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -154,12 +164,14 @@ class MusicDatabase(
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
         AutoMigration(from = 36, to = 37),
+        AutoMigration(from = 37, to = 38),
     ],
 )
 @TypeConverters(Converters::class)
 abstract class InternalDatabase : RoomDatabase() {
     abstract val dao: DatabaseDao
     abstract val speedDialDao: SpeedDialDao
+    abstract val youTubeDao: YouTubeDao
 
     companion object {
         const val DB_NAME = "song.db"

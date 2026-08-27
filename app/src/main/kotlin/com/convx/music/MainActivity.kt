@@ -1856,7 +1856,21 @@ class MainActivity : ComponentActivity() {
                                         scrollConnection = floatingNavBarScrollConnection,
                                         pureBlack = pureBlack,
                                         showPlayerAccessory = hasDockedPlayerAccessory,
-                                        onAccessoryClick = { playerBottomSheetState.expandSoft() },
+                                        onAccessoryClick = {
+                                            // A YouTube watch-screen video keeps playing in the
+                                            // mini player after the watch screen closes; tapping
+                                            // the accessory returns to the watch page instead of
+                                            // the audio player sheet.
+                                            val lastVideoId = com.convx.music.utils.YouTubePlaybackState.lastVideoId
+                                            val currentId = playerConnection?.mediaMetadata?.value?.id
+                                            if (lastVideoId != null && lastVideoId == currentId) {
+                                                navController.navigate("youtube_watch/$lastVideoId") {
+                                                    launchSingleTop = true
+                                                }
+                                            } else {
+                                                playerBottomSheetState.expandSoft()
+                                            }
+                                        },
                                         onAccessoryLyricsClick = {
                                             playerBottomSheetState.expandSoft()
                                             playerConnection?.requestShowLyrics?.value = true
@@ -2474,8 +2488,11 @@ class MainActivity : ComponentActivity() {
                             }
                         }.onFailure { reportException(it) }
                     }
-                } else {
+                } else if (uri.host?.equals("music.youtube.com", ignoreCase = true) == true) {
                     navController.navigate("online_playlist/$playlistId") { launchSingleTop = true }
+                } else {
+                    // Regular YouTube playlist → native YouTube playlist page.
+                    navController.navigate("youtube_playlist/$playlistId") { launchSingleTop = true }
                 }
             }
 
@@ -2483,55 +2500,58 @@ class MainActivity : ComponentActivity() {
                 navController.navigate("album/$browseId") { launchSingleTop = true }
             }
 
-            "channel", "c" -> uri.lastPathSegment?.let { artistId ->
-                navController.navigate("artist/$artistId") { launchSingleTop = true }
+            "channel", "c", "user" -> uri.lastPathSegment?.let { channelId ->
+                if (uri.host?.equals("music.youtube.com", ignoreCase = true) == true) {
+                    navController.navigate("artist/$channelId") { launchSingleTop = true }
+                } else {
+                    val id = if (path == "channel") channelId else "@$channelId"
+                    navController.navigate("youtube_channel/$id") { launchSingleTop = true }
+                }
             }
 
             "search" -> {
-                uri.getQueryParameter("q")?.let {
-                    navController.navigate("search/${URLEncoder.encode(it, "UTF-8")}") { launchSingleTop = true }
+                val query = uri.getQueryParameter("q")
+                if (uri.host?.equals("music.youtube.com", ignoreCase = true) == true) {
+                    query?.let {
+                        navController.navigate("search/${URLEncoder.encode(it, "UTF-8")}") { launchSingleTop = true }
+                    }
+                } else {
+                    query?.let {
+                        // URLEncoder emits '+' for spaces; NavController would show the
+                        // literal plus, so percent-encode spaces instead.
+                        val encoded = URLEncoder.encode(it, "UTF-8").replace("+", "%20")
+                        navController.navigate("youtube_search?q=$encoded") { launchSingleTop = true }
+                    } ?: run {
+                        navController.navigate("youtube_search") { launchSingleTop = true }
+                    }
                 }
             }
 
-            else -> {
-                val videoId = when {
-                    path == "watch" -> uri.getQueryParameter("v")
-                    uri.host == "youtu.be" -> uri.pathSegments.firstOrNull()
-                    else -> null
+            // Vertical Shorts play through the same native watch screen.
+            "shorts" -> uri.lastPathSegment
+                ?.takeIf { it.length == 11 }
+                ?.let { videoId ->
+                    navController.navigate("youtube_watch/$videoId") { launchSingleTop = true }
                 }
 
-                val playlistId = uri.getQueryParameter("list")
+            else -> {
+                val videoId = when {
+                    path == "watch" || path == "v" || path == "embed" || path == "live" ->
+                        uri.getQueryParameter("v") ?: uri.lastPathSegment
+                    uri.host == "youtu.be" -> uri.pathSegments.firstOrNull()
+                    uri.scheme == "vnd.youtube" ->
+                        uri.pathSegments.firstOrNull() ?: uri.schemeSpecificPart?.substringBefore('?')
+                    else -> null
+                }?.takeIf { it.length == 11 }
 
                 if (videoId != null) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        YouTube.queue(listOf(videoId), playlistId).onSuccess { queue ->
-                            withContext(Dispatchers.Main) {
-                                playerConnection?.playQueue(
-                                    YouTubeQueue(
-                                        WatchEndpoint(videoId = queue.firstOrNull()?.id, playlistId = playlistId),
-                                        queue.firstOrNull()?.toMediaMetadata()
-                                    )
-                                )
-                            }
-                        }.onFailure {
-                            reportException(it)
-                        }
-                    }
-                } else if (playlistId != null) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        YouTube.queue(null, playlistId).onSuccess { queue ->
-                            val firstItem = queue.firstOrNull()
-                            withContext(Dispatchers.Main) {
-                                playerConnection?.playQueue(
-                                    YouTubeQueue(
-                                        WatchEndpoint(videoId = firstItem?.id, playlistId = playlistId),
-                                        firstItem?.toMediaMetadata()
-                                    )
-                                )
-                            }
-                        }.onFailure {
-                            reportException(it)
-                        }
+                    // Regular YouTube links open the native watch screen; the
+                    // queue beneath it is the video's related list.
+                    navController.navigate("youtube_watch/$videoId") { launchSingleTop = true }
+                } else {
+                    val playlistId = uri.getQueryParameter("list")
+                    if (playlistId != null && !playlistId.startsWith("RD")) {
+                        navController.navigate("youtube_playlist/$playlistId") { launchSingleTop = true }
                     }
                 }
             }

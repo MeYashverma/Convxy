@@ -38,7 +38,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToJsonElement
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -369,7 +368,7 @@ object YouTubeWeb {
                     ytHeaders()
                     setBody(
                         buildJsonObject {
-                            put("context", json.encodeToJsonElement(context()))
+                            put("context", json.encodeToJsonElement(com.music.innertube.models.Context.serializer(), context()))
                             put("url", JsonPrimitive(url))
                         }
                     )
@@ -1334,7 +1333,7 @@ object YouTubeWeb {
                     ytHeaders()
                     setBody(
                         buildJsonObject {
-                            put("context", json.encodeToJsonElement(context()))
+                            put("context", json.encodeToJsonElement(com.music.innertube.models.Context.serializer(), context()))
                             put("url", JsonPrimitive(url))
                         }
                     )

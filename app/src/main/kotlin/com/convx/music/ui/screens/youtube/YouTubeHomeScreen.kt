@@ -58,7 +58,6 @@ import com.convx.music.db.entities.YouTubeWatchHistoryEntity
 import com.convx.music.models.toMediaMetadata
 import com.convx.music.extensions.toMediaItem
 import com.convx.music.playback.queues.YouTubeVideoQueue
-import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.LargeScreenTitle
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.NavigationTitle
@@ -125,7 +124,7 @@ fun YouTubeHomeScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     LargeScreenTitle(title = "YouTube")
                 }
-                GlassCircleButton(
+                GlassButton(
                     onClick = { navController.navigate("youtube_history") },
                     modifier = Modifier.padding(end = 8.dp),
                 ) {
@@ -134,9 +133,7 @@ fun YouTubeHomeScreen(
                         contentDescription = "Watch history",
                     )
                 }
-                GlassCircleButton(
-                    onClick = { navController.navigate("youtube_search") },
-                ) {
+                GlassButton(onClick = { navController.navigate("youtube_search") }) {
                     Icon(
                         painter = painterResource(R.drawable.search),
                         contentDescription = stringResource(com.convx.music.R.string.search),

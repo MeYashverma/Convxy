@@ -78,7 +78,7 @@ import com.convx.music.playback.queues.YouTubeVideoQueue
 import com.convx.music.ui.component.ExpandableText
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.menu.YouTubeVideoMenu
-import com.convx.music.ui.player.VideoPlaybackSurface
+import com.convx.music.ui.player.VideoSurface
 import com.convx.music.ui.utils.combinedBounceClick
 import com.convx.music.utils.YouTubePlaybackState
 import com.convx.music.utils.makeTimeString
@@ -90,7 +90,7 @@ import timber.log.Timber
 
 /**
  * The native watch screen: a responsive player (the shared MusicService
- * ExoPlayer rendered through [VideoPlaybackSurface]), metadata, actions, and
+ * ExoPlayer rendered through [VideoSurface]), metadata, actions, and
  * the related queue below. Leaving the screen never stops playback — the
  * global mini player takes over, and tapping it returns here.
  */
@@ -306,12 +306,13 @@ fun YouTubeWatchScreen(
                         .aspectRatio(16f / 9f)
                         .background(Color.Black),
                 ) {
-                    // SurfaceView backend: static layout (no Compose transforms) and
-                    // by far the most robust video path — TextureView has crashed
-                    // natively on some devices at first video render.
-                    VideoPlaybackSurface(
+                    // PlayerView-hosted SurfaceView (the Flow/NewPipe pattern):
+                    // PlayerView owns surface lifecycle, aspect ratio and
+                    // keep-content-on-reset, which is where hand-rolled video
+                    // surfaces die natively on some devices.
+                    VideoSurface(
+                        player = player,
                         modifier = Modifier.fillMaxSize(),
-                        useSurfaceView = true,
                     )
 
                     // Waiting for the watch page to resolve before the queue
@@ -852,9 +853,9 @@ private fun FullscreenPlayer(
             .fillMaxSize()
             .background(Color.Black),
     ) {
-        VideoPlaybackSurface(
+        VideoSurface(
+            player = player,
             modifier = Modifier.fillMaxSize(),
-            useSurfaceView = true,
         )
 
         if (isWaitingForStream && !isBuffering) {

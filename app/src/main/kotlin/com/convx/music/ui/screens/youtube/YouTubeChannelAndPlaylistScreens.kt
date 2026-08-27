@@ -59,7 +59,6 @@ import com.convx.music.extensions.toMediaItem
 import com.convx.music.models.toMediaMetadata
 import com.convx.music.playback.queues.ListQueue
 import com.convx.music.ui.component.EmptyPlaceholder
-import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.component.NavigationTitle
 import com.convx.music.ui.component.shimmer.ShimmerHost
@@ -117,7 +116,7 @@ fun YouTubeChannelScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                GlassCircleButton(onClick = { navController.navigateUp() }) {
+                GlassButton(onClick = { navController.navigateUp() }) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
                         contentDescription = "Back",
@@ -373,7 +372,7 @@ fun YouTubePlaylistScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                GlassCircleButton(onClick = { navController.navigateUp() }) {
+                GlassButton(onClick = { navController.navigateUp() }) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
                         contentDescription = "Back",
@@ -602,7 +601,7 @@ fun YouTubeHistoryScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                GlassCircleButton(onClick = { navController.navigateUp() }) {
+                GlassButton(onClick = { navController.navigateUp() }) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
                         contentDescription = "Back",
@@ -711,7 +710,7 @@ fun YouTubeSavedScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                GlassCircleButton(onClick = { navController.navigateUp() }) {
+                GlassButton(onClick = { navController.navigateUp() }) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
                         contentDescription = "Back",

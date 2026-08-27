@@ -57,7 +57,6 @@ import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
-import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.LocalMenuState
 import com.convx.music.ui.menu.YouTubeVideoMenu
 import com.convx.music.ui.utils.combinedBounceClick
@@ -153,7 +152,7 @@ fun YouTubeSearchScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            GlassCircleButton(onClick = { navController.navigateUp() }) {
+            GlassButton(onClick = { navController.navigateUp() }) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
                     contentDescription = "Back",

@@ -58,6 +58,30 @@ private fun youtubeCardSubtitle(video: WebVideo): String =
         .joinToString(separator = " • ")
 
 /**
+ * Round icon button in Convxy's floating-control style (solid surface circle,
+ * no ripple). Deliberately does NOT use the liquid-glass [com.convx.music.ui.component.GlassCircleButton]:
+ * the glass modifier records backdrops, and keeping the YouTube screens on the
+ * plain path removes the one exotic component from their composition.
+ */
+@Composable
+fun GlassButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+/**
  * Full-width feed card for a regular YouTube video: 16:9 thumbnail with a
  * duration badge and optional watch-progress bar, then title and channel
  * metadata. Matches Convxy's rounded-thumbnail design language.

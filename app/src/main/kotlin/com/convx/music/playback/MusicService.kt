@@ -3808,20 +3808,26 @@ class MusicService :
         Timber.tag("MusicService").i("VIDEO OVERRIDE CHANGED — reloading $mediaId at ${currentPosition}ms")
         songUrlCache.remove(mediaId)
         songUrlCache.remove("$mediaId#video")
-        runBlocking(Dispatchers.IO) {
-            try {
-                playerCache.removeResource(mediaId)
-                playerCache.removeResource("$mediaId#video")
-            } catch (e: Exception) {
-                Timber.tag("MusicService").e(e, "Failed to clear cache for video mode change")
+        scope.launch {
+            // Cache removal must not run on the caller (main) thread: removing a
+            // resource can delete hundreds of MB and block on the cache lock the
+            // loader thread holds while writing the stream — a guaranteed ANR at
+            // exactly the moment a video stream starts caching.
+            withContext(Dispatchers.IO) {
+                try {
+                    playerCache.removeResource(mediaId)
+                    playerCache.removeResource("$mediaId#video")
+                } catch (e: Exception) {
+                    Timber.tag("MusicService").e(e, "Failed to clear cache for video mode change")
+                }
             }
-        }
-        bypassCacheForQualityChange.add(mediaId)
-        player.stop()
-        player.seekTo(currentIndex, currentPosition)
-        player.prepare()
-        if (wasPlaying) {
-            player.play()
+            bypassCacheForQualityChange.add(mediaId)
+            player.stop()
+            player.seekTo(currentIndex, currentPosition)
+            player.prepare()
+            if (wasPlaying) {
+                player.play()
+            }
         }
     }
 

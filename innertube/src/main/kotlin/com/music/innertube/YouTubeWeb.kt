@@ -48,6 +48,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import com.music.innertube.utils.parseCookieString
+import com.music.innertube.utils.sha1
 import timber.log.Timber
 import java.net.Proxy
 import java.util.Locale
@@ -93,6 +95,32 @@ object YouTubeWeb {
     var proxyAuth: String? = null
 
     private var httpClient = createClient()
+
+    /**
+     * Anonymous native-client tube used as a fallback when the WEB browse
+     * responses come back degraded (header-only channel pages, empty tabs) —
+     * a bot-wall/consent degradation the WEB client is the most exposed to.
+     * The ANDROID_VR client is far more resistant, and its mobile browse
+     * shape is parsed by the same parsers (single-column tabs).
+     */
+    private val nativeTube = InnerTube()
+
+    private suspend fun nativeBrowse(
+        browseId: String?,
+        params: String?,
+        continuation: String?,
+    ): Result<JsonElement> = runCatching {
+        nativeTube.locale = YouTube.locale
+        nativeTube.proxy = YouTube.proxy
+        nativeTube.proxyAuth = YouTube.proxyAuth
+        nativeTube.browse(
+            YouTubeClient.ANDROID_VR_1_43_32,
+            browseId = browseId,
+            params = params,
+            continuation = continuation,
+            setLogin = false,
+        ).body<JsonElement>()
+    }
 
     @OptIn(ExperimentalSerializationApi::class)
     private fun createClient() = HttpClient(OkHttp) {
@@ -142,9 +170,31 @@ object YouTubeWeb {
         header("X-Origin", ORIGIN)
         header("Referer", "$ORIGIN/")
         visitorData?.let { header("X-Goog-Visitor-Id", it) }
-        // Standard consent bypass (same value NewPipe/yt-dlp send): without a
-        // SOCS cookie some regions get a consent page instead of innertube data.
-        header(HttpHeaders.Cookie, "SOCS=CAI")
+        // Session handling. The session visitor id synced from the app is the
+        // ACCOUNT one when logged in — sending it with an anonymous cookie is a
+        // mismatched session that YouTube degrades (header-only channel pages,
+        // empty watch/related payloads), which is exactly the "everything
+        // browses fine logged out, nothing works after login" signature.
+        // Logged in  -> full browser-grade credentials: account cookie +
+        //               SAPISIDHASH authorization for the youtube.com origin
+        //               (the same thing youtube.com itself sends).
+        // Logged out -> consent cookie only (SOCS), matching an anonymous
+        //               browser; without it some regions consent-wall instead
+        //               of serving innertube data.
+        val cookie = YouTube.cookie
+        if (cookie.isNullOrBlank()) {
+            header(HttpHeaders.Cookie, "SOCS=CAI")
+        } else {
+            val merged = if (cookie.contains("SOCS=", ignoreCase = true)) cookie else "SOCS=CAI; $cookie"
+            header(HttpHeaders.Cookie, merged)
+            val cookies = parseCookieString(merged)
+            val sapisid = cookies["SAPISID"] ?: cookies["__Secure-3PAPISID"]
+            if (sapisid != null) {
+                val currentTime = System.currentTimeMillis() / 1000
+                val sapisidHash = sha1("$currentTime $sapisid $ORIGIN")
+                header("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
+            }
+        }
         header(HttpHeaders.UserAgent, YouTubeClient.USER_AGENT_WEB)
         parameter("key", WEB_API_KEY)
         parameter("prettyPrint", "false")
@@ -225,6 +275,11 @@ object YouTubeWeb {
             hl = locale.hl,
             visitorData = visitorData,
         ),
+        // The website declares the active account identity on every request
+        // while logged in; omitting it makes the session half-authenticated.
+        user = YouTube.cookie?.takeIf { it.isNotBlank() }?.let {
+            com.music.innertube.models.Context.User(onBehalfOfUser = YouTube.dataSyncId)
+        },
     )
 
     /** Retry wrapper for transient IO errors and 429/5xx, mirroring [InnerTube.withRetry]. */
@@ -394,7 +449,7 @@ object YouTubeWeb {
      */
     suspend fun channel(idOrHandleOrUrl: String): Result<WebChannelPage> = withNetworkResult {
         val browseId = normalizeChannelId(idOrHandleOrUrl)
-        val result = withVisitorFallback(
+        var result = withVisitorFallback(
             isUsable = { page -> page.tabs.isNotEmpty() },
         ) {
             val response = withRetry {
@@ -404,6 +459,23 @@ object YouTubeWeb {
                 }.body<JsonElement>().also { captureVisitor(it) }
             }
             parseChannelPage(response, browseId)
+        }
+        if (result.getOrNull()?.tabs?.isEmpty() != false) {
+            // WEB failed outright or served a header-only page (no tabs) —
+            // the bot-wall degradation. Retry the same browse through the
+            // anonymous native client; if it returns tabs, prefer it.
+            val native = nativeBrowse(browseId, null, null).mapCatching { response ->
+                parseChannelPage(response, browseId).getOrThrow()
+            }
+            if (native.getOrNull()?.tabs?.isNotEmpty() == true) {
+                Timber.tag("YouTubeWeb").i("channel: WEB page had no tabs — native fallback OK")
+                result = native
+            } else {
+                Timber.tag("YouTubeWeb").w(
+                    "channel: WEB page had no tabs and native fallback failed (%s)",
+                    native.exceptionOrNull()?.message,
+                )
+            }
         }
         logEndpoint("channel", result) { page ->
             "id=${page.channel.id} tabs=${page.tabs.map { it.title }} subs=${page.channel.subscriberText}"
@@ -419,7 +491,15 @@ object YouTubeWeb {
                 setBody(BrowseBody(context = context(), browseId = browseId, params = params, continuation = null))
             }.body<JsonElement>().also { captureVisitor(it) }
         }
-        logTab("channelTab", parseChannelTabPage(response), response)
+        val page = parseChannelTabPage(response)
+        val finalPage = if (page.videos.isEmpty() && page.shorts.isEmpty() && page.playlists.isEmpty()) {
+            val native = nativeBrowse(browseId, params, null).getOrNull()?.let { parseChannelTabPage(it) }
+            if (native != null && (native.videos.isNotEmpty() || native.shorts.isNotEmpty() || native.playlists.isNotEmpty())) {
+                Timber.tag("YouTubeWeb").i("channelTab: WEB tab empty — native fallback OK (videos=%d)", native.videos.size)
+                native
+            } else page
+        } else page
+        logTab("channelTab", finalPage, response)
     }
 
     suspend fun channelTabContinuation(continuation: String): Result<WebChannelTabPage> = withNetworkResult {

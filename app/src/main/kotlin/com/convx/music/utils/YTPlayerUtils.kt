@@ -964,6 +964,17 @@ object YTPlayerUtils {
             mainDeferred.await() to metaDeferred.await()
         }
 
+        // One line with the whole picture of the main response — this is what
+        // the shareable playback log needs to diagnose "works logged out,
+        // fails logged in" style reports without a debugger attached.
+        PlaybackLogManager.log(
+            PlaybackLogLevel.DEBUG,
+            "Main(${MAIN_CLIENT.clientName}) status=${mainPlayerResponse.playabilityStatus.status}" +
+                " muxed=${mainPlayerResponse.streamingData?.formats?.size ?: 0}" +
+                " adaptive=${mainPlayerResponse.streamingData?.adaptiveFormats?.size ?: 0}",
+            "YouTube",
+        )
+
         // Debug uploaded track response
         if (isUploadedTrack || playlistId?.contains("MLPT") == true) {
             println("[PLAYBACK_DEBUG] Main player response status: ${mainPlayerResponse.playabilityStatus.status}")

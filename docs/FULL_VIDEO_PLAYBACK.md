@@ -37,3 +37,28 @@ Watch a song's actual YouTube video inside the player instead of audio-only.
 - Toggling mid-song keeps position (same reload mechanics as an audio
   quality change).
 - Unit tests: `VideoFormatSelectorTest` pins the muxed ranking rules.
+
+## The native YouTube section (v1.6.0)
+
+Beyond the music-side video toggle, Convxy now has a **full native YouTube
+browsing experience** (regular youtube.com content, not YT Music):
+
+- **Browse** — `YouTubeWeb` (innertube module) is a WEB InnerTube client for
+  the youtube tab: home feed (`FEwhat_to_watch`), search + suggestions +
+  filters, watch page + related videos, channels (tabs), playlists, Shorts.
+  It handles consent (SOCS), session visitor data, and — when logged in —
+  sends full account credentials (cookie + SAPISIDHASH) like youtube.com
+  itself; degraded bot-walled responses fall back to an anonymous
+  ANDROID_VR client.
+- **Watch screen** — `ui/screens/youtube/YouTubeWatchScreen.kt`: renders
+  through the newer `VideoSurface` (a media3 `PlayerView` — SurfaceView on
+  API 34+, TextureView below), pinned portrait player + scrolling
+  metadata/related, immersive fullscreen, double-tap seek, speed, quality
+  cap selector, audio-only toggle. The related videos ARE the ExoPlayer
+  queue (same mini player / notification as music).
+- **Stream resolution** — same `YTPlayerUtils` pipeline in video mode: when
+  the main client serves no muxed format, the muxed-capable native clients
+  are probed in parallel and the fallback chain enters at the first that
+  can serve video. Every step is written to the shareable playback log.
+- **Local data** — watch history / continue-watching / saved videos in Room
+  (YouTube tables, migration 37→38).

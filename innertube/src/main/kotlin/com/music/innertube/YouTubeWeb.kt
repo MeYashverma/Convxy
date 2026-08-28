@@ -419,7 +419,7 @@ object YouTubeWeb {
                 setBody(BrowseBody(context = context(), browseId = browseId, params = params, continuation = null))
             }.body<JsonElement>().also { captureVisitor(it) }
         }
-        Result.success(parseChannelTabPage(response))
+        logTab("channelTab", parseChannelTabPage(response), response)
     }
 
     suspend fun channelTabContinuation(continuation: String): Result<WebChannelTabPage> = withNetworkResult {
@@ -430,7 +430,7 @@ object YouTubeWeb {
                 parameter("continuation", continuation)
             }.body<JsonElement>().also { captureVisitor(it) }
         }
-        Result.success(parseChannelTabPage(response))
+        logTab("channelTabCont", parseChannelTabPage(response), response)
     }
 
     /** Open a public playlist by id (with or without the "VL" prefix). */
@@ -740,6 +740,43 @@ object YouTubeWeb {
         return items.mapNotNull { parseCompactVideoRenderer(it) ?: parseLockupVideo(it) }.distinctBy { it.id }
     }
 
+    /** Tab diagnostics: parsed counts, and — on an empty parse — which renderer keys the payload actually used. */
+    private fun logTab(name: String, page: WebChannelTabPage, response: JsonElement): Result<WebChannelTabPage> {
+        val result = Result.success(page)
+        if (page.videos.isNotEmpty() || page.shorts.isNotEmpty() || page.playlists.isNotEmpty()) {
+            Timber.tag("YouTubeWeb").i(
+                "%s OK: videos=%d shorts=%d playlists=%d cont=%s",
+                name, page.videos.size, page.shorts.size, page.playlists.size, page.continuation != null,
+            )
+        } else {
+            Timber.tag("YouTubeWeb").w(
+                "%s EMPTY: rendererKeys=[%s] cont=%s",
+                name, response.findRendererKeys(), page.continuation != null,
+            )
+        }
+        return result
+    }
+
+    /** Renderer keys present anywhere in the payload — the fingerprint needed to support a new shape. */
+    private fun JsonElement.findRendererKeys(): String {
+        val skip = setOf("contents", "items", "content", "continuationItems", "tabs", "tabRenderer",
+            "thumbnails", "sources", "thumbnail", "title", "runs", "text", "endpoint", "navigationEndpoint")
+        val found = linkedSetOf<String>()
+        fun walk(el: JsonElement?, depth: Int) {
+            if (depth > 14 || found.size > 24) return
+            when (el) {
+                is JsonArray -> el.forEach { walk(it, depth + 1) }
+                is JsonObject -> el.forEach { (key, value) ->
+                    if (key.endsWith("Renderer") || key.endsWith("ViewModel") || key.endsWith("Bar")) found += key
+                    if (key !in skip) walk(value, depth + 1)
+                }
+                else -> Unit
+            }
+        }
+        walk(this, 0)
+        return found.take(20).joinToString(",")
+    }
+
     private fun parseChannelPage(response: JsonElement, requestedId: String): Result<WebChannelPage> {
         val header = response.path("header")
         val metadata = response.path("metadata")
@@ -799,14 +836,22 @@ object YouTubeWeb {
 
         var defaultTabIndex = 0
         var homeContent: WebChannelTabPage? = null
-        val tabs = response.path("contents")
+        // Desktop WEB ships twoColumnBrowseResultsRenderer; some payloads
+        // (mobile-web shape, A/B tests) use singleColumnBrowseResultsRenderer
+        // with the same tabs array. Support both or the channel renders as a
+        // bare header with no content.
+        val tabs = (response.path("contents")
             .path("twoColumnBrowseResultsRenderer")
-            .path("tabs")
-            .asJsonArrayOrNull
+            .path("tabs").asJsonArrayOrNull
+            ?: response.path("contents")
+                .path("singleColumnBrowseResultsRenderer")
+                .path("tabs").asJsonArrayOrNull)
             ?.let { tabEls ->
                 val parsed = ArrayList<Pair<WebChannelTab, JsonElement?>>(tabEls.size)
                 tabEls.forEach { tabEl ->
-                    val tab = tabEl.path("tabRenderer")
+                    val tab = tabEl.path("tabRenderer").takeIf { it != JsonNull }?.let {
+                        if (it is JsonObject && it.containsKey("title")) it else tabEl.path("expandableTabRenderer")
+                    } ?: tabEl.path("expandableTabRenderer")
                     val tabTitle = tab.path("title").firstRunOrText() ?: return@forEach
                     val params = tab.path("endpoint")
                         .path("browseEndpoint")
@@ -865,7 +910,7 @@ object YouTubeWeb {
         val videos = items.mapNotNull { parseVideoRenderer(it) ?: parseGridVideoRenderer(it) ?: parseLockupVideo(it) }
             .filter { !it.isShort }
             .distinctBy { it.id }
-        val shorts = items.mapNotNull { parseShortsLockup(it) ?: parseLockupShort(it) }.distinctBy { it.id }
+        val shorts = items.mapNotNull { parseShortsLockup(it) ?: parseLockupShort(it) ?: parseReelItem(it) }.distinctBy { it.id }
         val playlists = items.mapNotNull { parseGridPlaylist(it) ?: parseLockupPlaylist(it) }
             .distinctBy { it.id }
         return WebChannelTabPage(
@@ -1091,7 +1136,10 @@ object YouTubeWeb {
             durationSeconds = duration,
             viewsText = viewsText,
             publishedText = publishedText,
-            isShort = contentType.contains("SHORT", ignoreCase = true) || (duration != null && duration <= 61),
+            // Explicit SHORT content type only. The old `duration <= 61`
+            // heuristic reclassified real sub-minute NORMAL videos as shorts,
+            // and the channel Videos tab then dropped them from the list.
+            isShort = contentType.contains("SHORT", ignoreCase = true),
         )
     }
 
@@ -1100,6 +1148,24 @@ object YouTubeWeb {
         val contentType = obj.path("contentType").jsonPrimitiveOrNull?.contentOrNullStrict.orEmpty()
         if (!contentType.contains("SHORT", ignoreCase = true)) return null
         return parseLockupVideo(obj)?.copy(isShort = true)
+    }
+
+    /** Legacy Shorts-tab renderer (`reelItemRenderer`), still served by some channel shapes. */
+    private fun parseReelItem(el: JsonElement): WebVideo? {
+        val reel = (el as? JsonObject)?.get("reelItemRenderer") as? JsonObject ?: return null
+        val videoId = reel.path("videoId").jsonPrimitiveOrNull?.contentOrNullStrict ?: return null
+        val title = reel.path("title").firstRunOrText() ?: return null
+        return WebVideo(
+            id = videoId,
+            title = title.decodeHtmlEntities(),
+            channelId = null,
+            channelName = null,
+            thumbnail = reel.path("thumbnail").thumbnailsLargest(),
+            durationSeconds = reel.path("lengthText").firstRunOrText()?.parseDurationSeconds(),
+            viewsText = reel.path("viewCountText").firstRunOrText(),
+            publishedText = null,
+            isShort = true,
+        )
     }
 
     private fun parseShortsLockup(el: JsonElement): WebVideo? {

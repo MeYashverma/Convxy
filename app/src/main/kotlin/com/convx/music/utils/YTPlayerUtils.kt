@@ -1061,16 +1061,20 @@ object YTPlayerUtils {
         // fallbacks CONCURRENTLY (one round-trip wall-clock) and enter the
         // regular sequential loop directly at the best one. The loop keeps its
         // own onward fallback if that client's stream later fails validation.
+        // Only the four native muxed-capable clients are probed: a wide fan-out
+        // (7+) of simultaneous player calls per video switch makes YouTube's
+        // bot heuristics throttle the whole session intermittently, which is
+        // far worse for load reliability than one extra sequential hop.
         if (videoMode && startIndex == -1 &&
             selectMuxedVideoFormat(mainPlayerResponse.streamingData?.formats) == null
         ) {
-            val probeCandidates = listOf(1, 2, 8, 9, 5, 6, 7).filter { it < STREAM_FALLBACK_CLIENTS.size }
+            val probeCandidates = listOf(1, 2, 8, 9).filter { it < STREAM_FALLBACK_CLIENTS.size }
             val probeResults: Map<Int, List<PlayerResponse.StreamingData.Format>?> =
                 kotlinx.coroutines.coroutineScope {
                     probeCandidates.associateWith { idx ->
                         async {
                             try {
-                                withTimeoutOrNull(6_000L) {
+                                withTimeoutOrNull(8_000L) {
                                     YouTube.player(
                                         videoId,
                                         playlistId,
@@ -1091,7 +1095,10 @@ object YTPlayerUtils {
                 ?.key
             if (winner != null) {
                 Timber.tag(logTag).d("videoMode probe: entering chain at ${STREAM_FALLBACK_CLIENTS[winner].clientName}")
+                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Video probe → ${STREAM_FALLBACK_CLIENTS[winner].clientName}", "YouTube")
                 startIndex = winner
+            } else {
+                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Video probe found no muxed client; walking chain", "YouTube")
             }
         }
 

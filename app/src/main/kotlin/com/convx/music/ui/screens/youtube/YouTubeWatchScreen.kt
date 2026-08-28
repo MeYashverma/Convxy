@@ -321,14 +321,15 @@ fun YouTubeWatchScreen(
     }
 
     // ── Portrait layout ──────────────────────────────────────────────────────
-    LazyColumn(
-        state = rememberLazyListState(),
+    // The player stays PINNED at the top; only the content below it (metadata,
+    // related/queue rows) scrolls. Scrolling the playing video off-screen read
+    // as a bug — this is the standard watch-page behaviour.
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        item(key = "player") {
-            Column {
+        Column {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -590,8 +591,13 @@ fun YouTubeWatchScreen(
                     )
                 }
             }
-        }
 
+        LazyColumn(
+            state = rememberLazyListState(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        ) {
         item(key = "meta") {
             MetadataSection(
                 uiState = uiState,
@@ -688,6 +694,7 @@ fun YouTubeWatchScreen(
         }
 
         item(key = "bottom_space") { Spacer(Modifier.height(24.dp)) }
+        }
     }
 }
 

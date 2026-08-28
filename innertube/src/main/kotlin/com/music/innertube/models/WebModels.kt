@@ -99,6 +99,8 @@ data class WebChannelPage(
     /** Tabs that actually exist for this channel, in YouTube's order. */
     val tabs: List<WebChannelTab>,
     val defaultTabIndex: Int = 0,
+    /** Parsed shelves of the Home tab, which ships inline (no continuation params). */
+    val homeContent: WebChannelTabPage? = null,
 )
 
 data class WebChannelTab(

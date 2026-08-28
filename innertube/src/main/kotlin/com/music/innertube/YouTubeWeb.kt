@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonElement
@@ -173,6 +174,18 @@ object YouTubeWeb {
     ): Result<T> {
         val first = block()
         if (first.isSuccess && isUsable(first.getOrThrow())) return first
+        if (visitorData == null) {
+            // Fresh-install bootstrap: browse without a visitor id is exactly
+            // what comes back empty on a brand-new session. Suggestions is the
+            // cheapest innertube call and every WEB response (including this
+            // one) carries responseContext.visitorData — [captureVisitor]
+            // picks it up, and the retry usually succeeds.
+            Timber.tag("YouTubeWeb").w("no visitorData — bootstrapping via suggestions, then retrying browse")
+            searchSuggestions("a")
+            val second = block()
+            if (second.isSuccess && isUsable(second.getOrThrow())) return second
+            return first
+        }
         val saved = visitorData ?: return first
         Timber.tag("YouTubeWeb").w(
             "browse unusable (%s) — retrying without visitorData",
@@ -184,6 +197,24 @@ object YouTubeWeb {
         } finally {
             visitorData = saved
         }
+    }
+
+    /**
+     * Bootstrap the session visitor id from any response that carries one.
+     * On a fresh install [visitorData] is null, and browse endpoints served
+     * without one come back empty (consent/bot wall) — but EVERY WEB response,
+     * including plain search/player metadata calls, contains
+     * `responseContext.visitorData`. Capturing it from the first successful
+     * call is what makes browse work from the very first session instead of
+     * "after watching some videos".
+     */
+    private fun captureVisitor(response: JsonElement) {
+        if (visitorData != null) return
+        response.path("responseContext")
+            .path("visitorData")
+            .jsonPrimitiveOrNull?.contentOrNullStrict
+            ?.takeIf { it.isNotBlank() }
+            ?.let { visitorData = it }
     }
 
     private fun context() = com.music.innertube.models.Context(
@@ -242,7 +273,7 @@ object YouTubeWeb {
                             params = filter.params,
                         )
                     )
-                }.body<JsonElement>()
+                }.body<JsonElement>().also { captureVisitor(it) }
             }
             parseSearchPage(response, filter)
         }
@@ -261,7 +292,7 @@ object YouTubeWeb {
                             params = null,
                         )
                     )
-                }.body<JsonElement>()
+                }.body<JsonElement>().also { captureVisitor(it) }
             }
             parseSearchPage(response, WebSearchFilter.NONE)
         }
@@ -288,7 +319,7 @@ object YouTubeWeb {
                     ytHeaders()
                     setBody(BrowseBody(context = context(), browseId = "FEwhat_to_watch", params = null, continuation = continuation))
                     parameter("continuation", continuation)
-                }.body<JsonElement>()
+                }.body<JsonElement>().also { captureVisitor(it) }
             }
             logEndpoint("homeContinuation", parseHomeFeed(response)) { feed ->
                 "sections=${feed.sections.size} shorts=${feed.shorts.size} cont=${feed.continuation != null}"
@@ -301,7 +332,7 @@ object YouTubeWeb {
                     httpClient.post("browse") {
                         ytHeaders()
                         setBody(BrowseBody(context = context(), browseId = "FEwhat_to_watch", params = null, continuation = null))
-                    }.body<JsonElement>()
+                    }.body<JsonElement>().also { captureVisitor(it) }
                 }
                 parseHomeFeed(response)
             }
@@ -327,7 +358,7 @@ object YouTubeWeb {
                         continuation = null,
                     )
                 )
-            }.body<JsonElement>()
+            }.body<JsonElement>().also { captureVisitor(it) }
         }
         parseWatchPage(response, videoId)
     }
@@ -350,7 +381,7 @@ object YouTubeWeb {
                         continuation = continuation,
                     )
                 )
-            }.body<JsonElement>()
+            }.body<JsonElement>().also { captureVisitor(it) }
         }
         val videos = parseRelatedContinuation(response)
         Result.success(videos to response.findContinuation())
@@ -370,7 +401,7 @@ object YouTubeWeb {
                 httpClient.post("browse") {
                     ytHeaders()
                     setBody(BrowseBody(context = context(), browseId = browseId, params = null, continuation = null))
-                }.body<JsonElement>()
+                }.body<JsonElement>().also { captureVisitor(it) }
             }
             parseChannelPage(response, browseId)
         }
@@ -386,7 +417,7 @@ object YouTubeWeb {
             httpClient.post("browse") {
                 ytHeaders()
                 setBody(BrowseBody(context = context(), browseId = browseId, params = params, continuation = null))
-            }.body<JsonElement>()
+            }.body<JsonElement>().also { captureVisitor(it) }
         }
         Result.success(parseChannelTabPage(response))
     }
@@ -397,7 +428,7 @@ object YouTubeWeb {
                 ytHeaders()
                 setBody(BrowseBody(context = context(), browseId = null, params = null, continuation = continuation))
                 parameter("continuation", continuation)
-            }.body<JsonElement>()
+            }.body<JsonElement>().also { captureVisitor(it) }
         }
         Result.success(parseChannelTabPage(response))
     }
@@ -409,7 +440,7 @@ object YouTubeWeb {
             httpClient.post("browse") {
                 ytHeaders()
                 setBody(BrowseBody(context = context(), browseId = "VL$id", params = null, continuation = null))
-            }.body<JsonElement>()
+            }.body<JsonElement>().also { captureVisitor(it) }
         }
         parsePlaylistPage(response, id)
     }
@@ -420,7 +451,7 @@ object YouTubeWeb {
                 ytHeaders()
                 setBody(BrowseBody(context = context(), browseId = null, params = null, continuation = continuation))
                 parameter("continuation", continuation)
-            }.body<JsonElement>()
+            }.body<JsonElement>().also { captureVisitor(it) }
         }
         val videos = parsePlaylistContinuation(response)
         Result.success(videos to response.findContinuation())
@@ -440,7 +471,7 @@ object YouTubeWeb {
                             put("url", JsonPrimitive(url))
                         }
                     )
-                }.body<JsonElement>()
+                }.body<JsonElement>().also { captureVisitor(it) }
             }
             response
                 .find("videoId")
@@ -766,18 +797,33 @@ object YouTubeWeb {
         val handle = metadata.path("vanityChannelUrl").jsonPrimitiveOrNull?.contentOrNullStrict
             ?.substringAfterLast("/")?.takeIf { it.startsWith("@") }
 
+        var defaultTabIndex = 0
+        var homeContent: WebChannelTabPage? = null
         val tabs = response.path("contents")
             .path("twoColumnBrowseResultsRenderer")
             .path("tabs")
             .asJsonArrayOrNull
-            ?.mapNotNull { tabEl ->
-                val tab = tabEl.path("tabRenderer")
-                val tabTitle = tab.path("title").firstRunOrText() ?: return@mapNotNull null
-                val params = tab.path("endpoint")
-                    .path("browseEndpoint")
-                    .path("params")
-                    .jsonPrimitiveOrNull?.contentOrNullStrict
-                WebChannelTab(title = tabTitle, params = params)
+            ?.let { tabEls ->
+                val parsed = ArrayList<Pair<WebChannelTab, JsonElement?>>(tabEls.size)
+                tabEls.forEach { tabEl ->
+                    val tab = tabEl.path("tabRenderer")
+                    val tabTitle = tab.path("title").firstRunOrText() ?: return@forEach
+                    val params = tab.path("endpoint")
+                        .path("browseEndpoint")
+                        .path("params")
+                        .jsonPrimitiveOrNull?.contentOrNullStrict
+                    parsed += WebChannelTab(title = tabTitle, params = params) to tab.path("content").takeIf { it !is JsonNull }
+                }
+                // Default landing tab: the first PARAMETRIZED tab (the Videos
+                // tab on every channel shape we've seen). Tab 0 is Home and a
+                // channel landing there is exactly the "opens but shows no
+                // videos" bug. Only fall back to Home when nothing else exists.
+                defaultTabIndex = parsed.indexOfFirst { it.first.params != null }.takeIf { it >= 0 } ?: 0
+                // The Home tab ships its shelves inline (no params) — parse
+                // them once here so selecting it never renders an empty list.
+                homeContent = parsed.firstOrNull { it.first.params == null && it.second != null }
+                    ?.second?.let { parseChannelTabPage(it) }
+                parsed.map { it.first }
             }.orEmpty()
 
         val page = WebChannelPage(
@@ -790,7 +836,8 @@ object YouTubeWeb {
                 description = description?.decodeHtmlEntities(),
             ),
             tabs = tabs,
-            defaultTabIndex = 0,
+            defaultTabIndex = defaultTabIndex,
+            homeContent = homeContent,
         )
         return Result.success(page)
     }
@@ -1249,7 +1296,13 @@ object YouTubeWeb {
 
     /** Picks the biggest thumbnail in a `thumbnails: [{url,width,height}]` structure. */
     private fun JsonElement?.thumbnailsLargest(): String? {
-        val arr = ((this as? JsonObject)?.get("thumbnails") ?: this) as? JsonArray ?: return null
+        // Both shapes exist: `thumbnail: {thumbnails: [...]}` (renderers) and
+        // `thumbnailViewModel: {image: {sources: [...]}}` (lockupViewModel) —
+        // the second one is what watch-next related lists ship today, so a
+        // parser that only reads `thumbnails` loses every related thumbnail.
+        val arr = ((this as? JsonObject)?.get("thumbnails")
+            ?: (this as? JsonObject)?.get("sources")
+            ?: this) as? JsonArray ?: return null
         var best: Pair<Int, String>? = null
         arr.forEach { el ->
             val obj = el as? JsonObject ?: return@forEach
@@ -1405,7 +1458,7 @@ object YouTubeWeb {
                             put("url", JsonPrimitive(url))
                         }
                     )
-                }.body<JsonElement>()
+                }.body<JsonElement>().also { captureVisitor(it) }
             }
             response.find("browseId")?.jsonPrimitiveOrNull?.contentOrNullStrict
                 ?.takeIf { it.startsWith("UC") }

@@ -525,7 +525,10 @@ constructor(
             YouTubeWeb.channel(channelId)
                 .onSuccess { page ->
                     _uiState.value = YouTubeChannelUiState.Ready(page)
-                    page.tabs.getOrNull(0)?.let { selectTab(0) }
+                    // Land on the Videos tab (parser picks the first
+                    // parametrized tab) — the Home tab alone reads as a broken
+                    // page since most channels' home shelves are sparse.
+                    selectTab(page.defaultTabIndex)
                 }
                 .onFailure { error ->
                     reportException(error)
@@ -545,10 +548,17 @@ constructor(
         viewModelScope.launch {
             val params = tab.params
             if (params == null) {
-                // Home tab: contents already arrived with the page when it has no params.
+                // Home tab: its shelves arrive with the page itself — surface
+                // them (an unparsed Home would render an empty, broken list).
+                val home = state.page.homeContent
                 _uiState.value = (_uiState.value as? YouTubeChannelUiState.Ready)?.let { current ->
                     current.copy(
-                        tabContent = current.tabContent + (index to YouTubeChannelTabContent(isLoading = false)),
+                        tabContent = current.tabContent + (index to YouTubeChannelTabContent(
+                            videos = home?.videos.orEmpty(),
+                            shorts = home?.shorts.orEmpty(),
+                            playlists = home?.playlists.orEmpty(),
+                            isLoading = false,
+                        )),
                     )
                 } ?: return@launch
                 return@launch

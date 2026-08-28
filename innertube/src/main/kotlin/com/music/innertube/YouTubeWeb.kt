@@ -277,9 +277,9 @@ object YouTubeWeb {
         ),
         // The website declares the active account identity on every request
         // while logged in; omitting it makes the session half-authenticated.
-        user = YouTube.cookie?.takeIf { it.isNotBlank() }?.let {
-            com.music.innertube.models.Context.User(onBehalfOfUser = YouTube.dataSyncId)
-        },
+        user = YouTube.cookie?.takeIf { it.isNotBlank() }
+            ?.let { com.music.innertube.models.Context.User(onBehalfOfUser = YouTube.dataSyncId) }
+            ?: com.music.innertube.models.Context.User(),
     )
 
     /** Retry wrapper for transient IO errors and 429/5xx, mirroring [InnerTube.withRetry]. */

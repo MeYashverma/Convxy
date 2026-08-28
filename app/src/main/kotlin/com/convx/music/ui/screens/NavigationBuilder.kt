@@ -41,6 +41,13 @@ import com.convx.music.ui.screens.artist.ArtistAlbumsScreen
 import com.convx.music.ui.screens.artist.ArtistItemsScreen
 import com.convx.music.ui.screens.artist.ArtistScreen
 import com.convx.music.ui.screens.artist.ArtistSongsScreen
+import com.convx.music.ui.screens.youtube.YouTubeChannelScreen
+import com.convx.music.ui.screens.youtube.YouTubeHistoryScreen
+import com.convx.music.ui.screens.youtube.YouTubeHomeScreen
+import com.convx.music.ui.screens.youtube.YouTubePlaylistScreen
+import com.convx.music.ui.screens.youtube.YouTubeSavedScreen
+import com.convx.music.ui.screens.youtube.YouTubeSearchScreen
+import com.convx.music.ui.screens.youtube.YouTubeWatchScreen
 import com.convx.music.ui.screens.equalizer.EqScreen
 import com.convx.music.ui.screens.library.LocalFolderScreen
 import com.convx.music.ui.screens.library.LocalMusicScreen
@@ -205,6 +212,69 @@ fun NavGraphBuilder.navigationBuilder(
         },
     ) {
         OnlineSearchResult(navController)
+    }
+
+    // ── Native YouTube section ──────────────────────────────────────────────
+
+    sharedComposable(Screens.YouTube.route) {
+        YouTubeHomeScreen(navController)
+    }
+
+    sharedComposable(
+        route = "youtube_search?q={q}",
+        arguments = listOf(
+            navArgument("q") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) {
+        YouTubeSearchScreen(navController)
+    }
+
+    sharedComposable(
+        route = "youtube_watch/{videoId}?position={position}",
+        arguments = listOf(
+            navArgument("videoId") {
+                type = NavType.StringType
+            },
+            navArgument("position") {
+                type = NavType.LongType
+                defaultValue = 0L
+            },
+        ),
+    ) {
+        YouTubeWatchScreen(navController)
+    }
+
+    sharedComposable(
+        route = "youtube_channel/{channelId}",
+        arguments = listOf(
+            navArgument("channelId") {
+                type = NavType.StringType
+            },
+        ),
+    ) {
+        YouTubeChannelScreen(navController)
+    }
+
+    sharedComposable(
+        route = "youtube_playlist/{playlistId}",
+        arguments = listOf(
+            navArgument("playlistId") {
+                type = NavType.StringType
+            },
+        ),
+    ) {
+        YouTubePlaylistScreen(navController)
+    }
+
+    sharedComposable("youtube_history") {
+        YouTubeHistoryScreen(navController)
+    }
+
+    sharedComposable("youtube_saved") {
+        YouTubeSavedScreen(navController)
     }
 
     sharedComposable(

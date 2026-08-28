@@ -102,6 +102,11 @@ constructor(
                 is YouTubeUrlParser.ParsedUrl.Artist -> {
                     YouTube.artist(parsedUrl.id).getOrNull()?.artist
                 }
+
+                // Regular-YouTube channels/playlists have no YouTube-Music item;
+                // the native YouTube section routes them itself.
+                is YouTubeUrlParser.ParsedUrl.Channel -> null
+                is YouTubeUrlParser.ParsedUrl.Playlist -> null
             }
             println("[LINK_PARSE_DEBUG] Fetch successful: ${item?.id} (${item?.javaClass?.simpleName})")
             item

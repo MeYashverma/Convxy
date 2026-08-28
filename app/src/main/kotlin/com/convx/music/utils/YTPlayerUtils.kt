@@ -67,6 +67,7 @@ import java.net.URI
 import java.io.IOException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Higher first. Ranks Tidal search-result candidates so the matcher below tries
  *  the best-quality candidate first instead of Tidal's own (unordered w.r.t.
@@ -839,7 +840,7 @@ object YTPlayerUtils {
         }
         // ── End JioSaavn intercept ───────────────────────────────────────────
 
-        val firstAttempt = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager, videoMode = videoMode)
+        val firstAttempt = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager, videoMode = videoMode, context = context)
 
         // A geo-restricted video fails the same way on a retry — rotating a
         // guest session or re-attempting as-is can't fix a region block, so
@@ -858,7 +859,7 @@ object YTPlayerUtils {
             Timber.tag(TAG).w("Playback failed for $label. Rotating session and retrying...")
             PlaybackLogManager.log(PlaybackLogLevel.BOT, "Playback failed for $label", "Triggering bot detection mitigation (rotating guest session)")
             BotDetectionMitigator.rotateGuestSession()
-            val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager, videoMode = videoMode)
+            val retryResult = resolvePlaybackData(videoId, playlistId, audioQuality, connectivityManager, videoMode = videoMode, context = context)
             retryResult.onSuccess { BotDetectionMitigator.notifyPlaybackSuccess() }
             return retryResult
         }
@@ -873,6 +874,7 @@ object YTPlayerUtils {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
         videoMode: Boolean = false,
+        context: android.content.Context? = null,
     ): Result<PlaybackData> = runCatching {
         Timber.tag(logTag).d("Fetching player response for videoId: $videoId, playlistId: $playlistId")
         PlaybackLogManager.log(PlaybackLogLevel.INFO, "Resolving playback data", "Video: $videoId")
@@ -962,6 +964,17 @@ object YTPlayerUtils {
             mainDeferred.await() to metaDeferred.await()
         }
 
+        // One line with the whole picture of the main response — this is what
+        // the shareable playback log needs to diagnose "works logged out,
+        // fails logged in" style reports without a debugger attached.
+        PlaybackLogManager.log(
+            PlaybackLogLevel.DEBUG,
+            "Main(${MAIN_CLIENT.clientName}) status=${mainPlayerResponse.playabilityStatus.status}" +
+                " muxed=${mainPlayerResponse.streamingData?.formats?.size ?: 0}" +
+                " adaptive=${mainPlayerResponse.streamingData?.adaptiveFormats?.size ?: 0}",
+            "YouTube",
+        )
+
         // Debug uploaded track response
         if (isUploadedTrack || playlistId?.contains("MLPT") == true) {
             println("[PLAYBACK_DEBUG] Main player response status: ${mainPlayerResponse.playabilityStatus.status}")
@@ -1013,6 +1026,12 @@ object YTPlayerUtils {
         var streamUrl: String? = null
         var streamExpiresInSeconds: Int? = null
         var streamPlayerResponse: PlayerResponse? = null
+        // Video-mode last resort: if NO client serves a muxed stream, play the
+        // best audio from the first client that offered one, instead of failing.
+        var audioFallbackFormat: PlayerResponse.StreamingData.Format? = null
+        var audioFallbackUrl: String? = null
+        var audioFallbackExpires: Int? = null
+        var audioFallbackResponse: PlayerResponse? = null
         var retryMainPlayerResponse: PlayerResponse? = if (usedAgeRestrictedClient != null) mainPlayerResponse else null
 
         // Check current status
@@ -1040,10 +1059,58 @@ object YTPlayerUtils {
         // "index 1 = TVHTML5" while index 1 was actually WEB_REMIX -- the array had been
         // reordered and the magic number silently stopped meaning what it claimed. Any
         // future reordering now moves this with it.
-        val startIndex = when {
+        var startIndex = when {
             isPrivateTrack -> STREAM_FALLBACK_CLIENTS.indexOf(TVHTML5).coerceAtLeast(0)
             isAgeRestricted -> 0
             else -> -1
+        }
+
+        // Video mode speed-up: the sequential fallback walk costs one player
+        // round-trip per client, and most fallback clients are audio-only — the
+        // first muxed-capable client can be several hops in (measured ~5s+).
+        // When the main client has no muxed format, probe the likely-muxed
+        // fallbacks CONCURRENTLY (one round-trip wall-clock) and enter the
+        // regular sequential loop directly at the best one. The loop keeps its
+        // own onward fallback if that client's stream later fails validation.
+        // Only the four native muxed-capable clients are probed: a wide fan-out
+        // (7+) of simultaneous player calls per video switch makes YouTube's
+        // bot heuristics throttle the whole session intermittently, which is
+        // far worse for load reliability than one extra sequential hop.
+        if (videoMode && startIndex == -1 &&
+            selectMuxedVideoFormat(mainPlayerResponse.streamingData?.formats) == null
+        ) {
+            val probeCandidates = listOf(1, 2, 8, 9).filter { it < STREAM_FALLBACK_CLIENTS.size }
+            val probeResults: Map<Int, List<PlayerResponse.StreamingData.Format>?> =
+                kotlinx.coroutines.coroutineScope {
+                    probeCandidates.associateWith { idx ->
+                        async {
+                            try {
+                                withTimeoutOrNull(8_000L) {
+                                    YouTube.player(
+                                        videoId,
+                                        playlistId,
+                                        STREAM_FALLBACK_CLIENTS[idx],
+                                        signatureTimestamp = null,
+                                        poToken = null,
+                                    ).getOrNull()?.streamingData?.formats
+                                }
+                            } catch (e: Exception) {
+                                Timber.tag(logTag).d("videoMode probe failed for ${STREAM_FALLBACK_CLIENTS[idx].clientName}: ${e.message}")
+                                null
+                            }
+                        }
+                    }.mapValues { it.value.await() }
+                }
+            val winner = probeResults.entries
+                .firstOrNull { (_, formats) -> formats != null && selectMuxedVideoFormat(formats) != null }
+                ?.key
+            if (winner != null) {
+                Timber.tag(logTag).d("videoMode probe: entering chain at ${STREAM_FALLBACK_CLIENTS[winner].clientName}")
+                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Video probe → ${STREAM_FALLBACK_CLIENTS[winner].clientName}", "YouTube")
+                startIndex = winner
+            } else {
+                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Video probe found no muxed client; walking chain", "YouTube")
+            }
         }
 
         for (clientIndex in (startIndex until STREAM_FALLBACK_CLIENTS.size)) {
@@ -1107,20 +1174,35 @@ object YTPlayerUtils {
                 // Skip NewPipe - use direct URLs or custom cipher in findUrlOrNull
                 val responseToUse = streamPlayerResponse
 
-                format = if (videoMode) {
-                    // Full-video playback: prefer a progressive muxed stream; if this
-                    // client exposes none, degrade to the normal audio format rather
-                    // than failing playback — the toggle simply stays inert visually.
-                    selectMuxedVideoFormat(responseToUse.streamingData?.formats)
-                        ?: findFormat(
-                            responseToUse,
-                            audioQuality,
-                            connectivityManager,
-                        )?.also {
-                            Timber.tag(logTag).d("videoMode: no muxed format on this client, falling back to audio")
+                if (videoMode) {
+                    // Full-video playback: muxed or nothing on THIS client. Several
+                    // fallback clients are adaptive-only (audio formats, no muxed
+                    // video), and accepting their audio here permanently downgraded
+                    // video mode to audio-only. Keep walking the chain until a
+                    // client that still serves muxed streams is found; the first
+                    // client's audio is stashed as a last-resort fallback below.
+                    format = selectMuxedVideoFormat(
+                        responseToUse.streamingData?.formats,
+                        maxHeightCap = context?.let { videoQualityCap(it) } ?: 1080,
+                    )
+                    if (format == null) {
+                        Timber.tag(logTag).d("videoMode: no muxed format on ${client.clientName}, trying next client")
+                        if (audioFallbackUrl == null) {
+                            findFormat(responseToUse, audioQuality, connectivityManager)
+                                ?.let { audioFormat ->
+                                    findUrlOrNull(audioFormat, videoId, responseToUse, skipNewPipe = wasOriginallyAgeRestricted)
+                                        ?.let { audioUrl ->
+                                            audioFallbackFormat = audioFormat
+                                            audioFallbackUrl = audioUrl
+                                            audioFallbackExpires = responseToUse.streamingData?.expiresInSeconds
+                                            audioFallbackResponse = responseToUse
+                                        }
+                                }
                         }
+                        continue
+                    }
                 } else {
-                    findFormat(
+                    format = findFormat(
                         responseToUse,
                         audioQuality,
                         connectivityManager,
@@ -1277,6 +1359,16 @@ object YTPlayerUtils {
         // old order reported "Missing stream expire time" for every failure, even
         // ones where the real cause was no usable audio format or a dead stream
         // URL on the last-tried client. Surfacing the real reason here.
+        if (format == null && videoMode && audioFallbackUrl != null) {
+            // No client could serve a muxed stream (all adaptive-only) — play the
+            // stashed audio so playback never dies just because video is missing.
+            Timber.tag(logTag).w("videoMode: no muxed stream on any client, using audio fallback")
+            format = audioFallbackFormat
+            streamUrl = audioFallbackUrl
+            streamExpiresInSeconds = audioFallbackExpires
+            streamPlayerResponse = audioFallbackResponse
+        }
+
         if (format == null) {
             Timber.tag(logTag).e("Could not find format")
             throw Exception("Could not find format")

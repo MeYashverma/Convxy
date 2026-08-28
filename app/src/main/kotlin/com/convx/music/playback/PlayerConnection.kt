@@ -482,6 +482,10 @@ class PlayerConnection(
         reason: Int,
     ) {
         mediaMetadata.value = mediaItem?.metadata
+        // If the queue moved on to something other than the video the watch
+        // screen last showed, the "reopen watch screen from the mini player"
+        // marker is stale — drop it.
+        mediaItem?.mediaId?.let { id -> com.convx.music.utils.YouTubePlaybackState.onItemTransition(id) }
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()

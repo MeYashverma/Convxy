@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Convx Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
@@ -3249,9 +3249,13 @@ class MusicService :
             // for the same video never collide across a toggle. Streaming only:
             // offline downloads live in the plain (Opus) namespace.
             // Spine streams also use lossless namepacing to avoid cache collisions.
+            // The YouTube watch screen also forces video for as long as it drives
+            // playback (its session flag), so both the cache key and the resolver
+            // below have to agree on the effective mode.
             val losslessOn = dataStore.get(EnableTidalStreamingKey, false)
             val spineEnabled = dataStore.get(EnabledModulesKey, "[]") != "[]"
-            val videoMode = dataStore.get(WatchVideoKey, false)
+            val videoMode = dataStore.get(WatchVideoKey, false) ||
+                com.convx.music.utils.YouTubePlaybackState.isActive()
             val effKey = when {
                 videoMode -> "$mediaId#video"
                 losslessOn || spineEnabled -> "$mediaId#flac"
@@ -3782,6 +3786,47 @@ class MusicService :
                 )
             } catch (e: Exception) {
                 // Widget not added to home screen or other error
+            }
+        }
+    }
+
+    /**
+     * Re-resolves the current stream after a per-item video-mode change — the
+     * YouTube watch screen registering (or dropping) an override in
+     * [com.convx.music.utils.YouTubePlaybackState]. Same dance as the global
+     * WatchVideoKey collector: drop the cached URL/bytes for both cache
+     * namespaces, then restart the current item at its position so the data
+     * source resolves a muxed (or audio-only) stream under the fresh key.
+     */
+    fun reloadCurrentStreamForVideoMode(mediaId: String) {
+        if (!playerInitialized.value) return
+        if (player.currentMediaItem?.mediaId != mediaId) return
+        val currentPosition = player.currentPosition
+        val wasPlaying = player.isPlaying
+        val currentIndex = player.currentMediaItemIndex
+
+        Timber.tag("MusicService").i("VIDEO OVERRIDE CHANGED — reloading $mediaId at ${currentPosition}ms")
+        songUrlCache.remove(mediaId)
+        songUrlCache.remove("$mediaId#video")
+        scope.launch {
+            // Cache removal must not run on the caller (main) thread: removing a
+            // resource can delete hundreds of MB and block on the cache lock the
+            // loader thread holds while writing the stream — a guaranteed ANR at
+            // exactly the moment a video stream starts caching.
+            withContext(Dispatchers.IO) {
+                try {
+                    playerCache.removeResource(mediaId)
+                    playerCache.removeResource("$mediaId#video")
+                } catch (e: Exception) {
+                    Timber.tag("MusicService").e(e, "Failed to clear cache for video mode change")
+                }
+            }
+            bypassCacheForQualityChange.add(mediaId)
+            player.stop()
+            player.seekTo(currentIndex, currentPosition)
+            player.prepare()
+            if (wasPlaying) {
+                player.play()
             }
         }
     }

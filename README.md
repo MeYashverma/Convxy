@@ -4,13 +4,13 @@
   <p><sub>Fork of <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a>, developed by <a href="https://github.com/MeYashverma">Yash Verma (MeYashverma)</a> — with Apple Music-style multi-singer synced lyrics and more. 🌐 <a href="https://meyashverma.github.io/Convxy/">meyashverma.github.io/Convxy</a></sub></p>
 
   <p>
-    <a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">
-      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20FROM%20ACTIONS-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download BERLUNE from GitHub Actions">
+    <a href="https://github.com/MeYashverma/Convxy/releases">
+      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20LATEST%20RELEASE-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convxy from GitHub Releases">
     </a>
   </p>
   <p>
-    <b><a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">⬇️ GET THE LATEST BUILD</a></b>
-    — From the CI artifacts. Works on Android 8.0+.
+    <b><a href="https://github.com/MeYashverma/Convxy/releases/latest">⬇️ GET THE LATEST RELEASE</a></b>
+    — Signed APK from the Releases page. Works on Android 8.0+. (Nightly CI builds are also available from <a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">Actions</a>.)
   </p>
 
   <h3>📸 Screenshots</h3>
@@ -68,7 +68,7 @@
 
 <h2>🎵 About Convxy</h2>
 
-<p><b>Convxy</b> is a free, open-source music player for Android that streams from YouTube Music, built with <b>Jetpack Compose</b> on a <b>Media3</b> ExoPlayer core. The UI is a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
+<p><b>Convxy</b> is a free, open-source music player for Android that streams from YouTube Music <b>and regular YouTube</b>, built with <b>Jetpack Compose</b> on a <b>Media3</b> ExoPlayer core. The UI is a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
 
 <p>Lineage: <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a> → <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a> → <b>Convxy</b>; see <a href="#-credits">Credits</a> below.</p>
 
@@ -113,6 +113,25 @@
       </ul>
     </td>
   </tr>
+  <tr valign="top">
+    <td width="50%">
+      <h3>▶️ Native YouTube (new in v1.6.0)</h3>
+      <ul>
+        <li><b>A full native YouTube client inside Convxy:</b> home feed, search with suggestions &amp; filters, channels (Videos / Shorts / Playlists tabs), playlists, and Shorts — no WebView, no redirects.</li>
+        <li><b>Real video playback:</b> a dedicated watch screen with fullscreen (immersive, rotation-safe), double-tap seek, playback speed, video quality selector (up to 1080p), mute/volume, and audio-only fallback.</li>
+        <li><b>Queue integration:</b> related videos become the queue — play next, add to queue, skip through them from the same mini player and notification as your music.</li>
+        <li><b>Watch history, Continue Watching &amp; Saved videos</b> — fully local, like the rest of the library.</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🧠 Smart playback</h3>
+      <ul>
+        <li><b>Multi-client stream resolution:</b> native YouTube clients are probed in parallel (with PoToken solving, SABR handling and cipher deobfuscation) so videos start fast and keep working when YouTube flags one client.</li>
+        <li><b>Session-aware:</b> browse and playback requests adapt to login state (account vs anonymous sessions) with automatic fallbacks through consent walls and bot checks.</li>
+        <li><b>Diagnosable:</b> shareable in-app playback logs show every client attempt and browse response.</li>
+      </ul>
+    </td>
+  </tr>
 </table>
 
 <hr>
@@ -127,6 +146,7 @@
   <li><b>Playback:</b> Media3 <code>ExoPlayer</code> service in <code>playback/MusicService.kt</code>.</li>
   <li><b>Data:</b> Room database (<code>db/</code>) for the local library, DataStore for preferences (<code>utils/DataStore.kt</code>, <code>constants/PreferenceKeys.kt</code>).</li>
   <li><b>YouTube Music access:</b> the <code>innertube</code> module — an unofficial InnerTube API client, kept separate from the app module.</li>
+  <li><b>Regular YouTube access:</b> the same <code>innertube</code> module also carries a WEB InnerTube client (<code>YouTubeWeb</code>) that powers the native YouTube section (feed, search, watch, channels, playlists), with session/consent handling and an anonymous native-client fallback.</li>
   <li><b>Updater:</b> <code>vivimusic/updater/</code> checks GitHub Releases for new versions and handles in-app APK download/install (FOSS/GMS build flavors behave slightly differently — see <code>BuildConfig.CAST_AVAILABLE</code>).</li>
 </ul>
 

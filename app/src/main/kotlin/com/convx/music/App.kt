@@ -27,6 +27,7 @@ import coil3.request.allowHardware
 import coil3.request.bitmapConfig
 import coil3.request.crossfade
 import com.music.innertube.YouTube
+import com.music.innertube.YouTubeWeb
 import com.music.innertube.models.IpVersion
 import com.music.innertube.models.YouTubeLocale
 import com.music.kugou.KuGou
@@ -80,6 +81,10 @@ class App : Application(), SingletonImageLoader.Factory {
         // Every cold start was a fresh chance to re-corrupt it.
         YouTube.cookie = dataStore.get(InnerTubeCookieKey, "").takeIf { it.isNotBlank() && it != "null" }
         YouTube.visitorData = dataStore.get(VisitorDataKey, "").takeIf { it.isNotBlank() && it != "null" }
+        // The regular-YouTube (WEB) client shares the session: without a visitor
+        // id its browse endpoints (home feed, channels) degrade — slow responses,
+        // consent walls, sometimes empty payloads.
+        YouTubeWeb.visitorData = YouTube.visitorData
         YouTube.dataSyncId = dataStore.get(DataSyncIdKey, "").takeIf { it.isNotBlank() && it != "null" }
 
         // Install crash handler first
@@ -118,7 +123,7 @@ class App : Application(), SingletonImageLoader.Factory {
         val locale = Locale.getDefault()
         val languageTag = locale.language
 
-        YouTube.locale = YouTubeLocale(
+        val appLocale = YouTubeLocale(
             gl = settings[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
                 ?: locale.country.takeIf { it in CountryCodeToName }
                 ?: "US",
@@ -127,6 +132,8 @@ class App : Application(), SingletonImageLoader.Factory {
                 ?: languageTag.takeIf { it in LanguageCodeToName }
                 ?: "en"
         )
+        YouTube.locale = appLocale
+        YouTubeWeb.locale = appLocale
 
         if (languageTag == "zh-TW") {
             KuGou.useTraditionalChinese = true
@@ -190,6 +197,7 @@ class App : Application(), SingletonImageLoader.Factory {
                     // request. Treat it as absent so a fresh one is fetched and stored.
                     YouTube.visitorData = visitorData?.takeIf { it.isNotBlank() && it != "null" }
                         ?: YouTube.visitorData().getOrNull()?.also { newVisitorData ->
+                            YouTubeWeb.visitorData = newVisitorData
                             dataStore.edit { settings ->
                                 settings[VisitorDataKey] = newVisitorData
                             }
@@ -250,7 +258,7 @@ class App : Application(), SingletonImageLoader.Factory {
                         ?.let { Locale.forLanguageTag(it) }
                         ?: systemLocale
 
-                    YouTube.locale = YouTubeLocale(
+                    val webLocale = YouTubeLocale(
                         gl = contentCountry?.takeIf { it != SYSTEM_DEFAULT }
                             ?: effectiveAppLocale.country.takeIf { it in CountryCodeToName }
                             ?: systemLocale.country.takeIf { it in CountryCodeToName }
@@ -260,6 +268,8 @@ class App : Application(), SingletonImageLoader.Factory {
                             ?: effectiveAppLocale.language.takeIf { it in LanguageCodeToName }
                             ?: "en"
                     )
+                    YouTube.locale = webLocale
+                    YouTubeWeb.locale = webLocale
                 }
         }
 

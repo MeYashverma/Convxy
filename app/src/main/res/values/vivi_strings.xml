@@ -486,7 +486,7 @@
     <string name="ambient_mode">Ambient Mode</string>
     <string name="ambient_mode_settings_desc">Customize the visual effects and interactions used in Ambient Mode</string>
     <string name="ambient_video_canvas">Video Canvas background</string>
-    <string name="ambient_video_canvas_desc">Use the current track's animated canvas behind the artwork and lyrics</string>
+    <string name="ambient_video_canvas_desc">Use the current track\'s animated canvas behind the artwork and lyrics</string>
     <string name="ambient_canvas_source">Ambient Canvas source</string>
     <string name="ambient_canvas_blur">Canvas blur</string>
     <string name="ambient_canvas_blur_desc">Soften the moving background to keep foreground content readable</string>

@@ -82,6 +82,7 @@ import coil3.compose.AsyncImage
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.AmbientAutoHideBackButtonEnabledKey
+import com.convx.music.constants.AmbientLyricsTextSizeKey
 import com.convx.music.constants.AmbientProgressRingEnabledKey
 import com.convx.music.constants.AmbientPlaybackFeedbackEnabledKey
 import com.convx.music.constants.AmbientSeekHapticsEnabledKey
@@ -95,6 +96,7 @@ import com.convx.music.constants.AmbientVideoCanvasDimKey
 import com.convx.music.constants.AmbientVideoCanvasEnabledKey
 import com.convx.music.constants.AmbientCanvasSourceKey
 import com.convx.music.constants.CanvasSource
+import com.convx.music.constants.LyricsTextSizeKey
 import com.convx.music.models.MediaMetadata
 import com.convx.music.playback.PlayerConnection
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
@@ -129,6 +131,14 @@ fun AmbientModeScreen(navController: NavController) {
     val ambientCanvasDim by rememberPreference(
         AmbientVideoCanvasDimKey,
         defaultValue = 0.42f,
+    )
+    val globalLyricsTextSize by rememberPreference(
+        LyricsTextSizeKey,
+        defaultValue = 30f,
+    )
+    val ambientLyricsTextSize by rememberPreference(
+        AmbientLyricsTextSizeKey,
+        defaultValue = globalLyricsTextSize,
     )
     val progressRingEnabled by rememberPreference(
         AmbientProgressRingEnabledKey,
@@ -554,6 +564,7 @@ fun AmbientModeScreen(navController: NavController) {
                 AmbientForeground(
                     mediaMetadata = currentMetadata,
                     playerConnection = playerConnection,
+                    lyricsTextSize = ambientLyricsTextSize,
                     showTrackInfo = trackInfoEnabled &&
                         showTrackInfo &&
                         currentMetadata?.id == mediaMetadata?.id,
@@ -648,6 +659,7 @@ private fun isAmbientBackButtonTouch(position: Offset, hitSlop: Float): Boolean 
 private fun AmbientForeground(
     mediaMetadata: MediaMetadata?,
     playerConnection: PlayerConnection,
+    lyricsTextSize: Float,
     showTrackInfo: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -742,7 +754,8 @@ private fun AmbientForeground(
             InlineLyricsView(
                 mediaMetadata = mediaMetadata,
                 showLyrics = true,
-                positionProvider = { playerConnection.player.currentPosition }
+                positionProvider = { playerConnection.player.currentPosition },
+                lyricsTextSize = lyricsTextSize,
             )
         }
     }

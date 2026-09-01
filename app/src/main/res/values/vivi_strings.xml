@@ -494,6 +494,8 @@
     <string name="ambient_canvas_dim_desc">Darken the moving background behind artwork and lyrics</string>
     <string name="ambient_canvas_blur_value">%1$d dp</string>
     <string name="ambient_canvas_dim_value">%1$d%%</string>
+    <string name="ambient_lyrics_text_size_desc">Adjust the size of lyrics shown in Ambient Mode</string>
+    <string name="ambient_lyrics_text_size_value">%1$d sp</string>
     <string name="ambient_display">Display</string>
     <string name="ambient_progress_ring">Progress ring and ring seeking</string>
     <string name="ambient_progress_ring_desc">Show live playback progress and allow seeking from the screen edge</string>

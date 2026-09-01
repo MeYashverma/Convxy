@@ -779,6 +779,7 @@ val AmbientPlaybackFeedbackEnabledKey = booleanPreferencesKey("ambientPlaybackFe
 val AmbientSeekTimeEnabledKey = booleanPreferencesKey("ambientSeekTimeEnabled")
 val AmbientSeekHapticsEnabledKey = booleanPreferencesKey("ambientSeekHapticsEnabled")
 val AmbientTrackInfoEnabledKey = booleanPreferencesKey("ambientTrackInfoEnabled")
+val AmbientLyricsTextSizeKey = floatPreferencesKey("ambientLyricsTextSize")
 val AmbientTapToPlayPauseEnabledKey = booleanPreferencesKey("ambientTapToPlayPauseEnabled")
 val AmbientSwipeNavigationEnabledKey = booleanPreferencesKey("ambientSwipeNavigationEnabled")
 val AmbientTrackTransitionsEnabledKey = booleanPreferencesKey("ambientTrackTransitionsEnabled")

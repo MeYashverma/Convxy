@@ -3441,7 +3441,8 @@ fun BottomSheetPlayer(
 fun InlineLyricsView(
     mediaMetadata: MediaMetadata?,
     showLyrics: Boolean,
-    positionProvider: () -> Long
+    positionProvider: () -> Long,
+    lyricsTextSize: Float? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val currentLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue =null)
@@ -3494,7 +3495,8 @@ fun InlineLyricsView(
                     Lyrics(
                         sliderPositionProvider = positionProvider,
                         modifier = Modifier.padding(horizontal = 24.dp),
-                        showLyrics = showLyrics
+                        showLyrics = showLyrics,
+                        textSizeOverride = lyricsTextSize,
                     )
                 }
                 ProvideTextStyle(

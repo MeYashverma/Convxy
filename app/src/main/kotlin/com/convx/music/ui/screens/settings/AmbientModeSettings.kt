@@ -33,6 +33,7 @@ import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
 import com.convx.music.constants.AmbientAutoHideBackButtonEnabledKey
 import com.convx.music.constants.AmbientCanvasSourceKey
+import com.convx.music.constants.AmbientLyricsTextSizeKey
 import com.convx.music.constants.AmbientProgressRingEnabledKey
 import com.convx.music.constants.AmbientPlaybackFeedbackEnabledKey
 import com.convx.music.constants.AmbientSeekHapticsEnabledKey
@@ -45,6 +46,7 @@ import com.convx.music.constants.AmbientVideoCanvasBlurKey
 import com.convx.music.constants.AmbientVideoCanvasDimKey
 import com.convx.music.constants.AmbientVideoCanvasEnabledKey
 import com.convx.music.constants.CanvasSource
+import com.convx.music.constants.LyricsTextSizeKey
 import com.convx.music.ui.component.GlassSwitchCompat as Switch
 import com.convx.music.ui.component.IconButton
 import com.convx.music.ui.component.Material3SettingsGroup
@@ -76,6 +78,14 @@ fun AmbientModeSettings(
     val (canvasDim, onCanvasDimChange) = rememberPreference(
         AmbientVideoCanvasDimKey,
         defaultValue = 0.42f,
+    )
+    val (globalLyricsTextSize) = rememberPreference(
+        LyricsTextSizeKey,
+        defaultValue = 30f,
+    )
+    val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(
+        AmbientLyricsTextSizeKey,
+        defaultValue = globalLyricsTextSize,
     )
     val (progressRingEnabled, onProgressRingEnabledChange) = rememberPreference(
         AmbientProgressRingEnabledKey,
@@ -220,6 +230,17 @@ fun AmbientModeSettings(
             steps = 14,
             enabled = videoCanvasEnabled,
             onValueChange = onCanvasDimChange,
+        )
+
+        AmbientSliderSetting(
+            title = stringResource(R.string.lyrics_text_size),
+            description = stringResource(R.string.ambient_lyrics_text_size_desc),
+            valueLabel = stringResource(R.string.ambient_lyrics_text_size_value, lyricsTextSize.roundToInt()),
+            value = lyricsTextSize,
+            valueRange = 16f..56f,
+            steps = 19,
+            enabled = true,
+            onValueChange = onLyricsTextSizeChange,
         )
 
         Spacer(Modifier.height(8.dp))

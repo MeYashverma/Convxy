@@ -154,6 +154,13 @@ fun SettingsScreen(
                     title = stringResource(R.string.player_and_audio),
                     onClick = { navController.navigate("settings/player") },
                 )
+                SettingsDivider()
+                SettingsNavItem(
+                    icon = painterResource(R.drawable.canvas_art),
+                    iconTint = Color(0xFF5E5CE6),
+                    title = stringResource(R.string.ambient_mode),
+                    onClick = { navController.navigate("settings/ambient") },
+                )
             }
         }
 

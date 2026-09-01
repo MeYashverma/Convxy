@@ -50,6 +50,7 @@ fun CanvasArtworkPlayer(
     fallbackUrl: String?,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
+    resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_FIT,
     // Matches the "$mediaId#canvas" key DownloadUtil.kt pre-caches the canvas
     // video under. Without it, this player has no way to hit that cache entry
     // even when one exists — it always re-fetches over the network, which
@@ -267,8 +268,8 @@ fun CanvasArtworkPlayer(
         factory = { viewContext ->
             AspectRatioFrameLayout(viewContext).apply {
                 layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                
+                this.resizeMode = resizeMode
+
                 val textureView = TextureView(viewContext).apply {
                     layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
                 }

@@ -1099,6 +1099,17 @@ class MainActivity : ComponentActivity() {
                  */
                 var searchOverlayOpen by rememberSaveable { mutableStateOf(openSearchOnLaunch) }
 
+                // Search is drawn above the NavHost. If a song is launched into Ambient
+                // Mode from the player menu while search is open, the destination changes
+                // underneath that overlay unless it is closed explicitly.
+                LaunchedEffect(currentRoute) {
+                    if (currentRoute == "ambient_mode") {
+                        searchOverlayOpen = false
+                        searchKeyboardActive = false
+                        searchVisualOverride = null
+                    }
+                }
+
                 // Home/Library/Settings are real NavHost destinations again, so
                 // currentRoute already IS the tab route -- no pager-page lookup needed.
                 // The only thing layered on top is search, which is an overlay rather

@@ -19,6 +19,7 @@ fun getAllSearchableSettings(): List<SearchableSetting> {
         SearchableSetting(stringResource(R.string.system_update), null, "General", "settings/update"),
         SearchableSetting(stringResource(R.string.appearance), null, "General", "settings/appearance"),
         SearchableSetting(stringResource(R.string.player_and_audio), null, "General", "settings/player"),
+        SearchableSetting(stringResource(R.string.ambient_mode), stringResource(R.string.ambient_mode_settings_desc), "General", "settings/ambient"),
         SearchableSetting(stringResource(R.string.theme), null, "Appearance", "settings/appearance/theme"),
         SearchableSetting("App Font", null, "Appearance", "settings/appearance/font"),
         SearchableSetting("Canvas", null, "Appearance", "settings/appearance/canvas"),

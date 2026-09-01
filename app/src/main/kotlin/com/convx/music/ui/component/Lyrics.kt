@@ -204,7 +204,8 @@ import kotlin.time.Duration.Companion.seconds
 fun Lyrics(
     sliderPositionProvider: () -> Long?,
     modifier: Modifier = Modifier,
-    showLyrics: Boolean
+    showLyrics: Boolean,
+    textSizeOverride: Float? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val database = LocalDatabase.current
@@ -234,7 +235,8 @@ fun Lyrics(
     val romanizePunjabiLyrics by rememberPreference(LyricsRomanizePunjabiKey, true)
     val lyricsGlowEffect by rememberPreference(LyricsGlowEffectKey, true)
     val lyricsAnimationStyle by rememberEnumPreference(LyricsAnimationStyleKey, LyricsAnimationStyle.APPLE)
-    val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 30f)
+    val defaultLyricsTextSize by rememberPreference(LyricsTextSizeKey, 30f)
+    val lyricsTextSize = textSizeOverride ?: defaultLyricsTextSize
     val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
     val lyricsStandardBlur by rememberPreference(LyricsStandardBlurKey, false)
     val showSingerLabels by rememberPreference(ShowSingerLabelsKey, true)

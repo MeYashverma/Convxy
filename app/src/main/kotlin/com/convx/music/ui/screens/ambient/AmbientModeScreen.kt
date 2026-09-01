@@ -51,6 +51,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -137,6 +139,9 @@ fun AmbientModeScreen(navController: NavController) {
     val ringInset = with(density) { 2.dp.toPx() }
     val ringCornerRadius = with(density) { 24.dp.toPx() }
     val touchSlop = with(density) { 18.dp.toPx() }
+    // Volume gestures live on the artwork side only. This leaves the lyrics
+    // LazyColumn in charge of vertical movement on the right side.
+    val volumeStepDistance = with(density) { 26.dp.toPx() }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Keep the existing ambient glow in one continuously animated layer. The
@@ -172,7 +177,14 @@ fun AmbientModeScreen(navController: NavController) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(playerConnection, ringHitSlop, ringInset, ringCornerRadius, touchSlop) {
+                .pointerInput(
+                    playerConnection,
+                    ringHitSlop,
+                    ringInset,
+                    ringCornerRadius,
+                    touchSlop,
+                    volumeStepDistance,
+                ) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val pointerId = down.id
@@ -207,6 +219,7 @@ fun AmbientModeScreen(navController: NavController) {
                         var verticalAccumulator = 0f
                         var axis: GestureAxis? = null
                         var lastRingFraction = -1f
+                        var tapWasConsumed = false
 
                         fun seekFromRing(position: androidx.compose.ui.geometry.Offset, force: Boolean = false) {
                             if (!isRingGesture) return
@@ -265,33 +278,36 @@ fun AmbientModeScreen(navController: NavController) {
                                 }
 
                                 GestureAxis.Vertical -> {
-                                    change.consume()
-                                    verticalAccumulator += delta.y
-                                    while (abs(verticalAccumulator) >= 10f) {
-                                        val direction = if (verticalAccumulator < 0f) 1 else -1
-                                        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                        if (direction > 0 && currentVolume < maxVolume) {
-                                            audioManager.adjustStreamVolume(
-                                                AudioManager.STREAM_MUSIC,
-                                                AudioManager.ADJUST_RAISE,
-                                                AudioManager.FLAG_SHOW_UI
-                                            )
-                                        } else if (direction < 0 && currentVolume > 0) {
-                                            audioManager.adjustStreamVolume(
-                                                AudioManager.STREAM_MUSIC,
-                                                AudioManager.ADJUST_LOWER,
-                                                AudioManager.FLAG_SHOW_UI
-                                            )
+                                    // A vertical drag that began in the lyrics pane
+                                    // belongs to its LazyColumn, not to volume. Do not
+                                    // consume it here or the lyrics cannot scroll.
+                                    if (isAmbientVolumeZone(
+                                            position = downPosition,
+                                            size = gestureSize,
+                                            edgeHitSlop = ringHitSlop,
+                                        )
+                                    ) {
+                                        change.consume()
+                                        verticalAccumulator += delta.y
+                                        while (abs(verticalAccumulator) >= volumeStepDistance) {
+                                            val increase = verticalAccumulator < 0f
+                                            adjustAmbientSystemVolume(audioManager, increase)
+                                            verticalAccumulator -= if (increase) {
+                                                volumeStepDistance
+                                            } else {
+                                                -volumeStepDistance
+                                            }
                                         }
-                                        verticalAccumulator -= direction * 10f
                                     }
                                 }
 
                                 null -> Unit
                             }
 
-                            if (!change.pressed) break
+                            if (!change.pressed) {
+                                tapWasConsumed = change.isConsumed
+                                break
+                            }
                         }
 
                         if (isRingGesture) {
@@ -325,8 +341,13 @@ fun AmbientModeScreen(navController: NavController) {
                                 // that toggles playback. Horizontal swipes never fall
                                 // through to this branch.
                                 null -> {
-                                    playerConnection.togglePlayPause()
-                                    toggleWithFeedback()
+                                    // Lyrics lines have their own tap-to-seek
+                                    // behavior. If that child consumed the tap,
+                                    // do not also toggle playback.
+                                    if (!tapWasConsumed) {
+                                        playerConnection.togglePlayPause()
+                                        toggleWithFeedback()
+                                    }
                                 }
                             }
                         }
@@ -412,6 +433,46 @@ fun AmbientModeScreen(navController: NavController) {
 private enum class GestureAxis {
     Horizontal,
     Vertical,
+}
+
+/**
+ * Volume is deliberately scoped to the artwork half of Ambient Mode. Lyrics use a
+ * vertically scrolling LazyColumn, so treating every vertical drag as volume would
+ * make a lyric scroll change the volume as a side effect.
+ */
+private fun isAmbientVolumeZone(
+    position: Offset,
+    size: Size,
+    edgeHitSlop: Float,
+): Boolean =
+    position.x > edgeHitSlop &&
+        position.x < size.width / 2f &&
+        position.y > edgeHitSlop &&
+        position.y < size.height - edgeHitSlop
+
+private fun adjustAmbientSystemVolume(audioManager: AudioManager, increase: Boolean) {
+    // Use an absolute, clamped value instead of ADJUST_LOWER/ADJUST_RAISE. A few
+    // OEM audio routes throw when an adjustment races the stream reaching an edge;
+    // a volume gesture must never crash Ambient Mode.
+    runCatching {
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        if (maxVolume <= 0) return@runCatching
+        val currentVolume = audioManager
+            .getStreamVolume(AudioManager.STREAM_MUSIC)
+            .coerceIn(0, maxVolume)
+        val targetVolume = (currentVolume + if (increase) 1 else -1)
+            .coerceIn(0, maxVolume)
+        if (targetVolume != currentVolume) {
+            audioManager.setStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                targetVolume,
+                AudioManager.FLAG_SHOW_UI,
+            )
+        }
+    }.onFailure {
+        // Some cast/OEM routes reject programmatic system volume changes. Ignore
+        // that route-specific failure rather than taking down the fullscreen screen.
+    }
 }
 
 @Composable

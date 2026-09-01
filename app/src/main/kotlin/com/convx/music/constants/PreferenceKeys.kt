@@ -769,6 +769,22 @@ val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
 val CanvasThumbnailAnimationKey = booleanPreferencesKey("canvasThumbnailAnimation")
 val CanvasSourceKey = stringPreferencesKey("canvasSource")
 
+// Ambient Mode — kept separate from the main player's canvas and interaction settings.
+val AmbientVideoCanvasEnabledKey = booleanPreferencesKey("ambientVideoCanvasEnabled")
+val AmbientCanvasSourceKey = stringPreferencesKey("ambientCanvasSource")
+val AmbientVideoCanvasBlurKey = floatPreferencesKey("ambientVideoCanvasBlur")
+val AmbientVideoCanvasDimKey = floatPreferencesKey("ambientVideoCanvasDim")
+val AmbientProgressRingEnabledKey = booleanPreferencesKey("ambientProgressRingEnabled")
+val AmbientPlaybackFeedbackEnabledKey = booleanPreferencesKey("ambientPlaybackFeedbackEnabled")
+val AmbientSeekTimeEnabledKey = booleanPreferencesKey("ambientSeekTimeEnabled")
+val AmbientSeekHapticsEnabledKey = booleanPreferencesKey("ambientSeekHapticsEnabled")
+val AmbientTrackInfoEnabledKey = booleanPreferencesKey("ambientTrackInfoEnabled")
+val AmbientLyricsTextSizeKey = floatPreferencesKey("ambientLyricsTextSize")
+val AmbientTapToPlayPauseEnabledKey = booleanPreferencesKey("ambientTapToPlayPauseEnabled")
+val AmbientSwipeNavigationEnabledKey = booleanPreferencesKey("ambientSwipeNavigationEnabled")
+val AmbientTrackTransitionsEnabledKey = booleanPreferencesKey("ambientTrackTransitionsEnabled")
+val AmbientAutoHideBackButtonEnabledKey = booleanPreferencesKey("ambientAutoHideBackButtonEnabled")
+
 enum class CanvasSource {
     AUTO,
     ECHO_MUSIC,

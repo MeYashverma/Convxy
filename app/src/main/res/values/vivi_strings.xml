@@ -484,6 +484,36 @@
 
     <!-- Ambient Mode -->
     <string name="ambient_mode">Ambient Mode</string>
+    <string name="ambient_mode_settings_desc">Customize the visual effects and interactions used in Ambient Mode</string>
+    <string name="ambient_video_canvas">Video Canvas background</string>
+    <string name="ambient_video_canvas_desc">Use the current track's animated canvas behind the artwork and lyrics</string>
+    <string name="ambient_canvas_source">Ambient Canvas source</string>
+    <string name="ambient_canvas_blur">Canvas blur</string>
+    <string name="ambient_canvas_blur_desc">Soften the moving background to keep foreground content readable</string>
+    <string name="ambient_canvas_dim">Canvas dim</string>
+    <string name="ambient_canvas_dim_desc">Darken the moving background behind artwork and lyrics</string>
+    <string name="ambient_canvas_blur_value">%1$d dp</string>
+    <string name="ambient_canvas_dim_value">%1$d%%</string>
+    <string name="ambient_display">Display</string>
+    <string name="ambient_progress_ring">Progress ring and ring seeking</string>
+    <string name="ambient_progress_ring_desc">Show live playback progress and allow seeking from the screen edge</string>
+    <string name="ambient_playback_feedback">Playback feedback</string>
+    <string name="ambient_playback_feedback_desc">Briefly show the play or pause state after a tap</string>
+    <string name="ambient_seek_time">Seek time feedback</string>
+    <string name="ambient_seek_time_desc">Show elapsed and total time while seeking on the ring</string>
+    <string name="ambient_seek_haptics">Seek marker haptics</string>
+    <string name="ambient_seek_haptics_desc">Give a subtle haptic cue at useful progress markers</string>
+    <string name="ambient_track_info">Track information lower-third</string>
+    <string name="ambient_track_info_desc">Briefly show the title and artist over the album artwork when the track changes</string>
+    <string name="ambient_interactions">Interactions</string>
+    <string name="ambient_tap_play_pause">Tap to play or pause</string>
+    <string name="ambient_tap_play_pause_desc">Toggle playback when tapping the main Ambient Mode surface</string>
+    <string name="ambient_swipe_navigation">Swipe track navigation</string>
+    <string name="ambient_swipe_navigation_desc">Swipe horizontally to move to the previous or next track</string>
+    <string name="ambient_track_transitions">Track slide transitions</string>
+    <string name="ambient_track_transitions_desc">Animate previous and next tracks in the swipe direction</string>
+    <string name="ambient_auto_hide_back_button">Auto-hide back button</string>
+    <string name="ambient_auto_hide_back_button_desc">Hide the back button after three seconds of inactivity and reveal it on interaction</string>
 
     <!-- AI Playlist Modify -->
     <string name="modify_with_ai">Modify with AI</string>

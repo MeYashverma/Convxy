@@ -10,6 +10,8 @@ import android.content.pm.ActivityInfo
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,6 +59,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -78,11 +81,27 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
+import com.convx.music.constants.AmbientAutoHideBackButtonEnabledKey
+import com.convx.music.constants.AmbientProgressRingEnabledKey
+import com.convx.music.constants.AmbientPlaybackFeedbackEnabledKey
+import com.convx.music.constants.AmbientSeekHapticsEnabledKey
+import com.convx.music.constants.AmbientSeekTimeEnabledKey
+import com.convx.music.constants.AmbientSwipeNavigationEnabledKey
+import com.convx.music.constants.AmbientTapToPlayPauseEnabledKey
+import com.convx.music.constants.AmbientTrackInfoEnabledKey
+import com.convx.music.constants.AmbientTrackTransitionsEnabledKey
+import com.convx.music.constants.AmbientVideoCanvasBlurKey
+import com.convx.music.constants.AmbientVideoCanvasDimKey
+import com.convx.music.constants.AmbientVideoCanvasEnabledKey
+import com.convx.music.constants.AmbientCanvasSourceKey
+import com.convx.music.constants.CanvasSource
 import com.convx.music.models.MediaMetadata
 import com.convx.music.playback.PlayerConnection
 import com.convx.music.ui.component.AnimatedPlayPauseIcon
 import com.convx.music.ui.player.InlineLyricsView
 import com.convx.music.utils.makeTimeString
+import com.convx.music.utils.rememberEnumPreference
+import com.convx.music.utils.rememberPreference
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -95,6 +114,58 @@ fun AmbientModeScreen(navController: NavController) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
+    val ambientVideoCanvasEnabled by rememberPreference(
+        AmbientVideoCanvasEnabledKey,
+        defaultValue = false,
+    )
+    val ambientCanvasSource by rememberEnumPreference(
+        AmbientCanvasSourceKey,
+        defaultValue = CanvasSource.AUTO,
+    )
+    val ambientCanvasBlur by rememberPreference(
+        AmbientVideoCanvasBlurKey,
+        defaultValue = 12f,
+    )
+    val ambientCanvasDim by rememberPreference(
+        AmbientVideoCanvasDimKey,
+        defaultValue = 0.42f,
+    )
+    val progressRingEnabled by rememberPreference(
+        AmbientProgressRingEnabledKey,
+        defaultValue = true,
+    )
+    val playbackFeedbackEnabled by rememberPreference(
+        AmbientPlaybackFeedbackEnabledKey,
+        defaultValue = true,
+    )
+    val seekTimeEnabled by rememberPreference(
+        AmbientSeekTimeEnabledKey,
+        defaultValue = true,
+    )
+    val seekHapticsEnabled by rememberPreference(
+        AmbientSeekHapticsEnabledKey,
+        defaultValue = true,
+    )
+    val trackInfoEnabled by rememberPreference(
+        AmbientTrackInfoEnabledKey,
+        defaultValue = true,
+    )
+    val tapToPlayPauseEnabled by rememberPreference(
+        AmbientTapToPlayPauseEnabledKey,
+        defaultValue = true,
+    )
+    val swipeNavigationEnabled by rememberPreference(
+        AmbientSwipeNavigationEnabledKey,
+        defaultValue = true,
+    )
+    val trackTransitionsEnabled by rememberPreference(
+        AmbientTrackTransitionsEnabledKey,
+        defaultValue = true,
+    )
+    val autoHideBackButtonEnabled by rememberPreference(
+        AmbientAutoHideBackButtonEnabledKey,
+        defaultValue = true,
+    )
     val density = LocalDensity.current
     val hapticFeedback = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
@@ -136,6 +207,7 @@ fun AmbientModeScreen(navController: NavController) {
     var showBackButton by remember { mutableStateOf(true) }
     var chromeInteractionToken by remember { mutableIntStateOf(0) }
     var showTrackInfo by remember { mutableStateOf(false) }
+    var canvasReady by remember { mutableStateOf(false) }
     var ringSeekPreviewPosition by remember { mutableLongStateOf(0L) }
     var ringSeekPreviewDuration by remember { mutableLongStateOf(0L) }
     val latestIsPlayingState = rememberUpdatedState(isPlaying)
@@ -152,10 +224,16 @@ fun AmbientModeScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(chromeInteractionToken) {
+    LaunchedEffect(chromeInteractionToken, autoHideBackButtonEnabled) {
         showBackButton = true
-        delay(3000L)
-        showBackButton = false
+        if (autoHideBackButtonEnabled) {
+            delay(3000L)
+            showBackButton = false
+        }
+    }
+
+    LaunchedEffect(mediaMetadata?.id, ambientVideoCanvasEnabled, ambientCanvasSource) {
+        canvasReady = false
     }
 
     LaunchedEffect(mediaMetadata?.id) {
@@ -166,7 +244,7 @@ fun AmbientModeScreen(navController: NavController) {
             showTrackInfo = false
             return@LaunchedEffect
         }
-        showTrackInfo = true
+        showTrackInfo = trackInfoEnabled
         showBackButton = true
         chromeInteractionToken++
         delay(2400L)
@@ -177,26 +255,55 @@ fun AmbientModeScreen(navController: NavController) {
     val ringInset = with(density) { 2.dp.toPx() }
     val ringCornerRadius = with(density) { 24.dp.toPx() }
     val touchSlop = with(density) { 18.dp.toPx() }
+    val canvasBlurRadius = ambientCanvasBlur.coerceIn(0f, 24f)
+    val canvasDimOpacity = ambientCanvasDim.coerceIn(0f, 0.75f)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Keep the existing ambient glow in one continuously animated layer. The
-        // foreground scene slides over it, while the glow itself keeps its existing
-        // palette cross-fade and does not flash to a blank background between songs.
-        AmbientGlowBackground(
-            mediaMetadata = mediaMetadata,
-            modifier = Modifier.fillMaxSize()
-        )
+        // Keep the existing ambient glow as the lightweight fallback while a canvas
+        // is loading or when the current track has no canvas artwork.
+        if (!ambientVideoCanvasEnabled || !canvasReady) {
+            AmbientGlowBackground(
+                mediaMetadata = mediaMetadata,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (ambientVideoCanvasEnabled) {
+            AmbientVideoCanvas(
+                mediaMetadata = mediaMetadata,
+                isPlaying = isPlaying,
+                canvasSource = ambientCanvasSource,
+                onReady = { canvasReady = true },
+                onExhausted = { canvasReady = false },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (canvasBlurRadius > 0f) Modifier.blur(canvasBlurRadius.dp) else Modifier
+                    ),
+            )
+            if (canvasReady) {
+                // Keep the motion immersive but subordinate to the album art and
+                // lyrics. The opacity is adjustable from Ambient Mode settings.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = canvasDimOpacity))
+                )
+            }
+        }
 
         // This is deliberately drawn before the content. It is a bezel detail, not a
         // player control, and the touch handling below only claims its narrow edge
         // hit area when the player reports a seekable duration.
-        AmbientProgressRing(
-            playerConnection = playerConnection,
-            mediaId = mediaMetadata?.id,
-            isPlaying = isPlaying,
-            seekPreviewProgress = ringSeekPreview,
-            modifier = Modifier.fillMaxSize()
-        )
+        if (progressRingEnabled) {
+            AmbientProgressRing(
+                playerConnection = playerConnection,
+                mediaId = mediaMetadata?.id,
+                isPlaying = isPlaying,
+                seekPreviewProgress = ringSeekPreview,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         val animatedDragOffset by androidx.compose.animation.core.animateFloatAsState(
             targetValue = dragOffset,
@@ -216,6 +323,11 @@ fun AmbientModeScreen(navController: NavController) {
                 .pointerInput(
                     playerConnection,
                     mediaMetadata?.id,
+                    progressRingEnabled,
+                    playbackFeedbackEnabled,
+                    seekHapticsEnabled,
+                    swipeNavigationEnabled,
+                    tapToPlayPauseEnabled,
                     ringHitSlop,
                     ringInset,
                     ringCornerRadius,
@@ -242,7 +354,9 @@ fun AmbientModeScreen(navController: NavController) {
                             width = size.width.toFloat(),
                             height = size.height.toFloat()
                         )
-                        val ringDuration = if (!startedInBackButtonArea && isNearBezel(
+                        val ringDuration = if (progressRingEnabled &&
+                            !startedInBackButtonArea &&
+                            isNearBezel(
                                 downPosition,
                                 gestureSize,
                                 ringHitSlop
@@ -285,7 +399,10 @@ fun AmbientModeScreen(navController: NavController) {
                             // Give the user a quiet tactile cue at each quarter of
                             // the track while dragging, without buzzing on touch-down.
                             val hapticMarker = (floor(fraction * 4f)).toInt().coerceIn(0, 3)
-                            if (lastHapticMarker >= 0 && hapticMarker != lastHapticMarker) {
+                            if (seekHapticsEnabled &&
+                                lastHapticMarker >= 0 &&
+                                hapticMarker != lastHapticMarker
+                            ) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             }
                             lastHapticMarker = hapticMarker
@@ -355,7 +472,10 @@ fun AmbientModeScreen(navController: NavController) {
                         } else {
                             when (axis) {
                                 GestureAxis.Horizontal -> {
-                                    if (abs(totalX) >= 150f && abs(totalX) > abs(totalY)) {
+                                    if (swipeNavigationEnabled &&
+                                        abs(totalX) >= 150f &&
+                                        abs(totalX) > abs(totalY)
+                                    ) {
                                         val direction = if (totalX > 0f) 1 else -1
                                         transitionDirection = direction
                                         dragOffset = 0f
@@ -384,9 +504,14 @@ fun AmbientModeScreen(navController: NavController) {
                                     // Lyrics lines have their own tap-to-seek
                                     // behavior. If that child consumed the tap,
                                     // do not also toggle playback.
-                                    if (!tapWasConsumed && !startedInBackButtonArea) {
+                                    if (tapToPlayPauseEnabled &&
+                                        !tapWasConsumed &&
+                                        !startedInBackButtonArea
+                                    ) {
                                         playerConnection.togglePlayPause()
-                                        toggleWithFeedback()
+                                        if (playbackFeedbackEnabled) {
+                                            toggleWithFeedback()
+                                        }
                                     }
                                 }
                             }
@@ -397,24 +522,28 @@ fun AmbientModeScreen(navController: NavController) {
             AnimatedContent(
                 targetState = mediaMetadata,
                 transitionSpec = {
-                    val direction = transitionDirection
-                    (
-                        slideInHorizontally(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = 850f
-                            ),
-                            initialOffsetX = { fullWidth -> -direction * fullWidth }
-                        ) + fadeIn(tween(90)) + scaleIn(tween(180), initialScale = 0.985f)
-                    ).togetherWith(
-                        slideOutHorizontally(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = 850f
-                            ),
-                            targetOffsetX = { fullWidth -> direction * fullWidth }
-                        ) + fadeOut(tween(120)) + scaleOut(tween(180), targetScale = 0.985f)
-                    ).using(SizeTransform(clip = false))
+                    if (!trackTransitionsEnabled) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else {
+                        val direction = transitionDirection
+                        (
+                            slideInHorizontally(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = 850f
+                                ),
+                                initialOffsetX = { fullWidth -> -direction * fullWidth }
+                            ) + fadeIn(tween(90)) + scaleIn(tween(180), initialScale = 0.985f)
+                        ).togetherWith(
+                            slideOutHorizontally(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = 850f
+                                ),
+                                targetOffsetX = { fullWidth -> direction * fullWidth }
+                            ) + fadeOut(tween(120)) + scaleOut(tween(180), targetScale = 0.985f)
+                        ).using(SizeTransform(clip = false))
+                    }
                 },
                 contentKey = { it?.id },
                 label = "ambientTrackTransition",
@@ -425,7 +554,9 @@ fun AmbientModeScreen(navController: NavController) {
                 AmbientForeground(
                     mediaMetadata = currentMetadata,
                     playerConnection = playerConnection,
-                    showTrackInfo = showTrackInfo && currentMetadata?.id == mediaMetadata?.id,
+                    showTrackInfo = trackInfoEnabled &&
+                        showTrackInfo &&
+                        currentMetadata?.id == mediaMetadata?.id,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -434,7 +565,7 @@ fun AmbientModeScreen(navController: NavController) {
         // Show the ring's exact seek target while dragging instead of making the
         // user estimate it from a very thin bezel line.
         androidx.compose.animation.AnimatedVisibility(
-            visible = ringSeekPreview != null,
+            visible = seekTimeEnabled && ringSeekPreview != null,
             enter = fadeIn(tween(120)) + scaleIn(tween(120), initialScale = 0.92f),
             exit = fadeOut(tween(160)) + scaleOut(tween(160), targetScale = 0.92f),
             modifier = Modifier
@@ -461,7 +592,7 @@ fun AmbientModeScreen(navController: NavController) {
         // Feedback is transient only; there is intentionally no persistent playback
         // button in Ambient Mode.
         androidx.compose.animation.AnimatedVisibility(
-            visible = showPlaybackFeedback,
+            visible = playbackFeedbackEnabled && showPlaybackFeedback,
             enter = fadeIn(tween(120)) + scaleIn(tween(120), initialScale = 0.8f),
             exit = fadeOut(tween(220)) + scaleOut(tween(220), targetScale = 0.8f),
             modifier = Modifier.align(Alignment.Center)

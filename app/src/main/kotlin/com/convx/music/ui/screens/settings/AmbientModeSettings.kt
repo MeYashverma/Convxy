@@ -44,6 +44,7 @@ import com.convx.music.constants.AmbientCanvasSideGradientKey
 import com.convx.music.constants.AmbientCanvasSideWidthKey
 import com.convx.music.constants.AmbientCanvasSourceKey
 import com.convx.music.ui.screens.ambient.AmbientCanvasFitDefaults
+import com.convx.music.ui.screens.ambient.AmbientCanvasFitPreview
 import com.convx.music.constants.AmbientLyricsTextSizeKey
 import com.convx.music.constants.AmbientProgressRingEnabledKey
 import com.convx.music.constants.AmbientPlaybackFeedbackEnabledKey
@@ -294,6 +295,24 @@ fun AmbientModeSettings(
                     onCheckedChange = onCanvasSideFitEnabledChange,
                 )
             )
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Live sample of every control below it. It is built from the values this screen is
+        // already holding rather than from what has round-tripped through DataStore, so the
+        // panel and the veil move while a slider is still being dragged.
+        AmbientCanvasFitPreview(
+            videoCanvasEnabled = videoCanvasEnabled,
+            positionFitEnabled = canvasSideFitEnabled,
+            anchor = canvasAnchorSide,
+            fitMode = canvasFitMode,
+            sideWidth = canvasSideWidth,
+            sideGradient = canvasSideGradient,
+            gradientSpread = canvasGradientSpread,
+            farVeil = canvasFarVeil,
+            edgeFeather = canvasEdgeFeather,
+            dim = canvasDim,
         )
 
         Spacer(Modifier.height(16.dp))

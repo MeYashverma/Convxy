@@ -17,6 +17,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import com.convx.music.applecanvas.AppleMusicCanvasProvider
 import com.convx.music.canvas.CanvasArtwork
 import com.convx.music.canvas.TidalCanvasProvider
+import com.convx.music.constants.AmbientCanvasFitMode
 import com.convx.music.constants.CanvasSource
 import com.convx.music.models.MediaMetadata
 import com.convx.music.ui.player.CanvasArtworkPlaybackCache
@@ -35,6 +36,11 @@ import java.util.Locale
  * The candidate list mirrors the main player's source priority. Keeping the list means
  * a stale URL from one provider can fall through to another provider at playback time,
  * rather than leaving a black ambient background.
+ *
+ * [fitMode] and [onVideoAspectRatio] exist for Canvas Position & Fit: the screen picks the
+ * panel's width from the reported frame geometry, and asks for a fit that shows the whole
+ * frame inside it. Both keep the full-screen, crop-to-fill behaviour as their default, so a
+ * caller that has no opinion gets Ambient Mode's original background.
  */
 @Composable
 fun AmbientVideoCanvas(
@@ -42,8 +48,13 @@ fun AmbientVideoCanvas(
     isPlaying: Boolean,
     canvasSource: CanvasSource,
     modifier: Modifier = Modifier,
+    // ZOOM keeps Ambient Mode's historical full-screen behaviour, where the canvas is
+    // cropped until it covers everything. Position & Fit switches to FIT so a portrait
+    // canvas is shown whole inside its side panel.
+    fitMode: AmbientCanvasFitMode = AmbientCanvasFitMode.ZOOM,
     onReady: () -> Unit = {},
     onExhausted: () -> Unit = {},
+    onVideoAspectRatio: (Float) -> Unit = {},
 ) {
     if (mediaMetadata == null) return
 
@@ -135,7 +146,13 @@ fun AmbientVideoCanvas(
             fallbackUrl = candidate.videoUrl,
             isPlaying = isPlaying,
             mediaId = mediaMetadata.id,
-            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            resizeMode = when (fitMode) {
+                // RESIZE_MODE_FILL is Media3's "ignore the aspect ratio" mode, i.e. stretch.
+                AmbientCanvasFitMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                AmbientCanvasFitMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                AmbientCanvasFitMode.STRETCH -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            },
+            onVideoAspectRatio = onVideoAspectRatio,
             onReady = {
                 // Only cache a URL after the shared player has rendered its first frame.
                 CanvasArtworkPlaybackCache.put(cacheKey, candidate)

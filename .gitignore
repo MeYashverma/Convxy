@@ -120,6 +120,7 @@ app/keystore/
 !.github/pull_request_template.md
 !docs/MULTI_SINGER_LYRICS.md
 !docs/FULL_VIDEO_PLAYBACK.md
+!docs/AMBIENT_MODE.md
 !docs/README-PAGES.md
 app/src/main/kotlin/com/designRefrence/
 

@@ -1,267 +1,198 @@
-<div align="center">
-  <h1>CONVXY</h1>
-  <h3>Convxy is an open-source, Liquid Glass music player for Android</h3>
-  <p><sub>Fork of <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a>, developed by <a href="https://github.com/MeYashverma">Yash Verma (MeYashverma)</a> — with Apple Music-style multi-singer synced lyrics and more. 🌐 <a href="https://meyashverma.github.io/Convxy/">meyashverma.github.io/Convxy</a></sub></p>
+# Convxy
 
-  <p>
-    <a href="https://github.com/MeYashverma/Convxy/releases">
-      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20LATEST%20RELEASE-4CAF50?style=for-the-badge&logo=android&logoColor=white" alt="Download Convxy from GitHub Releases">
-    </a>
-  </p>
-  <p>
-    <b><a href="https://github.com/MeYashverma/Convxy/releases/latest">⬇️ GET THE LATEST RELEASE</a></b>
-    — Signed APK from the Releases page. Works on Android 8.0+. (Nightly CI builds are also available from <a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">Actions</a>.)
-  </p>
+A free, open-source music player for Android that streams the YouTube Music catalogue and plain
+YouTube, and puts Apple Music-style synced lyrics over a UI built on real backdrop blur. Library,
+settings, downloads and caches stay on the device — the app contains no analytics SDK and makes no
+background requests other than the ones needed to fetch music, artwork and app updates.
 
-  <h3>📸 Screenshots</h3>
-  <div>
-    <img src="docs/screenshots/Screenshot_20260802_202411_Convx-portrait.png" width="30%" alt="Convxy Liquid Glass music player now playing screen with frosted glass controls">
-    <img src="docs/screenshots/Screenshot_20260802_205400_Convx-portrait.png" width="30%" alt="Convxy Android music player home screen with glass chrome">
-    <img src="docs/screenshots/Screenshot_20260802_205417_Convx-portrait.png" width="30%" alt="Convxy music player library view with Liquid Glass blur">
-    <br>
-    <img src="docs/screenshots/Screenshot_20260802_205427_Convx-portrait.png" width="30%" alt="Convxy music player search screen with frosted glass UI">
-    <img src="docs/screenshots/mobile%20%283%29-portrait.png" width="30%" alt="Convxy Liquid Glass music player UI showing the frosted player screen">
-    <img src="docs/screenshots/mobile%20%284%29-portrait.png" width="30%" alt="Convxy music player now playing screen with artwork and glass controls">
-    <br>
-    <img src="docs/screenshots/mobile%20%285%29-portrait.png" width="30%" alt="Convxy music player queue screen with Liquid Glass surfaces">
-    <img src="docs/screenshots/mobile%20%287%29-portrait.png" width="30%" alt="Convxy Android music player synced lyrics screen">
-    <img src="docs/screenshots/mobile%20%289%29-portrait.png" width="30%" alt="Convxy music player album page with refractive glass chrome">
-    <br>
-    <img src="docs/screenshots/mobile%20%2810%29-portrait.png" width="30%" alt="Convxy music player settings screen with frosted glass panels">
-    <img src="docs/screenshots/mobile%20%2811%29-portrait.png" width="30%" alt="Convxy music player artist page with glass design">
-    <img src="docs/screenshots/mobile%20%2812%29-portrait.png" width="30%" alt="Convxy music player Android Auto playback controls">
-    <br>
-    <img src="docs/screenshots/mobile%20%2813%29-portrait.png" width="30%" alt="Convxy music player equalizer with Liquid Glass UI">
-    <img src="docs/screenshots/lyrics%20screen-portrait.png" width="30%" alt="Convxy music player karaoke-style lyrics with word-by-word highlighting">
-    <img src="docs/screenshots/users%20%282%29-portrait.png" width="30%" alt="Convxy Listen Together shared playback with friends">
-    <br>
-    <img src="docs/screenshots/tabview%20%281%29-landscape.png" width="30%" alt="Convxy Liquid Glass music player tablet home view">
-    <img src="docs/screenshots/tabview%20%282%29-landscape.png" width="30%" alt="Convxy music player tablet library browsing">
-    <img src="docs/screenshots/tabview%20%283%29-landscape.png" width="30%" alt="Convxy music player tablet now playing screen">
-    <br>
-    <img src="docs/screenshots/users%20%283%29-portrait.png" width="30%" alt="Convxy Discord Rich Presence showing what you are listening to">
-    <img src="docs/screenshots/users%20%285%29-landscape.png" width="30%" alt="Convxy music player shared sessions and community">
-  </div>
+Website: https://meyashverma.github.io/Convxy/ ·
+Releases: https://github.com/MeYashverma/Convxy/releases ·
+Discord: https://discord.gg/GquSGfs2u
 
-  <p>
-    <a href="https://github.com/MeYashverma/Convxy/releases">
-      <img src="https://img.shields.io/github/downloads/MeYashverma/Convxy/total?style=for-the-badge&color=blue" alt="Downloads">
-    </a>
-    <a href="LICENSE">
-      <img src="https://img.shields.io/github/license/MeYashverma/Convxy?style=for-the-badge" alt="License">
-    </a>
-    <a href="https://discord.gg/GquSGfs2u">
-      <img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
-    </a>
-    <a href="https://meyashverma.github.io/Convxy/">
-      <img src="https://img.shields.io/badge/Convxy-Website-8A2BE2?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Visit Convxy Website">
-    </a>
-  </p>
-  <p>
-    👨💻 <b>Developer:</b> <a href="https://github.com/MeYashverma">Yash Verma</a> &nbsp;•&nbsp;
-    🌐 <b>About me:</b> <a href="https://meyashverma.github.io/yashverma-dev/">yashverma-dev</a> &nbsp;•&nbsp;
-    🌐 <b>Website:</b> <a href="https://meyashverma.github.io/Convxy/">meyashverma.github.io/Convxy</a>
-  </p>
-</div>
+<p>
+  <img src="docs/screenshots/Screenshot_20260802_205400_Convx-portrait.png" width="230" alt="Home screen with the frosted nav bar">
+  <img src="docs/screenshots/lyrics%20screen-portrait.png" width="230" alt="Synced lyrics with the active-line glow">
+  <img src="docs/screenshots/mobile%20%287%29-portrait.png" width="230" alt="Multi-singer lyrics, one colour per vocalist">
+  <img src="docs/screenshots/tabview%20%281%29-landscape.png" width="330" alt="Tablet layout with a sidebar">
+</p>
 
-<hr>
+More screenshots, including the TV and Ambient layouts, are in [docs/screenshots](docs/screenshots).
 
-<h2>🎵 About Convxy</h2>
+## What it does
 
-<p><b>Convxy</b> is a free, open-source music player for Android that streams from YouTube Music <b>and regular YouTube</b>, built with <b>Jetpack Compose</b> on a <b>Media3</b> ExoPlayer core. The UI is a custom <b>Liquid Glass</b> design system — frosted, refractive surfaces, iOS-style bouncy scrolling, and progressive blur chrome — instead of stock Material widgets.</p>
+**Playing music.** YouTube Music, JioSaavn and local files in one library: playlists,
+subscriptions, search, queues (persistent and offline-safe), background playback, lock-screen and
+notification controls, audio focus, and a sleep timer that can stop at the end of the current
+track instead of a fixed number of minutes.
 
-<p>Lineage: <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a> → <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a> → <b>Convxy</b>; see <a href="#-credits">Credits</a> below.</p>
+**Liquid Glass.** A real glass system, not translucent Material tiles: nav bar, mini player,
+sheets and dialogs sample the actual pixels behind them and blur and refract them. Blur radius,
+vibrancy, lens depth, refraction, noise, tint, shape, iOS-style rubber-band overscroll and spring
+transitions are all adjustable in Settings, and dynamic colour is derived from the current
+artwork.
 
-<hr>
+**Lyrics.** Word-by-word karaoke with a per-word fill, several animation styles, progressive
+blur, translation and romanisation, and multi-singer synchronisation — each vocalist gets a
+colour and a name badge, and shared vocals are treated as a chorus instead of being pinned to the
+lead. Provider quirks and the TTML parsing are documented in
+[docs/MULTI_SINGER_LYRICS.md](docs/MULTI_SINGER_LYRICS.md).
 
-<h2>✨ Features</h2>
+**Video.** The player can watch a song's actual YouTube video instead of playing audio only, and
+Convxy has its own native YouTube section: home feed, search with filters, channels, playlists,
+Shorts, a watch screen with quality caps up to 1080p, and local watch history. Related videos join
+the same queue as your music. See [docs/FULL_VIDEO_PLAYBACK.md](docs/FULL_VIDEO_PLAYBACK.md).
 
-<table align="center" width="100%">
-  <tr valign="top">
-    <td width="50%">
-      <h3>🧊 Liquid Glass UI</h3>
-      <ul>
-        <li><b>Real backdrop blur:</b> frosted glass chrome (nav bar, floating buttons, sheets) that actually samples and refracts the content behind it, not a flat translucent color.</li>
-        <li><b>iOS-style motion:</b> bouncy rubber-band overscroll, blurred page transitions, springy nav puck.</li>
-        <li><b>Material You:</b> adaptive colors pulled from the currently playing artwork.</li>
-      </ul>
-    </td>
-    <td width="50%">
-      <h3>🎵 Streaming</h3>
-      <ul>
-        <li><b>Full YT Music catalog:</b> ad-free streaming and background playback with full notification/lock-screen controls.</li>
-        <li><b>Offline downloads:</b> cache tracks locally with smart storage management.</li>
-        <li><b>Lossless/high-quality audio</b> and a built-in equalizer.</li>
-      </ul>
-    </td>
-  </tr>
-  <tr valign="top">
-    <td width="50%">
-      <h3>📝 Lyrics & Social</h3>
-      <ul>
-        <li><b>Synced, karaoke-style lyrics</b> with word-by-word highlighting.</li>
-        <li><b>Multi-singer lyrics (Apple Music-style duets):</b> per-vocalist colors and a "who is singing" badge for songs with multiple vocalists, including shared vocals — automatically active when the lyrics source provides singer metadata (<a href="docs/MULTI_SINGER_LYRICS.md">details</a>).</li>
-        <li><b>Discord Rich Presence:</b> show what you're listening to on your profile.</li>
-        <li><b>Listen Together:</b> sync playback with friends in real time.</li>
-      </ul>
-    </td>
-    <td width="50%">
-      <h3>🛡️ Privacy & Updates</h3>
-      <ul>
-        <li><b>Zero telemetry:</b> no trackers, no analytics, fully local library and preferences.</li>
-        <li><b>Built-in updater:</b> in-app update checks and changelogs, no third-party store required.</li>
-      </ul>
-    </td>
-  </tr>
-  <tr valign="top">
-    <td width="50%">
-      <h3>▶️ Native YouTube (new in v1.6.0)</h3>
-      <ul>
-        <li><b>A full native YouTube client inside Convxy:</b> home feed, search with suggestions &amp; filters, channels (Videos / Shorts / Playlists tabs), playlists, and Shorts — no WebView, no redirects.</li>
-        <li><b>Real video playback:</b> a dedicated watch screen with fullscreen (immersive, rotation-safe), double-tap seek, playback speed, video quality selector (up to 1080p), mute/volume, and audio-only fallback.</li>
-        <li><b>Queue integration:</b> related videos become the queue — play next, add to queue, skip through them from the same mini player and notification as your music.</li>
-        <li><b>Watch history, Continue Watching &amp; Saved videos</b> — fully local, like the rest of the library.</li>
-      </ul>
-    </td>
-    <td width="50%">
-      <h3>🧠 Smart playback</h3>
-      <ul>
-        <li><b>Multi-client stream resolution:</b> native YouTube clients are probed in parallel (with PoToken solving, SABR handling and cipher deobfuscation) so videos start fast and keep working when YouTube flags one client.</li>
-        <li><b>Session-aware:</b> browse and playback requests adapt to login state (account vs anonymous sessions) with automatic fallbacks through consent walls and bot checks.</li>
-        <li><b>Diagnosable:</b> shareable in-app playback logs show every client attempt and browse response.</li>
-      </ul>
-    </td>
-  </tr>
-</table>
+**Ambient Mode.** A sparse landscape display for a TV or a stand: artwork and synced lyrics side by
+side, an accent glow or the track's own animated canvas behind them, a progress ring you can scrub
+from the screen edge, and a back button that gets out of the way. Portrait canvases can be pinned to
+one side of the frame at their full size with an adjustable gradient — the settings, defaults and
+fit rules are in [docs/AMBIENT_MODE.md](docs/AMBIENT_MODE.md).
 
-<hr>
+**Sound and files.** Built-in equalizer, optional high-bitrate and lossless sources where the
+provider has them, offline downloads with a per-source quality setting, a Storage screen that breaks
+the cache down and clears each part separately, crossfade with tempo-matched Auto-DJ mixing, and a
+waveform scrub bar in the mini player.
 
-<h2>🏗️ Architecture</h2>
+**Around the app.** Android Auto (browse and search, with configurable launch destination and
+resume behaviour), a tablet sidebar layout, material icon and font choices, an in-app updater that
+reads GitHub Releases, opt-in Discord Rich Presence over Discord's own gateway, opt-in Last.fm,
+ListenBrainz and Spotify scrobbling, and Listen Together for following one queue with friends.
 
-<p>Quick map for contributors — see <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> for the full guide.</p>
+## Where it came from
 
-<ul>
-  <li><b>UI:</b> Jetpack Compose, MVVM (<code>ui/screens</code> + <code>viewmodels</code>), navigated via <code>ui/screens/NavigationBuilder.kt</code>.</li>
-  <li><b>Liquid Glass:</b> <code>ui/component/GlassEffect.kt</code> exposes <code>Modifier.liquidGlass(...)</code>, built on a vendored, source-included copy of <a href="https://github.com/Kyant0/backdrop">Kyant0/backdrop</a> under <code>ui/component/backdrop/</code>. A <code>Backdrop</code> (usually a <code>rememberLayerBackdrop()</code> attached via <code>Modifier.layerBackdrop(...)</code> to some subtree) captures real pixels; any surface holding a reference to that same backdrop can sample, blur, and refract it through <code>drawBackdrop(...)</code>. The floating nav bar, circular back/share buttons, and sheets are all just glass surfaces sampling a nearby backdrop this way.</li>
-  <li><b>Playback:</b> Media3 <code>ExoPlayer</code> service in <code>playback/MusicService.kt</code>.</li>
-  <li><b>Data:</b> Room database (<code>db/</code>) for the local library, DataStore for preferences (<code>utils/DataStore.kt</code>, <code>constants/PreferenceKeys.kt</code>).</li>
-  <li><b>YouTube Music access:</b> the <code>innertube</code> module — an unofficial InnerTube API client, kept separate from the app module.</li>
-  <li><b>Regular YouTube access:</b> the same <code>innertube</code> module also carries a WEB InnerTube client (<code>YouTubeWeb</code>) that powers the native YouTube section (feed, search, watch, channels, playlists), with session/consent handling and an anonymous native-client fallback.</li>
-  <li><b>Updater:</b> <code>vivimusic/updater/</code> checks GitHub Releases for new versions and handles in-app APK download/install (FOSS/GMS build flavors behave slightly differently — see <code>BuildConfig.CAST_AVAILABLE</code>).</li>
-</ul>
+Convxy is a fork of [Convx](https://github.com/cosmictaserdev-creator/Convx), itself a fork of
+[vivi-music](https://github.com/vivizzz007/vivi-music). The upstream projects stay useful for
+reference, but this repository is the one under active development: fixes land here first.
 
-<hr>
+## Architecture
 
-<h2>🚗 Android Auto Setup</h2>
+A Gradle multi-module Android app, Kotlin and Jetpack Compose throughout.
 
-<p>If Convxy doesn't appear in Android Auto:</p>
+- **`app/`** — the player. Media3 `ExoPlayer` in `MusicService`, playback state mirrored to the UI
+  over AIDL; screens under `ui/screens/`, their viewmodels under `viewmodels/`, navigation in
+  `ui/screens/NavigationBuilder.kt`, Room database in `db/`.
+- **`ui/component/GlassEffect.kt`** — `Modifier.liquidGlass(...)` and friends: a shared backdrop
+  layer, runtime shader blur and refraction, vibrancy. The engine is a vendored, source-included
+  copy of [Kyant0/backdrop](https://github.com/Kyant0/backdrop), which is why `liquidGlass` takes a
+  `Backdrop` host rather than doing a live `captureBackdrop` per frame.
+- **`innertube/`** — unofficial YouTube Music (InnerTube) client, independent of the app module.
+  Several native clients are probed in parallel so one flagged client cannot break playback; the
+  same module carries the WEB client used by the YouTube tab, including consent, visitor data and
+  the credentials it sends when you are logged in.
+- **`kugou/`, `lrclib/`, `youlyplus/`, `betterlyrics/`, `paxsenixlyrics/`, `musixmatchlyrics/`,
+  `spotify/`, `simpmusic/`, `jiosaavn/`, `lastfm/`** — one module per integration: lyrics providers,
+  scrobbling, and the JioSaavn catalogue. They stay independent of `:app` so one provider can be
+  dropped or swapped without touching playback; translation lives in `app/.../lyrics/` instead.
+- **`canvas/`, `applecanvas/`, `vivimusiccanvas/`, `artistvideo/`** — the animated-canvas
+  providers: Apple Music and Tidal canvases, Echo Music/ViviMusic canvases, and artist videos.
+  They feed both the player canvas and the Ambient Mode background.
+- **`shazamkit/`** — song recognition. **`spine/`** — the 8spine module loader used to pull extra
+  audio sources on top of the built-in clients.
+- **`kizzy/`** — the Discord Rich Presence client vendored from
+  [dead8309/Kizzy](https://github.com/dead8309/Kizzy) (`com.my.kizzy`). It authenticates against
+  `wss://gateway.discord.gg` with your own token, so presence updates need neither the Discord app
+  running nor a bot or relay of ours.
+- **`listen-together-server/`** — the Listen Together room server (TypeScript on Cloudflare Workers,
+  one Durable Object per room; deployed separately, not part of the app build).
+- **`scripts/`** — repo maintenance helpers (icon generation, SVG→drawable conversion, CI report).
+- The rest of the plumbing is packages inside `app/`: `playback/` (the service, queue, crossfade and
+  sleep timer), `db/` (Room), `lyrics/` (fetching, parsing, translation), `listentogether/`,
+  `eq/`, `recognition/`, `widget/`, and `vivimusic/` for the updater and the ported player style.
 
-<ol>
-  <li>Open <strong>Android Auto</strong> on your phone</li>
-  <li>Tap the <strong>hamburger menu</strong> (three lines) and go to <strong>Settings</strong></li>
-  <li>Scroll to the bottom and tap the <strong>version number</strong> multiple times to enable Developer Settings</li>
-  <li>Tap the <strong>three dots menu</strong> (⋮) at the top-right</li>
-  <li>Select <strong>Developer settings</strong></li>
-  <li>Enable <strong>Unknown sources</strong></li>
-  <li>Restart Android Auto and connect to your car</li>
-</ol>
+Feature notes for the parts with interesting internals are in [docs/](docs):
+[Ambient Mode](docs/AMBIENT_MODE.md), [multi-singer lyrics](docs/MULTI_SINGER_LYRICS.md) and
+[full video playback](docs/FULL_VIDEO_PLAYBACK.md).
 
-<hr>
+Build variants: a `foss`/`gms` axis and an `abi` axis (`universal`, `arm64`, `armeabi`, `x86`,
+`x86_64`), in `debug` and `optimized`. Only `gms` adds Google Cast — Android Auto works in both,
+because it only needs the media-browser service — and neither variant asks for a Google account.
+Requires JDK 21, `compileSdk 37`, `minSdk 26` (Android 8.0).
 
-<h2>🤝 Contributing</h2>
+## Installing
 
-<p>Contributions are welcome — bug reports, feature requests, and code. Start with <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> for the project layout, build setup, and PR checklist. Short version:</p>
+Grab the APK from the [latest release](https://github.com/MeYashverma/Convxy/releases/latest) and
+install it; Android will ask you to allow installs from this source once. CI builds from `main` are
+in the [Actions runs](https://github.com/MeYashverma/Convxy/actions/workflows/build.yml) if you
+want something newer than the last tag.
 
-<ol>
-  <li>Fork the repository</li>
-  <li>Create your feature branch (<code>git checkout -b feature/AmazingFeature</code>)</li>
-  <li>Commit your changes (<code>git commit -m 'Add some AmazingFeature'</code>)</li>
-  <li>Push to the branch (<code>git push origin feature/AmazingFeature</code>)</li>
-  <li>Open a Pull Request</li>
-</ol>
+The release asset is one signed universal APK built as `universalGms`, meaning Google Cast is
+compiled into it. Android Auto works in either flavour — the media-browser service is in the shared
+manifest — and nothing here needs a Google account. Releases and nightly CI only publish the GMS
+flavour; for a build with no Play Services dependency at all, run
+`./gradlew :app:assembleUniversalFossRelease` yourself.
 
-<hr>
+To build it yourself: clone the repo, open it in Android Studio, let Gradle sync, run the `app`
+module. No submodules, native toolchain or codegen step to set up by hand; Gradle handles
+everything, including the protobuf codegen a couple of modules need.
 
-<h2>🛡️ Privacy & Data Collection</h2>
+### Android Auto
 
-<p>At <strong>Convxy</strong>, your privacy is our top priority. We believe that your music and data belong exclusively to you.</p>
+Android Auto only shows media apps it knows about, so a sideloaded player has to be allowed once:
 
-<ul>
-  <li><strong>Zero Data Collection:</strong> we do <strong>not</strong> collect, store, or share any of your personal information, usage habits, or listening history.</li>
-  <li><strong>100% Local:</strong> all your settings, downloaded tracks, and offline caches are stored securely on your device.</li>
-  <li><strong>No Tracking:</strong> no hidden trackers, analytics, or background services monitoring your activity.</li>
-</ul>
+1. Open **Android Auto** on the phone → the hamburger menu → **Settings**.
+2. Tap the **version number** at the bottom several times to unlock developer settings.
+3. In the three-dot menu, open **Developer settings** and switch on **Unknown sources**.
+4. Restart Android Auto (or unplug and replug the car), then in the Auto media launcher choose
+   **Explore by voice → Media apps → More** and pick *Convxy*.
+5. If it still doesn't appear, install the latest **Android Auto for Machine** APK from
+   [androidxr.nl](https://androidxr.nl) and repeat.
 
-<hr>
+Every non-Google media app in Auto needs step 3; the in-app help mirrors these same steps.
 
-<h2>📜 Disclaimer</h2>
+### Listen Together
 
-<p>This project and its contents are <strong>not affiliated with, funded, authorized, endorsed by, or in any way associated with</strong> YouTube, Google LLC, or any of their affiliates and subsidiaries.</p>
+**Profile → Listen Together** opens a room and gives you a code to share. Everyone who joins
+follows the host's queue with the position kept in sync over a WebSocket room. The rooms live on a
+small Cloudflare Worker (`listen-together-server/` in this repo, one Durable Object per room); the
+app ships with a default server and **Settings → Listen Together** lets you point at your own
+deployment instead. Playing alone never touches it.
 
-<p>Any trademark, service mark, trade name, or other intellectual property rights used in this project are owned by their respective owners.</p>
+## Privacy
 
-<p><strong>Convxy</strong> is an independent project created for educational and personal use purposes.</p>
+- The app does not collect analytics, and no analytics or ad SDK is compiled in.
+- Your library, liked songs, playlists, history, settings, downloads and caches live in a local
+  Room database and the app's private storage.
+- Network requests are made only to the services you use — YouTube Music's API, JioSaavn, lyrics
+  providers, artwork CDNs — plus GitHub for update checks.
+- Discord Rich Presence and scrobbling (Last.fm, ListenBrainz, Spotify) are off until you turn
+  them on and log in yourself. Presence talks to Discord's gateway directly; scrobbles go to the
+  service you connected. Nothing is sent to us, because there is nowhere to send it.
 
-<hr>
+## Disclaimer
 
-<h2>📄 License</h2>
-<p>This project is licensed under the terms specified in the <a href="LICENSE">LICENSE</a> file (GPL-3.0).</p>
+- This project is not affiliated with, endorsed by, or funded by YouTube or Google LLC.
+- It uses unofficial APIs and is not available on the Play Store.
+- No track, album or video is hosted, uploaded or distributed by this repository.
+- You are responsible for how you use it and for respecting the terms of service of the services
+  it talks to.
 
-<hr>
+## Contributing
 
-<div align="center">
-  <table border="0" cellpadding="15" cellspacing="0" width="85%">
-    <tr>
-      <td align="center">
-        <h3>💬 Community & Support</h3>
-        <p>Connect with other listeners, suggest features, report bugs, and stay updated on releases.</p>
-        <br>
-        <a href="https://discord.gg/GquSGfs2u">
-          <img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord">
-        </a>
-        <br><br>
-        <sub>
-          <a href="https://github.com/MeYashverma/Convxy/issues">🐞 Report Bugs</a> &nbsp;•&nbsp;
-          <a href="https://github.com/MeYashverma/Convxy/discussions">💬 Discussions</a> &nbsp;•&nbsp;
-          <a href="https://github.com/MeYashverma/Convxy/releases">🚀 Releases</a>
-        </sub>
-      </td>
-    </tr>
-  </table>
-</div>
+Read [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) — it covers module layout, branch and
+commit conventions, and what a pull request should include. Bug reports go in
+[issues](https://github.com/MeYashverma/Convxy/issues); anything that isn't a bug yet is better on
+[Discord](https://discord.gg/GquSGfs2u) or in [discussions](https://github.com/MeYashverma/Convxy/discussions).
+PRs that touch UI should come with a screenshot or a recording, since most regressions here are
+visual rather than compile-time.
 
-<hr>
+## License
 
-<div align="center">
+Convxy is licensed under the [GNU General Public License v3.0](LICENSE), the licence the upstream
+projects chose as well. Use it, change it, ship it — anything built from it has to stay under the
+same terms and come with its source.
 
-  <h2>🙏 Credits</h2>
+## Credits
 
-  <p>Convxy is developed and maintained by <a href="https://github.com/MeYashverma">Yash Verma (MeYashverma)</a> — <a href="https://meyashverma.github.io/yashverma-dev/">portfolio</a>. Built on Convx by <a href="https://github.com/cosmictaserdev-creator">Aryan (CosmicTaser)</a>, see <a href="https://cosmictaser.de5.net">cosmictaser.de5.net</a>.</p>
-
-  <table border="0" cellpadding="10" cellspacing="0" width="90%">
-    <tr valign="top">
-      <td width="40%" align="left">
-        <b>💡 Built On</b>
-        <ul>
-          <li><strong><a href="https://github.com/vivizzz007/vivi-music">vivi-music</a></strong> by <strong>Vividh P Ashokan</strong> — the project Convx was forked from.</li>
-          <li>The <strong>Apple Music Player V17</strong> full-screen player style (Settings → Player Theme) is ported from <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a>'s Apple Music player UI, GPL-3.0.</li>
-        </ul>
-      </td>
-      <td width="60%" align="left">
-        <b>🎖️ Foundational Projects</b>
-        <ul>
-          <li><strong><a href="https://github.com/Kyant0/backdrop">Kyant0/backdrop</a></strong> — the real-time backdrop blur/refraction library the Liquid Glass UI is built on.</li>
-          <li><strong><a href="https://github.com/better-lyrics/better-lyrics">Better Lyrics</a></strong> and <strong><a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a></strong> — synced lyrics.</li>
-          <li><strong><a href="https://github.com/ibratabian17/YouLyPlus">YouLyPlus</a></strong> — in-app lyrics styling.</li>
-          <li><strong><a href="https://github.com/monochrome-music/monochrome">Monochrome</a></strong> — the animated visualizer canvas.</li>
-        </ul>
-      </td>
-    </tr>
-  </table>
-
-  <br>
-  <p align="center">The open-source community for tools, libraries, and APIs that make this project possible.</p>
-  <hr width="60%">
-  <p align="center"><strong>Made with ❤️ for music lovers everywhere</strong></p>
-  <p align="center">⭐ Star this repo if you enjoy Convxy!</p>
-</div>
+- [Aryan (CosmicTaser)](https://github.com/cosmictaserdev-creator) — [Convx](https://github.com/cosmictaserdev-creator/Convx)
+  ([cosmictaser.de5.net](https://cosmictaser.de5.net)), the upstream fork this project continues.
+- [Vividh P Ashokan](https://github.com/vivizzz007) — [vivi-music](https://github.com/vivizzz007/vivi-music).
+- [Kyant0/backdrop](https://github.com/Kyant0/backdrop) — the backdrop blur and refraction engine
+  vendored into `app/src/main/kotlin/com/convx/music/ui/component/backdrop/`.
+- [Better Lyrics](https://github.com/better-lyrics/better-lyrics),
+  [YouLyPlus](https://github.com/ibratabian17/YouLyPlus) and
+  [SimpMusic](https://github.com/maxrave-dev/SimpMusic) — lyrics sources and styling ideas.
+- [dead8309/Kizzy](https://github.com/dead8309/Kizzy) — the Discord gateway client in `kizzy/`.
+- [Monochrome](https://github.com/monochrome-music/monochrome) — the animated visualiser canvas,
+  inherited through vivi-music.
+- The Apple Music Player V17 full-screen style (**Settings → Player theme**) is ported from
+  vivi-music's Apple Music UI, GPL-3.0.

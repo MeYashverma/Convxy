@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -75,6 +76,7 @@ import kotlin.math.roundToInt
  * the cheapest honest way to read the three fit modes at this size: Fit keeps it whole, Fill
  * side crops it against the panel, and Stretch squashes it into an ellipse.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AmbientCanvasFitPreview(
     videoCanvasEnabled: Boolean,
@@ -381,7 +383,7 @@ private fun MockCanvasContent(modifier: Modifier = Modifier) {
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(9000, easing = LinearEasing),
-            mode = RepeatMode.Restart,
+            repeatMode = RepeatMode.Restart,
         ),
         label = "mockCanvasPhase",
     )

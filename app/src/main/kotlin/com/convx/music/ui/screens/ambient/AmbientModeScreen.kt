@@ -23,12 +23,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -72,9 +74,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavController
@@ -82,6 +86,16 @@ import coil3.compose.AsyncImage
 import com.convx.music.LocalPlayerConnection
 import com.convx.music.R
 import com.convx.music.constants.AmbientAutoHideBackButtonEnabledKey
+import com.convx.music.constants.AmbientCanvasAnchorSide
+import com.convx.music.constants.AmbientCanvasAnchorSideKey
+import com.convx.music.constants.AmbientCanvasEdgeFeatherKey
+import com.convx.music.constants.AmbientCanvasFarVeilKey
+import com.convx.music.constants.AmbientCanvasFitMode
+import com.convx.music.constants.AmbientCanvasFitModeKey
+import com.convx.music.constants.AmbientCanvasGradientSpreadKey
+import com.convx.music.constants.AmbientCanvasSideFitEnabledKey
+import com.convx.music.constants.AmbientCanvasSideGradientKey
+import com.convx.music.constants.AmbientCanvasSideWidthKey
 import com.convx.music.constants.AmbientLyricsTextSizeKey
 import com.convx.music.constants.AmbientProgressRingEnabledKey
 import com.convx.music.constants.AmbientPlaybackFeedbackEnabledKey
@@ -131,6 +145,40 @@ fun AmbientModeScreen(navController: NavController) {
     val ambientCanvasDim by rememberPreference(
         AmbientVideoCanvasDimKey,
         defaultValue = 0.42f,
+    )
+    // Canvas Position & Fit: portrait canvases hug one side of the 16:9 layout behind a
+    // stronger gradient, instead of being cropped to cover the whole screen.
+    val ambientCanvasSideFitEnabled by rememberPreference(
+        AmbientCanvasSideFitEnabledKey,
+        defaultValue = false,
+    )
+    val ambientCanvasAnchorSide by rememberEnumPreference(
+        AmbientCanvasAnchorSideKey,
+        defaultValue = AmbientCanvasAnchorSide.AUTO,
+    )
+    val ambientCanvasFitMode by rememberEnumPreference(
+        AmbientCanvasFitModeKey,
+        defaultValue = AmbientCanvasFitMode.FIT,
+    )
+    val ambientCanvasSideWidth by rememberPreference(
+        AmbientCanvasSideWidthKey,
+        defaultValue = AmbientCanvasFitDefaults.SideWidth,
+    )
+    val ambientCanvasSideGradient by rememberPreference(
+        AmbientCanvasSideGradientKey,
+        defaultValue = AmbientCanvasFitDefaults.SideGradient,
+    )
+    val ambientCanvasGradientSpread by rememberPreference(
+        AmbientCanvasGradientSpreadKey,
+        defaultValue = AmbientCanvasFitDefaults.GradientSpread,
+    )
+    val ambientCanvasFarVeil by rememberPreference(
+        AmbientCanvasFarVeilKey,
+        defaultValue = AmbientCanvasFitDefaults.FarVeil,
+    )
+    val ambientCanvasFeather by rememberPreference(
+        AmbientCanvasEdgeFeatherKey,
+        defaultValue = AmbientCanvasFitDefaults.EdgeFeather,
     )
     val globalLyricsTextSize by rememberPreference(
         LyricsTextSizeKey,
@@ -218,6 +266,9 @@ fun AmbientModeScreen(navController: NavController) {
     var chromeInteractionToken by remember { mutableIntStateOf(0) }
     var showTrackInfo by remember { mutableStateOf(false) }
     var canvasReady by remember { mutableStateOf(false) }
+    // Reported by the canvas player once the decoder knows the frame geometry. Position &
+    // Fit sizes the side panel from it, so a 9:16 canvas is hugged rather than guessed at.
+    var canvasVideoAspect by remember { mutableFloatStateOf(0f) }
     var ringSeekPreviewPosition by remember { mutableLongStateOf(0L) }
     var ringSeekPreviewDuration by remember { mutableLongStateOf(0L) }
     var trackInfoMediaId by remember { mutableStateOf<String?>(null) }
@@ -247,6 +298,7 @@ fun AmbientModeScreen(navController: NavController) {
 
     LaunchedEffect(mediaMetadata?.id, ambientVideoCanvasEnabled, ambientCanvasSource) {
         canvasReady = false
+        canvasVideoAspect = 0f
     }
 
     LaunchedEffect(mediaMetadata?.id) {
@@ -306,8 +358,10 @@ fun AmbientModeScreen(navController: NavController) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Keep the existing ambient glow as the lightweight fallback while a canvas
-        // is loading or when the current track has no canvas artwork.
-        if (!ambientVideoCanvasEnabled || !canvasReady) {
+        // is loading or when the current track has no canvas artwork. With Position & Fit
+        // it also stays behind the whole layout, because it is what the feathered edge of
+        // the side panel dissolves into.
+        if (!ambientVideoCanvasEnabled || !canvasReady || ambientCanvasSideFitEnabled) {
             AmbientGlowBackground(
                 mediaMetadata = mediaMetadata,
                 modifier = Modifier.fillMaxSize()
@@ -315,26 +369,90 @@ fun AmbientModeScreen(navController: NavController) {
         }
 
         if (ambientVideoCanvasEnabled) {
-            AmbientVideoCanvas(
-                mediaMetadata = mediaMetadata,
-                isPlaying = isPlaying,
-                canvasSource = ambientCanvasSource,
-                onReady = { canvasReady = true },
-                onExhausted = { canvasReady = false },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (canvasBlurRadius > 0f) Modifier.blur(canvasBlurRadius.dp) else Modifier
-                    ),
-            )
-            if (canvasReady) {
-                // Keep the motion immersive but subordinate to the album art and
-                // lyrics. The opacity is adjustable from Ambient Mode settings.
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = canvasDimOpacity))
+            // The panel is expressed as a share of the screen width, so the screen's own
+            // aspect ratio is needed to size it against the canvas' aspect ratio.
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val screenAspect =
+                    if (maxHeight > 0.dp) maxWidth.value / maxHeight.value else 16f / 9f
+                val anchoredRight = ambientCanvasAnchoredRight(
+                    anchor = ambientCanvasAnchorSide,
+                    isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl,
                 )
+                val panelFraction = ambientCanvasPanelFraction(
+                    videoAspect = canvasVideoAspect,
+                    screenAspect = screenAspect,
+                    requestedFraction = ambientCanvasSideWidth,
+                    fitMode = ambientCanvasFitMode,
+                )
+                // Landscape canvases keep the ordinary full-width background even with the
+                // option on — Position & Fit only re-seats canvases that lose too much to a
+                // 16:9 crop.
+                val useSidePanel = ambientCanvasSideFitEnabled &&
+                    ambientCanvasUsesSidePanel(panelFraction)
+                val animatedPanelWidth by animateFloatAsState(
+                    targetValue = if (useSidePanel) panelFraction else 1f,
+                    animationSpec = tween(280),
+                    label = "ambientCanvasPanelWidth",
+                )
+
+                AmbientVideoCanvas(
+                    mediaMetadata = mediaMetadata,
+                    isPlaying = isPlaying,
+                    canvasSource = ambientCanvasSource,
+                    fitMode = if (useSidePanel) ambientCanvasFitMode else AmbientCanvasFitMode.ZOOM,
+                    onReady = { canvasReady = true },
+                    onExhausted = { canvasReady = false },
+                    onVideoAspectRatio = { canvasVideoAspect = it },
+                    modifier = Modifier
+                        .then(
+                            if (useSidePanel) {
+                                Modifier
+                                    .align(
+                                        if (anchoredRight) Alignment.CenterEnd
+                                        else Alignment.CenterStart
+                                    )
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(animatedPanelWidth)
+                            } else {
+                                Modifier.fillMaxSize()
+                            }
+                        )
+                        .then(
+                            if (canvasBlurRadius > 0f) Modifier.blur(canvasBlurRadius.dp) else Modifier
+                        )
+                        .ambientCanvasEdgeFeather(
+                            fraction = if (useSidePanel) ambientCanvasFeather else 0f,
+                            anchoredRight = anchoredRight,
+                        ),
+                )
+
+                if (canvasReady) {
+                    if (useSidePanel) {
+                        // The asymmetric veil: heavier on the side the canvas occupies, so
+                        // the moving picture stays subordinate to the artwork, and lighter
+                        // over the lyrics so they keep a calm ground. Both ends, and how far
+                        // the strong side reaches, are adjustable in Ambient Mode settings.
+                        val (nearAlpha, farAlpha) = ambientCanvasVeilAlphas(
+                            dim = canvasDimOpacity,
+                            sideGradient = ambientCanvasSideGradient,
+                            farVeil = ambientCanvasFarVeil,
+                        )
+                        AmbientCanvasVeil(
+                            nearAlpha = nearAlpha,
+                            farAlpha = farAlpha,
+                            spread = ambientCanvasGradientSpread,
+                            anchoredRight = anchoredRight,
+                        )
+                    } else {
+                        // Keep the motion immersive but subordinate to the album art and
+                        // lyrics. The opacity is adjustable from Ambient Mode settings.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = canvasDimOpacity))
+                        )
+                    }
+                }
             }
         }
 

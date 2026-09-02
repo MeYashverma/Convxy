@@ -28,6 +28,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -58,6 +59,10 @@ fun CanvasArtworkPlayer(
     mediaId: String? = null,
     onExhausted: () -> Unit = {},
     onReady: () -> Unit = {},
+    // Reported once the decoder knows the frame geometry, as width / height (0 when it is
+    // still unknown). Ambient Mode's Canvas Position & Fit needs it to size the side panel
+    // to the canvas instead of guessing, and no other caller cares about it.
+    onVideoAspectRatio: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
     val downloadUtil = LocalDownloadUtil.current
@@ -90,6 +95,7 @@ fun CanvasArtworkPlayer(
     var isVideoReady by remember(initial) { mutableStateOf(false) }
     val currentOnExhausted by rememberUpdatedState(onExhausted)
     val currentOnReady by rememberUpdatedState(onReady)
+    val currentOnVideoAspectRatio by rememberUpdatedState(onVideoAspectRatio)
 
     val okHttpClient =
         remember {
@@ -207,6 +213,15 @@ fun CanvasArtworkPlayer(
                 override fun onRenderedFirstFrame() {
                     isVideoReady = true
                     currentOnReady()
+                    // Not every build reports a size change before the first frame, and a
+                    // retry with a different candidate URL can change it, so read it here too.
+                    val aspect = exoPlayer.videoSize.toAspectRatio()
+                    if (aspect > 0f) currentOnVideoAspectRatio(aspect)
+                }
+
+                override fun onVideoSizeChanged(videoSize: VideoSize) {
+                    val aspect = videoSize.toAspectRatio()
+                    if (aspect > 0f) currentOnVideoAspectRatio(aspect)
                 }
             }
         exoPlayer.addListener(listener)
@@ -279,8 +294,26 @@ fun CanvasArtworkPlayer(
             }
         },
         update = { view ->
-            // AspectRatioFrameLayout handles itself, no specific update needed here
+            // AspectRatioFrameLayout handles its own relayout, but the mode is captured in
+            // the factory otherwise — Ambient Mode can change it without recreating the view.
+            if (view.resizeMode != resizeMode) {
+                view.resizeMode = resizeMode
+            }
         },
         modifier = modifier.graphicsLayer { this.alpha = alpha },
     )
+}
+
+/**
+ * Width / height ratio of a decoded canvas frame, or 0 when the size is not known yet.
+ *
+ * Pixel aspect ratio is applied because a canvas stream can legally carry non-square pixels;
+ * ignoring it would skew Ambient Mode's side panel for those few sources. Unapplied container
+ * rotation is deliberately not folded in: AspectRatioFrameLayout sizes the texture from the
+ * same bitmap ratio, so the panel and the rendered frame agree either way.
+ */
+internal fun VideoSize.toAspectRatio(): Float {
+    if (width <= 0 || height <= 0) return 0f
+    val effectiveWidth = width * pixelWidthHeightRatio
+    return if (effectiveWidth <= 0f) 0f else effectiveWidth / height
 }

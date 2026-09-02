@@ -785,6 +785,36 @@ val AmbientSwipeNavigationEnabledKey = booleanPreferencesKey("ambientSwipeNaviga
 val AmbientTrackTransitionsEnabledKey = booleanPreferencesKey("ambientTrackTransitionsEnabled")
 val AmbientAutoHideBackButtonEnabledKey = booleanPreferencesKey("ambientAutoHideBackButtonEnabled")
 
+// Ambient Mode — Canvas Position & Fit. Instead of cropping a portrait canvas to the
+// full 16:9 screen, the canvas is placed in a side panel with a stronger gradient on
+// its own side and a lighter one on the opposite side.
+val AmbientCanvasSideFitEnabledKey = booleanPreferencesKey("ambientCanvasSideFitEnabled")
+val AmbientCanvasAnchorSideKey = stringPreferencesKey("ambientCanvasAnchorSide")
+val AmbientCanvasFitModeKey = stringPreferencesKey("ambientCanvasFitMode")
+val AmbientCanvasSideWidthKey = floatPreferencesKey("ambientCanvasSideWidth")
+val AmbientCanvasSideGradientKey = floatPreferencesKey("ambientCanvasSideGradient")
+val AmbientCanvasGradientSpreadKey = floatPreferencesKey("ambientCanvasGradientSpread")
+val AmbientCanvasFarVeilKey = floatPreferencesKey("ambientCanvasFarVeil")
+val AmbientCanvasEdgeFeatherKey = floatPreferencesKey("ambientCanvasEdgeFeather")
+
+/** Which edge of the 16:9 Ambient layout a portrait canvas is anchored to. */
+enum class AmbientCanvasAnchorSide {
+    AUTO,
+    LEFT,
+    RIGHT,
+}
+
+/**
+ * How the canvas is fitted into its side panel, mapped onto Media3's AspectRatioFrameLayout
+ * modes: [FIT] keeps the whole frame visible, [ZOOM] fills the panel and crops, and
+ * [STRETCH] fills the panel without keeping the aspect ratio (RESIZE_MODE_FILL).
+ */
+enum class AmbientCanvasFitMode {
+    FIT,
+    ZOOM,
+    STRETCH,
+}
+
 enum class CanvasSource {
     AUTO,
     ECHO_MUSIC,

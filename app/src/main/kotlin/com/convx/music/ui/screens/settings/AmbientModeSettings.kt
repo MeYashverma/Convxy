@@ -32,7 +32,19 @@ import androidx.navigation.NavController
 import com.convx.music.LocalPlayerAwareWindowInsets
 import com.convx.music.R
 import com.convx.music.constants.AmbientAutoHideBackButtonEnabledKey
+import com.convx.music.constants.AmbientCanvasAnchorSide
+import com.convx.music.constants.AmbientCanvasAnchorSideKey
+import com.convx.music.constants.AmbientCanvasEdgeFeatherKey
+import com.convx.music.constants.AmbientCanvasFarVeilKey
+import com.convx.music.constants.AmbientCanvasFitMode
+import com.convx.music.constants.AmbientCanvasFitModeKey
+import com.convx.music.constants.AmbientCanvasGradientSpreadKey
+import com.convx.music.constants.AmbientCanvasSideFitEnabledKey
+import com.convx.music.constants.AmbientCanvasSideGradientKey
+import com.convx.music.constants.AmbientCanvasSideWidthKey
 import com.convx.music.constants.AmbientCanvasSourceKey
+import com.convx.music.ui.screens.ambient.AmbientCanvasFitDefaults
+import com.convx.music.ui.screens.ambient.AmbientCanvasFitPreview
 import com.convx.music.constants.AmbientLyricsTextSizeKey
 import com.convx.music.constants.AmbientProgressRingEnabledKey
 import com.convx.music.constants.AmbientPlaybackFeedbackEnabledKey
@@ -78,6 +90,38 @@ fun AmbientModeSettings(
     val (canvasDim, onCanvasDimChange) = rememberPreference(
         AmbientVideoCanvasDimKey,
         defaultValue = 0.42f,
+    )
+    val (canvasSideFitEnabled, onCanvasSideFitEnabledChange) = rememberPreference(
+        AmbientCanvasSideFitEnabledKey,
+        defaultValue = false,
+    )
+    val (canvasAnchorSide, onCanvasAnchorSideChange) = rememberEnumPreference(
+        AmbientCanvasAnchorSideKey,
+        defaultValue = AmbientCanvasAnchorSide.AUTO,
+    )
+    val (canvasFitMode, onCanvasFitModeChange) = rememberEnumPreference(
+        AmbientCanvasFitModeKey,
+        defaultValue = AmbientCanvasFitMode.FIT,
+    )
+    val (canvasSideWidth, onCanvasSideWidthChange) = rememberPreference(
+        AmbientCanvasSideWidthKey,
+        defaultValue = AmbientCanvasFitDefaults.SideWidth,
+    )
+    val (canvasSideGradient, onCanvasSideGradientChange) = rememberPreference(
+        AmbientCanvasSideGradientKey,
+        defaultValue = AmbientCanvasFitDefaults.SideGradient,
+    )
+    val (canvasGradientSpread, onCanvasGradientSpreadChange) = rememberPreference(
+        AmbientCanvasGradientSpreadKey,
+        defaultValue = AmbientCanvasFitDefaults.GradientSpread,
+    )
+    val (canvasFarVeil, onCanvasFarVeilChange) = rememberPreference(
+        AmbientCanvasFarVeilKey,
+        defaultValue = AmbientCanvasFitDefaults.FarVeil,
+    )
+    val (canvasEdgeFeather, onCanvasEdgeFeatherChange) = rememberPreference(
+        AmbientCanvasEdgeFeatherKey,
+        defaultValue = AmbientCanvasFitDefaults.EdgeFeather,
     )
     val (globalLyricsTextSize) = rememberPreference(
         LyricsTextSizeKey,
@@ -232,6 +276,177 @@ fun AmbientModeSettings(
             onValueChange = onCanvasDimChange,
         )
 
+        Spacer(Modifier.height(8.dp))
+
+        // Canvas Position & Fit — everything below only changes how the canvas is placed
+        // while the option is on, so the whole group is gated on it (and on the canvas
+        // itself) rather than silently doing nothing.
+        val sideFitEnabled = videoCanvasEnabled && canvasSideFitEnabled
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.ambient_canvas_position_fit),
+            items = listOf(
+                switchItem(
+                    icon = R.drawable.crop,
+                    title = R.string.ambient_canvas_position_fit,
+                    description = R.string.ambient_canvas_position_fit_desc,
+                    checked = canvasSideFitEnabled,
+                    enabled = videoCanvasEnabled,
+                    onCheckedChange = onCanvasSideFitEnabledChange,
+                )
+            )
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Live sample of every control below it. It is built from the values this screen is
+        // already holding rather than from what has round-tripped through DataStore, so the
+        // panel and the veil move while a slider is still being dragged.
+        AmbientCanvasFitPreview(
+            videoCanvasEnabled = videoCanvasEnabled,
+            positionFitEnabled = canvasSideFitEnabled,
+            anchor = canvasAnchorSide,
+            fitMode = canvasFitMode,
+            sideWidth = canvasSideWidth,
+            sideGradient = canvasSideGradient,
+            gradientSpread = canvasGradientSpread,
+            farVeil = canvasFarVeil,
+            edgeFeather = canvasEdgeFeather,
+            dim = canvasDim,
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.ambient_canvas_anchor_side),
+            items = listOf(
+                radioItem(
+                    title = R.string.ambient_canvas_anchor_auto,
+                    description = R.string.ambient_canvas_anchor_auto_desc,
+                    selected = canvasAnchorSide == AmbientCanvasAnchorSide.AUTO,
+                    enabled = sideFitEnabled,
+                    onClick = { onCanvasAnchorSideChange(AmbientCanvasAnchorSide.AUTO) },
+                ),
+                radioItem(
+                    title = R.string.ambient_canvas_anchor_left,
+                    description = R.string.ambient_canvas_anchor_left_desc,
+                    selected = canvasAnchorSide == AmbientCanvasAnchorSide.LEFT,
+                    enabled = sideFitEnabled,
+                    onClick = { onCanvasAnchorSideChange(AmbientCanvasAnchorSide.LEFT) },
+                ),
+                radioItem(
+                    title = R.string.ambient_canvas_anchor_right,
+                    description = R.string.ambient_canvas_anchor_right_desc,
+                    selected = canvasAnchorSide == AmbientCanvasAnchorSide.RIGHT,
+                    enabled = sideFitEnabled,
+                    onClick = { onCanvasAnchorSideChange(AmbientCanvasAnchorSide.RIGHT) },
+                ),
+            )
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.ambient_canvas_fit_mode),
+            items = listOf(
+                radioItem(
+                    title = R.string.ambient_canvas_fit_fit,
+                    description = R.string.ambient_canvas_fit_fit_desc,
+                    selected = canvasFitMode == AmbientCanvasFitMode.FIT,
+                    enabled = sideFitEnabled,
+                    onClick = { onCanvasFitModeChange(AmbientCanvasFitMode.FIT) },
+                ),
+                radioItem(
+                    title = R.string.ambient_canvas_fit_zoom,
+                    description = R.string.ambient_canvas_fit_zoom_desc,
+                    selected = canvasFitMode == AmbientCanvasFitMode.ZOOM,
+                    enabled = sideFitEnabled,
+                    onClick = { onCanvasFitModeChange(AmbientCanvasFitMode.ZOOM) },
+                ),
+                radioItem(
+                    title = R.string.ambient_canvas_fit_stretch,
+                    description = R.string.ambient_canvas_fit_stretch_desc,
+                    selected = canvasFitMode == AmbientCanvasFitMode.STRETCH,
+                    enabled = sideFitEnabled,
+                    onClick = { onCanvasFitModeChange(AmbientCanvasFitMode.STRETCH) },
+                ),
+            )
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        AmbientSliderSetting(
+            title = stringResource(R.string.ambient_canvas_side_width),
+            description = stringResource(R.string.ambient_canvas_side_width_desc),
+            valueLabel = stringResource(
+                R.string.ambient_canvas_percent_value,
+                (canvasSideWidth * 100).roundToInt(),
+            ),
+            value = canvasSideWidth,
+            valueRange = AmbientCanvasFitDefaults.SideWidthRange,
+            steps = AmbientCanvasFitDefaults.SideWidthSteps,
+            enabled = sideFitEnabled,
+            onValueChange = onCanvasSideWidthChange,
+        )
+
+        AmbientSliderSetting(
+            title = stringResource(R.string.ambient_canvas_side_gradient),
+            description = stringResource(R.string.ambient_canvas_side_gradient_desc),
+            valueLabel = stringResource(
+                R.string.ambient_canvas_percent_value,
+                (canvasSideGradient * 100).roundToInt(),
+            ),
+            value = canvasSideGradient,
+            valueRange = AmbientCanvasFitDefaults.SideGradientRange,
+            steps = AmbientCanvasFitDefaults.SideGradientSteps,
+            enabled = sideFitEnabled,
+            onValueChange = onCanvasSideGradientChange,
+        )
+
+        AmbientSliderSetting(
+            title = stringResource(R.string.ambient_canvas_gradient_spread),
+            description = stringResource(R.string.ambient_canvas_gradient_spread_desc),
+            valueLabel = stringResource(
+                R.string.ambient_canvas_percent_value,
+                (canvasGradientSpread * 100).roundToInt(),
+            ),
+            value = canvasGradientSpread,
+            valueRange = AmbientCanvasFitDefaults.GradientSpreadRange,
+            steps = AmbientCanvasFitDefaults.GradientSpreadSteps,
+            enabled = sideFitEnabled,
+            onValueChange = onCanvasGradientSpreadChange,
+        )
+
+        AmbientSliderSetting(
+            title = stringResource(R.string.ambient_canvas_far_veil),
+            description = stringResource(R.string.ambient_canvas_far_veil_desc),
+            valueLabel = stringResource(
+                R.string.ambient_canvas_percent_value,
+                (canvasFarVeil * 100).roundToInt(),
+            ),
+            value = canvasFarVeil,
+            valueRange = AmbientCanvasFitDefaults.FarVeilRange,
+            steps = AmbientCanvasFitDefaults.FarVeilSteps,
+            enabled = sideFitEnabled,
+            onValueChange = onCanvasFarVeilChange,
+        )
+
+        AmbientSliderSetting(
+            title = stringResource(R.string.ambient_canvas_edge_feather),
+            description = stringResource(R.string.ambient_canvas_edge_feather_desc),
+            valueLabel = stringResource(
+                R.string.ambient_canvas_percent_value,
+                (canvasEdgeFeather * 100).roundToInt(),
+            ),
+            value = canvasEdgeFeather,
+            valueRange = AmbientCanvasFitDefaults.EdgeFeatherRange,
+            steps = AmbientCanvasFitDefaults.EdgeFeatherSteps,
+            enabled = sideFitEnabled,
+            onValueChange = onCanvasEdgeFeatherChange,
+        )
+
+        Spacer(Modifier.height(8.dp))
+
         AmbientSliderSetting(
             title = stringResource(R.string.lyrics_text_size),
             description = stringResource(R.string.ambient_lyrics_text_size_desc),
@@ -377,10 +592,26 @@ private fun canvasSourceItem(
     onCanvasSourceChange: (CanvasSource) -> Unit,
     title: Int,
     description: Int,
+): Material3SettingsItem = radioItem(
+    title = title,
+    description = description,
+    selected = canvasSource == source,
+    enabled = enabled,
+    onClick = { onCanvasSourceChange(source) },
+)
+
+/** A single-choice row: the same shape every Ambient Mode picker uses. */
+@Composable
+private fun radioItem(
+    title: Int,
+    description: Int,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
 ): Material3SettingsItem = Material3SettingsItem(
     leadingContent = {
         RadioButton(
-            selected = canvasSource == source,
+            selected = selected,
             onClick = null,
             enabled = enabled,
         )
@@ -388,7 +619,7 @@ private fun canvasSourceItem(
     title = { Text(stringResource(title)) },
     description = { Text(stringResource(description)) },
     enabled = enabled,
-    onClick = { onCanvasSourceChange(source) },
+    onClick = onClick,
 )
 
 @Composable

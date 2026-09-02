@@ -122,6 +122,7 @@ app/keystore/
 !docs/FULL_VIDEO_PLAYBACK.md
 !docs/AMBIENT_MODE.md
 !docs/README-PAGES.md
+!docs/LIQUID_GLASS_LANGUAGE.md
 app/src/main/kotlin/com/designRefrence/
 
 # Upstream marketing/store assets — not used by the build

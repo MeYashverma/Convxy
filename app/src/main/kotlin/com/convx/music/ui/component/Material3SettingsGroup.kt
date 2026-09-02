@@ -60,16 +60,25 @@ fun Material3SettingsGroup(
             )
         }
 
-        // One solid grouped card with hairline dividers, instead of per-item
-        // floating M3 cards. Theme-adaptive surface/outline instead of
-        // AppleTokens' fixed dark tokens — the row content below (title/
-        // description/icon tint) already reads MaterialTheme.colorScheme, so a
-        // fixed-dark card went black-on-black in light theme.
+        // One grouped glass card with hairline dividers, instead of per-item
+        // floating M3 cards. SECONDARY rung of the glass ladder: a translucent
+        // fill over the screen's own surface, the hairline edge and the top
+        // sheen — the same material dialogs and menus use, scaled down a rung
+        // because these are inline cards, not floating layers. Base tint stays
+        // the theme's own container so the row content (title/description/icon
+        // tint, read from MaterialTheme.colorScheme) keeps matching, exactly as
+        // the flat card it replaces did.
+        val panelColors = rememberGlassPanelColors(
+            GlassLevel.SECONDARY,
+            fill = MaterialTheme.colorScheme.surfaceContainer,
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(AppleTokens.CardCorner))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .glassPanelSurface(
+                    shape = RoundedCornerShape(AppleTokens.CardCorner),
+                    colors = panelColors,
+                )
         ) {
             items.forEachIndexed { index, item ->
                 if (index > 0) {

@@ -6,7 +6,6 @@
 package com.convx.music.ui.component
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -35,7 +34,7 @@ private val GlassCircleShape = ContinuousRoundedRectangle(percent = 50)
  * A floating circular liquid-glass button — the back/share/favorite buttons on
  * the Artist/Album/Playlist detail screens, replacing their Material TopAppBar
  * and flat-colored circular Surface/IconButton. Falls back to a translucent
- * flat circle when glass is disabled or unsupported, same as
+ * [GlassLevel.SECONDARY] panel when glass is disabled or unsupported, same as
  * [com.convx.music.ui.component.FloatingNavBar]'s own useGlass fallback.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -53,20 +52,24 @@ fun GlassCircleButton(
     // and its effect values rather than only the global one.
     val useGlass = glassConfig.isEnabledFor(GlassComponent.NAV_BAR) && isGlassAllowed()
 
+    // SECONDARY on the glass ladder: small floating controls read as physical
+    // glass through their edges. The sampled pipeline keeps the user's own
+    // effect settings; only the blur is scaled up a notch so the frost reads
+    // clearly on a surface this small.
     val backgroundModifier = if (useGlass) {
         Modifier.liquidGlass(
             config = glassConfig,
             shape = GlassCircleShape,
             highlightAlpha = 0.3f,
+            blurRadiusDp = glassConfig.blurRadius * GlassLevel.SECONDARY.blurScale,
             // backdropScale is left at liquidGlass's default
             // (glassResolutionScale of the blur radius) so these record their
             // backdrop at the same reduced resolution the nav bar uses instead
             // of full res — the blur hides the upscale.
         )
     } else {
-        Modifier
-            .clip(GlassCircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+        val panelColors = rememberGlassPanelColors(GlassLevel.SECONDARY)
+        Modifier.glassPanelSurface(GlassCircleShape, panelColors)
     }
     val contentColor = if (useGlass) glassConfig.textColor else MaterialTheme.colorScheme.onSurface
 

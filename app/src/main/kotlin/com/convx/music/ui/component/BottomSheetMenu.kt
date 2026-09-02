@@ -120,10 +120,17 @@ fun AnimatedBottomSheet(
 fun BottomSheetMenu(
     modifier: Modifier = Modifier,
     state: MenuState,
-    background: Color = MaterialTheme.colorScheme.surface,
+    background: Color = Color.Unspecified,
 ) {
     val focusManager = LocalFocusManager.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+
+    // Same PRIMARY translucent panel the overlay menu and the dialogs draw, so
+    // whichever presentation the preference picks renders the same material.
+    // The sheet's own window cannot sample the app's backdrop, so it uses the
+    // panel recipe rather than the capture pipeline — identical to how the
+    // liquid-glass fallback path looks, which keeps the whole app on one glass.
+    val panelColors = rememberGlassPanelColors(GlassLevel.PRIMARY, fill = background)
 
     AnimatedBottomSheet(
         isVisible = state.isVisible,
@@ -132,15 +139,16 @@ fun BottomSheetMenu(
             state.isVisible = false
         },
         sheetState = sheetState,
-        containerColor = background,
+        containerColor = panelColors.fill,
         contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp,
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(vertical = 12.dp)
                     .size(width = 40.dp, height = 4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    .background(panelColors.edge.copy(alpha = (panelColors.edge.alpha * 3f).coerceAtMost(0.55f)))
             )
         },
         modifier = modifier.fillMaxHeight()

@@ -6,6 +6,7 @@
 package com.convx.music.ui.component
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,13 @@ import androidx.compose.ui.unit.dp
 fun Material3MenuGroup(
     items: List<Material3MenuItemData>
 ) {
+    // Menus render inside a glass panel (OverlayMenu / BottomSheetMenu), so the
+    // default tile is a TERTIARY rung of the same material: a translucent fill
+    // that stacks on the panel behind it, plus the hairline edge every glass
+    // surface carries. Callers that pass their own cardColors (danger rows,
+    // tinted rows) keep exactly their look and lose the border.
+    val panelColors = rememberGlassPanelColors(GlassLevel.TERTIARY)
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -48,8 +56,13 @@ fun Material3MenuGroup(
                     .animateContentSize(),
                 shape = shape,
                 colors = item.cardColors ?: CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    containerColor = panelColors.fill
                 ),
+                border = if (item.cardColors == null) {
+                    BorderStroke(GlassPanelEdgeStroke, panelColors.edge)
+                } else {
+                    null
+                },
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Material3MenuItemRow(item = item)

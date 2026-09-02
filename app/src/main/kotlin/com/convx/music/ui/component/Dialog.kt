@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -50,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.convx.music.R
+import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
+import com.convx.music.ui.theme.AppleTokens
 
 import kotlinx.coroutines.delay
 
@@ -67,11 +70,20 @@ fun DefaultDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        // Dialogs live in their own window, so the capture pipeline cannot reach
+        // the app behind them — they get the PRIMARY rung of the translucent
+        // panel recipe instead (tint + hairline edge + sheen), the same material
+        // the context menus and bottom-sheet menus draw. Content roles stay on
+        // the theme's onSurface; only the container itself is glass.
+        val panelColors = rememberGlassPanelColors(GlassLevel.PRIMARY)
         Surface(
-            modifier = Modifier.padding(24.dp),
-            shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation
+            modifier = Modifier
+                .padding(24.dp)
+                .glassPanelSurface(DialogShape, panelColors),
+            shape = DialogShape,
+            color = Color.Transparent,
+            contentColor = panelColors.content,
+            tonalElevation = 0.dp,
         ) {
             Column(
                 horizontalAlignment = horizontalAlignment,
@@ -193,11 +205,15 @@ fun ListDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        val panelColors = rememberGlassPanelColors(GlassLevel.PRIMARY)
         Surface(
-            modifier = Modifier.padding(24.dp),
-            shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation,
+            modifier = Modifier
+                .padding(24.dp)
+                .glassPanelSurface(DialogShape, panelColors),
+            shape = DialogShape,
+            color = Color.Transparent,
+            contentColor = panelColors.content,
+            tonalElevation = 0.dp,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -210,6 +226,13 @@ fun ListDialog(
         }
     }
 }
+
+/**
+ * Every dialog in the app shares one continuous-rounded shape on the same rung
+ * as the context menus (OverlayMenu draws 28dp too), so alerts, action prompts,
+ * pickers and menus all read as the same family of floating glass.
+ */
+private val DialogShape = ContinuousRoundedRectangle(AppleTokens.CardCornerLarge)
 
 @Composable
 fun InfoLabel(

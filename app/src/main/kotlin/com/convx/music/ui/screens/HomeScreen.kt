@@ -182,6 +182,7 @@ import com.convx.music.playback.queues.YouTubeQueue
 import com.convx.music.R
 import com.convx.music.ui.component.AlbumGridItem
 import com.convx.music.ui.component.ChipsRow
+import com.convx.music.ui.component.GlassCircleButton
 import com.convx.music.ui.component.ListItem
 import com.convx.music.ui.component.PlaylistListItem
 import com.convx.music.ui.component.ArtistGridItem
@@ -421,43 +422,37 @@ fun CommunityPlaylistCard(
                     .padding(AppleTokens.Gutter),
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
             ) {
-                IconButton(
+                GlassCircleButton(
                     onClick = {
                         item.playlist.playEndpoint?.let {
                             playerConnection?.playQueue(YouTubeQueue(it))
                         }
                     },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(AppleTokens.CardSecondary, CircleShape)
+                    size = 48.dp,
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_widget_play),
                         contentDescription = null,
-                        tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }
 
-                IconButton(
+                GlassCircleButton(
                     onClick = {
                         item.playlist.radioEndpoint?.let {
                             playerConnection?.playQueue(YouTubeQueue(it))
                         }
                     },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(AppleTokens.CardSecondary, CircleShape)
+                    size = 48.dp,
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.radio),
                         contentDescription = null,
-                        tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }
 
-                IconButton(
+                GlassCircleButton(
                     onClick = {
                         scope.launch(Dispatchers.IO) {
                             if (dbPlaylist?.playlist == null) {
@@ -497,14 +492,11 @@ fun CommunityPlaylistCard(
                             }
                         }
                     },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(AppleTokens.CardSecondary, CircleShape)
+                    size = 48.dp,
                 ) {
                     Icon(
                         painter = painterResource(if (isBookmarked) R.drawable.library_add_check else R.drawable.library_add),
                         contentDescription = null,
-                        tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }

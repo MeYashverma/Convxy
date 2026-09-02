@@ -26,10 +26,14 @@ notification controls, audio focus, and a sleep timer that can stop at the end o
 track instead of a fixed number of minutes.
 
 **Liquid Glass.** A real glass system, not translucent Material tiles: nav bar, mini player,
-sheets and dialogs sample the actual pixels behind them and blur and refract them. Blur radius,
-vibrancy, lens depth, refraction, noise, tint, shape, iOS-style rubber-band overscroll and spring
-transitions are all adjustable in Settings, and dynamic colour is derived from the current
-artwork.
+sheets and dialogs sample the actual pixels behind them and blur and refract them. Every
+surface sits on a three-rung intensity ladder — PRIMARY chrome and elevated panels, SECONDARY
+floating controls, TERTIARY inline tiles and chips — so menus, dialogs, action sheets, settings
+groups and chips all render one material (translucent tint, hairline edge, top sheen) whether
+or not they can run the full capture pipeline. Blur radius, vibrancy, lens depth, refraction,
+noise, tint, shape, iOS-style rubber-band overscroll and spring transitions are all adjustable
+in Settings, and dynamic colour is derived from the current artwork. See
+[docs/LIQUID_GLASS_LANGUAGE.md](docs/LIQUID_GLASS_LANGUAGE.md) for the full language spec.
 
 **Lyrics.** Word-by-word karaoke with a per-word fill, several animation styles, progressive
 blur, translation and romanisation, and multi-singer synchronisation — each vocalist gets a

@@ -16,9 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
@@ -56,10 +54,14 @@ class BottomSheetPageState(
 fun BottomSheetPage(
     modifier: Modifier = Modifier,
     state: BottomSheetPageState,
-    background: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(NavigationBarDefaults.Elevation),
+    background: Color = Color.Unspecified,
 ) {
     val focusManager = LocalFocusManager.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+
+    // Same PRIMARY translucent panel as BottomSheetMenu / OverlayMenu / the
+    // dialogs: every full-page sheet the app can raise sits on one material.
+    val panelColors = rememberGlassPanelColors(GlassLevel.PRIMARY, fill = background)
 
     AnimatedBottomSheet(
         isVisible = state.isVisible,
@@ -68,15 +70,16 @@ fun BottomSheetPage(
             state.isVisible = false
         },
         sheetState = sheetState,
-        containerColor = background,
+        containerColor = panelColors.fill,
         contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp,
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(vertical = 12.dp)
                     .size(width = 32.dp, height = 4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    .background(panelColors.edge.copy(alpha = (panelColors.edge.alpha * 3f).coerceAtMost(0.55f)))
             )
         },
         modifier = modifier.fillMaxHeight()

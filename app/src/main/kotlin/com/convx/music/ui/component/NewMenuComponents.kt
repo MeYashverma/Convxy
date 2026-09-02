@@ -7,6 +7,7 @@ package com.convx.music.ui.component
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -57,17 +59,25 @@ fun NewActionButton(
     onClick: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    backgroundColor: Color = Color.Unspecified,
+    contentColor: Color = Color.Unspecified
 ) {
+    // These action tiles live inside the glass menus, so their resting state is
+    // a TERTIARY translucent tile of the same ladder (see GlassLevels.kt), not
+    // a flat Material fill. Explicit colours (danger rows, tinted actions)
+    // still win; the hairline edge only appears on the automatic tile.
+    val panelColors = rememberGlassPanelColors(GlassLevel.TERTIARY)
+    val resolvedBackground = if (backgroundColor.isSpecified) backgroundColor else panelColors.fill
+    val resolvedContent = if (contentColor.isSpecified) contentColor else panelColors.content
+
     val animatedBackground by animateColorAsState(
-        targetValue = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f),
+        targetValue = if (enabled) resolvedBackground else resolvedBackground.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "background"
     )
     
     val animatedContent by animateColorAsState(
-        targetValue = if (enabled) contentColor else contentColor.copy(alpha = 0.5f),
+        targetValue = if (enabled) resolvedContent else resolvedContent.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "content"
     )
@@ -88,6 +98,11 @@ fun NewActionButton(
             containerColor = animatedBackground
         ),
         shape = RoundedCornerShape(16.dp),
+        border = if (backgroundColor.isSpecified) {
+            null
+        } else {
+            BorderStroke(GlassPanelEdgeStroke, panelColors.edge)
+        },
         elevation = CardDefaults.cardElevation(
         )
     ) {
@@ -168,6 +183,11 @@ fun NewActionGrid(
     modifier: Modifier = Modifier,
     columns: Int = 3
 ) {
+    // The grid's resting buttons follow the same TERTIARY translucent tile as
+    // the single action button above, so a menu's whole action area reads as
+    // one family of glass controls.
+    val panelColors = rememberGlassPanelColors(GlassLevel.TERTIARY)
+
     FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
@@ -183,8 +203,8 @@ fun NewActionGrid(
                 }
             }
 
-            val bgColor = if (action.backgroundColor != Color.Unspecified) action.backgroundColor else MaterialTheme.colorScheme.surfaceVariant
-            val contentCol = if (action.contentColor != Color.Unspecified) action.contentColor else MaterialTheme.colorScheme.onSurfaceVariant
+            val bgColor = if (action.backgroundColor.isSpecified) action.backgroundColor else panelColors.fill
+            val contentCol = if (action.contentColor.isSpecified) action.contentColor else panelColors.content
 
             ToggleButton(
                 checked = false,
@@ -267,17 +287,24 @@ fun NewIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    backgroundColor: Color = Color.Unspecified,
+    contentColor: Color = Color.Unspecified
 ) {
+    // A compact circular control on the glass ladder's TERTIARY rung — the same
+    // translucent fill + hairline edge as the action tiles, so icon rows inside
+    // menus read as part of the panel instead of as flat Material buttons.
+    val panelColors = rememberGlassPanelColors(GlassLevel.TERTIARY)
+    val resolvedBackground = if (backgroundColor.isSpecified) backgroundColor else panelColors.fill
+    val resolvedContent = if (contentColor.isSpecified) contentColor else panelColors.content
+
     val animatedBackground by animateColorAsState(
-        targetValue = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f),
+        targetValue = if (enabled) resolvedBackground else resolvedBackground.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "background"
     )
     
     val animatedContent by animateColorAsState(
-        targetValue = if (enabled) contentColor else contentColor.copy(alpha = 0.5f),
+        targetValue = if (enabled) resolvedContent else resolvedContent.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "content"
     )
@@ -289,6 +316,11 @@ fun NewIconButton(
             containerColor = animatedBackground
         ),
         shape = CircleShape,
+        border = if (backgroundColor.isSpecified) {
+            null
+        } else {
+            BorderStroke(GlassPanelEdgeStroke, panelColors.edge)
+        },
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         )

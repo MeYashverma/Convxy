@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,12 +44,17 @@ import com.convx.music.ui.component.shapes.ContinuousRoundedRectangle
  * open is real GPU cost for a surface that is about to be covered anyway, and sampling
  * the app backdrop from a root-level overlay is exactly the RenderNode cycle the glass
  * chrome has to avoid elsewhere. The dim reads the same and costs nothing.
+ *
+ * The panel itself is a [GlassLevel.PRIMARY] translucent panel — the un-sampled half of
+ * the glass ladder, shared with dialogs and bottom-sheet menus so every elevated
+ * surface renders the same material (tint + hairline edge + top sheen) without any of
+ * them paying for a capture pipeline.
  */
 @Composable
 fun OverlayMenu(
     state: MenuState,
     modifier: Modifier = Modifier,
-    background: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    background: Color = Color.Unspecified,
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -98,6 +102,15 @@ fun OverlayMenu(
                     targetOffsetY = { it },
                 ) + fadeOut(),
             ) {
+                // The menu floats above a dim, so it takes the PRIMARY rung of the
+                // translucent glass ladder: the most substantial fill of any panel,
+                // with the hairline edge and sheen that make it read as one sheet of
+                // frosted glass rising over the app.
+                val panelColors = rememberGlassPanelColors(
+                    GlassLevel.PRIMARY,
+                    fill = background,
+                )
+
                 Column(
                     modifier = Modifier
                         .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
@@ -105,7 +118,10 @@ fun OverlayMenu(
                         .padding(horizontal = 12.dp, vertical = 12.dp)
                         .widthIn(max = MenuMaxWidth)
                         .fillMaxWidth()
-                        .background(background, ContinuousRoundedRectangle(28.dp))
+                        .glassPanelSurface(
+                            shape = ContinuousRoundedRectangle(28.dp),
+                            colors = panelColors,
+                        )
                         // Swallows taps so a press on the menu itself does not reach the
                         // scrim's dismiss handler underneath.
                         .clickable(

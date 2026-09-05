@@ -7,7 +7,7 @@ here goes stale, please send a PR fixing it rather than adding a second guide.
 
 Convxy is a single Android Studio project (Gradle multi-module). The pieces you'll actually touch:
 
-- **`app/`** — the app itself. Compose UI lives under `app/src/main/kotlin/com/convx/music/ui/`,
+- **`app/`** — the app itself. Compose UI lives under `app/src/main/kotlin/com/convxy/music/ui/`,
   screens under `ui/screens/`, `viewmodels/` per screen, navigation wired in
   `ui/screens/NavigationBuilder.kt`.
 - **`ui/component/GlassEffect.kt`** + **`ui/component/backdrop/`** — the Liquid Glass system (a

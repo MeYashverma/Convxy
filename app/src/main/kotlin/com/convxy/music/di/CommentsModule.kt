@@ -20,14 +20,19 @@ import javax.inject.Singleton
 /**
  * Bindings for the timestamped-comments layer.
  *
- * Only the cache needs a module: [com.convxy.music.comments.soundcloud.SoundCloudApi],
- * [com.convxy.music.comments.soundcloud.SoundCloudCredentials] and
- * [com.convxy.music.comments.CommentsRepository] all have `@Inject` constructors and are provided by
- * Hilt directly, the same way `LyricsHelper` and `EQProfileRepository` are.
+ * Only the cache needs a module, and only because it is the one thing here that has to be handed a
+ * directory. Everything else — [com.convxy.music.comments.CommentsRepository], the three sources
+ * ([com.convxy.music.comments.audius.AudiusCommentsDataSource],
+ * [com.convxy.music.comments.youtube.YouTubeCommentsDataSource],
+ * [com.convxy.music.comments.soundcloud.SoundCloudCommentsDataSource]), their clients and
+ * [com.convxy.music.comments.CommentSourcePreferences] — has an `@Inject` constructor and is built by
+ * Hilt directly, the same way `LyricsHelper` and `EQProfileRepository` are. The repository names its
+ * sources as three constructor parameters rather than a Dagger multibinding `List`, so adding a
+ * provider adds a parameter there and nothing here.
  *
  * Singleton scope matters here for a functional reason, not just an efficiency one — the OAuth access
- * token, the in-memory LRU and the request gate all live for the process, so a per-injection instance
- * would re-authenticate on every player open.
+ * token, Audius's cached discovery host, the in-memory LRU and the request gate all live for the
+ * process, so a per-injection instance would re-authenticate and re-discover on every player open.
  */
 @Module
 @InstallIn(SingletonComponent::class)

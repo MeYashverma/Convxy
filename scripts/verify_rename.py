@@ -29,8 +29,16 @@ WARNINGS: list[str] = []
 
 
 def tracked() -> list[str]:
-    out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT,
-                         capture_output=True, check=True).stdout
+    """Every file that is part of the working tree, tracked or not.
+
+    `--others --exclude-standard` matters: a rename (or any feature branch) adds files, and checking
+    only the index would silently skip exactly the code that is newest and least proven. Ignored
+    paths are still excluded, so build outputs cannot swamp the scan.
+    """
+    out = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT, capture_output=True, check=True,
+    ).stdout
     return [p for p in out.decode().split("\0") if p]
 
 
@@ -184,8 +192,14 @@ for p in KT:
 # 5. no old identifier survives
 # ---------------------------------------------------------------------------
 OLD_RE = re.compile(r"com[./]convx\b")
+# The rename tooling itself has to spell the old identifier in order to rewrite it, and this
+# verifier has to spell it in order to search for it. Skipping them is not a hole in the check: they
+# are the only two files in the repo whose *purpose* is to contain the string.
+SELF_REFERENTIAL = {"scripts/rename_convxy.py", "scripts/verify_rename.py"}
 for p in FILES:
     if p.endswith((".png", ".jpg", ".webp", ".dm", ".svg", ".csv", ".xlsx")):
+        continue
+    if p.replace("\\", "/") in SELF_REFERENTIAL:
         continue
     for i, line in enumerate(read(p).splitlines(), 1):
         if OLD_RE.search(line):

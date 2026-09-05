@@ -94,6 +94,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -175,6 +176,7 @@ import com.convxy.music.R
 import com.convxy.music.constants.AudioQuality
 import com.convxy.music.constants.AudioQualityKey
 import com.convxy.music.constants.CropAlbumArtKey
+import com.convxy.music.constants.TimestampCommentsEnabledKey
 import com.convxy.music.constants.DarkModeKey
 import com.convxy.music.constants.CompactPlayerInTabViewKey
 import com.convxy.music.constants.CompactPlayerMaxWidth
@@ -211,6 +213,8 @@ import com.convxy.music.extensions.SwipeGesture
 import com.convxy.music.extensions.togglePlayPause
 import com.convxy.music.extensions.toggleRepeatMode
 import com.convxy.music.listentogether.RoomRole
+import com.convxy.music.comments.CommentTimeline
+import com.convxy.music.comments.toCommentTrackRef
 import com.convxy.music.models.MediaMetadata
 import com.convxy.music.playback.ExoDownloadService
 import com.convxy.music.vivimusic.getConnectedBluetoothDeviceName
@@ -226,6 +230,12 @@ import com.convxy.music.ui.component.LocalMenuState
 import com.convxy.music.ui.component.Lyrics
 import com.convxy.music.ui.component.PlayerSliderTrack
 import com.convxy.music.ui.component.ResizableIconButton
+import com.convxy.music.ui.player.comments.CommentTrackMarkers
+import com.convxy.music.ui.player.comments.TimestampCommentsSheet
+import com.convxy.music.ui.player.comments.rememberActiveCommentGroup
+import com.convxy.music.ui.player.comments.rememberActiveCommentMarker
+import com.convxy.music.viewmodels.TrackCommentsUiState
+import com.convxy.music.viewmodels.TrackCommentsViewModel
 import com.convxy.music.ui.player.customize.DiyDesignCanvas
 import com.convxy.music.ui.player.customize.DiyOrientation
 import com.convxy.music.ui.player.customize.DiyStickerLayer
@@ -558,6 +568,99 @@ fun BottomSheetPlayer(
     }
     // Track when we last manually set position to avoid Cast overwriting it
     var lastManualSeekTime by remember { mutableLongStateOf(0L) }
+
+    // ── Timestamped comments ────────────────────────────────────────────────
+    // One state holder, owned here and shared by the seek bar's markers and the comments sheet, so
+    // opening the sheet never triggers a second fetch for a track the markers already loaded and
+    // closing it does not throw the result away.
+    //
+    // hiltViewModel() with no nav argument resolves against LocalViewModelStoreOwner, which here is
+    // the Activity: BottomSheetPlayer is composed by MainActivity as a sibling of the NavHost, not
+    // inside one of its destinations. That is what makes the comments survive a tab change — a
+    // nav-scoped store would throw them away on every navigation. (If the player were ever moved
+    // inside the NavHost this would silently become destination-scoped; bind() is idempotent and the
+    // cache absorbs the re-fetch, so it would degrade rather than break.)
+    //
+    // Nothing below creates, owns or talks to a player. The one PlayerConnection in composition is
+    // still the only path to Media3, and the comments feature reaches it exclusively through the
+    // single seek callback defined further down.
+    val trackCommentsViewModel: TrackCommentsViewModel = hiltViewModel()
+    val trackCommentsState by trackCommentsViewModel.uiState.collectAsStateWithLifecycle()
+    var showTimestampComments by rememberSaveable { mutableStateOf(false) }
+    val timestampCommentsEnabled by rememberPreference(TimestampCommentsEnabledKey, defaultValue = true)
+
+    // Fetch only while the player can actually show the result. CommentsDataSource.isConfigured()
+    // short-circuits in the repository before any I/O when the integration is off, so the
+    // unconfigured case costs
+    // nothing either way — this gate is about not spending a configured user's rate limit on tracks
+    // they never opened the player for. The open sheet keeps the target alive on its own, so
+    // collapsing the player behind an open sheet does not stop it tracking the song.
+    val trackCommentsTarget =
+        if (timestampCommentsEnabled && (state.isExpanded || showTimestampComments)) {
+            mediaMetadata?.toCommentTrackRef()
+        } else {
+            null
+        }
+
+    // Feature switched off mid-session: drop whatever is on screen instead of leaving markers for a
+    // provider the user has just disabled.
+    LaunchedEffect(timestampCommentsEnabled) {
+        if (!timestampCommentsEnabled) trackCommentsViewModel.bind(null)
+    }
+    // Bind only when there is something to bind. Collapsing the player makes the target null, and
+    // re-running with null would throw away comments that are still perfectly good for this track;
+    // bind() itself is idempotent, so recomposition and re-expansion cost nothing.
+    LaunchedEffect(trackCommentsTarget?.cacheKey) {
+        trackCommentsTarget?.let { trackCommentsViewModel.bind(it) }
+    }
+
+    // Ignore a state that has not caught up with the track on screen yet. bind() clears the comment
+    // list synchronously, but it runs from an effect — one frame after the skip landed — and this is
+    // the guard that keeps the previous song's markers off the new song's seek bar during that frame.
+    val commentsForTrack =
+        if (mediaMetadata != null && trackCommentsState.trackId == mediaMetadata?.id) {
+            trackCommentsState
+        } else {
+            TrackCommentsUiState.IDLE
+        }
+    // duration is milliseconds here (it feeds the Slider's valueRange directly); TIME_UNSET means the
+    // item has no known length, in which case there is no timeline to place a comment on at all.
+    val commentDurationMs = duration.takeIf { it > 0L && it != C.TIME_UNSET }
+    val commentMarkers = remember(commentsForTrack.comments, commentDurationMs) {
+        CommentTimeline.markers(commentsForTrack.comments, commentDurationMs)
+    }
+    // Derived, not polled: recomposes only when the *answer* changes, so a twenty-second gap between
+    // two comments costs zero recompositions however fast the position state ticks underneath it.
+    val activeCommentGroup by rememberActiveCommentGroup(commentsForTrack.comments) { effectivePosition }
+    val activeCommentMarker = rememberActiveCommentMarker(commentMarkers, activeCommentGroup)
+
+    val openTimestampComments: (() -> Unit)? =
+        if (timestampCommentsEnabled) {
+            { showTimestampComments = true }
+        } else {
+            null
+        }
+
+    // Tap a comment -> seek the one and only player, down the same Cast-aware branch the seek bar and
+    // the waveform bar already use, then mirror the result into `position`. That last write is not
+    // cosmetic: the 100ms poll only runs while playing, so without it a seek made while paused would
+    // leave the highlight sitting on the old timestamp until the user pressed play.
+    //
+    // Playback state is deliberately left untouched, which is exactly what tapping a synced lyric line
+    // does. Someone who paused in order to read the comments should not have audio started on them,
+    // and someone who was already playing carries straight on from the moment they tapped.
+    val onSeekToComment: (Long) -> Unit = { targetMs ->
+        if (!isListenTogetherGuest && targetMs >= 0L) {
+            val bounded = commentDurationMs?.let { targetMs.coerceAtMost(it) } ?: targetMs
+            if (isCasting) {
+                castHandler?.seekTo(bounded)
+                lastManualSeekTime = System.currentTimeMillis()
+            } else {
+                playerConnection.player.seekTo(bounded)
+            }
+            position = bounded
+        }
+    }
     
     var gradientColors by remember {
         mutableStateOf<List<Color>>(emptyList())
@@ -2505,13 +2608,34 @@ fun BottomSheetPlayer(
                             }
                         },
                         track = { sliderState ->
-                            PlayerSliderTrack(
-                                sliderState = sliderState,
-                                trackHeight = trackHeight,
-                                colors = PlayerSliderColors.getSliderColors(
-                                    activeColor = if (useNewPlayerDesign) seekBarActiveColor else seekBarActiveColor.copy(alpha = 0.7f),
-                                )
+                            val slimColors = PlayerSliderColors.getSliderColors(
+                                activeColor = if (useNewPlayerDesign) seekBarActiveColor else seekBarActiveColor.copy(alpha = 0.7f),
                             )
+                            // The Box adds a second layer of pixels over the exact rect
+                            // PlayerSliderTrack fills and takes no pointer input, so the slider's
+                            // geometry, drag handling and animated track height are all still the
+                            // stock ones. See CommentTrackMarkers for why only SLIM carries markers.
+                            Box {
+                                PlayerSliderTrack(
+                                    sliderState = sliderState,
+                                    trackHeight = trackHeight,
+                                    colors = slimColors
+                                )
+                                // Colours come from the same adaptive pair the rest of the player
+                                // controls use, not from the slider's own track colours: the track is
+                                // seekBarActiveColor at 0.30 alpha on its unloaded half and at full
+                                // alpha on its loaded half, so a tick drawn in either of those would
+                                // vanish into one side or the other. textButtonColor is by
+                                // construction the tone that contrasts with this player background,
+                                // and the live tick is that tone at full strength and twice the width.
+                                CommentTrackMarkers(
+                                    markers = commentMarkers,
+                                    activeMarker = activeCommentMarker,
+                                    activeColor = seekBarActiveColor,
+                                    inactiveColor = textButtonColor.copy(alpha = 0.55f),
+                                    modifier = Modifier.matchParentSize(),
+                                )
+                            }
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
                     )
@@ -3397,6 +3521,27 @@ fun BottomSheetPlayer(
                 // closing lyrics here also exits fullscreen in the same tap.
                 if (oneTapFullscreenLyrics) isFullScreen = showInlineLyrics
             },
+            onOpenTimestampComments = openTimestampComments,
+            timestampCommentsActive = showTimestampComments,
+            )
+        }
+
+        // Rendered as a sibling of the Queue sheet rather than inside it: it is a ModalBottomSheet with
+        // its own window, and keeping it out of the queue's AnimatedVisibility means the comments stay
+        // readable while the player goes fullscreen — the queue button row hides, the sheet does not.
+        if (showTimestampComments) {
+            TimestampCommentsSheet(
+                uiState = commentsForTrack,
+                trackTitle = mediaMetadata?.title,
+                durationMs = commentDurationMs ?: 0L,
+                positionProvider = { effectivePosition },
+                onSeekTo = onSeekToComment,
+                onRefresh = trackCommentsViewModel::refresh,
+                onDismiss = { showTimestampComments = false },
+                onOpenProviderSettings = {
+                    showTimestampComments = false
+                    navController.navigate("settings/integrations/soundcloud")
+                },
             )
         }
 

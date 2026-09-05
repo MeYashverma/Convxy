@@ -52,6 +52,18 @@ android {
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
 
+        // SoundCloud application credentials, for the timestamped-comments source. Same
+        // local.properties-or-environment pattern as Last.fm above, and optional in exactly the same
+        // way: an empty value means the source reports itself unconfigured and the comments sheet
+        // says so, rather than the build failing or the feature inventing data. A user can also set
+        // these at runtime in Settings → Integrations, which takes precedence.
+        val soundCloudClientId = localProperties.getProperty("SOUNDCLOUD_CLIENT_ID")
+            ?: System.getenv("SOUNDCLOUD_CLIENT_ID") ?: ""
+        val soundCloudClientSecret = localProperties.getProperty("SOUNDCLOUD_CLIENT_SECRET")
+            ?: System.getenv("SOUNDCLOUD_CLIENT_SECRET") ?: ""
+        buildConfigField("String", "SOUNDCLOUD_CLIENT_ID", "\"$soundCloudClientId\"")
+        buildConfigField("String", "SOUNDCLOUD_CLIENT_SECRET", "\"$soundCloudClientSecret\"")
+
 //add nightly build label support
         val isNightly = project.hasProperty("nightly") && project.property("nightly") == "true"
         buildConfigField("Boolean", "IS_NIGHTLY", isNightly.toString())

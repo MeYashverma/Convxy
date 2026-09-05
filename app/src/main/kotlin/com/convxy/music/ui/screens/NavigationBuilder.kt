@@ -90,6 +90,7 @@ import com.convxy.music.ui.screens.settings.integrations.DiscordSettings
 import com.convxy.music.ui.screens.settings.integrations.IntegrationScreen
 import com.convxy.music.ui.screens.settings.integrations.LastFMSettings
 import com.convxy.music.ui.screens.settings.integrations.ListenTogetherSettings
+import com.convxy.music.ui.screens.settings.integrations.SoundCloudSettings
 import com.convxy.music.ui.screens.ambient.AmbientModeScreen
 import com.convxy.music.ui.screens.settings.AmbientModeSettings
 import com.convxy.music.ui.screens.recognition.RecognitionScreen
@@ -560,6 +561,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     sharedComposable("settings/integrations/lastfm") {
         LastFMSettings(navController, scrollBehavior)
+    }
+
+    sharedComposable("settings/integrations/soundcloud") {
+        SoundCloudSettings(navController, scrollBehavior)
     }
 
     sharedComposable(route = "settings/integrations/listen_together") {

@@ -185,6 +185,16 @@ fun Queue(
     showInlineLyrics: Boolean,
     playerBackground: PlayerBackgroundStyle = PlayerBackgroundStyle.DEFAULT,
     onToggleLyrics: () -> Unit = {},
+    /**
+     * Opens the timed-comments sheet, or null to leave the button out entirely.
+     *
+     * Defaulted to null so this stays a two-line change for every caller: `Player` opts in by passing
+     * a callback, and `Player_v2` — plus anything else that renders the queue — compiles and behaves
+     * exactly as before without knowing the feature exists.
+     */
+    onOpenTimestampComments: (() -> Unit)? = null,
+    /** Whether that sheet is open, so the button reads as active like its neighbours do. */
+    timestampCommentsActive: Boolean = false,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -409,6 +419,27 @@ fun Queue(
                             icon = R.drawable.chat_msg,
                             onClick = { showCommentSheet = true },
                             isActive = showCommentSheet,
+                            shape = middleShape,
+                            modifier = Modifier.size(buttonSize),
+                            textButtonColor = textButtonColor,
+                            iconButtonColor = iconButtonColor,
+                            iconSize = iconSize,
+                            textBackgroundColor = TextBackgroundColor,
+                            playerBackground = playerBackground
+                        )
+                    }
+
+                    // Timed comments — a different sheet from the YouTube one directly above it, for a
+                    // different kind of comment. Only present when the caller opted in (see the
+                    // parameter), so this row is byte-for-byte what it was for every caller that did not.
+                    // Not gated on isListenTogetherGuest: reading comments is not driving playback. The
+                    // seek a tap would cause is gated in Player, where the player actually lives.
+                    if (onOpenTimestampComments != null) {
+                        PlayerQueueButton(
+                            icon = R.drawable.chat_timestamp,
+                            contentDescription = stringResource(R.string.timestamped_comments_open),
+                            onClick = onOpenTimestampComments,
+                            isActive = timestampCommentsActive,
                             shape = middleShape,
                             modifier = Modifier.size(buttonSize),
                             textButtonColor = textButtonColor,
@@ -1472,6 +1503,11 @@ fun Queue(
 private fun PlayerQueueButton(
     icon: Int,
     activeIcon: Int? = null,
+    /**
+     * TalkBack label. Defaulted to null, which is what every existing call site passes today, so this
+     * is purely additive — the buttons that had no label still have none and none of them changed.
+     */
+    contentDescription: String? = null,
     onClick: () -> Unit,
     isActive: Boolean,
     enabled: Boolean = true,
@@ -1537,7 +1573,7 @@ private fun PlayerQueueButton(
             val resolvedIcon = if (isActive && activeIcon != null) activeIcon else icon
             Icon(
                 painter = painterResource(id = resolvedIcon),
-                contentDescription = null,
+                contentDescription = contentDescription,
                 modifier = Modifier.size(iconSize),
                 tint = finalTint
             )

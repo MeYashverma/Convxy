@@ -79,6 +79,16 @@ fun IntegrationScreen(
                     onClick = {
                         navController.navigate("settings/integrations/lastfm")
                     }
+                ),
+                // Timed comments. Listed as an integration rather than an appearance toggle because
+                // that is what it is: an external API the user has to register for before the player
+                // button and the seek-bar markers can do anything.
+                IntegrationCardItem(
+                    icon = painterResource(R.drawable.chat_timestamp),
+                    title = { Text(stringResource(R.string.soundcloud_integration)) },
+                    onClick = {
+                        navController.navigate("settings/integrations/soundcloud")
+                    }
                 )
             )
         )

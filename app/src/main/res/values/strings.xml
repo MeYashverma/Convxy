@@ -619,4 +619,40 @@
     <string name="diy_redo">Redo</string>
     <string name="diy_rotation">Rotation</string>
     <string name="diy_size">Size</string>
+
+    <!-- ── Timestamped comments ─────────────────────────────────────────────
+         Distinct from the existing "comments"/"no_comments" pair, which belong to the YouTube
+         comment sheet. These are the timed, seek-to-moment comments on the now-playing screen.
+         Each empty state gets its own string: they are genuinely different situations and the
+         honest thing is to say which one the user is in. -->
+    <string name="timestamped_comments">Timed comments</string>
+    <string name="timestamped_comments_open">Open timed comments</string>
+    <string name="timestamped_comments_count">%1$d timed comments</string>
+    <string name="timestamped_comments_one">1 timed comment</string>
+    <string name="timestamped_comments_seek_to">Play from %1$s</string>
+    <string name="timestamped_comments_source">Comments from %1$s</string>
+    <string name="timestamped_comments_none">No timestamped comments for this track</string>
+    <string name="timestamped_comments_no_match">This track isn\'t on SoundCloud, so there are no timed comments for it</string>
+    <string name="timestamped_comments_not_configured">Timed comments come from SoundCloud, which needs an API application. Add your client ID and secret under Settings → Integrations → SoundCloud.</string>
+    <string name="timestamped_comments_unsupported">Timed comments aren\'t available for this kind of track</string>
+    <string name="timestamped_comments_failed">Couldn\'t load timed comments</string>
+    <string name="timestamped_comments_jump_to_current">Jump to current</string>
+    <string name="timestamped_comments_now_playing_marker">Now playing</string>
+    <string name="timestamped_comments_timeline">Comment timeline</string>
+
+    <!-- SoundCloud integration settings -->
+    <string name="soundcloud_integration">SoundCloud</string>
+    <string name="soundcloud_integration_summary">Timed comments on the now-playing screen</string>
+    <string name="soundcloud_credentials_title">API application</string>
+    <string name="soundcloud_credentials_summary">SoundCloud\'s API needs a registered application. Create one at soundcloud.com/you/apps and paste its client ID and secret here. Nothing is sent anywhere except SoundCloud, and the feature stays off until both are set.</string>
+    <string name="soundcloud_client_id">Client ID</string>
+    <string name="soundcloud_client_secret">Client secret</string>
+    <string name="soundcloud_access_token">Access token (optional)</string>
+    <string name="soundcloud_access_token_summary">Paste a token instead of a client ID and secret to skip the token exchange.</string>
+    <string name="soundcloud_enabled">Timed comments</string>
+    <string name="soundcloud_enabled_summary">Show the timed-comments button and seek-bar markers</string>
+    <string name="soundcloud_status_ready">Connected</string>
+    <string name="soundcloud_status_incomplete">Add both a client ID and a client secret</string>
+    <string name="soundcloud_status_off">Off</string>
+    <string name="soundcloud_howto">How to get credentials</string>
 </resources>

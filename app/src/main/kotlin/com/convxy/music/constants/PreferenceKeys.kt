@@ -302,6 +302,19 @@ val ScrobbleDelayPercentKey = floatPreferencesKey("scrobbleDelayPercent")
 val ScrobbleMinSongDurationKey = intPreferencesKey("scrobbleMinSongDuration")
 val ScrobbleDelaySecondsKey = intPreferencesKey("scrobbleDelaySeconds")
 
+// ── Timestamped comments (SoundCloud) ────────────────────────────────────────
+// SoundCloud's API needs a registered application's client_id/client_secret, or an access token
+// obtained from them. All three are optional: with none set, the timestamped-comments source reports
+// itself unconfigured and the player shows an "unavailable" state instead of making any request.
+// These override the SOUNDCLOUD_CLIENT_ID / SOUNDCLOUD_CLIENT_SECRET build-config fields, which come
+// from local.properties the same way LASTFM_API_KEY does.
+val SoundCloudClientIdKey = stringPreferencesKey("soundcloudClientId")
+val SoundCloudClientSecretKey = stringPreferencesKey("soundcloudClientSecret")
+val SoundCloudAccessTokenKey = stringPreferencesKey("soundcloudAccessToken")
+
+/** Master switch for the timestamped-comments button and its seek-bar markers. */
+val TimestampCommentsEnabledKey = booleanPreferencesKey("timestampCommentsEnabled")
+
 val ChipSortTypeKey = stringPreferencesKey("chipSortType")
 val SongSortTypeKey = stringPreferencesKey("songSortType")
 val SongSortDescendingKey = booleanPreferencesKey("songSortDescending")

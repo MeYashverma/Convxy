@@ -266,10 +266,13 @@ class CommentTimelineTest {
     @Test
     fun `markerForGroup finds the tick the live comment belongs to`() {
         val markers = CommentTimeline.markers(track, 120_000)
-        val live = CommentTimeline.activeGroup(track, 30_050)!!
-        assertEquals(markers[0], CommentTimeline.markerForGroup(markers, live))
+        // One tick per marker, walked in playhead order: a stands alone, b+b2 are one clustered tick,
+        // c stands alone. The clustered case is the one worth pinning down - the live comment at
+        // 30_050 is `b` (index 1), which belongs to the tick covering indices 1..2, not to `a`'s.
+        assertEquals(markers[0], CommentTimeline.markerForGroup(markers, CommentTimeline.activeGroup(track, 10_000)!!))
+        assertEquals(markers[1], CommentTimeline.markerForGroup(markers, CommentTimeline.activeGroup(track, 30_050)!!))
         assertEquals(markers[2], CommentTimeline.markerForGroup(markers, CommentTimeline.activeGroup(track, 90_000)!!))
-        assertNull(CommentTimeline.markerForGroup(emptyList(), live))
+        assertNull(CommentTimeline.markerForGroup(emptyList(), CommentTimeline.activeGroup(track, 30_050)!!))
     }
 
     // ── seeking and formatting ─────────────────────────────────────────────

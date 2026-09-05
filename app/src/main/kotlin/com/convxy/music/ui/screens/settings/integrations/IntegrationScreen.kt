@@ -81,13 +81,15 @@ fun IntegrationScreen(
                     }
                 ),
                 // Timed comments. Listed as an integration rather than an appearance toggle because
-                // that is what it is: an external API the user has to register for before the player
-                // button and the seek-bar markers can do anything.
+                // that is still what it is: the comments come from other services' catalogues. It is no
+                // longer synonymous with SoundCloud though — Audius and YouTube need no registration at
+                // all — so this opens the source list, and SoundCloud's credentials are one row down
+                // from there for the users who have them.
                 IntegrationCardItem(
                     icon = painterResource(R.drawable.chat_timestamp),
-                    title = { Text(stringResource(R.string.soundcloud_integration)) },
+                    title = { Text(stringResource(R.string.comment_sources)) },
                     onClick = {
-                        navController.navigate("settings/integrations/soundcloud")
+                        navController.navigate("settings/integrations/comments")
                     }
                 )
             )

@@ -24,6 +24,14 @@ package com.convxy.music.comments
  */
 interface CommentsDataSource {
 
+    /**
+     * Which entry in [CommentSource] this is. The stable identity the user's priority preference
+     * ranks and switches on/off; [name] is the human-facing label that ends up on screen and on each
+     * comment, and the two are kept separate so a display string can change without invalidating
+     * anybody's saved ordering.
+     */
+    val source: CommentSource
+
     /** Human-readable provider name, surfaced in the sheet header and stored on each comment. */
     val name: String
 

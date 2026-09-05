@@ -98,6 +98,20 @@ class CommentsCache(
         storage.delete(key)
     }
 
+    /**
+     * Drops every entry. Called when the user reorders or retoggles comment sources.
+     *
+     * Without it a priority change would look like it did nothing: a track answered by the previous
+     * first choice stays cached for up to twelve hours, so the source the user just promoted would be
+     * asked about new tracks and silently skipped for everything they had already opened. Invalidating
+     * on the settings change is cheaper than stamping every entry with the ordering that produced it,
+     * and the cost is a handful of refetches the user has effectively asked for.
+     */
+    fun clear() {
+        synchronized(memory) { memory.clear() }
+        storage.deleteAll()
+    }
+
     private fun keyFor(track: CommentTrackRef) = sanitize(track.cacheKey)
 
     private val serializer get() = Entry.serializer()
@@ -134,6 +148,9 @@ interface CommentCacheStorage {
     fun read(key: String): CommentsCache.Entry?
     fun write(key: String, entry: CommentsCache.Entry)
     fun delete(key: String)
+
+    /** Drops every entry. See [CommentsCache.clear]. */
+    fun deleteAll()
 }
 
 /** One `<key>.json` per track under [dir]. Corrupt or unreadable entries are treated as misses. */
@@ -171,5 +188,12 @@ class FileCommentCacheStorage(dir: File) : CommentCacheStorage {
 
     override fun delete(key: String) {
         runCatching { fileFor(key).takeIf { it.exists() }?.delete() }
+    }
+
+    override fun deleteAll() {
+        // Includes the `.tmp` files write-then-rename can leave behind if the process was killed
+        // mid-write: they are orphans no key will ever name again, so this is the only sweep that
+        // would ever collect them.
+        runCatching { directory.listFiles()?.forEach { file -> runCatching { file.delete() } } }
     }
 }

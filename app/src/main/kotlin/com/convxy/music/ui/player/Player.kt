@@ -3540,7 +3540,11 @@ fun BottomSheetPlayer(
                 onDismiss = { showTimestampComments = false },
                 onOpenProviderSettings = {
                     showTimestampComments = false
-                    navController.navigate("settings/integrations/soundcloud")
+                    // The source list rather than SoundCloud's credential screen: two of the three
+                    // sources need nothing from the user, so "no source can serve this track" is fixed
+                    // by switching one on, and only the third needs keys. That screen links down to
+                    // them.
+                    navController.navigate("settings/integrations/comments")
                 },
             )
         }

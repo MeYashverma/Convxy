@@ -23,12 +23,20 @@ class CommentsRepositoryTest {
             entries[key] = entry
         }
 
+        var deleteAlls = 0
+
         override fun delete(key: String) {
             entries.remove(key)
+        }
+
+        override fun deleteAll() {
+            deleteAlls++
+            entries.clear()
         }
     }
 
     private class FakeSource(
+        override val source: CommentSource = CommentSource.AUDIUS,
         override val name: String = "SoundCloud",
         private val configured: Boolean = true,
         private val supported: Boolean = true,
@@ -53,9 +61,22 @@ class CommentsRepositoryTest {
         }
     }
 
-    private class Harness(vararg sources: CommentsDataSource) {
+    /**
+     * @param order the priority list the repository should use. Defaults to the sources in the order
+     *   they were passed, so a test that says `Harness(first, second)` is testing "first wins" without
+     *   having to spell the preference out — and a test about ordering itself can override it.
+     */
+    private class Harness(
+        vararg sources: CommentsDataSource,
+        order: List<CommentSource>? = null,
+    ) {
         val storage = FakeStorage()
-        val repository = CommentsRepository(sources.toList(), CommentsCache(storage, nowMillis = { 0L }))
+        val ranked: List<CommentSource> = order ?: sources.map { it.source }
+        val repository = CommentsRepository(
+            sources.toList(),
+            { ranked },
+            CommentsCache(storage, nowMillis = { 0L }),
+        )
     }
 
     private val track = CommentTrackRef.of("yt-id", "Nightcall", listOf("Kavinsky"), 250)
@@ -240,8 +261,8 @@ class CommentsRepositoryTest {
     @Test
     fun `the first source that answers wins`() {
         runBlocking {
-            val first = FakeSource(name = "first", result = CommentsOutcome.Found(listOf(comment("c1", 1_000))))
-            val second = FakeSource(name = "second", result = CommentsOutcome.Found(listOf(comment("c2", 2_000))))
+            val first = FakeSource(CommentSource.AUDIUS, name = "first", result = CommentsOutcome.Found(listOf(comment("c1", 1_000))))
+            val second = FakeSource(CommentSource.YOUTUBE, name = "second", result = CommentsOutcome.Found(listOf(comment("c2", 2_000))))
             val result = Harness(first, second).repository.commentsFor(track)
 
             assertEquals("first", result.sourceName)
@@ -253,8 +274,8 @@ class CommentsRepositoryTest {
     @Test
     fun `a failing source falls through to the next one`() {
         runBlocking {
-            val first = FakeSource(name = "first", result = CommentsOutcome.Failed("timeout"))
-            val second = FakeSource(name = "second", result = CommentsOutcome.Found(listOf(comment("c2", 2_000))))
+            val first = FakeSource(CommentSource.AUDIUS, name = "first", result = CommentsOutcome.Failed("timeout"))
+            val second = FakeSource(CommentSource.YOUTUBE, name = "second", result = CommentsOutcome.Found(listOf(comment("c2", 2_000))))
             val result = Harness(first, second).repository.commentsFor(track)
 
             assertEquals(CommentsStatus.LOADED, result.status)
@@ -268,8 +289,8 @@ class CommentsRepositoryTest {
         runBlocking {
             // Configured at the gate check, then NotConfigured from the fetch — the race with a settings
             // change. Must not be treated as an answer.
-            val first = FakeSource(name = "first", result = CommentsOutcome.NotConfigured)
-            val second = FakeSource(name = "second", result = CommentsOutcome.Found(listOf(comment("c2", 2_000))))
+            val first = FakeSource(CommentSource.AUDIUS, name = "first", result = CommentsOutcome.NotConfigured)
+            val second = FakeSource(CommentSource.YOUTUBE, name = "second", result = CommentsOutcome.Found(listOf(comment("c2", 2_000))))
             val result = Harness(first, second).repository.commentsFor(track)
 
             assertEquals("second", result.sourceName)
@@ -349,6 +370,119 @@ class CommentsRepositoryTest {
             assertEquals(2, source.fetches)
             assertEquals("other-id", other.trackId)
             assertNull(other.message)
+        }
+    }
+
+    // ── source priority ────────────────────────────────────────────────────
+
+    @Test
+    fun `the priority list, not the injection order, decides who answers`() {
+        runBlocking {
+            val audius = FakeSource(CommentSource.AUDIUS, name = "Audius",
+                result = CommentsOutcome.Found(listOf(comment("from-audius", 1_000))))
+            val youTube = FakeSource(CommentSource.YOUTUBE, name = "YouTube",
+                result = CommentsOutcome.Found(listOf(comment("from-youtube", 2_000))))
+
+            val audiusFirst = Harness(audius, youTube).repository.commentsFor(track)
+            val youTubeFirst = Harness(
+                audius, youTube,
+                order = listOf(CommentSource.YOUTUBE, CommentSource.AUDIUS),
+            ).repository.commentsFor(track)
+
+            // Same two sources, opposite answers, purely because the user ranked them differently.
+            assertEquals("Audius", audiusFirst.sourceName)
+            assertEquals(listOf("from-audius"), audiusFirst.comments.map { it.id })
+            assertEquals("YouTube", youTubeFirst.sourceName)
+            assertEquals(listOf("from-youtube"), youTubeFirst.comments.map { it.id })
+        }
+    }
+
+    @Test
+    fun `a source the user switched off is never asked`() {
+        runBlocking {
+            val audius = FakeSource(CommentSource.AUDIUS, name = "Audius",
+                result = CommentsOutcome.Found(listOf(comment("c1", 1_000))))
+            val soundCloud = FakeSource(CommentSource.SOUNDCLOUD, name = "SoundCloud",
+                result = CommentsOutcome.Found(listOf(comment("c2", 2_000))))
+
+            // SoundCloud is injected and would answer, but it is not in the priority list.
+            val result = Harness(audius, soundCloud, order = listOf(CommentSource.AUDIUS))
+                .repository.commentsFor(track)
+
+            assertEquals(0, soundCloud.fetches)
+            assertEquals("Audius", result.sourceName)
+        }
+    }
+
+    @Test
+    fun `an empty priority list costs no network at all`() {
+        runBlocking {
+            val source = FakeSource(result = CommentsOutcome.Found(listOf(comment("c1", 1_000))))
+
+            val result = Harness(source, order = emptyList()).repository.commentsFor(track)
+
+            assertEquals(CommentsStatus.UNSUPPORTED, result.status)
+            assertEquals(0, source.fetches)
+        }
+    }
+
+    @Test
+    fun `a priority list naming a source that is not injected is skipped`() {
+        runBlocking {
+            // A preference written by a newer build, read by an older one. Must not crash and must not
+            // strand the sources that do exist.
+            val audius = FakeSource(CommentSource.AUDIUS, name = "Audius",
+                result = CommentsOutcome.Found(listOf(comment("c1", 1_000))))
+
+            val result = Harness(
+                audius,
+                order = listOf(CommentSource.SOUNDCLOUD, CommentSource.AUDIUS),
+            ).repository.commentsFor(track)
+
+            assertEquals(CommentsStatus.LOADED, result.status)
+            assertEquals("Audius", result.sourceName)
+        }
+    }
+
+    @Test
+    fun `a no-match from every source is cached as a no-match`() {
+        runBlocking {
+            val audius = FakeSource(CommentSource.AUDIUS, result = CommentsOutcome.NoMatchingTrack)
+            val youTube = FakeSource(CommentSource.YOUTUBE, result = CommentsOutcome.NoMatchingTrack)
+            val repository = Harness(audius, youTube).repository
+
+            val first = repository.commentsFor(track)
+            val second = repository.commentsFor(track)
+
+            assertEquals(CommentsStatus.NO_MATCH, first.status)
+            assertEquals(CommentsStatus.NO_MATCH, second.status)
+            assertTrue(second.fromCache)
+            // Both were asked once; the second call is served from the negative cache.
+            assertEquals(1, audius.fetches)
+            assertEquals(1, youTube.fetches)
+        }
+    }
+
+    @Test
+    fun `a no-match is NOT cached while another source was still failing`() {
+        runBlocking {
+            // Audius says definitively "not on Audius". YouTube says "I could not reach the network".
+            // The honest state is unknown-but-retryable, not a one-hour "nothing exists".
+            val audius = FakeSource(CommentSource.AUDIUS, result = CommentsOutcome.NoMatchingTrack)
+            val youTube = FakeSource(CommentSource.YOUTUBE, result = CommentsOutcome.Failed("timeout"))
+            val repository = Harness(audius, youTube).repository
+
+            val first = repository.commentsFor(track)
+            assertEquals(CommentsStatus.FAILED, first.status)
+
+            // The network recovers: the same track now answers, which the cached no-match would have
+            // suppressed for an hour.
+            youTube.respondWith(CommentsOutcome.Found(listOf(comment("late", 2_000))))
+            val second = repository.commentsFor(track)
+
+            assertEquals(CommentsStatus.LOADED, second.status)
+            assertEquals(listOf("late"), second.comments.map { it.id })
+            assertTrue(!second.fromCache)
         }
     }
 }

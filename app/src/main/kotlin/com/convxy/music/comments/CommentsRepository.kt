@@ -6,7 +6,9 @@
 package com.convxy.music.comments
 
 import androidx.compose.runtime.Immutable
+import com.convxy.music.comments.audius.AudiusCommentsDataSource
 import com.convxy.music.comments.soundcloud.SoundCloudCommentsDataSource
+import com.convxy.music.comments.youtube.YouTubeCommentsDataSource
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -60,28 +62,54 @@ data class TrackComments(
  */
 @Singleton
 class CommentsRepository internal constructor(
-    /** Sources in priority order. The first one to answer wins. */
-    private val sources: List<CommentsDataSource>,
+    /** Every source the app knows about, in whatever order Hilt handed them over. */
+    private val allSources: List<CommentsDataSource>,
+    /** Reads the user's priority list at call time, so a settings change takes effect immediately. */
+    private val orderProvider: () -> List<CommentSource>,
     private val cache: CommentsCache,
 ) {
 
     /**
-     * The production wiring: one concrete source, injected by Hilt.
+     * The production wiring: three concrete sources plus the preference that ranks them.
      *
-     * Taking `SoundCloudCommentsDataSource` directly rather than a `List<CommentsDataSource>` is
-     * deliberate. Dagger multibinding through a Kotlin generic collection is the one part of this
-     * feature that would fail at *compile* time for the whole app if the wildcard annotations ever
-     * drifted, and a list of one gains nothing from it. The abstraction still holds where it matters:
-     * every line of logic below only ever sees the [CommentsDataSource] interface, so a second
-     * provider is one more parameter here and one more entry in the list — no change to the cache, the
-     * ViewModel or any composable.
+     * Taking each source as its own parameter rather than a Dagger multibinding `List<CommentsDataSource>`
+     * is deliberate. Multibinding through a Kotlin generic collection is the one part of this feature
+     * that would fail at *compile* time for the whole app if the wildcard annotations ever drifted, and
+     * three named parameters cost nothing that a list would have saved. The abstraction still holds
+     * where it matters: every line of logic below only ever sees the [CommentsDataSource] interface, so
+     * a fourth provider is one more parameter here and one more entry in [allSources] — no change to the
+     * cache, the ViewModel or any composable.
      *
      * The primary constructor is `internal` so the repository's decision table can be unit-tested
      * against fake sources; `internal` is visible to this module's test source set and to nothing else.
      */
     @Inject
-    constructor(soundCloud: SoundCloudCommentsDataSource, cache: CommentsCache) :
-        this(listOf(soundCloud), cache)
+    constructor(
+        audius: AudiusCommentsDataSource,
+        youTube: YouTubeCommentsDataSource,
+        soundCloud: SoundCloudCommentsDataSource,
+        preferences: CommentSourcePreferences,
+        cache: CommentsCache,
+    ) : this(listOf(audius, youTube, soundCloud), { preferences.orderedSources() }, cache)
+
+    /**
+     * The sources to ask, in the user's priority order, excluding any they switched off.
+     *
+     * Resolved per call rather than held as state: the order is a preference, and making it live means
+     * reordering sources in Settings takes effect on the next track change with no invalidation, no
+     * restart and no observer to keep in sync.
+     *
+     * An empty result means the feature is off, or every source is — in which case [commentsFor]
+     * reports [CommentsStatus.UNSUPPORTED] without touching the network. The player hides its comments
+     * button while the feature is off, so reaching that branch normally means the user disabled all
+     * three sources individually and then opened the sheet anyway.
+     */
+    private fun currentSources(): List<CommentsDataSource> {
+        val order = orderProvider()
+        if (order.isEmpty()) return emptyList()
+        val bySource = allSources.associateBy { it.source }
+        return order.mapNotNull { bySource[it] }
+    }
 
     /**
      * @param forceRefresh bypasses the cache and overwrites it — the retry/refresh path.
@@ -90,6 +118,10 @@ class CommentsRepository internal constructor(
         track: CommentTrackRef,
         forceRefresh: Boolean = false,
     ): TrackComments {
+        // Resolved once. As a property this re-read the preference and rebuilt the list on each of the
+        // three accesses below; one read per track change is also what makes the ordering atomic, so a
+        // settings change landing mid-call cannot swap sources halfway through the fan-out.
+        val sources = currentSources()
         if (sources.isEmpty()) {
             return TrackComments(track.id, CommentsStatus.UNSUPPORTED)
         }
@@ -118,6 +150,7 @@ class CommentsRepository internal constructor(
 
         val durationMs = track.durationSeconds.takeIf { it > 0 }?.times(1000L)
         var sawNoMatch = false
+        var sawFailure = false
         var lastFailure: String? = null
 
         for (source in configured) {
@@ -140,17 +173,26 @@ class CommentsRepository internal constructor(
 
                 CommentsOutcome.NotConfigured -> Unit // raced with a settings change; try the next one
 
-                is CommentsOutcome.Failed -> lastFailure = outcome.reason
+                is CommentsOutcome.Failed -> {
+                    sawFailure = true
+                    lastFailure = outcome.reason
+                }
             }
         }
 
         // Nobody answered. Say why.
-        return if (sawNoMatch) {
+        return if (sawNoMatch && !sawFailure) {
             // A no-match IS cached, on the short negative TTL: it is a statement about this track
             // ("nobody configured has a recording matching it"), and re-running the same search on
             // every player open would spend rate limit to reach the same answer. The one-hour expiry
-            // is what keeps it from being permanent — a track that gets uploaded to SoundCloud
-            // tomorrow is found tomorrow.
+            // is what keeps it from being permanent — a track that gets uploaded to Audius tomorrow
+            // is found tomorrow.
+            //
+            // But only when *every* source that was asked came back with a definite no. If one said
+            // no-match and another failed, the failure is the open question: caching "no match" for an
+            // hour would freeze out a source that might well have answered once the network recovered.
+            // A retryable FAILED costs one extra attempt on the next player open and keeps that door
+            // open, which is the right trade when the answer is genuinely unknown.
             cache.write(track, CommentsOutcome.NoMatchingTrack, configured.first().name)
             TrackComments(track.id, CommentsStatus.NO_MATCH, sourceName = configured.first().name)
         } else {

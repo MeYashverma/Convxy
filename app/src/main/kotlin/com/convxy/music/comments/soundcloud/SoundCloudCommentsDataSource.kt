@@ -5,6 +5,7 @@
 
 package com.convxy.music.comments.soundcloud
 
+import com.convxy.music.comments.CommentSource
 import com.convxy.music.comments.CommentTrackRef
 import com.convxy.music.comments.CommentsDataSource
 import com.convxy.music.comments.CommentsOutcome
@@ -15,29 +16,31 @@ import javax.inject.Singleton
 /**
  * Timestamped comments from SoundCloud, via its official public API.
  *
- * Why SoundCloud, and why only SoundCloud: it is the one service whose comment model *is* the feature
- * — a comment carries a `timestamp` in milliseconds from the start of the track, which is exactly the
- * unit Media3 seeks in. YouTube (which supplies most of Convxy's catalogue, and whose comments the
- * app already shows in `CommentSheet`) has no notion of a comment attached to a moment; neither does
- * JioSaavn, Spotify or a local file. There is no general-purpose API that hands back SoundCloud-style
- * timed comments for an arbitrary track, and inventing one — or scraping a provider's private
- * endpoints to pretend otherwise — would mean showing people reactions that belong to a different
- * recording, or fabricating them.
- *
- * So this is what the feature honestly is: a real provider for the subset of tracks it can prove a
- * match for, behind an interface that a second provider can be added to later, and a clear
- * "unavailable / no comments" state everywhere else.
+ * SoundCloud's comment model *is* this feature: a comment carries a `timestamp` in milliseconds from
+ * the start of the track, which is the exact unit Media3 seeks in, so there is nothing to infer and
+ * nothing to parse out of free text. What it needs in return is a registered application, which is why
+ * it is the one source here that can report [CommentsOutcome.NotConfigured] — and why it sits last in
+ * the default priority despite having the cleanest data. [com.convxy.music.comments.audius.AudiusCommentsDataSource]
+ * and [com.convxy.music.comments.youtube.YouTubeCommentsDataSource] both answer with no credentials at
+ * all, so on a device where nobody has entered SoundCloud keys they are what actually runs.
  *
  * Getting onto a SoundCloud track from a Convxy one is the crux, and it is deliberately conservative:
  * search by artist + title, then require title, uploader and duration to agree
  * ([SoundCloudTrackMatcher]). A wrong match is worse than no match — it pins real people's comments to
  * the wrong moment of the wrong song — so an ambiguous result returns [CommentsOutcome.NoMatchingTrack]
  * and the UI says there is nothing for this track.
+ *
+ * Only the documented `api.soundcloud.com` endpoints are used, with credentials the user supplies. The
+ * internal `api-v2.soundcloud.com` API the web player uses is not touched: it needs a `client_id`
+ * scraped out of SoundCloud's own JavaScript bundles, is not licensed for third-party use, changes
+ * without notice, and would put one shared, revocable credential behind every install of this app.
  */
 @Singleton
 class SoundCloudCommentsDataSource @Inject constructor(
     private val api: SoundCloudApi,
 ) : CommentsDataSource {
+
+    override val source: CommentSource = CommentSource.SOUNDCLOUD
 
     override val name: String = SOURCE_NAME
 

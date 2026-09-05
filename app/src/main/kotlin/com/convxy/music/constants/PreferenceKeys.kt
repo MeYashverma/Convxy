@@ -315,6 +315,14 @@ val SoundCloudAccessTokenKey = stringPreferencesKey("soundcloudAccessToken")
 /** Master switch for the timestamped-comments button and its seek-bar markers. */
 val TimestampCommentsEnabledKey = booleanPreferencesKey("timestampCommentsEnabled")
 
+/**
+ * Which comment sources are on, highest priority first, as comma-separated `CommentSource.id`s
+ * ("audius,youtube,soundcloud"). Presence in the string IS the enabled flag, so rank and membership
+ * cannot disagree. Blank/unset means "never customised" and resolves to every source in default
+ * order — see `CommentSource.parseEnabled`.
+ */
+val CommentSourceOrderKey = stringPreferencesKey("commentSourceOrder")
+
 val ChipSortTypeKey = stringPreferencesKey("chipSortType")
 val SongSortTypeKey = stringPreferencesKey("songSortType")
 val SongSortDescendingKey = booleanPreferencesKey("songSortDescending")

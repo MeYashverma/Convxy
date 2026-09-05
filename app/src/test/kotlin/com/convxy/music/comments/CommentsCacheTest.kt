@@ -34,6 +34,12 @@ class CommentsCacheTest {
             deletes++
             entries.remove(key)
         }
+        var deleteAlls = 0
+
+        override fun deleteAll() {
+            deleteAlls++
+            entries.clear()
+        }
     }
 
     private var now = 1_700_000_000_000L

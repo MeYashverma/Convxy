@@ -23,7 +23,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,7 +49,6 @@ import com.convxy.music.R
 import com.convxy.music.constants.SoundCloudAccessTokenKey
 import com.convxy.music.constants.SoundCloudClientIdKey
 import com.convxy.music.constants.SoundCloudClientSecretKey
-import com.convxy.music.constants.TimestampCommentsEnabledKey
 import com.convxy.music.ui.component.IconButton
 import com.convxy.music.ui.component.Material3SettingsGroup
 import com.convxy.music.ui.component.Material3SettingsItem
@@ -61,6 +59,11 @@ import com.convxy.music.viewmodels.SoundCloudSettingsViewModel
 
 /**
  * Where the timed-comments feature gets its SoundCloud application credentials.
+ *
+ * Credentials only. The feature's master switch and the choice of which source is asked first both
+ * live one level up, on `CommentSourceSettings`, because neither is a SoundCloud property — Audius and
+ * YouTube answer with nothing configured at all, so a switch that governs all three cannot live on the
+ * screen for one of them.
  *
  * Follows `LastFMSettings` closely — same insets handling, same `Material3SettingsGroup` rows, same
  * dialog-per-value editing, same `TopAppBar` — because it is the same kind of screen: one third-party
@@ -83,7 +86,6 @@ fun SoundCloudSettings(
     var clientId by rememberPreference(SoundCloudClientIdKey, "")
     var clientSecret by rememberPreference(SoundCloudClientSecretKey, "")
     var accessToken by rememberPreference(SoundCloudAccessTokenKey, "")
-    val (enabled, onEnabledChange) = rememberPreference(TimestampCommentsEnabledKey, true)
 
     // A pasted token alone is enough; a client id/secret pair has to be complete to mint one.
     // Mirrors SoundCloudCredentials.Config.isUsable so the screen and the client never disagree about
@@ -93,10 +95,12 @@ fun SoundCloudSettings(
     // A String rather than an enum because rememberSaveable has no saver for one.
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val statusText = when {
-        !isConfigured -> stringResource(R.string.soundcloud_status_incomplete)
-        !enabled -> stringResource(R.string.soundcloud_status_off)
-        else -> stringResource(R.string.soundcloud_status_ready)
+    // No "off" branch any more: whether the feature as a whole is on is the master switch on the
+    // Timed comments screen, not a property of these credentials.
+    val statusText = if (isConfigured) {
+        stringResource(R.string.soundcloud_status_ready)
+    } else {
+        stringResource(R.string.soundcloud_status_incomplete)
     }
 
     editing?.let { field ->
@@ -147,20 +151,6 @@ fun SoundCloudSettings(
         Material3SettingsGroup(
             title = stringResource(R.string.soundcloud_integration),
             items = listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.chat_timestamp),
-                    title = { Text(stringResource(R.string.soundcloud_enabled)) },
-                    description = { Text(stringResource(R.string.soundcloud_enabled_summary)) },
-                    trailingContent = {
-                        Switch(
-                            // Shown off while unconfigured so the row never claims a feature that
-                            // cannot run, and disabled so it cannot be toggled into that state.
-                            checked = enabled && isConfigured,
-                            onCheckedChange = onEnabledChange,
-                            enabled = isConfigured,
-                        )
-                    },
-                ),
                 Material3SettingsItem(
                     icon = painterResource(if (isConfigured) R.drawable.link else R.drawable.info),
                     title = { Text(statusText) },

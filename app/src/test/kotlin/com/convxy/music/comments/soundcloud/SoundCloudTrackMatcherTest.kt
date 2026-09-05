@@ -71,8 +71,8 @@ class SoundCloudTrackMatcherTest {
     fun `the closest duration wins a tie on score`() {
         val match = best(
             listOf(
-                candidate("far", "Nightcall (Official Video)", durationMs = 259_000),
-                candidate("near", "Nightcall", durationMs = 250_500),
+                candidate("far", "Nightcall (Official Video)", durationMs = 259_000L),
+                candidate("near", "Nightcall", durationMs = 250_500L),
             ),
             "Nightcall",
         )
@@ -92,7 +92,7 @@ class SoundCloudTrackMatcherTest {
     @Test
     fun `an unknown duration skips the duration gate`() {
         // Local files without a length tag must still be able to find their comments.
-        val match = best(listOf(candidate("1", "Nightcall", durationMs = 999_999)), "Nightcall", durationSeconds = 0)
+        val match = best(listOf(candidate("1", "Nightcall", durationMs = 999_999L)), "Nightcall", durationSeconds = 0)
         assertNotNull(match)
     }
 
@@ -124,17 +124,17 @@ class SoundCloudTrackMatcherTest {
     fun `a different length is a different recording however perfect the strings look`() {
         // A radio edit and an extended mix of the same title have genuinely different comment
         // timelines, so the duration is a gate rather than a score contribution.
-        assertNull(best(listOf(candidate("1", "Nightcall", durationMs = 300_000)), "Nightcall"))
+        assertNull(best(listOf(candidate("1", "Nightcall", durationMs = 300_000L)), "Nightcall"))
     }
 
     @Test
     fun `the duration window is the larger of an absolute or a relative tolerance`() {
         // 8s absolute floor.
-        assertTrue(SoundCloudTrackMatcher.durationCompatible(257_000, 250_000))
-        assertTrue(!SoundCloudTrackMatcher.durationCompatible(262_000, 250_000))
+        assertTrue(SoundCloudTrackMatcher.durationCompatible(257_000L, 250_000L))
+        assertTrue(!SoundCloudTrackMatcher.durationCompatible(262_000L, 250_000L))
         // 4% relative, which is wider than 8s on a ten-minute track.
-        assertTrue(SoundCloudTrackMatcher.durationCompatible(620_000, 600_000))
-        assertTrue(!SoundCloudTrackMatcher.durationCompatible(630_000, 600_000))
+        assertTrue(SoundCloudTrackMatcher.durationCompatible(620_000L, 600_000L))
+        assertTrue(!SoundCloudTrackMatcher.durationCompatible(630_000L, 600_000L))
     }
 
     @Test
@@ -148,7 +148,7 @@ class SoundCloudTrackMatcherTest {
     fun `nothing matching at all means no match, never a guess`() {
         val candidates = listOf(
             candidate("1", "Other Song", "other"),
-            candidate("2", "Nightcall Remix Edit", "someone", durationMs = 400_000),
+            candidate("2", "Nightcall Remix Edit", "someone", durationMs = 400_000L),
         )
         assertNull(best(candidates, "Nightcall", listOf("Kavinsky")))
     }
@@ -157,9 +157,9 @@ class SoundCloudTrackMatcherTest {
 
     @Test
     fun `similarity is one for equal strings and zero for disjoint ones`() {
-        assertEquals(1f, SoundCloudTrackMatcher.similarity("nightcall", "nightcall"), 0.0001f)
-        assertEquals(0f, SoundCloudTrackMatcher.similarity("abc", "xyz"), 0.0001f)
-        assertEquals(0f, SoundCloudTrackMatcher.similarity("", "abc"), 0.0001f)
+        assertEquals(1.0, SoundCloudTrackMatcher.similarity("nightcall", "nightcall").toDouble(), 0.0001)
+        assertEquals(0.0, SoundCloudTrackMatcher.similarity("abc", "xyz").toDouble(), 0.0001)
+        assertEquals(0.0, SoundCloudTrackMatcher.similarity("", "abc").toDouble(), 0.0001)
     }
 
     @Test
@@ -188,18 +188,18 @@ class SoundCloudTrackMatcherTest {
 
     @Test
     fun `uploader overlap is Jaccard over word tokens`() {
-        assertEquals(1f, SoundCloudTrackMatcher.tokenOverlap(setOf("a", "b"), setOf("a", "b")), 0.0001f)
-        assertEquals(1f / 3f, SoundCloudTrackMatcher.tokenOverlap(setOf("a", "b"), setOf("b", "c")), 0.0001f)
-        assertEquals(0f, SoundCloudTrackMatcher.tokenOverlap(emptySet(), setOf("a")), 0.0001f)
+        assertEquals(1.0, SoundCloudTrackMatcher.tokenOverlap(setOf("a", "b"), setOf("a", "b")).toDouble(), 0.0001)
+        assertEquals(1.0 / 3.0, SoundCloudTrackMatcher.tokenOverlap(setOf("a", "b"), setOf("b", "c")).toDouble(), 0.0001)
+        assertEquals(0.0, SoundCloudTrackMatcher.tokenOverlap(emptySet(), setOf("a")).toDouble(), 0.0001)
     }
 
     @Test
     fun `a disqualified candidate scores null rather than a low number`() {
         val wanted = SoundCloudTrackMatcher.normalizeTitle("Nightcall")
         assertNull(
-            SoundCloudTrackMatcher.score(wanted, emptySet(), candidate("1", "Other Song"), 250_000),
+            SoundCloudTrackMatcher.score(wanted, emptySet(), candidate("1", "Other Song"), 250_000L),
         )
-        assertNotNull(SoundCloudTrackMatcher.score(wanted, emptySet(), candidate("1", "Nightcall"), 250_000))
+        assertNotNull(SoundCloudTrackMatcher.score(wanted, emptySet(), candidate("1", "Nightcall"), 250_000L))
     }
 
     // ── query building ─────────────────────────────────────────────────────

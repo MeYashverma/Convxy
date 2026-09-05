@@ -122,7 +122,7 @@ object SoundCloudTrackMatcher {
         // in the uploader field at all, and rejecting those would reject most real matches.
         if (titleSimilarity >= 0.999f) return titleSimilarity
 
-        val uploaderTokens = tokens(normalizeArtist(candidate.uploaderName))
+        val uploaderTokens = tokens(normalizeArtist(candidate.uploaderName)).toSet()
         val artistScore = when {
             normalizedWantedArtistTokens.isEmpty() || uploaderTokens.isEmpty() -> 0.5f
             else -> tokenOverlap(normalizedWantedArtistTokens, uploaderTokens)

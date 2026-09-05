@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.convxy.music.comments.CommentTimeline
@@ -103,6 +104,11 @@ fun CommentTimelineBar(
 ) {
     val seekable = durationMs > 0L
 
+    // Resolved in composition rather than read from the gesture scope: AwaitPointerEventScope gives
+    // no layoutDirection. Taking it here also means an RTL change re-keys the detector below instead
+    // of leaving it mirroring the direction the bar was first composed with.
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
     // pointerInput re-keys on durationMs alone, so the gesture blocks below capture this lambda once
     // and keep using it for the life of the bar. rememberUpdatedState is what stops that capture going
     // stale: the caller's callback closes over live state (whether this device may drive playback, for
@@ -114,15 +120,15 @@ fun CommentTimelineBar(
     // swallow the other's events half the time — a single `awaitEachGesture` that seeks on down and
     // keeps seeking while the finger moves has nothing to negotiate with itself.
     val seekModifier = if (seekable) {
-        Modifier.pointerInput(durationMs) {
+        Modifier.pointerInput(durationMs, isRtl) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
-                currentOnSeekFraction(fractionAt(down.position.x, size.width, layoutDirection))
+                currentOnSeekFraction(fractionAt(down.position.x, size.width, isRtl))
                 down.consume()
                 while (true) {
                     val change = awaitPointerEvent().changes.firstOrNull() ?: break
                     if (!change.pressed) break
-                    currentOnSeekFraction(fractionAt(change.position.x, size.width, layoutDirection))
+                    currentOnSeekFraction(fractionAt(change.position.x, size.width, isRtl))
                     change.consume()
                 }
             }
@@ -187,9 +193,9 @@ fun CommentTimelineBar(
     )
 }
 
-/** Maps an x pixel to a 0..1 track fraction, honouring RTL the same way the drawing does. */
-private fun fractionAt(x: Float, widthPx: Int, layoutDirection: LayoutDirection): Float {
+/** Maps an x pixel to a 0..1 track fraction, mirroring in RTL the same way the drawing does. */
+private fun fractionAt(x: Float, widthPx: Int, isRtl: Boolean): Float {
     if (widthPx <= 0) return 0f
     val raw = (x / widthPx.toFloat()).coerceIn(0f, 1f)
-    return if (layoutDirection == LayoutDirection.Rtl) 1f - raw else raw
+    return if (isRtl) 1f - raw else raw
 }

@@ -111,8 +111,10 @@ object SoundCloudCommentParser {
             authorName = author,
             text = body,
             timestampMs = timestamp,
-            avatarUrl = user.avatarUrl?.takeIf { it.isNotBlank() },
-            authorUrl = user.permalinkUrl?.takeIf { it.isNotBlank() },
+            // `user` is still typed ScUser? here: reaching a non-null author proves the user object
+            // existed, but it proved it through a ?: chain, which smart-casts nothing.
+            avatarUrl = user?.avatarUrl?.takeIf { it.isNotBlank() },
+            authorUrl = user?.permalinkUrl?.takeIf { it.isNotBlank() },
             permalink = trackPermalinkUrl?.takeIf { it.isNotBlank() },
             createdAtEpochMs = parseCreatedAt(dto.createdAt),
             // The official API does not expose per-comment like/reply counts. Left null rather than

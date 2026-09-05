@@ -8,7 +8,6 @@ package com.convxy.music.ui.player.comments
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.DragInteraction
-import androidx.compose.foundation.interaction.FlingInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -264,7 +263,9 @@ private fun CommentList(
 
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { interaction ->
-            if (interaction is DragInteraction.Start || interaction is FlingInteraction.Start) {
+            // A fling always follows a drag, so DragInteraction.Start is the whole signal — Compose
+            // has no separate fling interaction to look for.
+            if (interaction is DragInteraction.Start) {
                 following = false
             }
         }

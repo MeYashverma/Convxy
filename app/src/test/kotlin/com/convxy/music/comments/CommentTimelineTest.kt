@@ -240,10 +240,10 @@ class CommentTimelineTest {
         assertEquals(2, clustered.lastIndexInclusive)
         // Sits at the mean of its cluster, not pinned to the earliest member.
         assertEquals(30_100L, clustered.timestampMs)
-        assertEquals(30_100f / 120_000f, clustered.fraction, 0.0001f)
+        assertEquals(30_100.0 / 120_000.0, clustered.fraction.toDouble(), 0.0001)
 
         assertEquals(1, markers[2].count)
-        assertEquals(90_000f / 120_000f, markers[2].fraction, 0.0001f)
+        assertEquals(90_000.0 / 120_000.0, markers[2].fraction.toDouble(), 0.0001)
     }
 
     @Test

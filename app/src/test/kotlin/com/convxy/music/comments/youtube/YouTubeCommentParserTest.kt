@@ -260,9 +260,21 @@ class YouTubeCommentParserTest {
                 videoId = "v", sourceName = "YouTube", trackDurationMs = null,
             )
         )
+        // Isolating "no text" means the timestamp has to come from the seek link rather than from the
+        // body, because a time written into the body IS body text. The old fixture here read
+        // `run("1:23 "), run("   ")` and expected a drop, which contradicted the two tests that keep
+        // `run("1:00", startSeconds = 60)` — a viewer who writes only a time is marking a moment, and
+        // that moment is the whole point of this source. What is genuinely empty is a linked comment
+        // with nothing written at all.
         assertNull(
             YouTubeCommentParser.toComment(
-                renderer(body = listOf(run("1:23 "), run("   "))),
+                renderer(body = listOf(run("   ", startSeconds = 83))),
+                videoId = "v", sourceName = "YouTube", trackDurationMs = null,
+            )
+        )
+        assertNull(
+            YouTubeCommentParser.toComment(
+                renderer(body = listOf(run("", startSeconds = 83))),
                 videoId = "v", sourceName = "YouTube", trackDurationMs = null,
             )
         )

@@ -1579,22 +1579,6 @@ class MainActivity : ComponentActivity() {
                 ) {
 
                     Scaffold(
-                        // While a long-press menu is open, record everything the menu
-                        // covers -- pages, player sheet, chrome -- so the menu's glass
-                        // refracts what is actually behind it. Sampling the app backdrop
-                        // instead showed the home page through a menu opened over the
-                        // player, because the player sheet is not part of that recording.
-                        // Attached only while a menu is visible: the extra full-stack
-                        // layer costs a recording per invalidation, which is only worth
-                        // paying when something is refracting it. The menu hosts are
-                        // siblings of this Scaffold, so sampling it from there is legal.
-                        modifier = Modifier.then(
-                            if (LocalMenuState.current.isVisible) {
-                                Modifier.layerBackdrop(menuStackBackdrop)
-                            } else {
-                                Modifier
-                            }
-                        ),
                         snackbarHost = { SnackbarHost(snackbarHostState) },
                         topBar = {
                             AnimatedVisibility(
@@ -1981,6 +1965,23 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         modifier = Modifier
+                            // While a long-press menu is open, record everything the
+                            // menu covers -- pages, player sheet, chrome -- so the
+                            // menu's glass refracts what is actually behind it.
+                            // Sampling the app backdrop instead showed the home page
+                            // through a menu opened over the player, because the player
+                            // sheet is not part of that recording. Attached only while
+                            // a menu is visible: the extra full-stack layer costs a
+                            // recording per invalidation, which is only worth paying
+                            // when something is refracting it. The menu hosts are
+                            // siblings of this Scaffold, so sampling it is legal.
+                            .then(
+                                if (LocalMenuState.current.isVisible) {
+                                    Modifier.layerBackdrop(menuStackBackdrop)
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .fillMaxSize()
                             .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                     ) {

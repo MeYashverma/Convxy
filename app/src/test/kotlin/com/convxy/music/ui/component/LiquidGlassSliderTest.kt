@@ -203,19 +203,31 @@ class LiquidGlassSliderTest {
     }
 
     @Test
-    fun `rest scale turns the capsule thumb box into a square dot`() {
-        // 40x24dp thumb box, 12dp rest dot: 0.3 across, 0.5 down.
-        assertEquals(0.3f, liquidThumbRestScaleX(40f, 12f), 0.0001f)
-        assertEquals(0.5f, liquidThumbRestScaleY(24f, 12f), 0.0001f)
+    fun `the thumb is the catalog's full capsule at rest and swells pressed`() {
+        // The reference LiquidSlider runs DampedDragAnimation(initialScale = 1f,
+        // pressedScale = 1.5f) over a 40x24dp thumb: a full capsule at rest, half
+        // again as big under the finger. A port that instead shrank the thumb to a
+        // 12dp dot at rest and morphed it out on press read as a squashed pill --
+        // these numbers are the ones that keep it looking like the library's.
+        assertEquals(1f, LiquidGlassTokens.SliderThumbInitialScale, 0.0001f)
+        assertEquals(1.5f, LiquidGlassTokens.SliderThumbPressedScale, 0.0001f)
+        assertEquals(40f, LiquidGlassTokens.SliderThumbSize.width.value, 0.0001f)
+        assertEquals(24f, LiquidGlassTokens.SliderThumbSize.height.value, 0.0001f)
     }
 
     @Test
-    fun `rest scale is clamped to something visible and never inverted`() {
-        assertEquals(0.05f, liquidThumbRestScaleX(40f, 0f), 0.0001f)
-        assertEquals(1f, liquidThumbRestScaleX(40f, 90f), 0.0001f)
-        // A zero-width box (never laid out yet) must not divide by zero.
-        assertEquals(1f, liquidThumbRestScaleX(0f, 12f), 0.0001f)
-        assertEquals(1f, liquidThumbRestScaleY(0f, 12f), 0.0001f)
+    fun `velocity stretch deforms along the drag axis and never inverts a scale`() {
+        // No velocity: the factor is 1, so the thumb keeps its pressed swell.
+        assertEquals(1f, liquidThumbVelocityFactor(0f, 0.75f), 0.0001f)
+        // Dragging forward drops the factor below 1: X is divided by it, so the
+        // thumb lengthens along the drag, and Y is multiplied by it, so it narrows
+        // across. Dragging backwards does the opposite.
+        assertTrue(liquidThumbVelocityFactor(100f, 0.75f) < 1f)
+        assertTrue(liquidThumbVelocityFactor(-100f, 0.75f) > 1f)
+        // Clamped: an absurd velocity cannot take the factor to zero or negative,
+        // which would flip the thumb inside out.
+        assertTrue(liquidThumbVelocityFactor(100000f, 0.75f) >= 0.8f)
+        assertTrue(liquidThumbVelocityFactor(-100000f, 0.75f) <= 1.2f)
     }
 
     @Test

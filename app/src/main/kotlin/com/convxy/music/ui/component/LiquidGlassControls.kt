@@ -52,21 +52,24 @@ object LiquidGlassTokens {
     val SliderTrackHeight: Dp = 6f.dp
 
     /**
-     * Thumb bounds while pressed. The catalog slider's capsule.
-     *
-     * The thumb's *layout* box is this size at all times; at rest it is scaled
-     * down to [SliderThumbRestSize] by the layer block, which is what produces
-     * the dot-to-capsule morph without a second surface or a re-measure.
+     * Thumb bounds: the catalog slider's capsule, and its layout box at every
+     * press depth — the layer block scales the drawing, never the layout, so the
+     * rail maths and the touch target do not move while the thumb swells.
      */
     val SliderThumbSize: DpSize = DpSize(40f.dp, 24f.dp)
 
     /**
-     * Thumb diameter at rest. Non-uniform scaling of [SliderThumbSize] down to a
-     * square this size turns the capsule into a circle, so a resting seek bar
-     * shows a small round knob and a pressed one shows the full capsule — the
-     * iOS 26 slider behaviour.
+     * Thumb scale at rest and at full press — the catalog slider's uniform
+     * `DampedDragAnimation(initialScale = 1f, pressedScale = 1.5f)`.
+     *
+     * The port used to shrink the thumb to a 12dp dot at rest and morph it into
+     * the capsule on press, reasoning that iOS 26 does something like that. What
+     * it produced was a squashed, undersized pill that read as a broken version
+     * of the library's slider rather than a variation on it, so the catalog's own
+     * numbers are back: full capsule at rest, swelled by half again while pressed.
      */
-    val SliderThumbRestSize: Dp = 12f.dp
+    const val SliderThumbInitialScale: Float = 1f
+    const val SliderThumbPressedScale: Float = 1.5f
 
     /**
      * Minimum height of a slider control. Small enough to sit in the player's
@@ -275,11 +278,18 @@ internal fun liquidThumbLensAmountScale(configuredLensAmount: Float): Float =
  * Non-uniform rest scale for a capsule thumb box, so it reads as a circle of
  * [restSize] while pressed geometry stays a [thumbSize] capsule.
  */
-internal fun liquidThumbRestScaleX(thumbWidthPx: Float, restSizePx: Float): Float =
-    if (thumbWidthPx <= 0f) 1f else (restSizePx / thumbWidthPx).coerceIn(0.05f, 1f)
-
-internal fun liquidThumbRestScaleY(thumbHeightPx: Float, restSizePx: Float): Float =
-    if (thumbHeightPx <= 0f) 1f else (restSizePx / thumbHeightPx).coerceIn(0.05f, 1f)
+/**
+ * The catalog slider's velocity stretch factor for one axis: how much a fast drag
+ * deforms the thumb along it, before the caller applies it (divided on the drag
+ * axis, multiplied across it — the asymmetry is the reference implementation's).
+ *
+ * Clamped so a flick cannot invert a scale and turn the thumb inside out.
+ */
+internal fun liquidThumbVelocityFactor(velocity: Float, axisMax: Float): Float {
+    val clamped = (velocity / LiquidGlassTokens.VelocityStretchDivisor * axisMax)
+        .coerceIn(-LiquidGlassTokens.VelocityStretchClamp, LiquidGlassTokens.VelocityStretchClamp)
+    return 1f - clamped
+}
 
 /**
  * Whether a surface should render as real liquid glass right now.

@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.convxy.music.ui.component.backdrop.Backdrop
@@ -106,9 +105,10 @@ import kotlinx.coroutines.flow.collectLatest
  * floating tab bar's puck uses, so the thumb's springs match the rest of the
  * chrome instead of being a second set of numbers:
  *
- *  - press: the thumb grows from a [restingThumbSize] dot to its full
- *    [thumbSize] capsule, its rest blur fades out, its lens refraction fades in,
- *    and its specular rim and inner shadow appear;
+ *  - press: the thumb swells uniformly, 1 to 1.5 — the catalog's own
+ *    initialScale/pressedScale, so it is the full [thumbSize] capsule at rest and
+ *    half again as big under the finger — while its rest blur fades out, its lens
+ *    refraction fades in, and its specular rim and inner shadow appear;
  *  - drag: the tracked velocity stretches the thumb along the drag axis and
  *    squeezes it across, clamped so a flick cannot tear it apart;
  *  - release: the surface waits for the value to settle before un-pressing, so a
@@ -161,7 +161,6 @@ fun LiquidGlassSlider(
     backdrop: Backdrop? = LocalAppBackdrop.current,
     trackHeight: Dp = LiquidGlassTokens.SliderTrackHeight,
     thumbSize: DpSize = LiquidGlassTokens.SliderThumbSize,
-    restingThumbSize: Dp = LiquidGlassTokens.SliderThumbRestSize,
     controlHeight: Dp = LiquidGlassTokens.SliderControlHeight,
     component: GlassComponent = GlassComponent.PLAYER,
 ) {
@@ -207,7 +206,6 @@ fun LiquidGlassSlider(
 
     val thumbWidthPx = with(density) { thumbSize.width.toPx() }
     val thumbHeightPx = with(density) { thumbSize.height.toPx() }
-    val restSizePx = with(density) { restingThumbSize.toPx() }
     val insetDp = with(density) { liquidRailInsetPx(thumbWidthPx).toDp() }
 
     // Read by the layout and draw lambdas below, which run outside composition.
@@ -225,11 +223,12 @@ fun LiquidGlassSlider(
             // settles to within ~45ms of the target, loose enough that the spring
             // stops instead of chasing float noise forever.
             visibilityThreshold = (rangeSpan * 0.0005f).coerceAtLeast(0.001f),
-            initialScale = 1f,
-            // The dot -> capsule morph needs a different ratio per axis, so it is
-            // driven from pressProgress in the layer block instead of by these
-            // uniform scale animatables, which stay inert at 1f.
-            pressedScale = 1f,
+            // The catalog's own numbers: the thumb is its full capsule at rest and
+            // swells by half again while pressed. These drive the layer block
+            // directly -- the port once left them inert at 1f and morphed a 12dp
+            // dot into the capsule per axis instead, which read as a squashed pill.
+            initialScale = LiquidGlassTokens.SliderThumbInitialScale,
+            pressedScale = LiquidGlassTokens.SliderThumbPressedScale,
             onDragStarted = {},
             onDragStopped = {},
             onDrag = { _, _ -> },
@@ -421,8 +420,6 @@ fun LiquidGlassSlider(
             val plainBlur = config.style == GlassStyle.BLUR
             val depthEffect = config.depthEffect
             val chromaticAberration = config.chromaticAberration
-            val restScaleX = liquidThumbRestScaleX(thumbWidthPx, restSizePx)
-            val restScaleY = liquidThumbRestScaleY(thumbHeightPx, restSizePx)
 
             // Every block below is remembered on exactly what it reads, so the
             // drawBackdrop element compares equal across recompositions and the
@@ -512,25 +509,18 @@ fun LiquidGlassSlider(
                 }
             }
 
-            val layerBlock: GraphicsLayerScope.() -> Unit = remember(
-                damped,
-                restScaleX,
-                restScaleY,
-            ) {
+            val layerBlock: GraphicsLayerScope.() -> Unit = remember(damped) {
                 {
-                    val press = damped.pressProgress
-                    // Dot at rest, capsule at full press. Non-uniform, which is why
-                    // the uniform scale animatables are left inert.
-                    scaleX = lerp(restScaleX, 1f, press)
-                    scaleY = lerp(restScaleY, 1f, press)
-                    // Velocity stretch: the thumb lengthens along a fast drag and
-                    // narrows across it, clamped so a flick cannot invert a scale.
-                    val velocity = damped.velocity / LiquidGlassTokens.VelocityStretchDivisor
-                    val clamp = LiquidGlassTokens.VelocityStretchClamp
-                    scaleX /= 1f - (velocity * LiquidGlassTokens.VelocityStretchMaxX)
-                        .fastCoerceIn(-clamp, clamp)
-                    scaleY *= 1f - (velocity * LiquidGlassTokens.VelocityStretchMaxY)
-                        .fastCoerceIn(-clamp, clamp)
+                    // Uniform press swell straight from the animation driver, then
+                    // the catalog's velocity stretch: the thumb lengthens along a
+                    // fast drag and narrows across it, clamped so a flick cannot
+                    // invert a scale. Divided on X and multiplied on Y, which is
+                    // the asymmetry the reference implementation uses.
+                    val velocity = damped.velocity
+                    scaleX = damped.scaleX /
+                            liquidThumbVelocityFactor(velocity, LiquidGlassTokens.VelocityStretchMaxX)
+                    scaleY = damped.scaleY *
+                            liquidThumbVelocityFactor(velocity, LiquidGlassTokens.VelocityStretchMaxY)
                 }
             }
 
@@ -612,8 +602,12 @@ fun LiquidGlassSlider(
                 }
 
                 val thumbCenter = liquidThumbCenterXPx(progress, total, thumbWidthPx, isLtr)
-                val thumbW = lerp(restSizePx, thumbWidthPx, press)
-                val thumbH = lerp(restSizePx, thumbHeightPx, press)
+                // Same swell and stretch as the glass thumb above, painted.
+                val velocity = damped.velocity
+                val thumbW = thumbWidthPx * damped.scaleX /
+                        liquidThumbVelocityFactor(velocity, LiquidGlassTokens.VelocityStretchMaxX)
+                val thumbH = thumbHeightPx * damped.scaleY *
+                        liquidThumbVelocityFactor(velocity, LiquidGlassTokens.VelocityStretchMaxY)
                 val thumbCorner = CornerRadius(min(thumbW, thumbH) / 2f)
                 val thumbTopLeft = Offset(thumbCenter - thumbW / 2f, centerY - thumbH / 2f)
                 drawRoundRect(

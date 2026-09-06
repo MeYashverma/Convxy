@@ -1,314 +1,40 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Convxy — an open-source Liquid Glass music player for Android</title>
-<meta name="description" content="Convxy is a free, open-source music player for Android: YouTube Music and plain YouTube, synced multi-singer lyrics, a real backdrop-blur UI, offline downloads, no telemetry. GPL-3.0.">
-<meta name="color-scheme" content="light dark">
-<meta property="og:title" content="Convxy">
-<meta property="og:description" content="An open-source Liquid Glass music player for Android. Lyrics, downloads, Ambient Mode, no telemetry.">
-<meta property="og:image" content="https://meyashverma.github.io/Convxy/icon.png">
-<link rel="icon" type="image/png" href="icon.png">
-<style>
-  :root {
-    --paper: #fcfbf9;
-    --ink: #1b1c1e;
-    --muted: #5f6167;
-    --rule: #e2dfd8;
-    --accent: #b4451f;
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --paper: #131316;
-      --ink: #e8e6ea;
-      --muted: #9c9aa5;
-      --rule: #2b2b32;
-      --accent: #ef8b5c;
-    }
-  }
-  * { box-sizing: border-box }
-  html { -webkit-text-size-adjust: 100% }
-  body {
-    margin: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--sans);
-    font-size: 17px;
-    line-height: 1.62;
-    text-rendering: optimizeLegibility;
-  }
-  .page { max-width: 44rem; margin: 0 auto; padding: 0 1.25rem 5rem }
-  a { color: inherit }
-  p, ul, ol, dl { margin: 0 0 1.1rem }
-  ul, ol { padding-left: 1.25rem }
-  li { margin: .25rem 0 }
-  code { font-family: var(--mono); font-size: .87em }
-
-  header.site {
-    display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
-    padding: 1.4rem 0 1.1rem; margin-bottom: 2.6rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  header.site .name {
-    display: flex; align-items: center; gap: .55rem;
-    font-weight: 650; letter-spacing: -.01em;
-  }
-  header.site img { width: 22px; height: 22px; border-radius: 5px }
-  header.site nav { margin-left: auto; display: flex; gap: 1.1rem; font-size: .9rem }
-  header.site nav a { color: var(--muted); text-decoration: none }
-  header.site nav a:hover { color: var(--accent); text-decoration: underline }
-
-  h1 { font-size: 2.35rem; line-height: 1.15; letter-spacing: -.025em; margin: 0 0 .7rem }
-  h2 { font-size: 1.3rem; letter-spacing: -.01em; margin: 3rem 0 .9rem }
-  .lede { font-size: 1.1rem; color: var(--ink); max-width: 40rem }
-  .facts { font-family: var(--mono); font-size: .8rem; color: var(--muted); margin: 1.4rem 0 0; line-height: 1.9 }
-  .facts span + span::before { content: " · "; color: var(--rule) }
-  .actions { display: flex; gap: .8rem; flex-wrap: wrap; margin: 1.6rem 0 0 }
-  .actions a {
-    text-decoration: none; font-size: .95rem; font-weight: 550;
-    padding: .55rem .95rem; border: 1px solid var(--rule); border-radius: 8px;
-  }
-  .actions a.get { border-color: var(--accent); color: var(--accent) }
-  .actions a:hover { border-color: var(--accent) }
-
-  dl.features { margin: 0 }
-  dl.features dt { font-weight: 620; margin-top: 1.35rem }
-  dl.features dd { margin: .1rem 0 0; color: var(--muted) }
-  dl.features dd a { color: var(--ink) }
-
-  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .9rem; margin: 1.4rem 0 .4rem }
-  .shots figure { margin: 0 }
-  .shots img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 10px }
-  .shots figcaption { font-size: .8rem; color: var(--muted); margin-top: .4rem; line-height: 1.4 }
-
-  .note {
-    border-left: 2px solid var(--accent); padding: .1rem 0 .1rem 1rem;
-    margin: 1.4rem 0; color: var(--muted);
-  }
-  table.kv { border-collapse: collapse; width: 100%; font-size: .93rem; margin-bottom: 1.2rem }
-  table.kv th { text-align: left; font-weight: 600; width: 12rem; vertical-align: top; color: var(--muted) }
-  table.kv td { vertical-align: top }
-  table.kv tr + tr th, table.kv tr + tr td { padding-top: .55rem }
-  footer.site {
-    margin-top: 3.4rem; padding-top: 1.3rem; border-top: 1px solid var(--rule);
-    font-size: .88rem; color: var(--muted);
-  }
-  footer.site p { margin-bottom: .5rem }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#08090c">
+  <meta name="description" content="Convxy is a free, open-source Android music player for YouTube Music, JioSaavn and local files, with Liquid Glass, synced lyrics, video and more.">
+  <link rel="canonical" href="https://meyashverma.github.io/Convxy/">
+  <meta property="og:type" content="website"><meta property="og:title" content="Convxy — Open Source Android Music Player"><meta property="og:description" content="Your music. Your way. A personal Android music player built in the open."><meta property="og:image" content="https://meyashverma.github.io/Convxy/icon.png"><meta property="og:url" content="https://meyashverma.github.io/Convxy/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="icon.png" type="image/png">
+  <title>Convxy — Open Source Android Music Player</title>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Convxy","applicationCategory":"MultimediaApplication","operatingSystem":"Android","license":"https://www.gnu.org/licenses/gpl-3.0.html","url":"https://meyashverma.github.io/Convxy/","downloadUrl":"https://github.com/MeYashverma/Convxy/releases/latest","codeRepository":"https://github.com/MeYashverma/Convxy"}</script>
+  <style>
+    :root{--bg:#08090c;--ink:#f4f3f0;--muted:#a4a7ae;--line:rgba(255,255,255,.14);--glass:rgba(22,23,29,.54);--pink:#ff765e;--violet:#9e96ff;--lime:#c5ef8b;--r:28px;--max:1180px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);overflow-x:hidden}body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;background:radial-gradient(circle at 14% 12%,#342535 0,transparent 27rem),radial-gradient(circle at 82% 20%,#172b3b 0,transparent 29rem),linear-gradient(120deg,#08090c,#0c0d12 46%,#09090c);opacity:.9}a{color:inherit;text-decoration:none}button{font:inherit;color:inherit}.skip{position:absolute;left:1rem;top:-4rem;background:#fff;color:#000;padding:.6rem 1rem;border-radius:99px;z-index:30}.skip:focus{top:1rem}.nav{position:fixed;z-index:20;top:18px;left:50%;transform:translateX(-50%);width:min(940px,calc(100% - 28px));height:60px;display:flex;align-items:center;justify-content:space-between;padding:7px 9px 7px 18px;border:1px solid rgba(255,255,255,.19);border-radius:999px;background:linear-gradient(115deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 35%,rgba(13,14,20,.58));box-shadow:0 18px 50px #0007,inset 0 1px #fff4;backdrop-filter:blur(22px) saturate(145%)}.brand{font-size:17px;font-weight:700;letter-spacing:-.04em;display:flex;gap:9px;align-items:center}.brand:before{content:"";width:20px;height:20px;border-radius:7px;background:conic-gradient(from 220deg,#f47862,#cca4ff,#98e2dc,#f47862);box-shadow:inset 0 1px 2px #fff9}.links{display:flex;gap:22px;color:#d0d1d3;font-size:13px}.links a:hover{color:#fff}.nav-github{padding:11px 15px;border-radius:999px;background:#f5f5f2;color:#111;font-size:13px;font-weight:650}.wrap{width:min(var(--max),calc(100% - 48px));margin:auto}.hero{min-height:950px;padding:180px 0 70px;position:relative}.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#c8c9cc;display:flex;align-items:center;gap:8px}.eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 16px var(--lime)}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(57px,8.4vw,118px);letter-spacing:-.075em;line-height:.88;max-width:800px;margin:20px 0 28px;font-weight:680}h1 em{font-style:normal;color:#d8d5d3;text-shadow:0 0 46px #ff7a6259}.hero-copy{max-width:490px;color:var(--muted);font-size:18px;line-height:1.5}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}.button{border:1px solid var(--line);background:rgba(255,255,255,.06);padding:13px 18px;border-radius:999px;font-size:14px;font-weight:650;transition:transform .25s,background .25s;display:inline-flex;align-items:center;gap:8px}.button:hover{transform:translateY(-2px);background:rgba(255,255,255,.13)}.button.primary{background:#f4f2ee;color:#121216;border-color:#fff}.button.primary:after{content:"↗"}.hero-stage{position:absolute;right:max(2vw,calc((100vw - var(--max))/2));top:145px;width:min(58vw,720px);height:650px;perspective:1100px;--x:0px;--y:0px}.halo{position:absolute;inset:80px 70px;background:conic-gradient(from 30deg,#f27065,#4a7c9e,#202534,#ba7c91,#f27065);filter:blur(75px);opacity:.56;animation:breathe 10s ease-in-out infinite}.phone{position:absolute;width:305px;height:602px;right:170px;top:18px;border-radius:39px;background:#07080b;padding:8px;box-shadow:0 50px 70px #000b,0 0 0 1px #ffffff42;transform:rotateY(-10deg) rotateX(3deg) translate3d(calc(var(--x)*.30),calc(var(--y)*.3),0);transition:transform .2s ease;overflow:hidden}.phone:before{content:"";position:absolute;width:96px;height:25px;border-radius:20px;background:#020204;left:calc(50% - 48px);top:12px;z-index:4}.screen{position:relative;height:100%;border-radius:32px;overflow:hidden;background:#1c1c26 url('screenshots/mobile%20(12)-portrait.png') center/cover}.screen:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,#0c0c10b8)}.floating{position:absolute;border:1px solid #ffffff2b;border-radius:22px;background:linear-gradient(135deg,#ffffff24,#ffffff0a 35%,#10121aab);box-shadow:0 24px 45px #0007,inset 0 1px #fff6;backdrop-filter:blur(24px) saturate(150%);overflow:hidden}.now{width:250px;right:18px;bottom:9px;padding:14px;display:grid;grid-template-columns:45px 1fr 22px;gap:10px;align-items:center;transform:translate3d(calc(var(--x)*-.18),calc(var(--y)*-.18),30px)}.cover{width:45px;height:45px;background:url('screenshots/mobile%20(7)-portrait.png') 50% 30%/170px;border-radius:11px}.tiny{font-size:11px;color:#c5c6c9}.track{font-size:12px;font-weight:700;margin-bottom:4px}.pause{font-size:18px}.lyrics-float{width:240px;left:6px;top:150px;padding:17px;transform:rotate(-7deg) translate3d(calc(var(--x)*-.25),calc(var(--y)*-.25),50px)}.lyrics-float small{color:#d7a3ff;font-weight:700}.lyrics-float p{font-size:20px;line-height:1.12;letter-spacing:-.04em;margin:8px 0 0}.hero-note{position:absolute;bottom:26px;left:0;color:#858891;font-size:12px}.hero-note span{color:#d7d8da}.section{padding:130px 0;position:relative}.section-label{color:#a8aaae;font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px}.section h2{font-size:clamp(40px,5vw,70px);letter-spacing:-.06em;line-height:.98;max-width:720px;margin-bottom:22px}.intro{max-width:580px;color:var(--muted);font-size:17px;line-height:1.55}.glass-panel{position:relative;border:1px solid #ffffff2a;border-radius:var(--r);background:linear-gradient(130deg,#ffffff1b,#ffffff07 42%,#0a0b10aa);box-shadow:0 28px 80px #0006,inset 0 1px #fff5;backdrop-filter:blur(25px) saturate(145%);overflow:hidden}.glass-panel:before{content:"";pointer-events:none;position:absolute;inset:0;background:radial-gradient(circle at var(--light-x,45%) var(--light-y,30%),#fff3 0,transparent 24%),linear-gradient(115deg,#fff1,transparent 18%);mix-blend-mode:screen}.music-stage{margin-top:52px;padding:25px;min-height:520px;display:grid;grid-template-columns:1.2fr .8fr;gap:22px;background:linear-gradient(135deg,#e4745b32,#663a8d22 42%,#071e2c8c)}.queue-art{border-radius:21px;background:linear-gradient(135deg,#dc6f5d,#ab4d66 38%,#253a54 78%);padding:28px;display:flex;flex-direction:column;justify-content:flex-end;min-height:460px}.queue-art h3{font-size:37px;letter-spacing:-.06em;margin:0}.queue-art p{color:#fff9;margin:7px 0}.wave{height:44px;margin-top:17px;opacity:.8;background:repeating-linear-gradient(90deg,transparent 0 4px,#fff 4px 6px,transparent 6px 10px);clip-path:polygon(0 50%,4% 24%,7% 66%,12% 17%,17% 70%,22% 35%,28% 76%,33% 20%,40% 58%,47% 15%,52% 72%,59% 30%,65% 58%,71% 10%,77% 66%,84% 36%,89% 78%,94% 20%,100% 54%,100% 100%,0 100%)}.queue{padding:10px 7px}.queue-title{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#d0d2d6;padding:12px}.song{display:grid;grid-template-columns:28px 40px 1fr 20px;align-items:center;gap:10px;padding:11px 9px;border-radius:14px;font-size:13px}.song.active{background:#ffffff1c;box-shadow:inset 0 1px #fff2}.song b{font-weight:650}.song i{font-style:normal;color:#aaaeb4;font-size:11px}.song .sq{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#f4ba6d,#724b7a)}.song:nth-child(4) .sq{background:linear-gradient(135deg,#a7dbb7,#456a7b)}.song:nth-child(5) .sq{background:linear-gradient(135deg,#bf95de,#3f426b)}.song em{font-style:normal;color:#aaa}.lyrics-layout{display:grid;grid-template-columns:.85fr 1.15fr;gap:42px;align-items:center;margin-top:62px}.lyric-screen{padding:45px;min-height:480px;background:radial-gradient(circle at 40% 45%,#d774a32d,transparent 40%),#16151a}.lyric-screen .badge{display:inline-flex;align-items:center;gap:7px;background:#ffffff14;border:1px solid #ffffff24;padding:7px 10px;border-radius:99px;font-size:11px;color:#f7b2d8}.dot{width:7px;height:7px;background:#ff8ac7;border-radius:50%}.line{font-size:clamp(26px,3vw,41px);letter-spacing:-.055em;line-height:1.1;color:#7d7880;margin:17px 0}.line.current{background:linear-gradient(90deg,#fff 57%,#8d8990 57%);background-clip:text;color:transparent}.line.duet{color:#9fa9ff;text-align:right}.features-list{display:grid;gap:13px}.feature{padding:17px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:32px 1fr;gap:13px}.feature strong{font-size:14px}.feature p{font-size:14px;line-height:1.45;color:var(--muted);margin:4px 0 0}.glyph{width:27px;height:27px;border:1px solid #ffffff32;border-radius:10px;display:grid;place-items:center;font-size:13px;color:#dad7ff}.ambient{margin-top:56px;min-height:600px;background:#14141b url('screenshots/users%20(5)-landscape.png') center/cover;border-radius:34px;overflow:hidden;position:relative;border:1px solid #ffffff2b}.ambient:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#08090ca6 0%,#08090c12 45%,#08090cbf 100%)}.ambient-copy{position:absolute;right:8%;top:19%;max-width:390px}.ambient-copy h3{font-size:clamp(38px,5vw,65px);letter-spacing:-.065em;line-height:.96;margin-bottom:16px}.ambient-copy p{color:#d4d3d6;line-height:1.5}.ambient-tag{position:absolute;bottom:25px;left:25px;padding:9px 13px;border-radius:99px;border:1px solid #fff3;background:#0a0a0a8a;backdrop-filter:blur(15px);font-size:12px}.audio-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:20px;margin-top:50px}.sound{padding:30px;min-height:320px;background:linear-gradient(145deg,#223a4c99,#121217)}.sound h3{font-size:30px;letter-spacing:-.05em}.sound p,.sound small{color:var(--muted);line-height:1.5}.sound-wave{height:135px;margin:30px 0 15px;background:linear-gradient(90deg,#98daca,#b6bfff,#ef9c74);mask:repeating-linear-gradient(90deg,#000 0 3px,transparent 3px 8px);clip-path:polygon(0 45%,3% 68%,6% 21%,9% 80%,13% 36%,17% 70%,21% 13%,26% 75%,31% 42%,36% 88%,41% 19%,46% 63%,51% 35%,56% 79%,60% 25%,65% 66%,70% 7%,75% 73%,80% 32%,85% 90%,90% 16%,95% 61%,100% 43%,100% 100%,0 100%)}.chips{display:flex;flex-wrap:wrap;gap:8px}.chips span{border:1px solid #ffffff28;border-radius:99px;padding:7px 10px;font-size:12px;color:#d2d3d5}.privacy{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}.route{padding:36px;background:linear-gradient(145deg,#ffffff14,#101118d1);min-height:290px}.route h3{font-size:14px;color:#c8cacf;font-weight:600}.route-flow{margin-top:42px;display:flex;align-items:center;justify-content:space-between;gap:9px}.node{width:92px;min-height:68px;border:1px solid #fff3;background:#ffffff0b;border-radius:17px;padding:13px 10px;text-align:center;font-size:12px;display:grid;place-items:center}.node.main{background:linear-gradient(135deg,#ffe8e130,#9db9ff27)}.arrow{height:1px;flex:1;background:linear-gradient(90deg,#fff5,#fff1);position:relative}.arrow:after{content:"›";position:absolute;right:-2px;top:-13px;color:#fff8;font-size:21px}.tech{padding:30px;margin-top:52px;background:linear-gradient(145deg,#212331a6,#0e0f13)}.architecture{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:25px}.arch{border:1px solid #ffffff26;padding:16px;border-radius:18px;min-height:88px;background:#ffffff09}.arch b{font-size:14px}.arch span{display:block;color:#abb0b7;font-size:11px;margin-top:5px;line-height:1.35}.open-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:50px}.repo-card{padding:30px;min-height:240px}.repo-card h3{font-size:31px;letter-spacing:-.06em;margin-bottom:8px}.repo-card p{color:var(--muted);line-height:1.5;max-width:450px}.stats{display:flex;gap:12px;margin-top:26px}.stat{border:1px solid #fff2;border-radius:13px;padding:10px 14px;font-size:12px;color:#cfd1d4;min-width:82px}.stat b{font-size:18px;display:block;color:#fff;margin-bottom:3px}.timeline{padding:20px 30px}.time{display:grid;grid-template-columns:95px 1fr;gap:15px;padding:14px 0;border-bottom:1px solid #fff2;font-size:13px}.time:last-child{border:0}.time span{color:#a8abb1}.time b{font-weight:600}.final{padding:160px 0 90px;text-align:center}.final h2{margin:0 auto 22px;font-size:clamp(52px,7.4vw,100px)}.final .intro{margin:0 auto}.footer{border-top:1px solid #ffffff1c;padding:30px 0 46px;color:#979aa0;font-size:12px;line-height:1.55}.footer-grid{display:flex;justify-content:space-between;gap:20px}.footer-links{display:flex;gap:14px;flex-wrap:wrap;color:#d4d5d7}.footer a:hover{text-decoration:underline;color:#fff}@keyframes breathe{50%{transform:scale(1.14) rotate(20deg);opacity:.7}}@media(max-width:900px){.links{display:none}.hero{min-height:900px}.hero-stage{opacity:.78;right:-80px;top:340px;transform:scale(.82);transform-origin:top right}.hero-copy{position:relative;z-index:2}.hero-note{bottom:8px}.architecture{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){.wrap{width:min(100% - 28px,var(--max))}.nav{height:54px;top:10px}.nav-github{padding:9px 12px}.hero{padding-top:135px;min-height:780px}h1{font-size:58px;max-width:450px}.hero-copy{font-size:16px;max-width:360px}.hero-stage{top:385px;right:-133px;transform:scale(.55);transform-origin:top right}.section{padding:85px 0}.music-stage,.lyrics-layout,.privacy,.audio-grid,.open-grid{grid-template-columns:1fr}.music-stage{padding:13px;min-height:auto}.queue-art{min-height:285px}.lyrics-layout{gap:24px}.lyric-screen{padding:28px;min-height:390px}.ambient{min-height:500px;background-position:40% center}.ambient-copy{right:22px;left:22px;top:auto;bottom:66px}.ambient-copy p{font-size:14px}.architecture{grid-template-columns:1fr 1fr;gap:8px}.arch{padding:13px;min-height:74px}.route{padding:25px 17px}.node{width:80px;font-size:11px}.footer-grid{display:block}.footer-links{margin-top:14px}.section h2{font-size:43px}.final{padding:105px 0 70px}.final h2{font-size:57px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.halo{animation:none}.phone,.now,.lyrics-float{transition:none!important;transform:none!important}}
+  </style>
 </head>
 <body>
-<div class="page">
-
-<header class="site">
-  <span class="name"><img src="icon.png" alt="">Convxy</span>
-  <nav>
-    <a href="https://github.com/MeYashverma/Convxy/releases">Releases</a>
-    <a href="https://github.com/MeYashverma/Convxy">Code</a>
-    <a href="https://discord.gg/GquSGfs2u">Discord</a>
-  </nav>
-</header>
-
-<h1>A music player that stays out of the way.</h1>
-
-<p class="lede">Convxy streams the YouTube&nbsp;Music catalogue and plain YouTube, keeps your
-library and downloads on the device, and puts Apple&nbsp;Music-style synced lyrics — including
-per-singer lines for duets — over a UI built on real backdrop blur rather than stock Material
-widgets. There is nothing to sign up for, and no ads or analytics; the YouTube side can use your own
-account if you want your subscriptions there, but the app works without one.</p>
-
-<p class="facts">
-  <span>Kotlin · Jetpack Compose · Media3</span>
-  <span>Android 8.0+</span>
-  <span>GPL-3.0</span>
-  <span id="versionLine">v1.8.0</span>
-</p>
-
-<p class="actions">
-  <a class="get" id="downloadLink" href="https://github.com/MeYashverma/Convxy/releases/latest">Download the APK</a>
-  <a href="https://github.com/MeYashverma/Convxy">Source on GitHub</a>
-  <a href="https://github.com/MeYashverma/Convxy/actions/workflows/build.yml">Nightly builds</a>
-</p>
-
-<h2 id="about">What it is</h2>
-
-<p>Convxy is a fork of <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a>,
-which is itself a fork of <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a>. The
-playback core is a Media3 <code>ExoPlayer</code> service; streaming goes through an
-<a href="https://github.com/MeYashverma/Convxy/tree/main/innertube">unofficial InnerTube
-client</a> kept in its own module, with several native YouTube clients probed in parallel so a
-song still starts when one of them gets flagged.</p>
-
-<p>The interface is the part the fork is really about. <a href="#glass">Liquid Glass</a> surfaces
-sample the actual pixels behind them and blur and refract them, so the nav bar, sheets and
-floating buttons sit in the same light as the artwork behind them. It is not a translucent colour
-painted on top.</p>
-
-<h2 id="features">What it does</h2>
-
-<dl class="features">
-  <dt>Streaming and library</dt>
-  <dd>YouTube Music, JioSaavn and local files in one library, with playlists, subscriptions,
-  search, background playback and lock-screen controls. Downloads are cached on device, and
-  Settings → Storage breaks downloads, the song cache and the image cache out separately, each with
-  its own clear button.</dd>
-
-  <dt id="glass">Liquid Glass UI</dt>
-  <dd>A shared backdrop layer feeds the nav bar, mini player, sheets and dialogs. Per-element
-  blur, vibrancy, lens depth and refraction are adjustable in Settings, along with iOS-style
-  rubber-band overscroll and spring transitions. Dynamic colour comes from the current artwork.</dd>
-
-  <dt>Synced lyrics, including who is singing</dt>
-  <dd>Word-by-word karaoke fill, and Apple Music-style multi-singer lines: every vocalist gets a
-  colour and a name badge, shared vocals are handled as a chorus rather than assigned to the
-  lead. <a href="https://github.com/MeYashverma/Convxy/blob/main/docs/MULTI_SINGER_LYRICS.md">How
-  the TTML agent data is parsed</a>.</dd>
-
-  <dt>Ambient Mode</dt>
-  <dd>A full-screen landscape view for the TV or the desk stand: artwork on one side, lyrics on the
-  other, an accent glow or the track's own animated canvas behind them, and a progress ring you can
-  scrub from the edge of the screen. Portrait canvases (3:4, 9:16) can be kept at their full size in
-  a side panel with the gradient weighted toward them instead of being cropped to cover.
-  <a href="https://github.com/MeYashverma/Convxy/blob/main/docs/AMBIENT_MODE.md">Settings and
-  how the canvas is fitted</a>.</dd>
-
-  <dt>Native YouTube</dt>
-  <dd>Home feed, search with suggestions and filters, channels, playlists and Shorts rendered in
-  the app — no WebView — plus a watch screen with immersive fullscreen, double-tap seek, speed
-  and a quality cap up to 1080p. Related videos become the queue, so they share the mini player
-  and notification with your music.
-  <a href="https://github.com/MeYashverma/Convxy/blob/main/docs/FULL_VIDEO_PLAYBACK.md">How video
-  playback resolves a stream</a>.</dd>
-
-  <dt>Sound</dt>
-  <dd>Built-in equalizer, optional high-bitrate and lossless sources where the provider has them,
-  crossfade with tempo-matched Auto-DJ mixing, and a waveform scrub bar in the mini player.
-  <a href="https://github.com/MeYashverma/Convxy/blob/main/app/src/main/kotlin/com/convx/music/playback/audio/DjMixPlanner.kt">
-  The mix planner</a> decides per transition whether the two tracks are close enough in tempo to
-  stretch, and backs off to a plain crossfade when they are not.</dd>
-
-  <dt>Together, and where that reaches</dt>
-  <dd>Listen Together opens a room that several phones follow at once; the room lives on a small
-  WebSocket server (<code>listen-together-server/</code> in the repo) and the app lets you point at
-  your own deployment. Discord Rich Presence, Last.fm, ListenBrainz and Spotify scrobbling are each
-  off until you turn them on and connect your own account.</dd>
-
-  <dt>Everything else it is expected to do</dt>
-  <dd>Android Auto, a tablet sidebar layout, material icon and font choices, an in-app updater
-  that reads GitHub Releases, and zero telemetry — the library, settings and caches never leave
-  the phone.</dd>
-</dl>
-
-<h2 id="screens">Screens</h2>
-
-<div class="shots">
-  <figure>
-    <a href="screenshots/Screenshot_20260802_205400_Convx-portrait.png">
-      <img src="screenshots/Screenshot_20260802_205400_Convx-portrait.png" width="1245" height="2359"
-           alt="Convxy home screen with a frosted glass nav bar" loading="lazy"></a>
-    <figcaption>Home. The nav bar samples the artwork scrolling under it.</figcaption>
-  </figure>
-  <figure>
-    <a href="screenshots/lyrics%20screen-portrait.png">
-      <img src="screenshots/lyrics%20screen-portrait.png" width="1245" height="2359"
-           alt="Word-by-word synced lyrics with a glow on the active line" loading="lazy"></a>
-    <figcaption>Lyrics, with the accent glow on the active line.</figcaption>
-  </figure>
-  <figure>
-    <a href="screenshots/mobile%20%287%29-portrait.png">
-      <img src="screenshots/mobile%20%287%29-portrait.png" width="1245" height="2359"
-           alt="Multi-singer lyrics with per-vocalist colours" loading="lazy"></a>
-    <figcaption>A duet: each vocalist keeps its own colour.</figcaption>
-  </figure>
-  <figure>
-    <a href="screenshots/mobile%20%2813%29-portrait.png">
-      <img src="screenshots/mobile%20%2813%29-portrait.png" width="1245" height="2359"
-           alt="The built-in equalizer" loading="lazy"></a>
-    <figcaption>Equalizer.</figcaption>
-  </figure>
-  <figure>
-    <a href="screenshots/tabview%20%281%29-landscape.png">
-      <img src="screenshots/tabview%20%281%29-landscape.png" width="2226" height="1590"
-           alt="Tablet layout with a persistent sidebar" loading="lazy"></a>
-    <figcaption>Tablet: a sidebar replaces the nav bar.</figcaption>
-  </figure>
-</div>
-
-<h2 id="install">Installing</h2>
-
-<p>Download the APK from
-<a href="https://github.com/MeYashverma/Convxy/releases/latest">the latest release</a> and install
-it. Android will ask you to allow installs from this source once; that is the normal sideload
-prompt. The release asset is a single signed universal APK built as <code>universalGms</code>, so
-Google Cast is compiled in; it runs on Android 8.0 and newer and needs no Google account. Android
-Auto works in either flavour. If you would rather have a build with no Play Services dependency at
-all, the <code>universalFoss</code> variant is there in the Gradle project — build it from source,
-because the release page does not carry it.</p>
-
-<p>If you meant to listen in the car and Convxy is missing from Android Auto, enable
-<i>Settings → Android Auto → Developer settings → Unknown sources</i> in the Android Auto phone
-app, then restart it. The same setting is needed by most third-party Auto media apps.</p>
-
-<p class="note">Streaming goes through unofficial APIs. YouTube can and does change them, so
-expect a release or two to break playback until it is patched — which is also why the project
-publishes CI builds next to the tagged releases.</p>
-
-<h2 id="build">Building</h2>
-
-<p>JDK 21 and a current Android Studio are enough. Open the project, let Gradle sync, run the
-<code>app</code> module; <code>./gradlew :app:assembleUniversalFossDebug</code> works from the CLI
-too. <a href="https://github.com/MeYashverma/Convxy/blob/main/.github/CONTRIBUTING.md">CONTRIBUTING.md</a>
-covers the module layout, branch and commit conventions, and what a pull request should contain.</p>
-
-<h2 id="community">Community</h2>
-
-<p><a href="https://discord.gg/GquSGfs2u">Discord</a> is where release news, lyric-provider quirks
-and Listen Together sessions happen. Bugs and feature requests go to
-<a href="https://github.com/MeYashverma/Convxy/issues">issues</a>; the
-<a href="https://github.com/MeYashverma/Convxy/discussions">discussions</a> board is for anything
-that is not yet either.</p>
-
-<footer class="site">
-  <p>Maintained by <a href="https://github.com/MeYashverma">Yash Verma</a>
-  · <a href="https://meyashverma.github.io/yashverma-dev/">yashverma-dev</a>.</p>
-  <p>Built on <a href="https://github.com/cosmictaserdev-creator/Convx">Convx</a> by Aryan
-  (CosmicTaser) and <a href="https://github.com/vivizzz007/vivi-music">vivi-music</a> by Vividh P
-  Ashokan. Blur and refraction from <a href="https://github.com/Kyant0/backdrop">Kyant0/backdrop</a>;
-  lyrics from <a href="https://github.com/better-lyrics/better-lyrics">Better Lyrics</a>,
-  <a href="https://github.com/ibratabian17/YouLyPlus">YouLyPlus</a> and
-  <a href="https://github.com/maxrave-dev/SimpMusic">SimpMusic</a>; Rich Presence from
-  <a href="https://github.com/dead8309/Kizzy">Kizzy</a>.</p>
-  <p>GPL-3.0 licensed. Not affiliated with, endorsed by or funded by YouTube or Google LLC.
-  No track in this app is hosted by us; nothing is scraped for analytics.</p>
-</footer>
-
-</div>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main navigation"><a href="#top" class="brand">Convxy</a><div class="links"><a href="#music">Music</a><a href="#experience">Experience</a><a href="#technology">Technology</a><a href="#open">Open source</a></div><a class="nav-github" href="https://github.com/MeYashverma/Convxy">GitHub ↗</a></nav>
+<main id="main">
+<section class="hero wrap" id="top"><div class="eyebrow">Open source Android music player</div><h1>Your music.<br><em>Your way.</em></h1><p class="hero-copy">Convxy brings YouTube Music, JioSaavn and local files into one personal player — with beautiful playback, synced lyrics and none of the unnecessary noise.</p><div class="actions"><a class="button primary" href="https://github.com/MeYashverma/Convxy/releases/latest">Download Convxy</a><a class="button" href="https://github.com/MeYashverma/Convxy">View the source</a></div><div class="hero-stage" aria-hidden="true"><div class="halo"></div><div class="lyrics-float floating"><small>NOW SINGING</small><p>Let the colour<br>of the music<br>find you.</p></div><div class="phone"><div class="screen"></div></div><div class="now floating"><div class="cover"></div><div><div class="track">Playing from Convxy</div><div class="tiny">Artwork-led interface</div></div><div class="pause">Ⅱ</div></div></div><p class="hero-note"><span>Free to use.</span> GPL-3.0 licensed. Built for Android 8.0 and newer.</p></section>
+<section class="section wrap" id="music"><div class="section-label">01 — Music without friction</div><h2>Everything you listen to, in one place.</h2><p class="intro">Search, subscriptions, playlists and queues live alongside your local library. Playback stays with you: in the background, on the lock screen and through notification controls.</p><div class="music-stage glass-panel"><div class="queue-art"><p>YOUR QUEUE · PERSISTENT &amp; OFFLINE-SAFE</p><h3>Keep the<br>good part going.</h3><div class="wave"></div></div><div class="queue"><div class="queue-title">Up next</div><div class="song active"><em>01</em><div class="sq"></div><div><b>In rotation</b><br><i>Playing now</i></div><em>Ⅱ</em></div><div class="song"><em>02</em><div class="sq"></div><div><b>Saved for later</b><br><i>From your library</i></div><em>⋮</em></div><div class="song"><em>03</em><div class="sq"></div><div><b>One more track</b><br><i>Ready when you are</i></div><em>⋮</em></div></div></div></section>
+<section class="section wrap" id="experience"><div class="lyrics-layout"><div><div class="section-label">02 — Lyrics as an experience</div><h2>Feel every word land.</h2><p class="intro">Convxy supports word-by-word karaoke, translation, romanisation and progressive blur. In multi-singer lyrics, vocalists get their own colour and name badge — shared parts are treated as a chorus.</p></div><div class="lyric-screen glass-panel"><div class="badge"><span class="dot"></span> VOCALIST · NOW</div><div class="line">A quiet room is waiting</div><div class="line current">for the song to arrive</div><div class="line duet">and meet us in the middle</div><div class="line">where every word stays close.</div></div></div><div class="features-list" style="margin-top:55px"><div class="feature"><div class="glyph">◌</div><div><strong>Liquid Glass, made from the scene behind it.</strong><p>Convxy's nav bar, mini player, sheets and dialogs sample their actual backdrop. Blur, refraction, vibrancy, tint and depth are part of the system — not just a translucent surface.</p></div></div><div class="feature"><div class="glyph">↗</div><div><strong>Music becomes video when you want it to.</strong><p>Watch a track's YouTube video from the player, or move into the native YouTube section for home, search, channels, playlists, Shorts, watch history and related videos in the same queue.</p></div></div></div></section>
+<section class="section wrap"><div class="section-label">03 — Ambient Mode</div><h2>Give the music some room.</h2><p class="intro">A sparse landscape display for a TV, desktop or phone stand: artwork and synced lyrics share the frame while a track's glow — or animated canvas — fills the background.</p><div class="ambient"><div class="ambient-copy"><h3>Not another screen.<br>A listening space.</h3><p>Tap to play or pause, swipe between tracks, and scrub a progress ring from the edge. Controls disappear when the music has the room.</p></div><div class="ambient-tag">AMBIENT MODE · LANDSCAPE</div></div></section>
+<section class="section wrap"><div class="section-label">04 — Sound, considered</div><h2>More control. Less clutter.</h2><div class="audio-grid"><div class="sound glass-panel"><h3>Shape the next transition.</h3><p>Waveform seeking, a built-in equalizer, offline downloads and per-source quality settings stay close to playback.</p><div class="sound-wave"></div><small>Crossfade can move into tempo-matched Auto-DJ mixing when tracks fit — otherwise it falls back to a plain crossfade.</small></div><div class="sound glass-panel"><h3>Built for your setup.</h3><div class="chips"><span>Equalizer</span><span>Offline downloads</span><span>Storage controls</span><span>High bitrate*</span><span>Lossless*</span><span>Sleep timer</span><span>Android Auto</span></div><p style="margin-top:23px;font-size:13px">* Available where the selected provider offers them.</p></div></div></section>
+<section class="section wrap"><div class="privacy"><div><div class="section-label">05 — Privacy</div><h2>Your music stays yours.</h2><p class="intro">Your library, history, settings, downloads and caches live on your device. Convxy includes no analytics or advertising SDK. Optional services only connect after you choose and configure them.</p></div><div class="route glass-panel"><h3>THE ROUTE IS YOURS TO CHOOSE</h3><div class="route-flow"><div class="node main">Your device</div><div class="arrow"></div><div class="node">Music &amp; lyrics services you use</div></div><p style="margin:26px 0 0;color:#afb2b7;font-size:12px;line-height:1.5">Network requests are for the services in use, artwork and update checks — not central Convxy analytics.</p></div></div></section>
+<section class="section wrap" id="technology"><div class="section-label">06 — Under the surface</div><h2>Designed like a serious music player.</h2><p class="intro">Convxy is a Kotlin, Jetpack Compose multi-module Android application. Its parts stay deliberately separate, so the player, providers and integrations can evolve without becoming one monolith.</p><div class="tech glass-panel"><div class="architecture"><div class="arch"><b>Jetpack Compose</b><span>Product UI and interaction</span></div><div class="arch"><b>Media3 / ExoPlayer</b><span>Service-based playback</span></div><div class="arch"><b>Room</b><span>Library, history and local state</span></div><div class="arch"><b>InnerTube + JioSaavn</b><span>Music and video sources</span></div><div class="arch"><b>Lyrics modules</b><span>Providers, parsing and translation</span></div><div class="arch"><b>Canvas providers</b><span>Artwork motion and Ambient backgrounds</span></div><div class="arch"><b>Connected, opt-in</b><span>Discord, Last.fm, ListenBrainz, Spotify</span></div><div class="arch"><b>Listen Together</b><span>Shared queue rooms</span></div></div></div></section>
+<section class="section wrap" id="open"><div class="section-label">07 — Open by design</div><h2>Built in the open. Kept personal.</h2><div class="open-grid"><div class="repo-card glass-panel"><h3>Convxy on GitHub.</h3><p>The source, releases, issues, documentation and contribution guidelines all live in the open. Current repository details are loaded from GitHub when available.</p><div class="stats"><div class="stat"><b id="stars">—</b>Stars</div><div class="stat"><b id="forks">—</b>Forks</div><div class="stat"><b id="release">Latest</b>Release</div></div><div class="actions"><a class="button" href="https://github.com/MeYashverma/Convxy">Explore repository ↗</a></div></div><div class="timeline glass-panel"><div class="time"><span>Current</span><b>Ambient Mode — Canvas Position &amp; Fit</b></div><div class="time"><span>Product</span><b>Native YouTube video playback</b></div><div class="time"><span>Experience</span><b>Multi-singer synced lyrics</b></div><div class="time"><span>Foundation</span><b>Liquid Glass, local-first playback</b></div></div></div></section>
+<section class="final wrap" id="download"><div class="section-label">08 — Get Convxy</div><h2>Ready to listen differently?</h2><p class="intro">Download the latest APK from GitHub Releases, or inspect the source and help shape what comes next.</p><div class="actions" style="justify-content:center"><a class="button primary" href="https://github.com/MeYashverma/Convxy/releases/latest">Download Convxy</a><a class="button" href="https://github.com/MeYashverma/Convxy/discussions">Join the discussion ↗</a></div></section>
+</main>
+<footer class="footer"><div class="wrap footer-grid"><div>Convxy is GPL-3.0 licensed and continues the Convx and vivi-music lineage.<br>Not affiliated with, endorsed by or funded by YouTube, Google, Apple, Spotify or JioSaavn.</div><div class="footer-links"><a href="https://github.com/MeYashverma/Convxy">GitHub</a><a href="https://github.com/MeYashverma/Convxy/releases">Releases</a><a href="https://discord.gg/GquSGfs2u">Discord</a><a href="https://github.com/MeYashverma/Convxy/issues">Issues</a><a href="https://github.com/MeYashverma/Convxy/blob/main/.github/CONTRIBUTING.md">Contribute</a><a href="https://github.com/MeYashverma/Convxy/blob/main/LICENSE">License</a></div></div></footer>
 <script>
-// Only fills in the release version and its direct APK link. The page reads correctly
-// without it, and stays on the releases page if the API is unreachable or rate-limited.
-(function () {
-  fetch('https://api.github.com/repos/MeYashverma/Convxy/releases/latest', {
-    headers: { Accept: 'application/vnd.github+json' }
-  })
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) {
-      if (!d) return;
-      if (d.tag_name) {
-        document.getElementById('versionLine').textContent =
-          'v' + d.tag_name.replace(/^v/, '') + ' · released ' +
-          new Date(d.published_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-      }
-      var apk = (d.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); })[0];
-      if (apk) {
-        var link = document.getElementById('downloadLink');
-        link.href = apk.browser_download_url;
-        link.textContent = 'Download ' + apk.name;
-      }
-    })
-    .catch(function () {});
+(() => { const stage=document.querySelector('.hero-stage'), panels=document.querySelectorAll('.glass-panel');
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.addEventListener('pointermove',e=>{const x=(e.clientX/innerWidth-.5)*20,y=(e.clientY/innerHeight-.5)*20;stage?.style.setProperty('--x',x+'px');stage?.style.setProperty('--y',y+'px');panels.forEach(p=>{p.style.setProperty('--light-x',(e.clientX/innerWidth*100)+'%');p.style.setProperty('--light-y',(e.clientY/innerHeight*100)+'%')})},{passive:true})}
+  fetch('https://api.github.com/repos/MeYashverma/Convxy').then(r=>r.ok?r.json():Promise.reject()).then(data=>{document.querySelector('#stars').textContent=data.stargazers_count;document.querySelector('#forks').textContent=data.forks_count}).catch(()=>{});
+  fetch('https://api.github.com/repos/MeYashverma/Convxy/releases/latest').then(r=>r.ok?r.json():Promise.reject()).then(data=>{document.querySelector('#release').textContent=data.tag_name||'Latest'}).catch(()=>{});
 })();
 </script>
-</body>
-</html>
+</body></html>

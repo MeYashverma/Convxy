@@ -78,7 +78,7 @@ dissolves into the glow instead of ending on a straight line. The canvas itself 
 `AspectRatioFrameLayout` in `AmbientVideoCanvas`, which is why **Fill side** maps to
 `RESIZE_MODE_ZOOM` and **Stretch** to `RESIZE_MODE_FILL`.
 
-Unit tests: `app/src/test/kotlin/com/convx/music/ui/screens/ambient/AmbientCanvasPositionFitTest.kt`
+Unit tests: `app/src/test/kotlin/com/convxy/music/ui/screens/ambient/AmbientCanvasPositionFitTest.kt`
 (12 cases) pins the clamp and aspect rules, the anchor fallback, the veil arithmetic and the preview
 geometry, so a slider range or a default that moves without the maths changing shows up as a
 failure.

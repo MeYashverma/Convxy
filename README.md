@@ -187,7 +187,7 @@ same terms and come with its source.
   ([cosmictaser.de5.net](https://cosmictaser.de5.net)), the upstream fork this project continues.
 - [Vividh P Ashokan](https://github.com/vivizzz007) — [vivi-music](https://github.com/vivizzz007/vivi-music).
 - [Kyant0/backdrop](https://github.com/Kyant0/backdrop) — the backdrop blur and refraction engine
-  vendored into `app/src/main/kotlin/com/convx/music/ui/component/backdrop/`.
+  vendored into `app/src/main/kotlin/com/convxy/music/ui/component/backdrop/`.
 - [Better Lyrics](https://github.com/better-lyrics/better-lyrics),
   [YouLyPlus](https://github.com/ibratabian17/YouLyPlus) and
   [SimpMusic](https://github.com/maxrave-dev/SimpMusic) — lyrics sources and styling ideas.

@@ -27,7 +27,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.Slider
+// Routed to the glass dispatcher: every Slider( in this file is a settings value
+// slider, and this is the single place that decides between the liquid glass rail
+// and Material's. Call sites are unchanged.
+import com.convxy.music.ui.component.GlassSlider as Slider
 import com.convxy.music.ui.component.GlassSwitchCompat as Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -73,6 +76,7 @@ import com.convxy.music.constants.LiquidGlassLensAmountKey
 import com.convxy.music.constants.LiquidGlassLensHeightKey
 import com.convxy.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convxy.music.constants.LiquidGlassNavBarEnabledKey
+import com.convxy.music.constants.LiquidGlassSettingsControlsEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelVibrancyKey
 import com.convxy.music.constants.LiquidGlassSidePanelBlurRadiusKey
@@ -210,6 +214,9 @@ fun GlassEffectSettings(
     )
     val (sidePanelEnabled, onSidePanelEnabledChange) = rememberPreference(
         LiquidGlassSidePanelEnabledKey, defaultValue = true
+    )
+    val (settingsControlsEnabled, onSettingsControlsEnabledChange) = rememberPreference(
+        LiquidGlassSettingsControlsEnabledKey, defaultValue = true
     )
     val (sidePanelVibrancy, onSidePanelVibrancyChange) = rememberPreference(
         LiquidGlassSidePanelVibrancyKey, defaultValue = 1.2f
@@ -510,6 +517,18 @@ fun GlassEffectSettings(
                         )
                     },
                     onClick = { onNavBarEnabledChange(!navBarEnabled) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.sliders),
+                    title = { Text(stringResource(R.string.liquid_glass_settings_controls)) },
+                    description = { Text(stringResource(R.string.liquid_glass_settings_controls_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = settingsControlsEnabled,
+                            onCheckedChange = onSettingsControlsEnabledChange,
+                        )
+                    },
+                    onClick = { onSettingsControlsEnabledChange(!settingsControlsEnabled) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.nav_bar),

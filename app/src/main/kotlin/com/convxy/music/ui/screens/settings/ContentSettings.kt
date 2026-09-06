@@ -63,7 +63,10 @@ import androidx.compose.material3.Icon
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.OutlinedTextField
 import com.convxy.music.ui.utils.appTopBarWindowInsets
-import androidx.compose.material3.Slider
+// Routed to the glass dispatcher: every Slider( in this file is a settings value
+// slider, and this is the single place that decides between the liquid glass rail
+// and Material's. Call sites are unchanged.
+import com.convxy.music.ui.component.GlassSlider as Slider
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.GlassSwitchCompat as Switch
 import com.convxy.music.ui.utils.appTopBarWindowInsets

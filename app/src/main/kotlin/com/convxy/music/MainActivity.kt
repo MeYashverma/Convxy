@@ -191,6 +191,7 @@ import com.convxy.music.constants.LiquidGlassGlobalEnabledKey
 import com.convxy.music.constants.LiquidGlassPlayerEnabledKey
 import com.convxy.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convxy.music.constants.LiquidGlassNavBarEnabledKey
+import com.convxy.music.constants.LiquidGlassSettingsControlsEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelVibrancyKey
 import com.convxy.music.constants.LiquidGlassSidePanelBlurRadiusKey
@@ -896,6 +897,7 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassPlayerEnabled) = rememberPreference(LiquidGlassPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassMiniPlayerEnabled) = rememberPreference(LiquidGlassMiniPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassNavBarEnabled) = rememberPreference(LiquidGlassNavBarEnabledKey, defaultValue = true)
+                val (liquidGlassSettingsControlsEnabled) = rememberPreference(LiquidGlassSettingsControlsEnabledKey, defaultValue = true)
                 val (liquidGlassSidePanelEnabled) = rememberPreference(LiquidGlassSidePanelEnabledKey, defaultValue = true)
                 val (liquidGlassSidePanelVibrancy) = rememberPreference(LiquidGlassSidePanelVibrancyKey, defaultValue = 1.2f)
                 val (liquidGlassSidePanelBlurRadius) = rememberPreference(LiquidGlassSidePanelBlurRadiusKey, defaultValue = 2f)
@@ -942,7 +944,8 @@ class MainActivity : ComponentActivity() {
                     liquidGlassSurfaceOpacity, liquidGlassTextColorInt, liquidGlassPlayerEnabled,
                     liquidGlassHighlightColorInt, liquidGlassHighlightOpacity, liquidGlassStyle,
                     liquidGlassPuckColorInt, liquidGlassPuckOpacity,
-                    liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSidePanelEnabled,
+                    liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSettingsControlsEnabled,
+                    liquidGlassSidePanelEnabled,
                     liquidGlassSidePanelVibrancy, liquidGlassSidePanelBlurRadius,
                     liquidGlassSidePanelLensHeight, liquidGlassSidePanelLensAmount,
                     liquidGlassSidePanelColorInt, liquidGlassSidePanelSurfaceOpacity, liquidGlassSidePanelTextColorInt,
@@ -976,6 +979,7 @@ class MainActivity : ComponentActivity() {
                         playerEnabled = liquidGlassPlayerEnabled,
                         miniPlayerEnabled = liquidGlassMiniPlayerEnabled,
                         navBarEnabled = liquidGlassNavBarEnabled,
+                        settingsControlsEnabled = liquidGlassSettingsControlsEnabled,
                         sidePanelEnabled = liquidGlassSidePanelEnabled,
                         sidePanelVibrancy = liquidGlassSidePanelVibrancy,
                         sidePanelBlurRadius = liquidGlassSidePanelBlurRadius,

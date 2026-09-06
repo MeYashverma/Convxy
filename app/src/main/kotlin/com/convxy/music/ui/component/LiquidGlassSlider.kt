@@ -191,11 +191,19 @@ fun LiquidGlassSlider(
         else if (isDark) Color(0xFF787880).copy(alpha = 0.36f)
         else Color(0xFF787878).copy(alpha = 0.2f)
 
+    // The inherited backdrop is not a precondition for glass here, unlike every
+    // other surface: the thumb refracts a track this slider records itself, so it
+    // has something to bend even where the inherited backdrop has to be skipped
+    // (see [outer] below). That is what makes it usable on screens inside the
+    // recorded root, where an inherited layer backdrop would be a cycle.
     val useGlass =
         config.isEnabledFor(component) &&
                 isGlassAllowed() &&
-                !shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported()) &&
-                backdrop.isLiveGlassBackdrop()
+                !shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())
+
+    // Skips the inherited backdrop when this slider sits inside the node recording
+    // it, which is the case on every settings screen and in the search overlay.
+    val outer = rememberOuterBackdropSampler(backdrop)
 
     val thumbWidthPx = with(density) { thumbSize.width.toPx() }
     val thumbHeightPx = with(density) { thumbSize.height.toPx() }
@@ -324,6 +332,7 @@ fun LiquidGlassSlider(
             .fillMaxWidth()
             .defaultMinSize(minHeight = controlHeight)
             .onSizeChanged { geometry.totalWidthPx = it.width.toFloat() }
+            .then(outer.measureModifier)
             .then(gestureModifier)
             .semantics {
                 this[SemanticsProperties.ProgressBarRangeInfo] =
@@ -339,7 +348,7 @@ fun LiquidGlassSlider(
             geometry.thumbWidthPx = thumbWidthPx
         }
 
-        if (useGlass && backdrop != null) {
+        if (useGlass) {
             val capsule = remember { RoundedCornerShape(percent = 50) }
             val trackBackdrop = rememberLayerBackdrop()
 
@@ -549,7 +558,7 @@ fun LiquidGlassSlider(
                     }
                     .drawBackdrop(
                         backdrop = rememberCombinedBackdrop(
-                            backdrop,
+                            outer.effective,
                             rememberBackdrop(trackBackdrop, trackDraw),
                         ),
                         shape = shapeBlock,

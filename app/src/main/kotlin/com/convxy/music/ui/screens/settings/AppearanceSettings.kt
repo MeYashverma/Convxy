@@ -140,7 +140,10 @@ import com.convxy.music.constants.HideHomeFavoriteIconKey
 import com.convxy.music.constants.ShowHomeFabKey
 import com.convxy.music.ui.utils.GridColumnChoices
 import com.convxy.music.ui.utils.GridSpacingChoices
-import androidx.compose.material3.Slider
+// Routed to the glass dispatcher: every Slider( in this file is a settings value
+// slider, and this is the single place that decides between the liquid glass rail
+// and Material's. Call sites are unchanged.
+import com.convxy.music.ui.component.GlassSlider as Slider
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.constants.HidePlayerThumbnailKey
 import com.convxy.music.ui.utils.appTopBarWindowInsets

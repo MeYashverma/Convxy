@@ -45,7 +45,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
+// Routed to the glass dispatcher: every Slider( in this file is a settings value
+// slider, and this is the single place that decides between the liquid glass rail
+// and Material's. Call sites are unchanged.
+import com.convxy.music.ui.component.GlassSlider as Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text

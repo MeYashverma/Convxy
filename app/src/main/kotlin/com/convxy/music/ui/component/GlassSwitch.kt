@@ -141,24 +141,36 @@ fun GlassSwitchCompat(
     enabled: Boolean = true,
     colors: SwitchColors? = null,
 ) {
-    // Delegates to [GlassSwitch] rather than LiquidToggle. LiquidToggle attaches
-    // its own backdrop to the track so the thumb can refract it — a real glass
-    // pipeline per toggle, and every preference switch in the app comes through
-    // here (Preference.kt aliases this as `Switch`).
+    // Every preference switch in the app comes through here (Preference.kt aliases
+    // this as `Switch`), so this is the routing point for whether a toggle gets
+    // the catalog's LiquidToggle — thumb refracting the track it drags across —
+    // or the house [GlassSwitch] rendering. [liquidSwitchEligible] holds the full
+    // list of reasons to decline; the two that matter most are a null handler (a
+    // read-out switch whose row owns the click, which LiquidToggle's drag detector
+    // would eat) and a thumb icon or custom colours, which its solid capsule
+    // cannot carry.
     //
-    // Measured on a Galaxy M34, scrolling: the Appearance screen recorded at
-    // 49ms/frame against 25ms for the Settings root, which has no switches —
-    // about 5ms of display-list recording per visible toggle, for refraction on a
-    // 51x31dp control. That was the single largest per-frame cost found on any
-    // screen, larger than the app-wide backdrop capture (~4ms) and larger than
-    // the nav bar and mini player glass combined.
+    // This used to be a hard delegation to [GlassSwitch] with the refraction
+    // dropped on cost grounds: measured on a Galaxy M34 while scrolling, the
+    // Appearance screen recorded at 49ms/frame against 25ms for the Settings root,
+    // which has no switches — about 5ms of display-list recording per visible
+    // toggle, the largest per-frame cost found on any screen, bigger than the
+    // app-wide backdrop capture (~4ms) and bigger than the nav bar and mini player
+    // glass combined. That number is still true, and it is why the effect sits
+    // behind [GlassComponent.SETTINGS_CONTROLS] (on by default, one tap to turn
+    // off) rather than being unconditional.
     //
-    // Visual change, stated plainly: the thumb no longer refracts the track. The
-    // toggle keeps its iOS shape, motion, green on-state and rim highlight.
-    GlassSwitch(
+    // The other reason it was dropped has since been fixed properly: LiquidToggle
+    // samples the backdrop it is handed, and on screens inside the recorded app
+    // layer that is a RenderNode cycle. [LiquidGlassSwitch] resolves the outer
+    // backdrop through [rememberOuterBackdropSampler], so it refracts the page only
+    // where doing so cannot draw the surface into its own recording.
+    LiquidGlassSwitch(
         checked = checked,
         onCheckedChange = onCheckedChange,
         enabled = enabled,
         modifier = modifier,
+        thumbContent = thumbContent,
+        colors = colors,
     )
 }

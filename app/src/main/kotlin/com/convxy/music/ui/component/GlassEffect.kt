@@ -76,6 +76,10 @@ data class GlassEffectConfig(
     /** Tablet side panel — split from [navBarEnabled] so it can differ from the
      *  phone bottom bar's glass setting instead of always mirroring it. */
     val sidePanelEnabled: Boolean = true,
+    /** Switches and sliders on settings screens. Not in [anyComponentEnabled]:
+     *  these refract a backdrop they record themselves (the toggle track, the
+     *  slider rail), so they need no app-wide capture to work. */
+    val settingsControlsEnabled: Boolean = true,
     /** Side panel gets its own effect tuning (unlike the other components,
      *  which all share [vibrancy]/[blurRadius]/[lensHeight]/[lensAmount]) —
      *  defaults match those shared values so it looks identical until
@@ -111,6 +115,7 @@ data class GlassEffectConfig(
             GlassComponent.MINI_PLAYER -> miniPlayerEnabled
             GlassComponent.NAV_BAR -> navBarEnabled
             GlassComponent.SIDE_PANEL -> sidePanelEnabled
+            GlassComponent.SETTINGS_CONTROLS -> settingsControlsEnabled
         }
 
     /**
@@ -163,6 +168,9 @@ enum class GlassComponent {
     MINI_PLAYER,
     NAV_BAR,
     SIDE_PANEL,
+    /** Preference switches and value sliders — the small self-refracting
+     *  controls on settings screens. */
+    SETTINGS_CONTROLS,
 }
 
 /**

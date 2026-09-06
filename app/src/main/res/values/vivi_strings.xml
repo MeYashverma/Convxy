@@ -231,6 +231,7 @@
     <string name="auto_scroll">Re-sync</string>
     <string name="slim">Slim</string>
     <string name="waveform">Waveform</string>
+    <string name="slider_style_liquid">Liquid glass</string>
     <string name="brand_font">Display font</string>
     <string name="brand_font_desc">Use Chillax for the Convxy wordmark and the artist page title</string>
     <string name="custom_font">Custom font</string>

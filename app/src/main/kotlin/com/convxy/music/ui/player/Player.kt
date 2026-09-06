@@ -228,6 +228,7 @@ import com.convxy.music.ui.component.BottomSheetState
 import com.convxy.music.ui.component.LocalBottomSheetPageState
 import com.convxy.music.ui.component.LocalMenuState
 import com.convxy.music.ui.component.Lyrics
+import com.convxy.music.ui.component.LiquidGlassSlider
 import com.convxy.music.ui.component.PlayerSliderTrack
 import com.convxy.music.ui.component.ResizableIconButton
 import com.convxy.music.ui.player.comments.CommentTrackMarkers
@@ -516,7 +517,7 @@ fun BottomSheetPlayer(
 
     val isLosslessStream = currentFormat?.mimeType?.contains("flac", ignoreCase = true) == true || 
                           playerFormat?.sampleMimeType?.contains("flac", ignoreCase = true) == true
-    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SLIM)
+    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.LIQUID)
 
     // Listen Together state (reactive)
     val listenTogetherManager = LocalListenTogetherManager.current
@@ -2638,6 +2639,48 @@ fun BottomSheetPlayer(
                             }
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
+                    )
+                }
+
+                SliderStyle.LIQUID -> {
+                    // The liquid glass seek bar. One backdrop-sampling surface — the
+                    // thumb, a live lens over the rail — instead of a Material Slider
+                    // with an empty thumb slot and a Canvas line for a track. It
+                    // paints itself (same geometry, same springs, no refraction) when
+                    // glass is unavailable, so this branch is safe on every API level
+                    // the app supports and with the glass preferences switched off.
+                    LiquidGlassSlider(
+                        value = { (sliderPosition ?: effectivePosition).toFloat() },
+                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                        onValueChange = {
+                            if (!isListenTogetherGuest) {
+                                sliderPosition = it.toLong()
+                            }
+                        },
+                        onValueChangeFinished = {
+                            if (!isListenTogetherGuest) {
+                                sliderPosition?.let { target ->
+                                    if (isCasting) {
+                                        castHandler?.seekTo(target)
+                                        lastManualSeekTime = System.currentTimeMillis()
+                                    } else {
+                                        playerConnection.player.seekTo(target)
+                                    }
+                                    position = target
+                                }
+                                sliderPosition = null
+                            }
+                        },
+                        enabled = !isListenTogetherGuest,
+                        activeColor =
+                            if (useNewPlayerDesign) seekBarActiveColor
+                            else seekBarActiveColor.copy(alpha = 0.7f),
+                        // 44dp of touch target, the same footprint the Material Slider
+                        // this replaces had; the rail and thumb stay centred in it.
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PlayerHorizontalPadding)
+                            .height(44.dp),
                     )
                 }
 

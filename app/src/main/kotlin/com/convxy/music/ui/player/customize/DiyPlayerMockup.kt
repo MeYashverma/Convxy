@@ -247,7 +247,7 @@ private fun rememberMockupStyle(): MockupStyle {
         PlayerButtonsStyleKey,
         defaultValue = PlayerButtonsStyle.DEFAULT,
     )
-    val slider by rememberEnumPreference(SliderStyleKey, defaultValue = SliderStyle.SLIM)
+    val slider by rememberEnumPreference(SliderStyleKey, defaultValue = SliderStyle.LIQUID)
     val (staticColor) = rememberPreference(PlayerStaticColorKey, defaultValue = 0)
     val (gradientStops) = rememberPreference(PlayerGradientStopsKey, defaultValue = "")
     val (gradientAngle) = rememberPreference(PlayerGradientAngleKey, defaultValue = 90f)
@@ -432,7 +432,7 @@ private fun MockSeekBar(style: MockupStyle) {
             when (style.slider) {
                 SliderStyle.WAVY -> MockSquiggle(progress, track, filled)
                 SliderStyle.WAVEFORM -> MockWaveform(progress, track, filled)
-                SliderStyle.SLIM, SliderStyle.DEFAULT -> {
+                SliderStyle.SLIM, SliderStyle.DEFAULT, SliderStyle.LIQUID -> {
                     val height = if (style.slider == SliderStyle.SLIM) 3.dp else 6.dp
                     Box(
                         Modifier
@@ -448,6 +448,22 @@ private fun MockSeekBar(style: MockupStyle) {
                                 .clip(CircleShape)
                                 .background(filled),
                         )
+                    }
+                    // The liquid style's resting thumb: a white dot on the fill end.
+                    // The real control grows it into a refracting capsule while
+                    // pressed; a static mockup only has to suggest the shape.
+                    if (style.slider == SliderStyle.LIQUID) {
+                        Box(
+                            Modifier.fillMaxWidth(progress),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White),
+                            )
+                        }
                     }
                 }
             }

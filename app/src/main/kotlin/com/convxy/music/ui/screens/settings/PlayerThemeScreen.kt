@@ -133,7 +133,7 @@ fun PlayerThemeScreen(
         PlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.APPLE_MUSIC
     )
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
-        SliderStyleKey, defaultValue = SliderStyle.DEFAULT
+        SliderStyleKey, defaultValue = SliderStyle.LIQUID
     )
     val (staticColorInt, onStaticColorChange) = rememberPreference(
         PlayerStaticColorKey, defaultValue = 0xFF1A1A1A.toInt()
@@ -560,6 +560,7 @@ private fun sliderLabel(style: SliderStyle) = when (style) {
     SliderStyle.WAVY -> stringResource(R.string.wavy)
     SliderStyle.SLIM -> stringResource(R.string.slim)
     SliderStyle.WAVEFORM -> stringResource(R.string.waveform)
+    SliderStyle.LIQUID -> stringResource(R.string.slider_style_liquid)
 }
 
 @Composable
@@ -905,6 +906,34 @@ private fun SeekBarPreview(style: SliderStyle, color: Color) {
             drawLine(color, androidx.compose.ui.geometry.Offset(0f, y),
                 androidx.compose.ui.geometry.Offset(split, y), strokeWidth = 3f)
             drawCircle(color, radius = size.height * 0.35f,
+                center = androidx.compose.ui.geometry.Offset(split, y))
+        }
+
+        SliderStyle.LIQUID -> Canvas(Modifier.fillMaxWidth().height(12.dp)) {
+            // Rail inset by a quarter of the thumb on each side, and the thumb drawn
+            // as the white dot it is at rest — the real control swells that dot into
+            // a refracting capsule while it is pressed, which a static miniature
+            // cannot show.
+            val y = size.height / 2f
+            val railHeight = 6f.dp.toPx()
+            val radius = railHeight / 2f
+            val inset = 10f.dp.toPx()
+            val span = (size.width - inset * 2f).coerceAtLeast(0f)
+            val split = inset + span * 0.35f
+            val corner = androidx.compose.ui.geometry.CornerRadius(radius, radius)
+            drawRoundRect(
+                color = color.copy(alpha = 0.3f),
+                topLeft = androidx.compose.ui.geometry.Offset(inset, y - radius),
+                size = androidx.compose.ui.geometry.Size(span, railHeight),
+                cornerRadius = corner,
+            )
+            drawRoundRect(
+                color = color,
+                topLeft = androidx.compose.ui.geometry.Offset(inset, y - radius),
+                size = androidx.compose.ui.geometry.Size(split - inset, railHeight),
+                cornerRadius = corner,
+            )
+            drawCircle(Color.White, radius = 6f.dp.toPx(),
                 center = androidx.compose.ui.geometry.Offset(split, y))
         }
 

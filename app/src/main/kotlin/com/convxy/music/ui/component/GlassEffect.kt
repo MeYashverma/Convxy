@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.convxy.music.ui.component.backdrop.Backdrop
+import com.convxy.music.ui.component.backdrop.backdrops.emptyBackdrop
 import com.convxy.music.ui.component.backdrop.drawBackdrop
 import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
 import com.convxy.music.ui.component.backdrop.effects.blur
@@ -293,8 +294,19 @@ private const val HighlightAngleFrozen = (HighlightAngleMin + HighlightAngleMax)
 
 val LocalGlassEffectConfig = staticCompositionLocalOf { GlassEffectConfig() }
 
-/** The backdrop content (app UI) that glass surfaces sample from. */
-val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { error("No AppBackdrop provided") }
+/**
+ * The backdrop content (app UI) that glass surfaces sample from.
+ *
+ * Defaults to [emptyBackdrop] rather than throwing. It used to `error()`, on the
+ * reasoning that a glass surface with no backdrop in scope is a wiring bug worth
+ * crashing for — but the surfaces are reached from dialogs, settings previews and
+ * secondary activities that sit outside MainActivity's `layerBackdrop`, so the
+ * "bug" was a reachable crash in shipped UI. Callers now ask
+ * [isLiveGlassBackdrop] and take their flat fallback instead: same visual result
+ * as glass being switched off, no exception, and the wiring mistake is still
+ * visible because the surface stops refracting.
+ */
+val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { emptyBackdrop() }
 
 /**
  * When set, glass surfaces in scope pool one recorded+effect-processed layer
@@ -396,7 +408,13 @@ fun Modifier.liquidGlass(
     // real blur, need something cheap that still respects the user's tint
     // and opacity settings" — so route the unsupported case here too instead
     // of a separate hardcoded fallback.
-    if (shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())) {
+    if (shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported()) ||
+        // Nothing recorded behind this surface: MainActivity's layerBackdrop is not
+        // an ancestor (a dialog, a settings preview, a secondary activity). Sampling
+        // the empty backdrop would draw the tint over void, so take the same cheap
+        // translucent path the TRANSPARENT style takes.
+        !backdrop.isLiveGlassBackdrop()
+    ) {
         return this
             .clip(shape)
             .background(surfaceTintColor.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f)))

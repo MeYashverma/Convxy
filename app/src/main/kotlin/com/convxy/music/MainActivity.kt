@@ -2148,24 +2148,24 @@ class MainActivity : ComponentActivity() {
                                         snackbarHostState = snackbarHostState,
                                     )
                                 }
-                                }
 
-                                // Search, over the tabs rather than beside them. This box
-                                // (not NavHost's own modifier) is what carries layerBackdrop
-                                // now -- see the comment on it below. Moved OUT of NavHost's
-                                // modifier chain and made the shared parent of both NavHost
-                                // and this AnimatedVisibility specifically so glass sampling
-                                // covers search too.
+                                // Search, over the tabs rather than beside them — and INSIDE
+                                // this box, the one carrying layerBackdrop. It used to be a
+                                // sibling call after this box's closing brace, so appBackdrop's
+                                // recorded layer never contained search's content: the glass
+                                // chrome — nav bar, mini player, the search pill — kept
+                                // refracting whatever the tab underneath had last drawn, for as
+                                // long as search stayed open. The comment that used to sit here
+                                // claimed the box had been made the shared parent of both halves;
+                                // it had not, the AnimatedVisibility was still outside it.
                                 //
-                                // It didn't before: layerBackdrop lived on NavHost's own
-                                // modifier, and this AnimatedVisibility was a SIBLING call
-                                // after NavHost's closing brace -- outside the element that
-                                // modifier was attached to, not inside it. appBackdrop's
-                                // recorded layer therefore never contained search's content
-                                // at all; it kept showing whatever the tab underneath had
-                                // last drawn, frozen, for as long as search stayed open. That
-                                // is the "search's backdrop still holds the previous page"
-                                // bug -- not a freeze/throttle timing issue, a structural one.
+                                // Being inside is safe rather than a RenderNode cycle because
+                                // every glass surface in the search subtree samples a
+                                // screen-local backdrop, never the root one: SearchScreen attaches
+                                // heroBackdrop to its results list and provides it through
+                                // HeroTintedContent, LocalSearchScreen provides an unattached one
+                                // the same way. So nothing under here samples the layer it is
+                                // being recorded into.
                                 AnimatedVisibility(
                                     visible = searchOverlayOpen,
                                     enter = fadeIn(Motion.appear()),
@@ -2175,6 +2175,7 @@ class MainActivity : ComponentActivity() {
                                         navController = navController,
                                         pureBlack = pureBlack,
                                     )
+                                }
                                 }
                                 } // CompositionLocalProvider(LocalSharedTransitionScope)
                                 } // SharedTransitionLayout

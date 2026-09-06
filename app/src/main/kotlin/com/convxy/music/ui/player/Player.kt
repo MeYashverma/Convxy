@@ -229,6 +229,7 @@ import com.convxy.music.ui.component.LocalBottomSheetPageState
 import com.convxy.music.ui.component.LocalMenuState
 import com.convxy.music.ui.component.Lyrics
 import com.convxy.music.ui.component.LiquidGlassIconButton
+import com.convxy.music.ui.component.isAttachedGlassBackdrop
 import com.convxy.music.ui.component.LiquidGlassSlider
 import com.convxy.music.ui.component.PlayerSliderTrack
 import com.convxy.music.ui.component.ResizableIconButton
@@ -1969,13 +1970,28 @@ fun BottomSheetPlayer(
         // Both branches get it, separately: Compose forbids a non-local return
         // through a composable lambda, so the V2 branch's `return@BottomSheet`
         // has to sit outside the provider that wraps its content.
+        //
+        // ...but only when what we inherited is itself attached. DiyEditorScreen
+        // renders this player as a live preview inside a NavHost destination and
+        // hands it a deliberately UNATTACHED screen-local backdrop, because here
+        // the whole player sits inside the root appBackdrop's capture subtree and
+        // any surface sampling an attached layer from within it draws that layer
+        // into its own recording — the RenderNode cycle its comment describes.
+        // playerBackdrop IS attached, so providing it unconditionally defeats that
+        // guard and takes the editor down with it. In the real player the sheet is
+        // a sibling of the recorded NavHost content, the inherited root backdrop is
+        // attached, and taking over is exactly what is wanted.
+        val inheritedBackdrop = LocalAppBackdrop.current
+        val foregroundBackdrop =
+            if (inheritedBackdrop.isAttachedGlassBackdrop()) playerBackdrop else inheritedBackdrop
+
         if (useAppleMusicPlayer) {
-            CompositionLocalProvider(LocalAppBackdrop provides playerBackdrop) {
+            CompositionLocalProvider(LocalAppBackdrop provides foregroundBackdrop) {
                 PlayerV2(state = state, navController = navController, modifier = Modifier)
             }
             return@BottomSheet
         }
-        CompositionLocalProvider(LocalAppBackdrop provides playerBackdrop) {
+        CompositionLocalProvider(LocalAppBackdrop provides foregroundBackdrop) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,

@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.lerp
 import com.convxy.music.ui.component.backdrop.Backdrop
+import com.convxy.music.ui.component.backdrop.backdrops.LayerBackdrop
 import com.convxy.music.ui.component.backdrop.backdrops.emptyBackdrop
 import com.convxy.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
 import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
@@ -125,6 +126,24 @@ object LiquidGlassTokens {
  * non-glass renderer is both cheaper and correct.
  */
 fun Backdrop?.isLiveGlassBackdrop(): Boolean = this != null && this !== emptyBackdrop()
+
+/**
+ * True when [this] is a layer backdrop that is actually attached — recording
+ * something through `Modifier.layerBackdrop`.
+ *
+ * The house pattern for "glass material with nothing behind it to refract" is an
+ * UNATTACHED screen-local backdrop: `DiyPlayerMockup`, `DiyEditorScreen` and
+ * `HideOnScrollFAB` all hand one down so the surfaces under them get their tint
+ * and rim without a capture, and, crucially, without any chance of sampling the
+ * layer they are themselves being recorded into — which is a RenderNode cycle and
+ * a native SIGSEGV in `RenderNode::prepareTreeImpl`, not a rendering glitch.
+ *
+ * Code that would hand those surfaces a *different*, attached backdrop has to
+ * respect the choice rather than override it. That is what this is for: a caller
+ * can tell "nothing is recording here, deliberately" from "the live app backdrop".
+ */
+fun Backdrop?.isAttachedGlassBackdrop(): Boolean =
+    this is LayerBackdrop && layerCoordinates != null
 
 /** Horizontal inset of the rail from each edge, in px: a quarter of the thumb. */
 internal fun liquidRailInsetPx(thumbWidthPx: Float): Float = thumbWidthPx * 0.25f

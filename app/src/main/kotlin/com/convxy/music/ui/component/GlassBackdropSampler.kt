@@ -36,14 +36,20 @@ import com.convxy.music.ui.component.backdrop.backdrops.emptyBackdrop
 fun Backdrop?.recordsAncestorOf(coordinates: LayoutCoordinates?): Boolean {
     val source = (this as? LayerBackdrop)?.layerCoordinates ?: return false
     // From the surface itself, not its parent: a modifier on the recording node
-    // would report that node's own coordinates, and a surface sampling from there
-    // is just as circular as one sampling from inside it. Every LayoutNode's
-    // coordinate chain runs through each of its modifier layers, so a walk from a
-    // descendant passes through whichever layer did the recording.
-    var node = coordinates
+    // reports that node's own coordinates, and a surface sampling from there is
+    // just as circular as one sampling from inside it.
+    //
+    // `parentCoordinates` is the fine-grained chain — parent layout modifier, then
+    // parent layout — so a walk from a descendant passes through each of an
+    // ancestor's modifier layers and hits whichever one did the recording. The
+    // layout-only chain is checked alongside it: identity is the whole test here,
+    // and a false negative is a crash rather than a mis-draw. (Compose renamed
+    // `parent` to these two; there is no `findCommonParent` left to lean on.)
+    var node: LayoutCoordinates? = coordinates
     while (node != null) {
         if (node === source) return true
-        node = node.parent
+        if (node.parentLayoutCoordinates === source) return true
+        node = node.parentCoordinates
     }
     return false
 }

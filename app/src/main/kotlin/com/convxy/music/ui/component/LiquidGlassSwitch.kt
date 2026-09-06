@@ -5,9 +5,19 @@
 
 package com.convxy.music.ui.component
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.material3.SwitchColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import com.convxy.music.ui.component.backdrop.Backdrop
 import com.convxy.music.ui.component.backdrop.catalog.components.LiquidToggle
 import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
@@ -22,9 +32,9 @@ import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
  * - `!glassAllowed` — below Android 12, or a low-RAM device.
  * - `!enabled` — LiquidToggle has no disabled state; GlassSwitch does.
  * - `!hasHandler` — a null handler means the switch is a read-out and the row
- *   around it owns the click. LiquidToggle's thumb installs a drag detector that
- *   consumes the down event, so the row would stop being clickable while the
- *   thumb appeared to work.
+ *   around it owns the click. The liquid path swallows taps so the row cannot
+ *   double-fire (see the consumer below), which would leave that row dead, and
+ *   the thumb would animate against a value that never changes.
  * - `hasThumbContent` / `hasColors` — LiquidToggle's thumb is a solid glass
  *   capsule with no content slot and iOS colours of its own (the same green
  *   [GlassSwitch] uses). Rather than half-honour a customization, keep the
@@ -105,6 +115,33 @@ fun LiquidGlassSwitch(
         selected = { checked },
         onSelect = { newValue -> onCheckedChange?.invoke(newValue) },
         backdrop = outer.effective,
-        modifier = modifier.then(outer.measureModifier),
+        modifier = modifier
+            .semantics(mergeDescendants = true) {
+                // LiquidToggle marks the thumb Role.Switch but carries no state,
+                // so the switch would announce itself without saying which way it
+                // is set. The click action is for TalkBack: it fires without a
+                // synthesized tap, so it does not depend on the drag detector.
+                role = Role.Switch
+                toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+                onClick {
+                    onCheckedChange?.invoke(!checked)
+                    true
+                }
+            }
+            // LiquidToggle reads the down event on the Initial pass with
+            // requireUnconsumed = false and never consumes anything — that is what
+            // lets the same detector serve a tap and a drag. It also means a
+            // settings row that is itself clickable still fires underneath, which
+            // is invisible where the row's click is the same toggle and wrong
+            // where it is not. Consume here instead: the Main pass runs child
+            // first, so the thumb has already had the gesture, and moves are left
+            // alone so dragging the thumb still works.
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown().consume()
+                    waitForUpOrCancellation()?.consume()
+                }
+            }
+            .then(outer.measureModifier),
     )
 }

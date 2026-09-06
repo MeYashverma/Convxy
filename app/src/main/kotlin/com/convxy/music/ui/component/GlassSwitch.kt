@@ -127,10 +127,12 @@ fun GlassSwitch(
  * import com.convxy.music.ui.component.GlassSwitchCompat as Switch
  * ```
  *
- * [thumbContent] and [colors] are accepted and deliberately ignored — the glass
- * switch draws its own thumb and takes its track from the glass config, so the
- * check/close icons and Material color roles the call sites pass have nothing to
- * apply to.
+ * [colors] is accepted and deliberately ignored: both renderings take their track
+ * and accent from the glass config and the theme, so Material color roles have
+ * nothing to apply to. [thumbContent] is ignored by [GlassSwitch] but honoured on
+ * the liquid path — [LiquidToggle] grew an optional slot for it — so the
+ * check/close icons the call sites pass do survive, drawn on top of the glass
+ * thumb in a colour that reads on white in either theme.
  */
 @Composable
 fun GlassSwitchCompat(

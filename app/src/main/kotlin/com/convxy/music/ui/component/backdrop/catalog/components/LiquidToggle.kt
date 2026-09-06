@@ -9,7 +9,14 @@
  * com.kyant.shapes.Capsule swapped for RoundedCornerShape(percent = 50) (the
  * lens effect only supports CornerBasedShape here — see GlassEffect.kt).
  *
- * Not wired into any screen yet — vendored for later use.
+ * Wired into settings screens through LiquidGlassSwitch, which resolves the
+ * backdrop it is handed so the thumb cannot end up sampling a layer it is being
+ * recorded into.
+ *
+ * One local addition, marked at the parameter: an optional thumbContent slot. The
+ * catalog version has none, and the app's settings rows pass a check/close icon
+ * that Material's Switch used to draw — the slot is how that survives. Default
+ * null, so the rendering above is the library's unchanged.
  */
 package com.convxy.music.ui.component.backdrop.catalog.components
 
@@ -62,7 +69,10 @@ fun LiquidToggle(
     selected: () -> Boolean,
     onSelect: (Boolean) -> Unit,
     backdrop: Backdrop,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Convxy addition, not in the catalog version: drawn centred on the thumb,
+    // on top of the glass — drawBackdrop paints behind, surface, then content.
+    thumbContent: (@Composable () -> Unit)? = null
 ) {
     val isLightTheme = !isSystemInDarkTheme()
     val accentColor =
@@ -210,7 +220,10 @@ fun LiquidToggle(
                         drawRect(Color.White.copy(alpha = 1f - progress))
                     }
                 )
-                .size(40f.dp, 24f.dp)
-        )
+                .size(40f.dp, 24f.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            thumbContent?.invoke()
+        }
     }
 }

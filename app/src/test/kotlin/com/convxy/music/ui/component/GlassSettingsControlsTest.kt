@@ -62,9 +62,14 @@ class GlassSettingsControlsTest {
     }
 
     @Test
-    fun `switch declines a thumb icon or custom colours it cannot honour`() {
-        assertFalse(switchEligible(hasThumbContent = true))
-        assertFalse(switchEligible(hasColors = true))
+    fun `a thumb icon or custom colors do not disqualify the liquid path`() {
+        // SwitchPreference -- the row behind most settings toggles -- passes a
+        // check/close icon. The fallback ignores icons and Material colors anyway
+        // (GlassSwitchCompat says so in its own doc), so gating the liquid path on
+        // them preserved nothing and left every one of those rows on the old
+        // switch: the effect shipped and nothing on screen changed.
+        assertTrue(switchEligible(hasThumbContent = true))
+        assertTrue(switchEligible(hasColors = true))
     }
 
     @Test

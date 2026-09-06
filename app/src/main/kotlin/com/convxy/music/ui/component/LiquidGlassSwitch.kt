@@ -6,11 +6,15 @@
 package com.convxy.music.ui.component
 
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.SwitchColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
@@ -35,13 +39,20 @@ import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
  *   around it owns the click. The liquid path swallows taps so the row cannot
  *   double-fire (see the consumer below), which would leave that row dead, and
  *   the thumb would animate against a value that never changes.
- * - `hasThumbContent` / `hasColors` — LiquidToggle's thumb is a solid glass
- *   capsule with no content slot and iOS colours of its own (the same green
- *   [GlassSwitch] uses). Rather than half-honour a customization, keep the
- *   component that can honour all of it.
  * - `translucentFallback` — the user chose the cheap style, or the platform
  *   cannot do a real blur; a "glass" thumb with nothing behind it is a white dot.
+ *
+ * [hasThumbContent] and [hasColors] are in the signature but deliberately take no
+ * part in the decision. Both are already ignored on the fallback path — see
+ * [GlassSwitchCompat], whose own doc says the glass switch draws its thumb and
+ * takes its track from the config, so the icons and Material colour roles call
+ * sites pass "have nothing to apply to". Declining the liquid path for them
+ * therefore preserved nothing, and it cost the effect almost everywhere:
+ * `SwitchPreference`, the row behind most settings toggles, passes a check/close
+ * icon, so gating on the icon left every one of those rows on the old switch.
+ * They stay in the signature so that stays testable.
  */
+@Suppress("UNUSED_PARAMETER")
 internal fun liquidSwitchEligible(
     componentEnabled: Boolean,
     glassAllowed: Boolean,
@@ -51,7 +62,7 @@ internal fun liquidSwitchEligible(
     hasColors: Boolean,
     translucentFallback: Boolean,
 ): Boolean = componentEnabled && glassAllowed && enabled && hasHandler &&
-        !hasThumbContent && !hasColors && !translucentFallback
+        !translucentFallback
 
 /**
  * A settings switch rendered as the liquid glass toggle from the vendored
@@ -82,6 +93,13 @@ fun LiquidGlassSwitch(
     onCheckedChange: ((Boolean) -> Unit)?,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
+    // [thumbContent] is honoured — LiquidToggle grew an optional slot for it, the
+    // one local addition to the vendored component. [colors] is accepted and
+    // ignored, exactly as [GlassSwitchCompat] documents: the toggle takes its
+    // track and accent from the theme the way the library's does, so Material
+    // colour roles have nothing to apply to. Both stay in the signature so a call
+    // site can move between the switches by changing an import, the same trick the
+    // settings screens use for `Switch` and `Slider`.
     thumbContent: (@Composable () -> Unit)? = null,
     colors: SwitchColors? = null,
     backdrop: Backdrop? = LocalAppBackdrop.current,
@@ -110,11 +128,38 @@ fun LiquidGlassSwitch(
         return
     }
 
+    // The thumb is an opaque white capsule at rest and clears to glass as the
+    // press deepens, so an icon drawn on it needs a colour that reads on both —
+    // and on white in either theme. The call sites pass a bare Icon() with no
+    // tint, which resolves to LocalContentColor: white on white in dark mode,
+    // which is what Material's Switch avoided by colouring the slot itself.
+    // Greens are the toggle's own accent, so a checked switch reads as one icon
+    // over one material rather than two unrelated colours.
+    val isDark = isSystemInDarkTheme()
+    val thumbIconColor =
+        if (checked) {
+            if (isDark) Color(0xFF30D158) else Color(0xFF34C759)
+        } else {
+            Color(0xFF787880)
+        }
+    // Explicit composable type on the inner val: a lambda literal returned
+    // straight out of `let` has to have its composable-ness inferred through the
+    // generic, and getting that wrong is a compile error at the call to content().
+    val thumbSlot: (@Composable () -> Unit)? = thumbContent?.let { content ->
+        val slot: @Composable () -> Unit = {
+            CompositionLocalProvider(LocalContentColor provides thumbIconColor) {
+                content()
+            }
+        }
+        slot
+    }
+
     val outer = rememberOuterBackdropSampler(backdrop)
     LiquidToggle(
         selected = { checked },
         onSelect = { newValue -> onCheckedChange?.invoke(newValue) },
         backdrop = outer.effective,
+        thumbContent = thumbSlot,
         modifier = modifier
             .semantics(mergeDescendants = true) {
                 // LiquidToggle marks the thumb Role.Switch but carries no state,

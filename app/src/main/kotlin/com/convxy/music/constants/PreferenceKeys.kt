@@ -670,6 +670,7 @@ val LiquidGlassPlayerEnabledKey = booleanPreferencesKey("liquidGlassPlayerEnable
 val LiquidGlassMiniPlayerEnabledKey = booleanPreferencesKey("liquidGlassMiniPlayerEnabled")
 val LiquidGlassNavBarEnabledKey = booleanPreferencesKey("liquidGlassNavBarEnabled")
 val LiquidGlassSidePanelEnabledKey = booleanPreferencesKey("liquidGlassSidePanelEnabled")
+val LiquidGlassSettingsEnabledKey = booleanPreferencesKey("liquidGlassSettingsEnabled")
 val LiquidGlassSidePanelVibrancyKey = floatPreferencesKey("liquidGlassSidePanelVibrancy")
 val LiquidGlassSidePanelBlurRadiusKey = floatPreferencesKey("liquidGlassSidePanelBlurRadius")
 val LiquidGlassSidePanelLensHeightKey = floatPreferencesKey("liquidGlassSidePanelLensHeight")

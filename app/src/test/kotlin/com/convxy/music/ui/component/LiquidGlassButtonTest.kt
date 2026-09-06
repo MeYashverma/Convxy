@@ -8,11 +8,13 @@ import org.junit.Test
  * Unit tests for the press physics behind [LiquidGlassIconButton],
  * [LiquidGlassButton] and therefore [GlassCircleButton].
  *
- * A button that grows the wrong way is not a crash and not a failed test run — it
- * just feels broken, and it is invisible on a CI machine. These pin the parts that
- * decide how a press reads: how far a surface swells, whether the lean toward the
- * finger saturates instead of sliding the button off its own footprint, and which
- * axis a drag stretches.
+ * A button that grows the wrong way is not a crash and not a failed build — it
+ * just feels broken, and nothing on a CI machine can see it. These pin the parts
+ * that decide how a press reads: how far a surface swells, whether the lean
+ * toward the finger saturates instead of sliding the button off its own
+ * footprint, and how a drag stretches a surface along its axes.
+ *
+ * Sizes are in px and are Floats, because that is what a layer scope reports.
  */
 class LiquidGlassButtonTest {
 
@@ -20,11 +22,11 @@ class LiquidGlassButtonTest {
     private val growthPx = 11f
 
     // A 44dp circle button at the same density: 121x121px.
-    private val circleSize = 121
+    private val circleSize = 121f
 
     // A pill: 120dp x 44dp.
-    private val pillWidth = 330
-    private val pillHeight = 121
+    private val pillWidth = 330f
+    private val pillHeight = 121f
 
     // region growth
 
@@ -43,8 +45,8 @@ class LiquidGlassButtonTest {
     fun `growth is the same visual amount on a chip and on a play button`() {
         // 4dp on a 24dp chip and 4dp on a 100dp button are both "one step bigger",
         // which is what expressing the growth against the surface's own height buys.
-        val chip = liquidPressGrowth(4f, 24, 1f)
-        val button = liquidPressGrowth(4f, 100, 1f)
+        val chip = liquidPressGrowth(4f, 24f, 1f)
+        val button = liquidPressGrowth(4f, 100f, 1f)
         assertTrue(chip > button)
         assertEquals(1f + 4f / 24f, chip, 0.0001f)
         assertEquals(1f + 4f / 100f, button, 0.0001f)
@@ -66,7 +68,7 @@ class LiquidGlassButtonTest {
 
     @Test
     fun `a surface that has not been measured yet does not divide by zero`() {
-        assertEquals(1f, liquidPressGrowth(growthPx, 0, 1f), 0.0001f)
+        assertEquals(1f, liquidPressGrowth(growthPx, 0f, 1f), 0.0001f)
     }
 
     // endregion
@@ -96,14 +98,13 @@ class LiquidGlassButtonTest {
         // its edge — entirely off itself — and by 2420px when the finger wanders
         // across the screen. tanh keeps the lean strictly inside the surface.
         for (offset in listOf(20f, 121f, 2420f, 24200f)) {
-            val lean = liquidPressTranslationPx(offset, circleSize)
-            assertTrue(lean < circleSize)
+            assertTrue(liquidPressTranslationPx(offset, circleSize) < circleSize)
         }
     }
 
     @Test
     fun `the lean buys less per pixel the further the finger travels`() {
-        val atEdge = liquidPressTranslationPx(circleSize.toFloat(), circleSize)
+        val atEdge = liquidPressTranslationPx(circleSize, circleSize)
         val far = liquidPressTranslationPx(circleSize * 20f, circleSize)
         val farther = liquidPressTranslationPx(circleSize * 40f, circleSize)
         assertTrue(far - atEdge > 0f)
@@ -122,40 +123,61 @@ class LiquidGlassButtonTest {
 
     @Test
     fun `a degenerate surface does not divide by zero when leaning`() {
-        assertEquals(0f, liquidPressTranslationPx(30f, 0), 0.0001f)
+        assertEquals(0f, liquidPressTranslationPx(30f, 0f), 0.0001f)
     }
 
     // endregion
 
-    // region which axis a drag stretches
+    // region how a drag stretches a surface
 
     @Test
-    fun `a square stretches along both axes`() {
+    fun `a square takes the full stretch on both axes`() {
         assertEquals(1f, liquidPressAnisotropy(circleSize, circleSize, horizontal = true), 0.0001f)
         assertEquals(1f, liquidPressAnisotropy(circleSize, circleSize, horizontal = false), 0.0001f)
     }
 
     @Test
-    fun `a pill stretches only along its length`() {
+    fun `a pill takes the full stretch along its length and a fraction across it`() {
+        // The long axis is capped at the full amount; the short one gets the sides'
+        // ratio, so dragging a pill up still stretches it, just less than sideways.
         assertEquals(1f, liquidPressAnisotropy(pillWidth, pillHeight, horizontal = true), 0.0001f)
-        assertEquals(0f, liquidPressAnisotropy(pillWidth, pillHeight, horizontal = false), 0.0001f)
+        assertEquals(
+            pillHeight / pillWidth,
+            liquidPressAnisotropy(pillWidth, pillHeight, horizontal = false),
+            0.0001f,
+        )
     }
 
     @Test
-    fun `a tall surface stretches only vertically`() {
-        assertEquals(0f, liquidPressAnisotropy(pillHeight, pillWidth, horizontal = true), 0.0001f)
+    fun `a tall surface is the mirror image of a wide one`() {
+        assertEquals(
+            pillHeight / pillWidth,
+            liquidPressAnisotropy(pillHeight, pillWidth, horizontal = true),
+            0.0001f,
+        )
         assertEquals(1f, liquidPressAnisotropy(pillHeight, pillWidth, horizontal = false), 0.0001f)
     }
 
     @Test
-    fun `a zero sized surface stretches nowhere rather than throwing`() {
-        assertEquals(0f, liquidPressAnisotropy(0, circleSize, horizontal = true), 0.0001f)
-        assertEquals(0f, liquidPressAnisotropy(circleSize, 0, horizontal = false), 0.0001f)
+    fun `the anisotropy is never more than the full stretch`() {
+        for (w in listOf(1f, 40f, 121f, 330f, 4000f)) {
+            for (h in listOf(1f, 40f, 121f, 330f, 4000f)) {
+                assertTrue(liquidPressAnisotropy(w, h, horizontal = true) <= 1f)
+                assertTrue(liquidPressAnisotropy(w, h, horizontal = false) <= 1f)
+            }
+        }
+    }
+
+    @Test
+    fun `a zero sized surface stretches nowhere rather than producing NaN`() {
+        assertEquals(0f, liquidPressAnisotropy(0f, circleSize, horizontal = true), 0.0001f)
+        assertEquals(0f, liquidPressAnisotropy(circleSize, 0f, horizontal = false), 0.0001f)
     }
 
     @Test
     fun `dragging a pill across stretches it sideways and not up`() {
-        // A drag exactly along +x: angle 0, so cos is 1 and sin is 0.
+        // A drag exactly along +x: angle 0, so cos is 1 and sin is 0. The vertical
+        // axis gets nothing here from the drag angle, not from the anisotropy.
         val sideways = liquidPressStretch(
             growthPx = growthPx,
             heightPx = pillHeight,
@@ -177,6 +199,22 @@ class LiquidGlassButtonTest {
     }
 
     @Test
+    fun `the same drag on a pill stretches it less across than along`() {
+        fun stretch(horizontal: Boolean) = liquidPressStretch(
+            growthPx = growthPx,
+            heightPx = pillHeight,
+            axisUnit = 1f,
+            offsetPx = 40f,
+            maxDimensionPx = pillWidth,
+            anisotropy = liquidPressAnisotropy(pillWidth, pillHeight, horizontal),
+        )
+        val along = stretch(horizontal = true)
+        val across = stretch(horizontal = false)
+        assertTrue(along > across)
+        assertEquals(along * (pillHeight / pillWidth), across, 0.0001f)
+    }
+
+    @Test
     fun `dragging a circle at 45 degrees splits the stretch evenly`() {
         val unit = 0.70710678f
         val x = liquidPressStretch(growthPx, circleSize, unit, 40f, circleSize, liquidPressAnisotropy(circleSize, circleSize, true))
@@ -194,7 +232,7 @@ class LiquidGlassButtonTest {
             growthPx = growthPx,
             heightPx = circleSize,
             axisUnit = 1f,
-            offsetPx = circleSize.toFloat(),
+            offsetPx = circleSize,
             maxDimensionPx = circleSize,
             anisotropy = 1f,
         )
@@ -205,8 +243,8 @@ class LiquidGlassButtonTest {
     @Test
     fun `the drag stretch is proportional to finger travel`() {
         // InteractiveHighlight's offset is the raw finger travel from the press
-        // point, unclamped — this is the reference implementation's behaviour, so
-        // the stretch keeps scaling as the finger leaves the button.
+        // point, unclamped — the reference implementation's behaviour, so the
+        // stretch keeps scaling as the finger leaves the button.
         fun stretchAt(offset: Float) = liquidPressStretch(
             growthPx = growthPx,
             heightPx = circleSize,
@@ -221,17 +259,13 @@ class LiquidGlassButtonTest {
 
     @Test
     fun `no drag means no stretch`() {
-        assertEquals(
-            0f,
-            liquidPressStretch(growthPx, circleSize, 1f, 0f, circleSize, 1f),
-            0.0001f,
-        )
+        assertEquals(0f, liquidPressStretch(growthPx, circleSize, 1f, 0f, circleSize, 1f), 0.0001f)
     }
 
     @Test
     fun `stretch guards a degenerate surface`() {
-        assertEquals(0f, liquidPressStretch(growthPx, 0, 1f, 40f, circleSize, 1f), 0.0001f)
-        assertEquals(0f, liquidPressStretch(growthPx, circleSize, 1f, 40f, 0, 1f), 0.0001f)
+        assertEquals(0f, liquidPressStretch(growthPx, 0f, 1f, 40f, circleSize, 1f), 0.0001f)
+        assertEquals(0f, liquidPressStretch(growthPx, circleSize, 1f, 40f, 0f, 1f), 0.0001f)
     }
 
     // endregion

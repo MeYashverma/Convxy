@@ -19,6 +19,7 @@ import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.tanh
 
@@ -189,6 +190,25 @@ internal fun liquidValueAtXPx(
     rangeStart + rangeSpan * liquidProgressAtXPx(xPx, totalWidthPx, thumbWidthPx, isLtr)
 
 /**
+ * The nearest detent to [value], for a slider with [steps] discrete points
+ * between its endpoints — Material's own meaning, so `steps = choices.size - 2`
+ * over a `0f..(choices.size - 1)f` range lands one detent per choice.
+ *
+ * Snapping happens here rather than in the caller's `onValueChange` so a stepped
+ * control cannot report a value between detents even for one frame: the thumb is
+ * drawn from the value the caller holds, and an unsnapped intermediate would put
+ * it visually between two choices while the choice it commits is one of them.
+ *
+ * [steps] of 0 or less is a continuous slider and passes the value through.
+ */
+internal fun liquidSnapToStep(value: Float, rangeStart: Float, rangeSpan: Float, steps: Int): Float {
+    if (steps <= 0 || rangeSpan <= 0f) return value
+    val segment = rangeSpan / (steps + 1)
+    val index = ((value - rangeStart) / segment).roundToInt()
+    return (rangeStart + index * segment).coerceIn(rangeStart, rangeStart + rangeSpan)
+}
+
+/**
  * Whether a drag in progress should start scrubbing.
  *
  * A slider inside the player sheet competes with the sheet's own vertical drag.
@@ -275,8 +295,8 @@ fun rememberLiquidGlassActive(
  * play button, while "grow by 4%" is not. Expressed against the surface's own
  * height, one constant serves both.
  */
-internal fun liquidPressGrowth(growthPx: Float, heightPx: Int, progress: Float): Float =
-    if (heightPx <= 0) 1f else lerp(1f, 1f + growthPx / heightPx, progress)
+internal fun liquidPressGrowth(growthPx: Float, heightPx: Float, progress: Float): Float =
+    if (heightPx <= 0f) 1f else lerp(1f, 1f + growthPx / heightPx, progress)
 
 /**
  * How far a pressed surface leans toward the finger, in px, bounded by
@@ -290,21 +310,25 @@ internal fun liquidPressGrowth(growthPx: Float, heightPx: Int, progress: Float):
  */
 internal fun liquidPressTranslationPx(
     offsetPx: Float,
-    maxOffsetPx: Int,
+    maxOffsetPx: Float,
     initialDerivative: Float = 0.05f,
 ): Float =
-    if (maxOffsetPx <= 0) 0f else maxOffsetPx * tanh(initialDerivative * offsetPx / maxOffsetPx)
+    if (maxOffsetPx <= 0f) 0f else maxOffsetPx * tanh(initialDerivative * offsetPx / maxOffsetPx)
 
 /**
- * How much of a drag may stretch a surface along one axis: 1f when that axis is
- * the long one, 0f when it is the short one.
+ * How much of a drag may stretch a surface along one axis: all of it along the
+ * long one, and the sides' ratio of that along the short one.
  *
- * The integer division is the reference implementation's, and it is not a bug to
- * fix: an Int ratio coerced to at most 1 is a "wider than tall" gate, so a pill
- * stretches only along its length while a square stretches along both axes.
+ * A square takes the full stretch on both axes. A 330x121 pill takes it
+ * horizontally and 121/330 of it vertically, so dragging a pill sideways reads as
+ * the pill being pulled along its length rather than as a blob inflating.
+ *
+ * Sizes are Float because the layer scope's own size is a Float geometry Size.
+ * Dividing them as Ints would quantise the ratio to "wider" or "not wider" and
+ * throw away the fraction that makes an off-square surface stretch unevenly.
  */
-internal fun liquidPressAnisotropy(widthPx: Int, heightPx: Int, horizontal: Boolean): Float =
-    if (widthPx <= 0 || heightPx <= 0) 0f
+internal fun liquidPressAnisotropy(widthPx: Float, heightPx: Float, horizontal: Boolean): Float =
+    if (widthPx <= 0f || heightPx <= 0f) 0f
     else if (horizontal) (widthPx / heightPx).fastCoerceAtMost(1f)
     else (heightPx / widthPx).fastCoerceAtMost(1f)
 
@@ -317,13 +341,13 @@ internal fun liquidPressAnisotropy(widthPx: Int, heightPx: Int, horizontal: Bool
  */
 internal fun liquidPressStretch(
     growthPx: Float,
-    heightPx: Int,
+    heightPx: Float,
     axisUnit: Float,
     offsetPx: Float,
-    maxDimensionPx: Int,
+    maxDimensionPx: Float,
     anisotropy: Float,
 ): Float =
-    if (heightPx <= 0 || maxDimensionPx <= 0) 0f
+    if (heightPx <= 0f || maxDimensionPx <= 0f) 0f
     else growthPx / heightPx * abs(axisUnit * offsetPx / maxDimensionPx) * anisotropy
 
 /**
@@ -341,8 +365,8 @@ fun liquidGlassPressLayerBlock(
     val progress = interaction.pressProgress
     val offset = interaction.offset
     // Width as well as height: the anisotropy divides by both, and a zero-width
-    // layer would throw rather than draw.
-    if (progress > 0f && size.height > 0 && size.width > 0) {
+    // layer would produce NaN rather than a transform.
+    if (progress > 0f && size.height > 0f && size.width > 0f) {
         val growthPx = 4f.dp.toPx()
         val angle = atan2(offset.y, offset.x)
         val anisotropyX = liquidPressAnisotropy(size.width, size.height, horizontal = true)

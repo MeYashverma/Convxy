@@ -226,4 +226,79 @@ class LiquidGlassSliderTest {
         )
         assertFalse((null as com.convxy.music.ui.component.backdrop.Backdrop?).isLiveGlassBackdrop())
     }
+
+    // region stepped sliders
+
+    @Test
+    fun `a continuous slider reports the value the finger landed on`() {
+        assertEquals(0.375f, liquidSnapToStep(0.375f, 0f, 1f, 0), 0.0001f)
+        assertEquals(7.3f, liquidSnapToStep(7.3f, 1f, 14f, -1), 0.0001f)
+    }
+
+    @Test
+    fun `steps means detents between the endpoints, as in Material`() {
+        // Four choices over 0f..3f is steps = 2: three detents plus both ends, so
+        // a segment is span / (steps + 1) = 1. The grid-columns row in Appearance
+        // settings is exactly this shape.
+        assertEquals(0f, liquidSnapToStep(0.4f, 0f, 3f, 2), 0.0001f)
+        assertEquals(1f, liquidSnapToStep(0.6f, 0f, 3f, 2), 0.0001f)
+        assertEquals(1f, liquidSnapToStep(1.4f, 0f, 3f, 2), 0.0001f)
+        assertEquals(2f, liquidSnapToStep(1.6f, 0f, 3f, 2), 0.0001f)
+        assertEquals(3f, liquidSnapToStep(2.9f, 0f, 3f, 2), 0.0001f)
+    }
+
+    @Test
+    fun `every detent is reachable and lands exactly on itself`() {
+        val steps = 5
+        val start = 2f
+        val span = 10f
+        val segment = span / (steps + 1)
+        for (i in 0..steps + 1) {
+            val detent = start + i * segment
+            assertEquals(detent, liquidSnapToStep(detent, start, span, steps), 0.0001f)
+        }
+    }
+
+    @Test
+    fun `snapping never leaves the range`() {
+        // A finger dragged past the end of the track asks for a value beyond it;
+        // the detent it commits to must still be the endpoint.
+        assertEquals(15f, liquidSnapToStep(900f, 1f, 14f, 14), 0.0001f)
+        assertEquals(1f, liquidSnapToStep(-900f, 1f, 14f, 14), 0.0001f)
+        for (v in listOf(-5f, 0f, 3f, 8f, 15f, 40f)) {
+            val snapped = liquidSnapToStep(v, 1f, 14f, 14)
+            assertTrue(snapped >= 1f && snapped <= 15f)
+        }
+    }
+
+    @Test
+    fun `snapping preserves direction of travel`() {
+        // Dragging right must never move the value left, which a wrong rounding
+        // mode would do on the way past a detent.
+        val steps = 14
+        var previous = Float.NEGATIVE_INFINITY
+        var x = 0f
+        while (x <= 1000f) {
+            val snapped = liquidSnapToStep(1f + 14f * (x / 1000f), 1f, 14f, steps)
+            assertTrue(snapped >= previous)
+            previous = snapped
+            x += 7f
+        }
+    }
+
+    @Test
+    fun `a fractional detent spacing still snaps to the nearest one`() {
+        // Crossfade duration: 1f..15f with 14 steps is a segment of 14/15, not 1.
+        val segment = 14f / 15f
+        assertEquals(1f, liquidSnapToStep(1f + segment * 0.4f, 1f, 14f, 14), 0.0001f)
+        assertEquals(1f + segment, liquidSnapToStep(1f + segment * 0.6f, 1f, 14f, 14), 0.0001f)
+    }
+
+    @Test
+    fun `an empty range passes the value through instead of dividing by zero`() {
+        // A slider whose duration is still unknown reports 0f..0f.
+        assertEquals(0f, liquidSnapToStep(0f, 0f, 0f, 3), 0.0001f)
+    }
+
+    // endregion
 }

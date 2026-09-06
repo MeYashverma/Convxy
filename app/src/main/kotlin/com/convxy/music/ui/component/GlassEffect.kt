@@ -76,6 +76,10 @@ data class GlassEffectConfig(
     /** Tablet side panel — split from [navBarEnabled] so it can differ from the
      *  phone bottom bar's glass setting instead of always mirroring it. */
     val sidePanelEnabled: Boolean = true,
+    /** Settings-screen controls. Off costs nothing visually — [GlassSlider] falls
+     *  back to the Material slider — so this is the escape hatch for a screen full
+     *  of sliders on a device that cannot afford them. */
+    val settingsEnabled: Boolean = true,
     /** Side panel gets its own effect tuning (unlike the other components,
      *  which all share [vibrancy]/[blurRadius]/[lensHeight]/[lensAmount]) —
      *  defaults match those shared values so it looks identical until
@@ -111,6 +115,7 @@ data class GlassEffectConfig(
             GlassComponent.MINI_PLAYER -> miniPlayerEnabled
             GlassComponent.NAV_BAR -> navBarEnabled
             GlassComponent.SIDE_PANEL -> sidePanelEnabled
+            GlassComponent.SETTINGS -> settingsEnabled
         }
 
     /**
@@ -120,7 +125,8 @@ data class GlassEffectConfig(
      */
     val anyComponentEnabled: Boolean
         get() = globalEnabled &&
-            (playerEnabled || miniPlayerEnabled || navBarEnabled || sidePanelEnabled)
+            (playerEnabled || miniPlayerEnabled || navBarEnabled || sidePanelEnabled ||
+                    settingsEnabled)
 }
 
 /** UI surfaces that can individually opt in or out of the liquid glass effect. */
@@ -163,6 +169,16 @@ enum class GlassComponent {
     MINI_PLAYER,
     NAV_BAR,
     SIDE_PANEL,
+
+    /**
+     * Sliders and controls inside settings screens.
+     *
+     * Its own switch because it is the one place where glass multiplies: a
+     * settings screen composes a column of these at once, and each surface costs
+     * a capture plus a RenderEffect chain every frame. The chrome — nav bar, mini
+     * player, player — is one or two surfaces no matter the screen; this is not.
+     */
+    SETTINGS,
 }
 
 /**

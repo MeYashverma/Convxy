@@ -45,7 +45,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -80,6 +79,7 @@ import com.convxy.music.R
 import com.convxy.music.constants.DiyLayoutKey
 import com.convxy.music.constants.PureBlackKey
 import com.convxy.music.ui.component.BottomSheetState
+import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.LocalAppBackdrop
 import com.convxy.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convxy.music.ui.component.expandedAnchor
@@ -931,7 +931,7 @@ private fun MenuSlider(
 ) {
     Column {
         Text(label, style = MaterialTheme.typography.labelMedium)
-        Slider(value = value.coerceIn(range), onValueChange = onChange, valueRange = range)
+        GlassSlider(value = value.coerceIn(range), onValueChange = onChange, valueRange = range)
     }
 }
 

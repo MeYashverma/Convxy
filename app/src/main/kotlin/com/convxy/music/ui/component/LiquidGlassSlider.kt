@@ -150,6 +150,10 @@ fun LiquidGlassSlider(
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     onValueChangeFinished: (() -> Unit)? = null,
     enabled: Boolean = true,
+    /** Discrete points between the endpoints, Material's meaning of `steps`: 0 is
+     *  continuous, 1 adds a single detent in the middle. Values are snapped
+     *  before they are reported, so the thumb only ever rests on a detent. */
+    steps: Int = 0,
     activeColor: Color = Color.Unspecified,
     inactiveColor: Color = Color.Unspecified,
     thumbColor: Color = Color.White,
@@ -175,6 +179,7 @@ fun LiquidGlassSlider(
 
     val currentValue by rememberUpdatedState(value)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentSteps by rememberUpdatedState(steps)
     val currentOnFinished by rememberUpdatedState(onValueChangeFinished)
 
     val isDark = isSystemInDarkTheme()
@@ -255,13 +260,18 @@ fun LiquidGlassSlider(
                 var armed = false
                 var changed = false
 
-                fun valueAt(x: Float) = liquidValueAtXPx(
-                    xPx = x,
-                    totalWidthPx = geometry.totalWidthPx,
-                    thumbWidthPx = geometry.thumbWidthPx,
+                fun valueAt(x: Float) = liquidSnapToStep(
+                    value = liquidValueAtXPx(
+                        xPx = x,
+                        totalWidthPx = geometry.totalWidthPx,
+                        thumbWidthPx = geometry.thumbWidthPx,
+                        rangeStart = geometry.rangeStart,
+                        rangeSpan = geometry.rangeSpan,
+                        isLtr = geometry.isLtr,
+                    ),
                     rangeStart = geometry.rangeStart,
                     rangeSpan = geometry.rangeSpan,
-                    isLtr = geometry.isLtr,
+                    steps = currentSteps,
                 )
 
                 fun commit() {

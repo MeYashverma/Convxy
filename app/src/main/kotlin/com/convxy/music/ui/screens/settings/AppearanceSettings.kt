@@ -140,7 +140,6 @@ import com.convxy.music.constants.HideHomeFavoriteIconKey
 import com.convxy.music.constants.ShowHomeFabKey
 import com.convxy.music.ui.utils.GridColumnChoices
 import com.convxy.music.ui.utils.GridSpacingChoices
-import androidx.compose.material3.Slider
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.constants.HidePlayerThumbnailKey
 import com.convxy.music.ui.utils.appTopBarWindowInsets
@@ -202,6 +201,7 @@ import com.convxy.music.ui.component.DefaultDialog
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.EnumDialog
 import com.convxy.music.ui.utils.appTopBarWindowInsets
+import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.IconButton
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.Material3SettingsGroup
@@ -1399,7 +1399,7 @@ fun AppearanceSettings(
                                     gridColumnsOverride.toString()
                                 }
                             )
-                            Slider(
+                            GlassSlider(
                                 value = GridColumnChoices.indexOf(gridColumnsOverride).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onGridColumnsOverrideChange(GridColumnChoices[it.roundToInt()])
@@ -1422,7 +1422,7 @@ fun AppearanceSettings(
                                     "${gridCardHeightOverride}dp"
                                 }
                             )
-                            Slider(
+                            GlassSlider(
                                 value = GridCardHeightChoices.indexOf(gridCardHeightOverride).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onGridCardHeightOverrideChange(GridCardHeightChoices[it.roundToInt()])
@@ -1439,7 +1439,7 @@ fun AppearanceSettings(
                     description = {
                         Column {
                             Text(text = "${gridSpacing}dp")
-                            Slider(
+                            GlassSlider(
                                 value = GridSpacingChoices.indexOf(gridSpacing).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onGridSpacingChange(GridSpacingChoices[it.roundToInt()])
@@ -1463,7 +1463,7 @@ fun AppearanceSettings(
                                     speedDialColumnsOverride.toString()
                                 }
                             )
-                            Slider(
+                            GlassSlider(
                                 value = speedDialChoices.indexOf(speedDialColumnsOverride).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onSpeedDialColumnsOverrideChange(speedDialChoices[it.roundToInt()])
@@ -1499,7 +1499,7 @@ fun AppearanceSettings(
                                     homeGridColumnsOverride.toString()
                                 }
                             )
-                            Slider(
+                            GlassSlider(
                                 value = homeGridChoices.indexOf(homeGridColumnsOverride).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onHomeGridColumnsOverrideChange(homeGridChoices[it.roundToInt()])
@@ -1522,7 +1522,7 @@ fun AppearanceSettings(
                                     "${homeHeroCardHeightOverride}dp"
                                 }
                             )
-                            Slider(
+                            GlassSlider(
                                 value = HomeHeroCardHeightChoices.indexOf(homeHeroCardHeightOverride).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onHomeHeroCardHeightOverrideChange(HomeHeroCardHeightChoices[it.roundToInt()])
@@ -1545,7 +1545,7 @@ fun AppearanceSettings(
                                     "${speedDialCardHeightOverride}dp"
                                 }
                             )
-                            Slider(
+                            GlassSlider(
                                 value = GridCardHeightChoices.indexOf(speedDialCardHeightOverride).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onSpeedDialCardHeightOverrideChange(GridCardHeightChoices[it.roundToInt()])
@@ -1568,7 +1568,7 @@ fun AppearanceSettings(
                                     "${homeCardCornerRadiusOverride}dp"
                                 }
                             )
-                            Slider(
+                            GlassSlider(
                                 value = HomeCardCornerRadiusChoices.indexOf(homeCardCornerRadiusOverride).coerceAtLeast(0).toFloat(),
                                 onValueChange = {
                                     onHomeCardCornerRadiusOverrideChange(HomeCardCornerRadiusChoices[it.roundToInt()])

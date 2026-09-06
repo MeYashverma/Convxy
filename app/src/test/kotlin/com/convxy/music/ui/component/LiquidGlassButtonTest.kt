@@ -96,10 +96,15 @@ class LiquidGlassButtonTest {
     fun `the lean never carries the surface past its own footprint`() {
         // A linear offset would move a 121px button by 121px when the finger is at
         // its edge — entirely off itself — and by 2420px when the finger wanders
-        // across the screen. tanh keeps the lean strictly inside the surface.
+        // across the screen. tanh bounds the lean by the surface's own extent, and
+        // at extreme travel it reaches that bound exactly: tanh(10f) is 1.0f once
+        // stored as a Float, so the assertion is <= rather than <.
         for (offset in listOf(20f, 121f, 2420f, 24200f)) {
-            assertTrue(liquidPressTranslationPx(offset, circleSize) < circleSize)
+            assertTrue(liquidPressTranslationPx(offset, circleSize) <= circleSize)
         }
+        // Well inside the bound for any travel a finger actually makes on a button:
+        // a finger at the edge of a 121px surface leans it about 6px.
+        assertTrue(liquidPressTranslationPx(circleSize, circleSize) < circleSize / 10f)
     }
 
     @Test

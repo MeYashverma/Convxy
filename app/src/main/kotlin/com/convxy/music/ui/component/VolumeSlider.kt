@@ -14,8 +14,10 @@
 package com.convxy.music.ui.component
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -97,27 +99,28 @@ fun VolumeSlider(
     // menu this refracts the sheet's exported surface like every other control.
     val config = LocalGlassEffectConfig.current
     if (config.isEnabledFor(GlassComponent.MENU) && isGlassAllowed()) {
-        Box(
+        // Icon BESIDE the rail, not inset over it: on the thin glass rail an
+        // overlaying icon reads as a thumb stuck at the start.
+        Row(
             modifier = modifier.height(VolumeSliderDefaults.TrackHeight),
-            contentAlignment = Alignment.CenterStart,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                painter = currentIcon,
+                contentDescription = null,
+                tint = config.textColor,
+                modifier = Modifier.size(VolumeSliderDefaults.InsetIconSize),
+            )
+            Spacer(Modifier.width(VolumeSliderDefaults.IconPadding))
             GlassSlider(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 enabled = enabled,
                 onValueChangeFinished = onValueChangeFinished,
                 activeColor = accentColor,
                 inactiveColor = accentColor.copy(alpha = 0.3f),
                 component = GlassComponent.MENU,
-            )
-            Icon(
-                painter = currentIcon,
-                contentDescription = null,
-                tint = config.textColor,
-                modifier = Modifier
-                    .padding(start = VolumeSliderDefaults.IconPadding)
-                    .size(VolumeSliderDefaults.InsetIconSize),
             )
         }
         return

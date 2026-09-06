@@ -1965,11 +1965,17 @@ fun BottomSheetPlayer(
         // not the self-reference a screen inside the recorded node would be — see
         // the playerBackdrop declaration above. The narrower provider further
         // down repeats this value and adds the video canvas's loop bucket.
-        CompositionLocalProvider(LocalAppBackdrop provides playerBackdrop) {
+        //
+        // Both branches get it, separately: Compose forbids a non-local return
+        // through a composable lambda, so the V2 branch's `return@BottomSheet`
+        // has to sit outside the provider that wraps its content.
         if (useAppleMusicPlayer) {
-            PlayerV2(state = state, navController = navController, modifier = Modifier)
+            CompositionLocalProvider(LocalAppBackdrop provides playerBackdrop) {
+                PlayerV2(state = state, navController = navController, modifier = Modifier)
+            }
             return@BottomSheet
         }
+        CompositionLocalProvider(LocalAppBackdrop provides playerBackdrop) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,

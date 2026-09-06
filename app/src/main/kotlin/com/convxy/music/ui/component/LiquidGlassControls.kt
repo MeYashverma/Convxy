@@ -267,45 +267,105 @@ fun rememberLiquidGlassActive(
             backdrop.isLiveGlassBackdrop()
 
 /**
- * The press transform every liquid glass control shares: a small growth plus a
- * lean toward the finger, damped so it saturates instead of tracking linearly.
+ * How much a pressed surface swells, as a scale factor on a surface [heightPx]
+ * tall.
  *
- * This is the reference implementation's own button physics (its `LiquidButton`
- * applies it inside `drawBackdrop`'s layer block). Two details are worth keeping:
+ * [growthPx] is a length rather than a ratio — 4dp at the current density —
+ * because "grow by 4dp" is the same visual amount on a 24dp chip and on a 100dp
+ * play button, while "grow by 4%" is not. Expressed against the surface's own
+ * height, one constant serves both.
+ */
+internal fun liquidPressGrowth(growthPx: Float, heightPx: Int, progress: Float): Float =
+    if (heightPx <= 0) 1f else lerp(1f, 1f + growthPx / heightPx, progress)
+
+/**
+ * How far a pressed surface leans toward the finger, in px, bounded by
+ * [maxOffsetPx].
  *
- *  - the lean goes through `tanh`, so a finger dragged to the edge of the button
- *    pushes the surface toward that edge and *stops* — a linear offset would slide
- *    the whole button off its own footprint;
- *  - the extra scale is anisotropic, derived from the drag angle and the button's
- *    aspect ratio, so a wide pill stretches horizontally under a horizontal drag
- *    and a circle stays a circle.
+ * Through a tanh rather than a clamp: the derivative at the centre is
+ * [initialDerivative], so small finger movements move the surface almost
+ * one-to-one, and the lean saturates as the finger nears the edge instead of
+ * stopping dead at a hard limit. Clamping would freeze the motion while the
+ * finger keeps travelling.
+ */
+internal fun liquidPressTranslationPx(
+    offsetPx: Float,
+    maxOffsetPx: Int,
+    initialDerivative: Float = 0.05f,
+): Float =
+    if (maxOffsetPx <= 0) 0f else maxOffsetPx * tanh(initialDerivative * offsetPx / maxOffsetPx)
+
+/**
+ * How much of a drag may stretch a surface along one axis: 1f when that axis is
+ * the long one, 0f when it is the short one.
  *
- * Applied as an outer [androidx.compose.ui.graphics.graphicsLayer] rather than
- * through the backdrop's own layer block, because [Modifier.liquidGlass] does not
- * expose one — and because scaling the whole surface (glass, rim and icon
- * together) is what the layer block does anyway.
+ * The integer division is the reference implementation's, and it is not a bug to
+ * fix: an Int ratio coerced to at most 1 is a "wider than tall" gate, so a pill
+ * stretches only along its length while a square stretches along both axes.
+ */
+internal fun liquidPressAnisotropy(widthPx: Int, heightPx: Int, horizontal: Boolean): Float =
+    if (widthPx <= 0 || heightPx <= 0) 0f
+    else if (horizontal) (widthPx / heightPx).fastCoerceAtMost(1f)
+    else (heightPx / widthPx).fastCoerceAtMost(1f)
+
+/**
+ * Extra scale from dragging, on top of [liquidPressGrowth].
  *
- * Remember the result on the interaction: returning a fresh lambda per
- * recomposition would make the modifier unequal and re-run its node every frame.
+ * [axisUnit] is cos(angle) on the horizontal axis and sin(angle) on the vertical
+ * one, both from the finger's offset angle, so a drag straight across a surface
+ * stretches it sideways and a drag at 45° splits the stretch between the two.
+ */
+internal fun liquidPressStretch(
+    growthPx: Float,
+    heightPx: Int,
+    axisUnit: Float,
+    offsetPx: Float,
+    maxDimensionPx: Int,
+    anisotropy: Float,
+): Float =
+    if (heightPx <= 0 || maxDimensionPx <= 0) 0f
+    else growthPx / heightPx * abs(axisUnit * offsetPx / maxDimensionPx) * anisotropy
+
+/**
+ * The press transform shared by every liquid glass button: a small growth, a lean
+ * toward the finger, and extra stretch along the axis the finger drags.
+ *
+ * Returned as a [GraphicsLayerScope] block so it runs in the draw phase — the
+ * values it reads ([InteractiveHighlight.pressProgress] and its offset) are
+ * animated every frame, and reading them here re-invalidates only this layer
+ * rather than recomposing the button.
  */
 fun liquidGlassPressLayerBlock(
     interaction: InteractiveHighlight
 ): GraphicsLayerScope.() -> Unit = {
     val progress = interaction.pressProgress
     val offset = interaction.offset
-    if (progress > 0f && size.height > 0f) {
-        val growth = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
-        val maxOffset = size.minDimension
-        val initialDerivative = 0.05f
-        translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
-        translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
-        val maxDragScale = 4f.dp.toPx() / size.height
-        val offsetAngle = atan2(offset.y, offset.x)
-        val widthOverHeight = (size.width / size.height).fastCoerceAtMost(1f)
-        val heightOverWidth = (size.height / size.width).fastCoerceAtMost(1f)
-        scaleX = growth +
-                maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) * widthOverHeight
-        scaleY = growth +
-                maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) * heightOverWidth
+    // Width as well as height: the anisotropy divides by both, and a zero-width
+    // layer would throw rather than draw.
+    if (progress > 0f && size.height > 0 && size.width > 0) {
+        val growthPx = 4f.dp.toPx()
+        val angle = atan2(offset.y, offset.x)
+        val anisotropyX = liquidPressAnisotropy(size.width, size.height, horizontal = true)
+        val anisotropyY = liquidPressAnisotropy(size.width, size.height, horizontal = false)
+
+        val growth = liquidPressGrowth(growthPx, size.height, progress)
+        scaleX = growth + liquidPressStretch(
+            growthPx = growthPx,
+            heightPx = size.height,
+            axisUnit = cos(angle),
+            offsetPx = offset.x,
+            maxDimensionPx = size.maxDimension,
+            anisotropy = anisotropyX,
+        )
+        scaleY = growth + liquidPressStretch(
+            growthPx = growthPx,
+            heightPx = size.height,
+            axisUnit = sin(angle),
+            offsetPx = offset.y,
+            maxDimensionPx = size.maxDimension,
+            anisotropy = anisotropyY,
+        )
+        translationX = liquidPressTranslationPx(offset.x, size.minDimension)
+        translationY = liquidPressTranslationPx(offset.y, size.minDimension)
     }
 }

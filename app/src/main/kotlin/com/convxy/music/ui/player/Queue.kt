@@ -47,6 +47,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import android.os.Build
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonGroupDefaults
@@ -65,7 +66,15 @@ import androidx.compose.material3.PlainTooltip
 import com.convxy.music.ui.component.GlassComponent
 import com.convxy.music.ui.component.LocalGlassEffectConfig
 import com.convxy.music.ui.component.isGlassAllowed
-import com.convxy.music.ui.component.liquidGlass
+import com.convxy.music.ui.component.backdrop.BackdropEffectScope
+import com.convxy.music.ui.component.backdrop.drawBackdrop
+import com.convxy.music.ui.component.backdrop.effects.blur
+import com.convxy.music.ui.component.backdrop.effects.colorControls
+import com.convxy.music.ui.component.backdrop.effects.lens
+import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
+import com.convxy.music.ui.component.glassResolutionScale
+import com.convxy.music.ui.component.glassSaturation
+import com.convxy.music.ui.component.shouldUseTranslucentGlassFallback
 import com.convxy.music.ui.component.rememberOuterBackdropSampler
 import androidx.compose.material3.IconButtonDefaults
 import com.convxy.music.ui.component.GlassSlider as Slider
@@ -101,6 +110,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -1662,6 +1674,11 @@ private fun PlayerQueueButton(
  * The queue and the player's bottom button group sit inside the player sheet, so the
  * backdrop in scope is the player's own; the sampler keeps the surface legal if these
  * are ever composed somewhere that records an ancestor instead.
+ *
+ * Deliberately built on [drawBackdrop] rather than [liquidGlass]: this is the same
+ * call the menu sheet, the seek bar and the toggles make — the surfaces confirmed
+ * rendering on real hardware — with the same blur/lens/tint recipe [liquidGlass]
+ * would have applied, including its adaptive tint when no override is given.
  */
 @Composable
 private fun rememberPlayerGlassSurface(
@@ -1669,15 +1686,60 @@ private fun rememberPlayerGlassSurface(
     surfaceTintOverride: Color = Color.Unspecified,
 ): Pair<Boolean, Modifier> {
     val config = LocalGlassEffectConfig.current
-    val useGlass = config.isEnabledFor(GlassComponent.PLAYER) && isGlassAllowed()
+    val useGlass = config.isEnabledFor(GlassComponent.PLAYER) &&
+        isGlassAllowed() &&
+        !shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())
     val sampler = rememberOuterBackdropSampler()
-    return if (useGlass) {
-        true to sampler.measureModifier.liquidGlass(
-            config,
-            shape = shape,
-            surfaceTintOverride = surfaceTintOverride,
-        )
-    } else {
-        false to Modifier
+    if (!useGlass) return false to Modifier
+
+    val density = LocalDensity.current
+    val resolutionScale = glassResolutionScale(config.blurRadius).coerceIn(0.05f, 1f)
+    val saturation = glassSaturation(config.vibrancy)
+    val blurPx = with(density) { config.blurRadius.dp.toPx() } * resolutionScale
+    val lensHeightPx =
+        with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale
+    val lensAmountPx =
+        with(density) { (config.lensAmount * LENS_MAX_DP).dp.toPx() } * resolutionScale
+    val effects: BackdropEffectScope.() -> Unit = remember(
+        saturation,
+        blurPx,
+        lensHeightPx,
+        lensAmountPx,
+        config.depthEffect,
+        config.chromaticAberration,
+    ) {
+        {
+            if (saturation != 1f) colorControls(saturation = saturation)
+            if (blurPx > 0f) blur(blurPx)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                (lensHeightPx > 0f || lensAmountPx > 0f)
+            ) {
+                lens(
+                    refractionHeight = lensHeightPx,
+                    refractionAmount = lensAmountPx,
+                    depthEffect = config.depthEffect,
+                    chromaticAberration = config.chromaticAberration,
+                )
+            }
+        }
     }
+    val tint: DrawScope.() -> Unit = remember(surfaceTintOverride, config) {
+        {
+            val base = when {
+                surfaceTintOverride.isSpecified -> surfaceTintOverride
+                config.surfaceTintColor.isSpecified -> config.surfaceTintColor
+                // Same adaptive glass gray liquidGlass uses, so an untinted button
+                // still reads as lighter material on a dark background.
+                else -> Color(0xFF4A4A4E)
+            }
+            drawRect(base.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f)))
+        }
+    }
+    return true to sampler.measureModifier.drawBackdrop(
+        backdrop = sampler.effective,
+        shape = { shape },
+        effects = effects,
+        onDrawSurface = tint,
+        backdropScale = resolutionScale,
+    )
 }

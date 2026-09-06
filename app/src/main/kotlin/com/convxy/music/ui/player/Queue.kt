@@ -47,7 +47,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import android.os.Build
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonGroupDefaults
@@ -72,6 +71,7 @@ import com.convxy.music.ui.component.backdrop.effects.blur
 import com.convxy.music.ui.component.backdrop.effects.colorControls
 import com.convxy.music.ui.component.backdrop.effects.lens
 import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
+import com.convxy.music.ui.component.LENS_MAX_DP
 import com.convxy.music.ui.component.glassResolutionScale
 import com.convxy.music.ui.component.glassSaturation
 import com.convxy.music.ui.component.shouldUseTranslucentGlassFallback
@@ -1711,7 +1711,7 @@ private fun rememberPlayerGlassSurface(
         {
             if (saturation != 1f) colorControls(saturation = saturation)
             if (blurPx > 0f) blur(blurPx)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
                 (lensHeightPx > 0f || lensAmountPx > 0f)
             ) {
                 lens(

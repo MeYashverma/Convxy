@@ -1732,7 +1732,11 @@ private fun rememberPlayerGlassSurface(
                 // still reads as lighter material on a dark background.
                 else -> Color(0xFF4A4A4E)
             }
-            drawRect(base.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f)))
+            // Much thinner than the sheet opacity: these buttons sit on the
+            // player's own artwork wash, and at the sheet's 0.5 the tint swallowed
+            // the blur and the rim and read as the old flat pill. The refraction
+            // and the specular edge are what have to carry the glass look here.
+            drawRect(base.copy(alpha = (config.surfaceOpacity * 0.45f).coerceIn(0f, 1f)))
         }
     }
     return true to sampler.measureModifier.drawBackdrop(

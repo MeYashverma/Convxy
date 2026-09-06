@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.convxy.music.LocalPlayerAwareWindowInsets
+import com.convxy.music.ui.component.backdrop.Backdrop
 import com.convxy.music.ui.component.backdrop.BackdropEffectScope
 import com.convxy.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
 import com.convxy.music.ui.component.backdrop.drawBackdrop
@@ -72,6 +73,11 @@ fun OverlayMenu(
     state: MenuState,
     modifier: Modifier = Modifier,
     background: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    /**
+     * What the panel refracts, when the caller records the stack behind the menu
+     * (MainActivity does, while a menu is open). Null keeps the inherited backdrop.
+     */
+    sampleBackdrop: Backdrop? = null,
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -125,7 +131,7 @@ fun OverlayMenu(
                 val realGlass = glassWanted &&
                     !shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())
                 val menuBackdrop = rememberLayerBackdrop()
-                val outer = rememberOuterBackdropSampler()
+                val outer = rememberOuterBackdropSampler(sampleBackdrop)
                 val density = LocalDensity.current
                 // Heavier than the clear pills, like the player: a menu is a sheet of
                 // material, not a control.

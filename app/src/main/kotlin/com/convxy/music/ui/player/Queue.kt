@@ -576,7 +576,10 @@ fun Queue(
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-                        modifier = Modifier.width(120.dp)
+                        // 60dp per button either way: two buttons in 120dp, three in 180dp. Widening the
+                        // group rather than the flanking weighted Boxes is what keeps the middle pair on
+                        // true row-center — see the note above the leading Box.
+                        modifier = Modifier.width(if (onOpenTimestampComments != null) 180.dp else 120.dp)
                     ) {
                         ToggleButton(
                             checked = false,
@@ -614,7 +617,11 @@ fun Queue(
                                     }
                                 }
                             },
-                            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                            shapes = if (onOpenTimestampComments != null) {
+                                ButtonGroupDefaults.connectedMiddleButtonShapes()
+                            } else {
+                                ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            },
                             modifier = Modifier
                                 .height(56.dp)
                                 .weight(1f),
@@ -643,6 +650,39 @@ fun Queue(
                                         maxLines = 1
                                     )
                                 }
+                            }
+                        }
+
+                        // Timed comments — the same entry point the new-design row carries, placed in
+                        // the row that actually renders. `useNewPlayerDesign` has no writer anywhere in
+                        // the app (the preference is read in three places and never set, and both of its
+                        // setters are discarded), so the new-design branch above never runs and this
+                        // connected group is what every user sees. Without it the seek bar drew comment
+                        // ticks that could not be opened into a sheet.
+                        //
+                        // Not gated on isListenTogetherGuest, matching the new-design row: reading
+                        // comments is not driving playback, and the seek a tap would cause is already
+                        // gated in Player, where the player lives.
+                        if (onOpenTimestampComments != null) {
+                            ToggleButton(
+                                checked = timestampCommentsActive,
+                                onCheckedChange = { onOpenTimestampComments() },
+                                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                                modifier = Modifier
+                                    .height(56.dp)
+                                    .weight(1f),
+                                colors = ToggleButtonDefaults.toggleButtonColors(
+                                    containerColor = TextBackgroundColor.copy(alpha = 0.2f),
+                                    contentColor = TextBackgroundColor,
+                                    checkedContainerColor = TextBackgroundColor.copy(alpha = 0.4f),
+                                    checkedContentColor = TextBackgroundColor
+                                )
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.chat_timestamp),
+                                    contentDescription = stringResource(R.string.timestamped_comments_open),
+                                    modifier = Modifier.size(30.dp)
+                                )
                             }
                         }
                     }

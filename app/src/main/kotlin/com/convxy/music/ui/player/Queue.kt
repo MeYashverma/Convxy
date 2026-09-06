@@ -70,6 +70,8 @@ import com.convxy.music.ui.component.backdrop.drawBackdrop
 import com.convxy.music.ui.component.backdrop.effects.blur
 import com.convxy.music.ui.component.backdrop.effects.colorControls
 import com.convxy.music.ui.component.backdrop.effects.lens
+import com.convxy.music.ui.component.backdrop.highlight.Highlight
+import com.convxy.music.ui.component.backdrop.highlight.HighlightStyle
 import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
 import com.convxy.music.ui.component.LENS_MAX_DP
 import com.convxy.music.ui.component.glassResolutionScale
@@ -1725,24 +1727,38 @@ private fun rememberPlayerGlassSurface(
     }
     val tint: DrawScope.() -> Unit = remember(surfaceTintOverride, config) {
         {
-            val base = when {
-                surfaceTintOverride.isSpecified -> surfaceTintOverride
-                config.surfaceTintColor.isSpecified -> config.surfaceTintColor
-                // Same adaptive glass gray liquidGlass uses, so an untinted button
-                // still reads as lighter material on a dark background.
-                else -> Color(0xFF4A4A4E)
+            // Lit glass has to read BRIGHTER than what is behind it. These buttons
+            // sit on the player's dark artwork wash, where a dark tint (the old
+            // behaviour) plus a blur of featureless content was indistinguishable
+            // from the flat Material pill: the lift and the rim below are what
+            // carry the glass look when the sampled material has no detail to bend.
+            if (surfaceTintOverride.isSpecified) {
+                drawRect(surfaceTintOverride.copy(alpha = 0.4f))
+            } else if (config.surfaceTintColor.isSpecified) {
+                drawRect(
+                    config.surfaceTintColor.copy(
+                        alpha = (config.surfaceOpacity * 0.45f).coerceIn(0f, 1f)
+                    )
+                )
             }
-            // Much thinner than the sheet opacity: these buttons sit on the
-            // player's own artwork wash, and at the sheet's 0.5 the tint swallowed
-            // the blur and the rim and read as the old flat pill. The refraction
-            // and the specular edge are what have to carry the glass look here.
-            drawRect(base.copy(alpha = (config.surfaceOpacity * 0.45f).coerceIn(0f, 1f)))
+            drawRect(Color.White.copy(alpha = 0.12f))
+        }
+    }
+    // The specular edge: the house's own rim recipe (0.8dp stroke, white, lit from
+    // the upper left), at the alpha its buttons use.
+    val rim: () -> Highlight? = remember {
+        {
+            Highlight(
+                width = 0.8.dp,
+                style = HighlightStyle.Default(color = Color.White.copy(alpha = 0.55f)),
+            )
         }
     }
     return true to sampler.measureModifier.drawBackdrop(
         backdrop = sampler.effective,
         shape = { shape },
         effects = effects,
+        highlight = rim,
         onDrawSurface = tint,
         backdropScale = resolutionScale,
     )

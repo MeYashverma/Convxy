@@ -43,6 +43,8 @@ import com.convxy.music.ui.component.backdrop.drawBackdrop
 import com.convxy.music.ui.component.backdrop.effects.blur
 import com.convxy.music.ui.component.backdrop.effects.colorControls
 import com.convxy.music.ui.component.backdrop.effects.lens
+import com.convxy.music.ui.component.backdrop.highlight.Highlight
+import com.convxy.music.ui.component.backdrop.highlight.HighlightStyle
 import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
 import com.convxy.music.ui.component.shapes.ContinuousRoundedRectangle
 
@@ -139,10 +141,14 @@ fun OverlayMenu(
                 val resolutionScale = glassResolutionScale(menuBlurDp).coerceIn(0.05f, 1f)
                 val saturation = glassSaturation(config.vibrancy)
                 val blurPx = with(density) { menuBlurDp.dp.toPx() } * resolutionScale
+                // A menu usually opens over the player's artwork wash or a dimmed
+                // list, i.e. material with little edge detail; the bend needs to be
+                // stronger than on a control pill before it is visible at all.
                 val lensHeightPx =
                     with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale
                 val lensAmountPx =
-                    with(density) { (config.lensAmount * LENS_MAX_DP).dp.toPx() } * resolutionScale
+                    with(density) { (config.lensAmount * LENS_MAX_DP * 1.5f).dp.toPx() } *
+                        resolutionScale
                 // Remembered on exactly what they read: a fresh lambda each recomposition
                 // makes the drawBackdrop element unequal and re-captures the backdrop.
                 val effectsBlock: BackdropEffectScope.() -> Unit = remember(
@@ -169,7 +175,29 @@ fun OverlayMenu(
                     }
                 }
                 val tintBlock: DrawScope.() -> Unit = remember(background, config.surfaceOpacity) {
-                    { drawRect(background.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f))) }
+                    {
+                        drawRect(
+                            background.copy(
+                                alpha = (config.surfaceOpacity * 0.8f).coerceIn(0f, 1f)
+                            )
+                        )
+                        // Same brightness lift as the buttons: over a dark player
+                        // wash the theme surface alone reads as a flat panel.
+                        drawRect(Color.White.copy(alpha = 0.07f))
+                    }
+                }
+                // The rim was disabled here as "a stray band of light" on large
+                // surfaces; without it, over featureless material, the sheet lost
+                // every cue that reads as glass. Dimmer than on the pills, not off.
+                val rimBlock: () -> Highlight? = remember {
+                    {
+                        Highlight(
+                            width = 0.8.dp,
+                            style = HighlightStyle.Default(
+                                color = Color.White.copy(alpha = 0.35f)
+                            ),
+                        )
+                    }
                 }
 
                 Column(
@@ -187,9 +215,7 @@ fun OverlayMenu(
                                         backdrop = outer.effective,
                                         shape = { menuShape },
                                         effects = effectsBlock,
-                                        // A rim on a sheet this large renders as a stray
-                                        // band of light, same reason the player skips it.
-                                        highlight = { null },
+                                        highlight = rimBlock,
                                         exportedBackdrop = menuBackdrop,
                                         onDrawSurface = tintBlock,
                                         backdropScale = resolutionScale,

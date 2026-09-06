@@ -73,7 +73,6 @@ import com.convxy.music.constants.LiquidGlassLensAmountKey
 import com.convxy.music.constants.LiquidGlassLensHeightKey
 import com.convxy.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convxy.music.constants.LiquidGlassNavBarEnabledKey
-import com.convxy.music.constants.LiquidGlassSettingsEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelVibrancyKey
 import com.convxy.music.constants.LiquidGlassSidePanelBlurRadiusKey
@@ -211,9 +210,6 @@ fun GlassEffectSettings(
     )
     val (sidePanelEnabled, onSidePanelEnabledChange) = rememberPreference(
         LiquidGlassSidePanelEnabledKey, defaultValue = true
-    )
-    val (settingsControlsEnabled, onSettingsControlsEnabledChange) = rememberPreference(
-        LiquidGlassSettingsEnabledKey, defaultValue = true
     )
     val (sidePanelVibrancy, onSidePanelVibrancyChange) = rememberPreference(
         LiquidGlassSidePanelVibrancyKey, defaultValue = 1.2f
@@ -535,27 +531,6 @@ fun GlassEffectSettings(
                         )
                     },
                     onClick = { toggleSidePanel(!sidePanelEnabled) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.tune),
-                    title = { Text(stringResource(R.string.liquid_glass_settings_controls)) },
-                    description = { Text(stringResource(R.string.liquid_glass_settings_controls_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = settingsControlsEnabled,
-                            onCheckedChange = onSettingsControlsEnabledChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (settingsControlsEnabled) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onSettingsControlsEnabledChange(!settingsControlsEnabled) }
                 ),
             )
         )

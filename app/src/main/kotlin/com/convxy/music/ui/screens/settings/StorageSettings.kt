@@ -37,6 +37,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.MaterialTheme
 import com.convxy.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.Slider
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Text
 import com.convxy.music.ui.utils.appTopBarWindowInsets
@@ -103,7 +104,6 @@ import com.convxy.music.extensions.tryOrNull
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.ActionPromptDialog
 import com.convxy.music.ui.utils.appTopBarWindowInsets
-import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.IconButton
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.Material3SettingsGroup
@@ -392,7 +392,7 @@ fun StorageSettings(
                                     else -> formatFileSize(maxSongCacheSize * 1024 * 1024L)
                                 }
                             )
-                            GlassSlider(
+                            Slider(
                                 value = songCacheValues.indexOf(maxSongCacheSize).toFloat(),
                                 onValueChange = {
                                     val newValue = songCacheValues[it.roundToInt()]
@@ -461,7 +461,7 @@ fun StorageSettings(
                                     else -> formatFileSize(maxImageCacheSize * 1024 * 1024L)
                                 }
                             )
-                            GlassSlider(
+                            Slider(
                                 value = imageCacheValues.indexOf(maxImageCacheSize).toFloat(),
                                 onValueChange = {
                                     val newValue = imageCacheValues[it.roundToInt()]

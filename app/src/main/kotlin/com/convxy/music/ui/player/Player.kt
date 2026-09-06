@@ -1956,6 +1956,16 @@ fun BottomSheetPlayer(
             }
         },
     ) {
+        // The player's glass samples its own background slot — the blurred
+        // artwork / mesh layer — not the NavHost-wide appBackdrop it would
+        // otherwise inherit here. Inheriting it shows whichever screen is behind
+        // the sheet through the seek bar and the transport buttons: home, an
+        // artist page, whatever the player was opened from. The two slots are
+        // siblings of BottomSheet rather than ancestor and descendant, so this is
+        // not the self-reference a screen inside the recorded node would be — see
+        // the playerBackdrop declaration above. The narrower provider further
+        // down repeats this value and adds the video canvas's loop bucket.
+        CompositionLocalProvider(LocalAppBackdrop provides playerBackdrop) {
         if (useAppleMusicPlayer) {
             PlayerV2(state = state, navController = navController, modifier = Modifier)
             return@BottomSheet
@@ -3634,6 +3644,7 @@ fun BottomSheetPlayer(
                     zFilter = { it >= 0 },
                 )
             }
+        }
         }
     }
 }

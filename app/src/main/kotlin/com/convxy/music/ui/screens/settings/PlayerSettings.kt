@@ -31,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import androidx.compose.material3.Icon
 import com.convxy.music.ui.utils.appTopBarWindowInsets
+import androidx.compose.material3.Slider
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.GlassSwitchCompat as Switch
 import com.convxy.music.ui.utils.appTopBarWindowInsets
@@ -142,7 +143,6 @@ import com.convxy.music.ui.component.DefaultDialog
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.EnumDialog
 import com.convxy.music.ui.utils.appTopBarWindowInsets
-import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.IconButton
 import com.convxy.music.ui.utils.appTopBarWindowInsets
 import com.convxy.music.ui.component.Material3SettingsGroup
@@ -440,7 +440,7 @@ fun PlayerSettings(
                         description = {
                             Column {
                                 Text(pluralStringResource(R.plurals.seconds, crossfadeDuration.toInt(), crossfadeDuration.toInt()))
-                                GlassSlider(
+                                Slider(
                                     value = crossfadeDuration,
                                     onValueChange = onCrossfadeDurationChange,
                                     valueRange = 1f..15f,
@@ -647,7 +647,7 @@ fun PlayerSettings(
                     description = {
                         Column {
                             Text(historyDuration.roundToInt().toString())
-                            GlassSlider(
+                            Slider(
                                 value = historyDuration,
                                 onValueChange = onHistoryDurationChange,
                                 valueRange = 1f..100f

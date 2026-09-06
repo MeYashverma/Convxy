@@ -1272,8 +1272,6 @@
     <string name="liquid_glass_mini_player">Glass Mini Player</string>
     <string name="liquid_glass_nav_bar">Glass Navigation Bar</string>
     <string name="liquid_glass_side_panel">Glass Side Panel</string>
-    <string name="liquid_glass_settings_controls">Glass Settings Controls</string>
-    <string name="liquid_glass_settings_controls_desc">Sliders on settings screens. Each one costs a capture plus an effect chain every frame and a screen can hold several at once, so turn this off if a settings screen feels slow</string>
     <string name="liquid_glass_side_panel_desc">Tablet side panel glass, set independently from the phone navigation bar</string>
     <string name="liquid_glass_side_panel_overrides">Side Panel Effect (overrides above)</string>
     <string name="liquid_glass_side_panel_surface_tint_desc">Tint color for the tablet side panel only, independent of the main Surface Tint above</string>

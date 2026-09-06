@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -59,7 +60,6 @@ import com.convxy.music.constants.AmbientVideoCanvasEnabledKey
 import com.convxy.music.constants.CanvasSource
 import com.convxy.music.constants.LyricsTextSizeKey
 import com.convxy.music.ui.component.GlassSwitchCompat as Switch
-import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.IconButton
 import com.convxy.music.ui.component.Material3SettingsGroup
 import com.convxy.music.ui.component.Material3SettingsItem
@@ -656,7 +656,7 @@ private fun AmbientSliderSetting(
             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 2.dp),
         )
-        GlassSlider(
+        Slider(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange,

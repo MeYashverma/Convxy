@@ -70,25 +70,7 @@ fun CommentSheet(
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var comments by remember { mutableStateOf<List<CommentThreadRenderer>>(emptyList()) }
-    var nextToken by remember { mutableStateOf<String?>(null) }
     var totalComments by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isError by remember { mutableStateOf(false) }
-
-    val navigator = rememberListDetailPaneScaffoldNavigator<CommentThreadRenderer>()
-
-    LaunchedEffect(videoId) {
-        YouTube.comments(videoId).onSuccess { (initialComments, token) ->
-            comments = initialComments
-            nextToken = token
-            isLoading = false
-        }.onFailure {
-            it.printStackTrace()
-            isLoading = false
-            isError = true
-        }
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -133,100 +115,144 @@ fun CommentSheet(
 
             HorizontalDivider()
 
-            when {
-                isLoading && comments.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularWavyProgressIndicator()
-                    }
-                }
-                (isError || comments.isEmpty()) && !isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                painter = painterResource(R.drawable.error),
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(text = stringResource(R.string.no_comments))
-                        }
-                    }
-                }
-                else -> {
-                    ListDetailPaneScaffold(
-                        directive = navigator.scaffoldDirective,
-                        scaffoldState = navigator.scaffoldState,
-                        modifier = Modifier.fillMaxHeight(),
-                        listPane = {
-                            AnimatedPane {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxHeight(),
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                                ) {
-                                    items(
-                                        comments,
-                                        key = { item -> item.comment?.commentRenderer?.commentId ?: "comment-${item.hashCode()}" }
-                                    ) { thread ->
-                                        val renderer = thread.comment?.commentRenderer ?: return@items
-                                        CommentItem(
-                                            renderer = renderer,
-                                            onShowReplies = {
-                                                scope.launch {
-                                                    navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, thread)
-                                                }
-                                            }
-                                        )
-                                    }
+            YouTubeCommentList(videoId = videoId)
+        }
+    }
+}
 
-                                    if (nextToken != null) {
-                                        item(key = "pagination_loader") {
-                                            LaunchedEffect(nextToken) {
-                                                YouTube.commentContinuation(nextToken!!).onSuccess { (newComments, token) ->
-                                                    comments = comments + newComments
-                                                    nextToken = token
-                                                }
-                                            }
-                                            Box(
-                                                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        detailPane = {
-                            AnimatedPane {
-                                val selectedThread = navigator.currentDestination?.contentKey
-                                if (selectedThread != null) {
-                                    CommentDetailPane(
-                                        thread = selectedThread,
-                                        onBack = {
-                                            scope.launch {
-                                                navigator.navigateBack(BackNavigationBehavior.PopUntilScaffoldValueChange)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
+/**
+ * The YouTube comment thread for [videoId] — fetch, paginate, list and detail panes — with no sheet
+ * chrome around it.
+ *
+ * Lifted out of [CommentSheet] so the timestamped-comments sheet can offer this same thread as its
+ * "All" tab: two kinds of comment behind one door, instead of a second button competing for space in
+ * the player's control row. [CommentSheet] keeps its header and close button and delegates here, so
+ * nothing about its own layout moved.
+ *
+ * The caller owns the height. The loading and error states are a fixed 300dp and the list fills
+ * whatever height it is given, which inside a bottom sheet means that sheet's own bounded Column.
+ *
+ * YouTube-only by nature: it takes a video id, so a caller with a track from elsewhere has nothing to
+ * ask for and should say so rather than pass an id that will not resolve.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3AdaptiveApi::class)
+@Composable
+fun YouTubeCommentList(
+    videoId: String,
+) {
+    val scope = rememberCoroutineScope()
+
+    var comments by remember { mutableStateOf<List<CommentThreadRenderer>>(emptyList()) }
+    var nextToken by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isError by remember { mutableStateOf(false) }
+
+    val navigator = rememberListDetailPaneScaffoldNavigator<CommentThreadRenderer>()
+
+    LaunchedEffect(videoId) {
+        YouTube.comments(videoId).onSuccess { (initialComments, token) ->
+            comments = initialComments
+            nextToken = token
+            isLoading = false
+        }.onFailure {
+            it.printStackTrace()
+            isLoading = false
+            isError = true
+        }
+    }
+
+    when {
+        isLoading && comments.isEmpty() -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularWavyProgressIndicator()
+            }
+        }
+        (isError || comments.isEmpty()) && !isLoading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        painter = painterResource(R.drawable.error),
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.error
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = stringResource(R.string.no_comments))
                 }
             }
+        }
+        else -> {
+            ListDetailPaneScaffold(
+                directive = navigator.scaffoldDirective,
+                scaffoldState = navigator.scaffoldState,
+                modifier = Modifier.fillMaxHeight(),
+                listPane = {
+                    AnimatedPane {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxHeight(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                        ) {
+                            items(
+                                comments,
+                                key = { item -> item.comment?.commentRenderer?.commentId ?: "comment-${item.hashCode()}" }
+                            ) { thread ->
+                                val renderer = thread.comment?.commentRenderer ?: return@items
+                                CommentItem(
+                                    renderer = renderer,
+                                    onShowReplies = {
+                                        scope.launch {
+                                            navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, thread)
+                                        }
+                                    }
+                                )
+                            }
+
+                            if (nextToken != null) {
+                                item(key = "pagination_loader") {
+                                    LaunchedEffect(nextToken) {
+                                        YouTube.commentContinuation(nextToken!!).onSuccess { (newComments, token) ->
+                                            comments = comments + newComments
+                                            nextToken = token
+                                        }
+                                    }
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularWavyProgressIndicator(modifier = Modifier.size(32.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                detailPane = {
+                    AnimatedPane {
+                        val selectedThread = navigator.currentDestination?.contentKey
+                        if (selectedThread != null) {
+                            CommentDetailPane(
+                                thread = selectedThread,
+                                onBack = {
+                                    scope.launch {
+                                        navigator.navigateBack(BackNavigationBehavior.PopUntilScaffoldValueChange)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            )
         }
     }
 }

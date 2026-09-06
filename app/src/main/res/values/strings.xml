@@ -635,6 +635,10 @@
     <string name="timestamped_comments_no_match">This track isn\'t on any of your enabled comment sources, so there are no timed comments for it</string>
     <string name="timestamped_comments_not_configured">No enabled source can serve this track. Audius and YouTube need no setup at all — switch them on under Settings → Integrations → Timed comments. SoundCloud needs an API application of your own.</string>
     <string name="timestamped_comments_unsupported">Timed comments aren\'t available for this kind of track</string>
+    <!-- The two tabs of the comments sheet: moments pinned to the timeline, and the plain thread. -->
+    <string name="comments_tab_timed">Timed</string>
+    <string name="comments_tab_all">All</string>
+    <string name="comments_all_unavailable">This track has no YouTube comment thread</string>
     <string name="timestamped_comments_failed">Couldn\'t load timed comments</string>
     <string name="timestamped_comments_jump_to_current">Jump to current</string>
     <string name="timestamped_comments_now_playing_marker">Now playing</string>

@@ -38,6 +38,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -47,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +65,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.convxy.music.R
+import com.convxy.music.comments.youtube.YouTubeCommentParser
+import com.convxy.music.ui.screens.YouTubeCommentList
 import com.convxy.music.comments.CommentTimeline
 import com.convxy.music.comments.CommentsStatus
 import com.convxy.music.comments.TimestampedComment
@@ -113,6 +119,17 @@ fun TimestampCommentsSheet(
     val accent = MaterialTheme.colorScheme.primary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
+    // Two kinds of comment behind one door: the timed ones this sheet was built for, and the plain
+    // YouTube thread the app already had. That thread had no reachable entry point of its own — its
+    // button sat in the same dead player-design branch this sheet's button was just rescued from — so
+    // rather than add a fourth control to a row already at its width budget, both live here.
+    var timedSelected by rememberSaveable { mutableStateOf(true) }
+
+    // "All" is YouTube-only, because that thread is fetched by video id. `trackId` is the same
+    // MediaMetadata.id the standalone sheet was handed, and the shape test is the one the YouTube
+    // comment source already uses to decide whether a request is worth spending at all.
+    val youTubeVideoId = uiState.trackId?.takeIf { YouTubeCommentParser.looksLikeVideoId(it) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -146,7 +163,11 @@ fun TimestampCommentsSheet(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.timestamped_comments),
+                        // The sheet now hosts two threads, so its title follows the tab: "Timed
+                        // comments" over the moments, plain "Comments" over the YouTube thread.
+                        text = stringResource(
+                            if (timedSelected) R.string.timestamped_comments else R.string.comments
+                        ),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -155,16 +176,23 @@ fun TimestampCommentsSheet(
                     // Count first, then the track, then which provider answered. Resolved as plain
                     // statements in the composable body — `stringResource` needs a composable
                     // context, so none of this goes inside a `remember` block.
-                    val countLine = when {
-                        comments.size == 1 -> stringResource(R.string.timestamped_comments_one)
-                        comments.size > 1 ->
-                            stringResource(R.string.timestamped_comments_count, comments.size)
-                        else -> null
+                    // Both of these describe the timed thread only. On the All tab the subtitle
+                    // keeps the track title and drops them: a count of timed comments and the
+                    // provider that supplied them say nothing about a YouTube thread.
+                    val countLine = if (timedSelected) {
+                        when {
+                            comments.size == 1 -> stringResource(R.string.timestamped_comments_one)
+                            comments.size > 1 ->
+                                stringResource(R.string.timestamped_comments_count, comments.size)
+                            else -> null
+                        }
+                    } else {
+                        null
                     }
                     val subtitleParts = mutableListOf<String>()
                     countLine?.let { subtitleParts.add(it) }
                     trackTitle?.takeIf { it.isNotBlank() }?.let { subtitleParts.add(it) }
-                    val provider = uiState.sourceName
+                    val provider = uiState.sourceName?.takeIf { timedSelected }
                     if (provider != null) {
                         subtitleParts.add(stringResource(R.string.timestamped_comments_source, provider))
                     }
@@ -190,46 +218,104 @@ fun TimestampCommentsSheet(
 
             HorizontalDivider()
 
-            if (durationMs > 0L && comments.isNotEmpty()) {
-                CommentTimelineBar(
-                    markers = markers,
-                    comments = comments,
-                    durationMs = durationMs,
-                    positionProvider = positionProvider,
-                    activeColor = accent,
-                    inactiveColor = muted.copy(alpha = 0.45f),
-                    trackColor = muted.copy(alpha = 0.18f),
-                    onSeekFraction = { fraction -> onSeekTo((fraction * durationMs).toLong()) },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-                HorizontalDivider()
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                SegmentedButton(
+                    selected = timedSelected,
+                    onClick = { timedSelected = true },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) { Text(stringResource(R.string.comments_tab_timed)) }
+                SegmentedButton(
+                    selected = !timedSelected,
+                    onClick = { timedSelected = false },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) { Text(stringResource(R.string.comments_tab_all)) }
             }
 
-            when {
-                comments.isNotEmpty() -> CommentList(
-                    comments = comments,
-                    groups = groups,
-                    activeGroupIndex = activeGroupIndex,
-                    onSeekTo = onSeekTo,
+            HorizontalDivider()
+
+            if (timedSelected) {
+                if (durationMs > 0L && comments.isNotEmpty()) {
+                    CommentTimelineBar(
+                        markers = markers,
+                        comments = comments,
+                        durationMs = durationMs,
+                        positionProvider = positionProvider,
+                        activeColor = accent,
+                        inactiveColor = muted.copy(alpha = 0.45f),
+                        trackColor = muted.copy(alpha = 0.18f),
+                        onSeekFraction = { fraction -> onSeekTo((fraction * durationMs).toLong()) },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                    HorizontalDivider()
+                }
+
+                when {
+                    comments.isNotEmpty() -> CommentList(
+                        comments = comments,
+                        groups = groups,
+                        activeGroupIndex = activeGroupIndex,
+                        onSeekTo = onSeekTo,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    )
+
+                    uiState.isLoading -> Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularWavyProgressIndicator()
+                    }
+
+                    else -> CommentsUnavailable(
+                        status = uiState.status,
+                        onRetry = onRefresh,
+                        onOpenProviderSettings = onOpenProviderSettings,
+                    )
+                }
+            } else if (youTubeVideoId != null) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                )
-
-                uiState.isLoading -> Box(
+                ) {
+                    YouTubeCommentList(videoId = youTubeVideoId)
+                }
+            } else {
+                // Not an error state. A local file, or a track matched through Audius or SoundCloud,
+                // simply has no YouTube thread to read — saying so beats a spinner that never
+                // resolves, and beats spending a request on an id that was never a video id.
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(240.dp),
+                        .weight(1f),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularWavyProgressIndicator()
+                    Column(
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.info),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = muted,
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.comments_all_unavailable),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = muted,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
-
-                else -> CommentsUnavailable(
-                    status = uiState.status,
-                    onRetry = onRefresh,
-                    onOpenProviderSettings = onOpenProviderSettings,
-                )
             }
         }
     }

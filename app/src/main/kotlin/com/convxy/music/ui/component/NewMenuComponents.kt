@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -30,6 +31,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,12 +83,25 @@ fun NewActionButton(
         }
     }
 
+    val config = LocalGlassEffectConfig.current
+    val useGlass = config.isEnabledFor(GlassComponent.MENU) && isGlassAllowed()
+    val sampler = rememberOuterBackdropSampler()
+
     Card(
         modifier = modifier
+            .then(
+                if (useGlass) sampler.measureModifier.liquidGlass(
+                    config,
+                    shape = RoundedCornerShape(16.dp),
+                    surfaceTintOverride = animatedBackground,
+                ) else Modifier
+            )
             .clickable(enabled = enabled) { performAction = true },
-        colors = CardDefaults.cardColors(
-            containerColor = animatedBackground
-        ),
+        colors = if (useGlass) {
+            CardDefaults.cardColors(containerColor = Color.Transparent)
+        } else {
+            CardDefaults.cardColors(containerColor = animatedBackground)
+        },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
         )
@@ -168,6 +183,9 @@ fun NewActionGrid(
     modifier: Modifier = Modifier,
     columns: Int = 3
 ) {
+    val config = LocalGlassEffectConfig.current
+    val useGlass = config.isEnabledFor(GlassComponent.MENU) && isGlassAllowed()
+
     FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
@@ -185,35 +203,82 @@ fun NewActionGrid(
 
             val bgColor = if (action.backgroundColor != Color.Unspecified) action.backgroundColor else MaterialTheme.colorScheme.surfaceVariant
             val contentCol = if (action.contentColor != Color.Unspecified) action.contentColor else MaterialTheme.colorScheme.onSurfaceVariant
-
-            ToggleButton(
-                checked = false,
-                onCheckedChange = { performAction = true },
-                enabled = action.enabled,
-                shapes = when {
-                    actions.size == 1 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    index == actions.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                },
-                colors = ToggleButtonDefaults.toggleButtonColors(
-                    containerColor = bgColor,
-                    contentColor = contentCol,
-                    disabledContainerColor = bgColor.copy(alpha = 0.5f),
-                    disabledContentColor = contentCol.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .semantics { role = Role.Button }
-            ) {
-                action.icon()
-                Spacer(Modifier.size(ToggleButtonDefaults.IconSpacing))
-                Text(
-                    text = action.text,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            // Grouped like the row cards: outer pills round out, joins stay tight.
+            val pillShape = when {
+                actions.size == 1 -> RoundedCornerShape(16.dp)
+                index == 0 -> RoundedCornerShape(
+                    topStart = 16.dp, bottomStart = 16.dp, topEnd = 6.dp, bottomEnd = 6.dp,
                 )
+                index == actions.lastIndex -> RoundedCornerShape(
+                    topStart = 6.dp, bottomStart = 6.dp, topEnd = 16.dp, bottomEnd = 16.dp,
+                )
+                else -> RoundedCornerShape(6.dp)
+            }
+            val sampler = rememberOuterBackdropSampler()
+
+            if (useGlass) {
+                // The connected ToggleButton shapes cannot be handed to the glass
+                // surface, so the glass branch draws the same grouped pill itself and
+                // keeps the button semantics.
+                CompositionLocalProvider(
+                    LocalContentColor provides
+                        if (action.enabled) contentCol else contentCol.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(sampler.measureModifier)
+                            .liquidGlass(
+                                config,
+                                shape = pillShape,
+                                surfaceTintOverride = bgColor,
+                            )
+                            .clickable(enabled = action.enabled) { performAction = true }
+                            .semantics { role = Role.Button }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        action.icon()
+                        Spacer(Modifier.size(8.dp))
+                        Text(
+                            text = action.text,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            } else {
+                ToggleButton(
+                    checked = false,
+                    onCheckedChange = { performAction = true },
+                    enabled = action.enabled,
+                    shapes = when {
+                        actions.size == 1 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        index == actions.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    },
+                    colors = ToggleButtonDefaults.toggleButtonColors(
+                        containerColor = bgColor,
+                        contentColor = contentCol,
+                        disabledContainerColor = bgColor.copy(alpha = 0.5f),
+                        disabledContentColor = contentCol.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { role = Role.Button }
+                ) {
+                    action.icon()
+                    Spacer(Modifier.size(ToggleButtonDefaults.IconSpacing))
+                    Text(
+                        text = action.text,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -282,12 +347,25 @@ fun NewIconButton(
         label = "content"
     )
 
+    val config = LocalGlassEffectConfig.current
+    val useGlass = config.isEnabledFor(GlassComponent.MENU) && isGlassAllowed()
+    val sampler = rememberOuterBackdropSampler()
+
     Card(
         modifier = modifier
+            .then(
+                if (useGlass) sampler.measureModifier.liquidGlass(
+                    config,
+                    shape = CircleShape,
+                    surfaceTintOverride = animatedBackground,
+                ) else Modifier
+            )
             .clickable(enabled = enabled) { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = animatedBackground
-        ),
+        colors = if (useGlass) {
+            CardDefaults.cardColors(containerColor = Color.Transparent)
+        } else {
+            CardDefaults.cardColors(containerColor = animatedBackground)
+        },
         shape = CircleShape,
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp

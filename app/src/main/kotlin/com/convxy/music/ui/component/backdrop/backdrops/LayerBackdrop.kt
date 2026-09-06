@@ -52,6 +52,17 @@ class LayerBackdrop internal constructor(
     internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null)
 
     /**
+     * True once a `drawBackdrop` surface has recorded into this backdrop as its
+     * `exportedBackdrop`: that recording contains the surface's own paint only —
+     * its `drawContent()` is deliberately excluded — so it can never contain a
+     * descendant of the surface. Descendants sampling it therefore cannot form a
+     * RenderNode cycle, which is what makes the library's nested-glass pattern
+     * (a sheet exporting its surface for the controls inside it) legal here; see
+     * [com.convxy.music.ui.component.recordsAncestorOf].
+     */
+    internal var recordsOwnPaintOnly: Boolean = false
+
+    /**
      * Monotonic counter bumped by [LayerBackdropModifier]'s node each time this
      * backdrop's content is re-recorded. Glass surfaces read it during their draw
      * pass to skip re-recording their own layers when the source is static (e.g.

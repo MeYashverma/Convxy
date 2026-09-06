@@ -105,4 +105,29 @@ class GlassSettingsControlsTest {
     fun `slider declines Material colors, which the glass rail has no equivalent for`() {
         assertFalse(sliderEligible(hasCustomColors = true))
     }
+
+    @Test
+    fun `menus are a glass component the user can turn off on their own`() {
+        assertTrue(GlassEffectConfig().isEnabledFor(GlassComponent.MENU))
+        assertFalse(GlassEffectConfig(menuEnabled = false).isEnabledFor(GlassComponent.MENU))
+        assertFalse(
+            GlassEffectConfig(globalEnabled = false).isEnabledFor(GlassComponent.MENU),
+        )
+    }
+
+    @Test
+    fun `an enabled menu alone makes capturing the app backdrop worth it`() {
+        // Menus sample the app backdrop like the other chrome (the overlay sits next
+        // to the recorded box), unlike settings controls, which refract a backdrop
+        // they record themselves and are excluded from this decision.
+        assertTrue(
+            GlassEffectConfig(
+                playerEnabled = false,
+                miniPlayerEnabled = false,
+                navBarEnabled = false,
+                sidePanelEnabled = false,
+                menuEnabled = true,
+            ).anyComponentEnabled,
+        )
+    }
 }

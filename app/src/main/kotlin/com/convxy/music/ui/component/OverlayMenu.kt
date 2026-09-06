@@ -23,15 +23,26 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import android.os.Build
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.convxy.music.LocalPlayerAwareWindowInsets
+import com.convxy.music.ui.component.backdrop.BackdropEffectScope
+import com.convxy.music.ui.component.backdrop.backdrops.rememberLayerBackdrop
+import com.convxy.music.ui.component.backdrop.drawBackdrop
+import com.convxy.music.ui.component.backdrop.effects.blur
+import com.convxy.music.ui.component.backdrop.effects.colorControls
+import com.convxy.music.ui.component.backdrop.effects.lens
+import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
 import com.convxy.music.ui.component.shapes.ContinuousRoundedRectangle
 
 /**
@@ -41,10 +52,20 @@ import com.convxy.music.ui.component.shapes.ContinuousRoundedRectangle
  * app goes through here or through [BottomSheetMenu] depending on one preference, and
  * neither the menus themselves nor the ~30 places that open them know which is in use.
  *
- * A dim rather than a blur behind it. Blurring the whole window every frame a menu is
- * open is real GPU cost for a surface that is about to be covered anyway, and sampling
- * the app backdrop from a root-level overlay is exactly the RenderNode cycle the glass
- * chrome has to avoid elsewhere. The dim reads the same and costs nothing.
+ * A dim rather than a blur behind it: blurring the whole window every frame a menu is
+ * open is real GPU cost for a surface that is about to be covered anyway, and the dim
+ * reads the same and costs nothing.
+ *
+ * The panel itself IS glass when [GlassComponent.MENU] is on. It samples the app backdrop
+ * through [rememberOuterBackdropSampler], which is safe from a root-level overlay: this
+ * composable sits next to MainActivity's recorded box, not inside it, so the recording is
+ * a sibling layer rather than an ancestor (the old note here claimed the opposite; the
+ * ancestry audit of every glass surface disproved it). The panel then exports its own
+ * painted surface as a backdrop and provides it as [LocalAppBackdrop] to its content, so
+ * the pills and rows inside refract the sheet they sit on — the library's nested-glass
+ * pattern, legal because an exported recording holds the surface's own paint and never
+ * its children. Where sampling is unsafe the panel falls back to frosted glass and the
+ * controls inside keep working, because the export is live either way.
  */
 @Composable
 fun OverlayMenu(
@@ -98,6 +119,53 @@ fun OverlayMenu(
                     targetOffsetY = { it },
                 ) + fadeOut(),
             ) {
+                val menuShape = ContinuousRoundedRectangle(28.dp)
+                val config = LocalGlassEffectConfig.current
+                val glassWanted = config.isEnabledFor(GlassComponent.MENU) && isGlassAllowed()
+                val realGlass = glassWanted &&
+                    !shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())
+                val menuBackdrop = rememberLayerBackdrop()
+                val outer = rememberOuterBackdropSampler()
+                val density = LocalDensity.current
+                // Heavier than the clear pills, like the player: a menu is a sheet of
+                // material, not a control.
+                val menuBlurDp = config.blurRadius * MenuBlurMultiplier
+                val resolutionScale = glassResolutionScale(menuBlurDp).coerceIn(0.05f, 1f)
+                val saturation = glassSaturation(config.vibrancy)
+                val blurPx = with(density) { menuBlurDp.dp.toPx() } * resolutionScale
+                val lensHeightPx =
+                    with(density) { (config.lensHeight * LENS_MAX_DP).dp.toPx() } * resolutionScale
+                val lensAmountPx =
+                    with(density) { (config.lensAmount * LENS_MAX_DP).dp.toPx() } * resolutionScale
+                // Remembered on exactly what they read: a fresh lambda each recomposition
+                // makes the drawBackdrop element unequal and re-captures the backdrop.
+                val effectsBlock: BackdropEffectScope.() -> Unit = remember(
+                    saturation,
+                    blurPx,
+                    lensHeightPx,
+                    lensAmountPx,
+                    config.depthEffect,
+                    config.chromaticAberration,
+                ) {
+                    {
+                        if (saturation != 1f) colorControls(saturation = saturation)
+                        if (blurPx > 0f) blur(blurPx)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            (lensHeightPx > 0f || lensAmountPx > 0f)
+                        ) {
+                            lens(
+                                refractionHeight = lensHeightPx,
+                                refractionAmount = lensAmountPx,
+                                depthEffect = config.depthEffect,
+                                chromaticAberration = config.chromaticAberration,
+                            )
+                        }
+                    }
+                }
+                val tintBlock: DrawScope.() -> Unit = remember(background, config.surfaceOpacity) {
+                    { drawRect(background.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f))) }
+                }
+
                 Column(
                     modifier = Modifier
                         .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
@@ -105,7 +173,28 @@ fun OverlayMenu(
                         .padding(horizontal = 12.dp, vertical = 12.dp)
                         .widthIn(max = MenuMaxWidth)
                         .fillMaxWidth()
-                        .background(background, ContinuousRoundedRectangle(28.dp))
+                        .then(
+                            when {
+                                realGlass -> Modifier
+                                    .then(outer.measureModifier)
+                                    .drawBackdrop(
+                                        backdrop = outer.effective,
+                                        shape = { menuShape },
+                                        effects = effectsBlock,
+                                        // A rim on a sheet this large renders as a stray
+                                        // band of light, same reason the player skips it.
+                                        highlight = { null },
+                                        exportedBackdrop = menuBackdrop,
+                                        onDrawSurface = tintBlock,
+                                        backdropScale = resolutionScale,
+                                    )
+                                glassWanted -> Modifier.background(
+                                    background.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f)),
+                                    menuShape,
+                                )
+                                else -> Modifier.background(background, menuShape)
+                            }
+                        )
                         // Swallows taps so a press on the menu itself does not reach the
                         // scrim's dismiss handler underneath.
                         .clickable(
@@ -119,7 +208,14 @@ fun OverlayMenu(
                         // themselves; this Column only has to stay bounded, which the
                         // fillMaxSize parent already guarantees.
                         .padding(horizontal = 20.dp, vertical = 12.dp),
-                    content = { state.content(this) },
+                    content = {
+                        // The sheet's own painted surface, exported above: the pills and
+                        // rows inside refract the sheet they sit on, and stay legal glass
+                        // everywhere because that recording cannot contain them.
+                        CompositionLocalProvider(LocalAppBackdrop provides menuBackdrop) {
+                            state.content(this)
+                        }
+                    },
                 )
             }
         }
@@ -131,3 +227,6 @@ private val ScrimColor = Color.Black.copy(alpha = 0.55f)
 
 /** Beyond this the action rows stretch into a very wide, hard-to-scan line on a tablet. */
 private val MenuMaxWidth = 560.dp
+
+/** Sheets of material blur more than the clear control pills, like the player does. */
+private const val MenuBlurMultiplier = 2f

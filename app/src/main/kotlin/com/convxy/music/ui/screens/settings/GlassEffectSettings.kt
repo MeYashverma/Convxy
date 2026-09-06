@@ -76,6 +76,7 @@ import com.convxy.music.constants.LiquidGlassLensAmountKey
 import com.convxy.music.constants.LiquidGlassLensHeightKey
 import com.convxy.music.constants.LiquidGlassMiniPlayerEnabledKey
 import com.convxy.music.constants.LiquidGlassNavBarEnabledKey
+import com.convxy.music.constants.LiquidGlassMenuEnabledKey
 import com.convxy.music.constants.LiquidGlassSettingsControlsEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelVibrancyKey
@@ -217,6 +218,9 @@ fun GlassEffectSettings(
     )
     val (settingsControlsEnabled, onSettingsControlsEnabledChange) = rememberPreference(
         LiquidGlassSettingsControlsEnabledKey, defaultValue = true
+    )
+    val (menusEnabled, onMenusEnabledChange) = rememberPreference(
+        LiquidGlassMenuEnabledKey, defaultValue = true
     )
     val (sidePanelVibrancy, onSidePanelVibrancyChange) = rememberPreference(
         LiquidGlassSidePanelVibrancyKey, defaultValue = 1.2f
@@ -529,6 +533,27 @@ fun GlassEffectSettings(
                         )
                     },
                     onClick = { onSettingsControlsEnabledChange(!settingsControlsEnabled) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.list),
+                    title = { Text(stringResource(R.string.liquid_glass_menus)) },
+                    description = { Text(stringResource(R.string.liquid_glass_menus_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = menusEnabled,
+                            onCheckedChange = onMenusEnabledChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (menusEnabled) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onMenusEnabledChange(!menusEnabled) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.nav_bar),

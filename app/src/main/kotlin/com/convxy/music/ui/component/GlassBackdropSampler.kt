@@ -34,7 +34,18 @@ import com.convxy.music.ui.component.backdrop.backdrops.emptyBackdrop
  * returns false for it.
  */
 fun Backdrop?.recordsAncestorOf(coordinates: LayoutCoordinates?): Boolean {
-    val source = (this as? LayerBackdrop)?.layerCoordinates ?: return false
+    val layer = this as? LayerBackdrop ?: return false
+    val source = layer.layerCoordinates ?: return false
+    // The surface itself (or its own modifier layer) sampling its own recording is
+    // circular even when that recording is paint-only.
+    if (coordinates === source || coordinates?.parentLayoutCoordinates === source) {
+        return true
+    }
+    // A drawBackdrop export holds the surface's own paint and nothing below it, so
+    // a recording made this way cannot contain the sampler: nested glass — a sheet
+    // handing its surface to the controls inside — is legal by construction. Only
+    // whole-subtree recordings (Modifier.layerBackdrop) are circular from within.
+    if (layer.recordsOwnPaintOnly) return false
     // From the surface itself, not its parent: a modifier on the recording node
     // reports that node's own coordinates, and a surface sampling from there is
     // just as circular as one sampling from inside it.

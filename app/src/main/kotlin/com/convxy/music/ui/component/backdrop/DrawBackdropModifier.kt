@@ -605,6 +605,10 @@ private class DrawBackdropNode(
                 }
             }
             exportedBackdrop?.layerCoordinates = coordinates
+            // The export records this surface's own paint and never drawContent(),
+            // so from here on the ancestry guard may treat it as safe to sample
+            // from inside the surface.
+            exportedBackdrop?.recordsOwnPaintOnly = true
         }
     }
 

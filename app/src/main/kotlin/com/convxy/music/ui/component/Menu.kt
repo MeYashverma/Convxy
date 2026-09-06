@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -30,11 +31,14 @@ import androidx.compose.ui.unit.dp
 fun Material3MenuGroup(
     items: List<Material3MenuItemData>
 ) {
+    val config = LocalGlassEffectConfig.current
+    val useGlass = config.isEnabledFor(GlassComponent.MENU) && isGlassAllowed()
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items.forEachIndexed { index, item ->
+            val sampler = rememberOuterBackdropSampler()
             val shape = when {
                 items.size == 1 -> RoundedCornerShape(24.dp)
                 index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
@@ -45,11 +49,25 @@ fun Material3MenuGroup(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize(),
+                    .animateContentSize()
+                    // Inside a menu this samples the sheet's exported surface (the
+                    // nested-glass pattern); the sampler keeps it legal anywhere else
+                    // the group is ever composed.
+                    .then(
+                        if (useGlass) {
+                            sampler.measureModifier.liquidGlass(config, shape = shape)
+                        } else {
+                            Modifier
+                        }
+                    ),
                 shape = shape,
-                colors = item.cardColors ?: CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                ),
+                colors = if (useGlass) {
+                    CardDefaults.cardColors(containerColor = Color.Transparent)
+                } else {
+                    item.cardColors ?: CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                },
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Material3MenuItemRow(item = item)

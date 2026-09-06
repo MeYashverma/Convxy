@@ -76,6 +76,9 @@ data class GlassEffectConfig(
     /** Tablet side panel — split from [navBarEnabled] so it can differ from the
      *  phone bottom bar's glass setting instead of always mirroring it. */
     val sidePanelEnabled: Boolean = true,
+    /** Long-press menus and the pills/rows inside them. In [anyComponentEnabled]:
+     *  an open menu samples the app backdrop like any other chrome. */
+    val menuEnabled: Boolean = true,
     /** Switches and sliders on settings screens. Not in [anyComponentEnabled]:
      *  these refract a backdrop they record themselves (the toggle track, the
      *  slider rail), so they need no app-wide capture to work. */
@@ -115,6 +118,7 @@ data class GlassEffectConfig(
             GlassComponent.MINI_PLAYER -> miniPlayerEnabled
             GlassComponent.NAV_BAR -> navBarEnabled
             GlassComponent.SIDE_PANEL -> sidePanelEnabled
+            GlassComponent.MENU -> menuEnabled
             GlassComponent.SETTINGS_CONTROLS -> settingsControlsEnabled
         }
 
@@ -125,7 +129,8 @@ data class GlassEffectConfig(
      */
     val anyComponentEnabled: Boolean
         get() = globalEnabled &&
-            (playerEnabled || miniPlayerEnabled || navBarEnabled || sidePanelEnabled)
+            (playerEnabled || miniPlayerEnabled || navBarEnabled || sidePanelEnabled ||
+                menuEnabled)
 }
 
 /** UI surfaces that can individually opt in or out of the liquid glass effect. */
@@ -168,6 +173,9 @@ enum class GlassComponent {
     MINI_PLAYER,
     NAV_BAR,
     SIDE_PANEL,
+    /** Long-press menus: the overlay or sheet surface, and the action pills and
+     *  grouped rows inside it. */
+    MENU,
     /** Preference switches and value sliders — the small self-refracting
      *  controls on settings screens. */
     SETTINGS_CONTROLS,

@@ -47,6 +47,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Checkbox
@@ -62,6 +63,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
 import com.convxy.music.ui.component.GlassComponent
+import com.convxy.music.ui.component.LocalGlassEffectConfig
+import com.convxy.music.ui.component.isGlassAllowed
+import com.convxy.music.ui.component.liquidGlass
+import com.convxy.music.ui.component.rememberOuterBackdropSampler
+import androidx.compose.material3.IconButtonDefaults
 import com.convxy.music.ui.component.GlassSlider as Slider
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
@@ -928,6 +934,16 @@ fun Queue(
                         )
                     }
 
+                    val (headerGlassOn, headerGlassModifier) =
+                        rememberPlayerGlassSurface(CircleShape)
+                    val headerGlassColors = if (headerGlassOn) {
+                        IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = Color.Transparent
+                        )
+                    } else {
+                        IconButtonDefaults.filledTonalIconButtonColors()
+                    }
+
                     val likeDescription = if (currentSong?.song?.liked == true) stringResource(R.string.action_remove_like) else stringResource(R.string.action_like)
                     TooltipBox(
                         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
@@ -936,7 +952,8 @@ fun Queue(
                     ) {
                         FilledTonalIconButton(
                             onClick = playerConnection::toggleLike,
-                            modifier = Modifier.padding(end = 8.dp)
+                            modifier = Modifier.padding(end = 8.dp).then(headerGlassModifier),
+                            colors = headerGlassColors,
                         ) {
                             Icon(
                                 painter = painterResource(
@@ -957,7 +974,8 @@ fun Queue(
                     ) {
                         FilledTonalIconButton(
                             onClick = { locked = !locked },
-                            modifier = Modifier.padding(end = 8.dp)
+                            modifier = Modifier.padding(end = 8.dp).then(headerGlassModifier),
+                            colors = headerGlassColors,
                         ) {
                             Icon(
                                 painter = painterResource(if (locked) R.drawable.lock else R.drawable.lock_open),
@@ -989,7 +1007,9 @@ fun Queue(
                                         onDismiss = menuState::dismiss
                                     )
                                 }
-                            }
+                            },
+                            modifier = headerGlassModifier,
+                            colors = headerGlassColors,
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.more_vert),
@@ -1568,7 +1588,19 @@ private fun PlayerQueueButton(
 
     val alphaFactor = if (enabled) 1f else 0.35f
 
-    val appliedModifier = if (isActive) {
+    // Active buttons keep their wash as the glass tint; inactive ones read as clear
+    // glass, which replaces the 1dp border as the state tell.
+    val (glassOn, glassModifier) = rememberPlayerGlassSurface(
+        shape = shape,
+        surfaceTintOverride = if (isActive) textButtonColor else Color.Unspecified,
+    )
+
+    val appliedModifier = if (glassOn) {
+        modifier
+            .then(glassModifier)
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(alphaFactor)
+    } else if (isActive) {
         modifier.then(buttonModifier.background(textButtonColor)).alpha(alphaFactor)
     } else {
         modifier.then(
@@ -1623,3 +1655,29 @@ private fun PlayerQueueButton(
     }
 }
 
+
+/**
+ * The liquid glass surface for this sheet's chrome buttons, plus whether it is on.
+ *
+ * The queue and the player's bottom button group sit inside the player sheet, so the
+ * backdrop in scope is the player's own; the sampler keeps the surface legal if these
+ * are ever composed somewhere that records an ancestor instead.
+ */
+@Composable
+private fun rememberPlayerGlassSurface(
+    shape: CornerBasedShape,
+    surfaceTintOverride: Color = Color.Unspecified,
+): Pair<Boolean, Modifier> {
+    val config = LocalGlassEffectConfig.current
+    val useGlass = config.isEnabledFor(GlassComponent.PLAYER) && isGlassAllowed()
+    val sampler = rememberOuterBackdropSampler()
+    return if (useGlass) {
+        true to sampler.measureModifier.liquidGlass(
+            config,
+            shape = shape,
+            surfaceTintOverride = surfaceTintOverride,
+        )
+    } else {
+        false to Modifier
+    }
+}

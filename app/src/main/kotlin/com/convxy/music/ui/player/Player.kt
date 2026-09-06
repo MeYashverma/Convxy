@@ -247,6 +247,7 @@ import com.convxy.music.ui.player.customize.PlayerIconSlot
 import com.convxy.music.ui.player.customize.rememberDiyLayout
 import com.convxy.music.ui.player.customize.rememberPlayerIcon
 import com.convxy.music.ui.component.GlassComponent
+import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.LocalGlassEffectConfig
 import com.convxy.music.ui.component.PLAYER_BLUR_MULTIPLIER
 import com.convxy.music.ui.component.isGlassAllowed
@@ -3327,6 +3328,35 @@ fun BottomSheetPlayer(
 
                             Spacer(Modifier.width(12.dp))
 
+                            // Glass branch: the catalog rail and capsule thumb, sampling
+                            // the player backdrop like the seek bar above it. The drag
+                            // readout still works: onValueChange drives the system volume,
+                            // which this row collects and animates.
+                            val volumeGlassConfig = LocalGlassEffectConfig.current
+                            if (volumeGlassConfig.isEnabledFor(GlassComponent.PLAYER) &&
+                                isGlassAllowed()
+                            ) {
+                                GlassSlider(
+                                    value = volume,
+                                    onValueChange = { newVolume ->
+                                        dragVolume = newVolume
+                                        if (isCasting) {
+                                            castHandler?.setVolume(newVolume)
+                                        } else {
+                                            // Non-blocking update to prevent "fast swipe" lag
+                                            scope.launch(Dispatchers.Default) {
+                                                val newStep = (newVolume * maxSystemVolume).roundToInt()
+                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newStep, 0)
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !hideVolumeBar,
+                                    activeColor = seekBarActiveColor.copy(alpha = 0.7f),
+                                    inactiveColor = seekBarActiveColor.copy(alpha = 0.15f),
+                                    component = GlassComponent.PLAYER,
+                                )
+                            } else {
                             Slider(
                                 value = volume,
                                 onValueChange = { newVolume ->
@@ -3356,6 +3386,7 @@ fun BottomSheetPlayer(
                                     )
                                 }
                             )
+                            }
 
                             Spacer(Modifier.width(12.dp))
 

@@ -5,12 +5,22 @@
 
 package com.convxy.music.ui.component
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceAtMost
+import androidx.compose.ui.util.lerp
 import com.convxy.music.ui.component.backdrop.Backdrop
 import com.convxy.music.ui.component.backdrop.backdrops.emptyBackdrop
+import com.convxy.music.ui.component.backdrop.catalog.utils.InteractiveHighlight
+import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
 import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.tanh
 
 /**
  * Geometry and material constants shared by every liquid glass control.
@@ -231,3 +241,71 @@ internal fun liquidThumbRestScaleX(thumbWidthPx: Float, restSizePx: Float): Floa
 
 internal fun liquidThumbRestScaleY(thumbHeightPx: Float, restSizePx: Float): Float =
     if (thumbHeightPx <= 0f) 1f else (restSizePx / thumbHeightPx).coerceIn(0.05f, 1f)
+
+/**
+ * Whether a surface should render as real liquid glass right now.
+ *
+ * One definition, because four things have to agree before a surface can refract
+ * and every component was re-deriving them slightly differently: the user's
+ * per-component switch, platform capability (API 31 + not low-RAM), the chosen
+ * [GlassStyle], and whether anything is actually recorded behind the surface.
+ *
+ * Components use this to pick between their glass and flat renderers. Note that
+ * [Modifier.liquidGlass] already degrades on its own — this exists so a component
+ * can also change its *content* colour and skip gesture-only-glass work, which
+ * requires knowing the answer before building the modifier chain.
+ */
+@Composable
+fun rememberLiquidGlassActive(
+    component: GlassComponent,
+    config: GlassEffectConfig = LocalGlassEffectConfig.current,
+    backdrop: Backdrop? = LocalAppBackdrop.current,
+): Boolean =
+    config.isEnabledFor(component) &&
+            isGlassAllowed() &&
+            !shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported()) &&
+            backdrop.isLiveGlassBackdrop()
+
+/**
+ * The press transform every liquid glass control shares: a small growth plus a
+ * lean toward the finger, damped so it saturates instead of tracking linearly.
+ *
+ * This is the reference implementation's own button physics (its `LiquidButton`
+ * applies it inside `drawBackdrop`'s layer block). Two details are worth keeping:
+ *
+ *  - the lean goes through `tanh`, so a finger dragged to the edge of the button
+ *    pushes the surface toward that edge and *stops* — a linear offset would slide
+ *    the whole button off its own footprint;
+ *  - the extra scale is anisotropic, derived from the drag angle and the button's
+ *    aspect ratio, so a wide pill stretches horizontally under a horizontal drag
+ *    and a circle stays a circle.
+ *
+ * Applied as an outer [androidx.compose.ui.graphics.graphicsLayer] rather than
+ * through the backdrop's own layer block, because [Modifier.liquidGlass] does not
+ * expose one — and because scaling the whole surface (glass, rim and icon
+ * together) is what the layer block does anyway.
+ *
+ * Remember the result on the interaction: returning a fresh lambda per
+ * recomposition would make the modifier unequal and re-run its node every frame.
+ */
+fun liquidGlassPressLayerBlock(
+    interaction: InteractiveHighlight
+): GraphicsLayerScope.() -> Unit = {
+    val progress = interaction.pressProgress
+    val offset = interaction.offset
+    if (progress > 0f && size.height > 0f) {
+        val growth = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
+        val maxOffset = size.minDimension
+        val initialDerivative = 0.05f
+        translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
+        translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
+        val maxDragScale = 4f.dp.toPx() / size.height
+        val offsetAngle = atan2(offset.y, offset.x)
+        val widthOverHeight = (size.width / size.height).fastCoerceAtMost(1f)
+        val heightOverWidth = (size.height / size.width).fastCoerceAtMost(1f)
+        scaleX = growth +
+                maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) * widthOverHeight
+        scaleY = growth +
+                maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) * heightOverWidth
+    }
+}

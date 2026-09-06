@@ -228,6 +228,7 @@ import com.convxy.music.ui.component.BottomSheetState
 import com.convxy.music.ui.component.LocalBottomSheetPageState
 import com.convxy.music.ui.component.LocalMenuState
 import com.convxy.music.ui.component.Lyrics
+import com.convxy.music.ui.component.LiquidGlassIconButton
 import com.convxy.music.ui.component.LiquidGlassSlider
 import com.convxy.music.ui.component.PlayerSliderTrack
 import com.convxy.music.ui.component.ResizableIconButton
@@ -2979,15 +2980,18 @@ fun BottomSheetPlayer(
                                 label = "nextButtonWeight"
                             )
 
-                            FilledIconButton(
+                            LiquidGlassIconButton(
                                 onClick = playerConnection::seekToPrevious,
                                 enabled = canSkipPrevious && !isListenTogetherGuest,
                                 shape = RoundedCornerShape(50),
                                 interactionSource = backInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
+                                // The row grows the pressed button through its
+                                // animated weight, so the liquid press transform is
+                                // off here; the light under the finger stays.
+                                growOnPress = false,
+                                containerColor = sideButtonContainerColor,
+                                contentColor = sideButtonContentColor,
+                                size = Dp.Unspecified,
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(backButtonWeight)
@@ -3003,11 +3007,11 @@ fun BottomSheetPlayer(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            FilledIconButton(
+                            LiquidGlassIconButton(
                                 onClick = {
                                     if (isListenTogetherGuest) {
                                         playerConnection.toggleMute()
-                                        return@FilledIconButton
+                                        return@LiquidGlassIconButton
                                     }
                                     if (isCasting) {
                                         if (castIsPlaying) {
@@ -3024,10 +3028,13 @@ fun BottomSheetPlayer(
                                 },
                                 shape = RoundedCornerShape(50),
                                 interactionSource = playPauseInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = textButtonColor,
-                                    contentColor = iconButtonColor,
-                                ),
+                                // The row grows the pressed button through its
+                                // animated weight, so the liquid press transform is
+                                // off here; the light under the finger stays.
+                                growOnPress = false,
+                                containerColor = textButtonColor,
+                                contentColor = iconButtonColor,
+                                size = Dp.Unspecified,
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(playPauseWeight)
@@ -3072,15 +3079,18 @@ fun BottomSheetPlayer(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            FilledIconButton(
+                            LiquidGlassIconButton(
                                 onClick = playerConnection::seekToNext,
                                 enabled = canSkipNext && !isListenTogetherGuest,
                                 shape = RoundedCornerShape(50),
                                 interactionSource = nextInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
+                                // The row grows the pressed button through its
+                                // animated weight, so the liquid press transform is
+                                // off here; the light under the finger stays.
+                                growOnPress = false,
+                                containerColor = sideButtonContainerColor,
+                                contentColor = sideButtonContentColor,
+                                size = Dp.Unspecified,
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(nextButtonWeight)

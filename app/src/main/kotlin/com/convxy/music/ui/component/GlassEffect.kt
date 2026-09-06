@@ -354,6 +354,12 @@ fun Modifier.liquidGlass(
     blurRadiusDp: Float = config.blurRadius,
     // The nav bar and mini player want a dimmer specular rim than the default.
     highlightAlpha: Float = EdgeHighlightAlpha,
+    // Per-surface tint, for call sites that carry their own container colour: the
+    // player's transport buttons are tinted with the artwork-derived button colour,
+    // and without this they would lose it to the global glass tint the moment they
+    // became glass. Unspecified keeps the config/theme-adaptive tint that every
+    // existing surface uses, so nothing already calling this changes.
+    surfaceTintOverride: Color = Color.Unspecified,
     // Fraction of the surface resolution the backdrop is recorded at. Defaults to
     // [glassResolutionScale] for the blur radius (cheap, and the blur masks the
     // upscaling) — pass 1f for a crisp full-resolution backdrop, e.g. the small
@@ -386,7 +392,9 @@ fun Modifier.liquidGlass(
     // that blends into an OLED-black background. Honor an explicit user color,
     // otherwise use a proper adaptive glass gray rather than matching the theme
     // surface color 1:1 (which made the bar invisible over pure-black content).
-    val surfaceTintColor = if (config.surfaceTintColor.isSpecified) {
+    val surfaceTintColor = if (surfaceTintOverride.isSpecified) {
+        surfaceTintOverride
+    } else if (config.surfaceTintColor.isSpecified) {
         config.surfaceTintColor
     } else if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
         Color(0xFFFAFAFA)

@@ -61,7 +61,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Slider
+import com.convxy.music.ui.component.GlassComponent
+import com.convxy.music.ui.component.GlassSlider as Slider
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.SnackbarDuration
@@ -762,6 +763,7 @@ fun Queue(
                             Spacer(Modifier.height(16.dp))
 
                             Slider(
+                                component = GlassComponent.PLAYER,
                                 value = sleepTimerValue,
                                 onValueChange = { sleepTimerValue = it },
                                 valueRange = 5f..120f,

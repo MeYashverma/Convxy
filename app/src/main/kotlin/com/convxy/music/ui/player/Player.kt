@@ -340,13 +340,12 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     /**
-     * Receives the glass background's own painted surface (its `drawBackdrop`
-     * export) so the caller can hand it to surfaces that sit OVER the player --
-     * an open menu refracts the player instead of the page list behind it. The
-     * sheet's content gets it through [LocalAppBackdrop] as well: sampling the
-     * whole-subtree [playerBackdrop] from inside the sheet is a RenderNode cycle,
-     * which the ancestry guard declines into frosted glass; a paint-only export
-     * is legal from descendants and carries the artwork the effects need.
+     * Receives the recording of the whole player background (glass base plus the
+     * artwork/mesh layers on top of it) so surfaces that sit over or inside the
+     * sheet refract what the player actually shows. The sheet content and the
+     * queue get it through [LocalAppBackdrop]; MainActivity hands it to an open
+     * menu. None of those are descendants of the background Box, so sampling it
+     * is legal, and it carries the artwork detail the blur and lens need.
      */
     surfaceExport: LayerBackdrop? = null,
     pureBlack: Boolean,
@@ -1370,7 +1369,17 @@ fun BottomSheetPlayer(
                     // Pairs with the inner graphicsLayer the same way MainActivity's
                     // app backdrop does.
                     .graphicsLayer()
-                    .layerBackdrop(playerBackdrop, frozen = state.backdropFrozen)
+                    // While glass is on this recording IS the export: it contains
+                    // everything visible as the player background -- the glass base's
+                    // own paint AND the artwork/mesh layers drawn on top of it. A
+                    // drawBackdrop export would only carry the node's own paint
+                    // (blurred page + tint), so menus, pills and the trio refracted
+                    // a featureless homepage wash instead of the artwork.
+                    .layerBackdrop(
+                        if (glassActive && surfaceExport != null) surfaceExport
+                        else playerBackdrop,
+                        frozen = state.backdropFrozen
+                    )
                     .graphicsLayer()
                     .then(
                         if (glassActive) {
@@ -1383,7 +1392,6 @@ fun BottomSheetPlayer(
                                 effects = glassEffects,
                                 highlight = { null },
                                 shadow = { null },
-                                exportedBackdrop = surfaceExport,
                                 onDrawSurface = glassTint,
                                 backdropScale = glassScale,
                             )
@@ -2473,7 +2481,8 @@ fun BottomSheetPlayer(
                 } else {
                     // Sample the player's own background (its blurred artwork/mesh
                     // layer), not whatever NavHost screen happens to be behind the
-                    // player sheet — see playerBackdrop declaration above.
+                    // player sheet — contentBackdrop is that recording (the export
+                    // while glass is on), see the declaration above.
                     // Stable across recompositions (remember'd) so DrawBackdropNode's
                     // loopBucket-identity check doesn't clear the pool every time this
                     // scope recomposes — only when video canvas actually toggles.
@@ -2482,7 +2491,7 @@ fun BottomSheetPlayer(
                     }
                     val videoCanvasActive = enableCanvas && canvasArtwork != null && backgroundVisible
                     CompositionLocalProvider(
-                        LocalAppBackdrop provides playerBackdrop,
+                        LocalAppBackdrop provides contentBackdrop,
                         LocalBackdropLoopBucket provides if (videoCanvasActive) loopBucketProvider else null,
                     ) {
                     AnimatedContent(targetState = showInlineLyrics, label = "DownloadButton") { showLyrics ->

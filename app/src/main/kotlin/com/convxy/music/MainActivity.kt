@@ -1437,9 +1437,11 @@ class MainActivity : ComponentActivity() {
                     }
                 )
 
-                // What an open menu refracts: the whole stack behind it, recorded
-                // while a menu is visible (see the Scaffold modifier).
-                val menuStackBackdrop = rememberLayerBackdrop()
+                // The player sheet's painted glass surface, exported by
+                // BottomSheetPlayer: what an open menu refracts while the player is
+                // up, and what the sheet's own controls sample. Recording the whole
+                // Scaffold here instead was circular -- the menu lives inside it.
+                val playerSurfaceBackdrop = rememberLayerBackdrop()
 
                 // While the user is scrolling, stop re-recording the backdrop source.
                 // layer.record { drawContent() } cannot reuse unchanged child RenderNodes,
@@ -1851,6 +1853,7 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.zIndex(if (playerAboveBars) 1f else 0f),
                                     ) {
                                         BottomSheetPlayer(
+                                            surfaceExport = playerSurfaceBackdrop,
                                             state = playerBottomSheetState,
                                             navController = navController,
                                             pureBlack = pureBlack
@@ -1944,6 +1947,8 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 if (currentRoute != "wrapped" && currentRoute != "update" && currentRoute != "listen_together/chat" && currentRoute != "ambient_mode") {
                                     BottomSheetPlayer(
+
+                                        surfaceExport = playerSurfaceBackdrop,
                                         state = playerBottomSheetState,
                                         navController = navController,
                                         pureBlack = pureBlack
@@ -1965,23 +1970,6 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         modifier = Modifier
-                            // While a long-press menu is open, record everything the
-                            // menu covers -- pages, player sheet, chrome -- so the
-                            // menu's glass refracts what is actually behind it.
-                            // Sampling the app backdrop instead showed the home page
-                            // through a menu opened over the player, because the player
-                            // sheet is not part of that recording. Attached only while
-                            // a menu is visible: the extra full-stack layer costs a
-                            // recording per invalidation, which is only worth paying
-                            // when something is refracting it. The menu hosts are
-                            // siblings of this Scaffold, so sampling it is legal.
-                            .then(
-                                if (LocalMenuState.current.isVisible) {
-                                    Modifier.layerBackdrop(menuStackBackdrop)
-                                } else {
-                                    Modifier
-                                }
-                            )
                             .fillMaxSize()
                             .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
                     ) {
@@ -2430,7 +2418,17 @@ class MainActivity : ComponentActivity() {
                     // sites are untouched either way.
                     val (overlayMenuStyle) = rememberPreference(OverlayMenuStyleKey, defaultValue = true)
                     if (overlayMenuStyle) {
-                        OverlayMenu(state = LocalMenuState.current)
+                        OverlayMenu(
+                            state = LocalMenuState.current,
+                            // Over the expanded player the app backdrop would show
+                            // the page list behind the sheet; the player's exported
+                            // glass surface is what is actually under the menu.
+                            sampleBackdrop = if (playerBottomSheetState.isExpanded) {
+                                playerSurfaceBackdrop
+                            } else {
+                                null
+                            },
+                        )
                     } else {
                         BottomSheetMenu(
                             state = LocalMenuState.current,

@@ -247,6 +247,17 @@ import com.convxy.music.ui.player.customize.PlayerIconSlot
 import com.convxy.music.ui.player.customize.rememberDiyLayout
 import com.convxy.music.ui.player.customize.rememberPlayerIcon
 import com.convxy.music.ui.component.GlassComponent
+import com.convxy.music.ui.component.backdrop.BackdropEffectScope
+import com.convxy.music.ui.component.backdrop.backdrops.LayerBackdrop
+import com.convxy.music.ui.component.backdrop.drawBackdrop
+import com.convxy.music.ui.component.backdrop.effects.blur
+import com.convxy.music.ui.component.backdrop.effects.colorControls
+import com.convxy.music.ui.component.glassResolutionScale
+import com.convxy.music.ui.component.glassSaturation
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.platform.LocalDensity
 import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.LocalGlassEffectConfig
 import com.convxy.music.ui.component.PLAYER_BLUR_MULTIPLIER
@@ -328,6 +339,16 @@ fun BottomSheetPlayer(
     state: BottomSheetState,
     navController: NavController,
     modifier: Modifier = Modifier,
+    /**
+     * Receives the glass background's own painted surface (its `drawBackdrop`
+     * export) so the caller can hand it to surfaces that sit OVER the player --
+     * an open menu refracts the player instead of the page list behind it. The
+     * sheet's content gets it through [LocalAppBackdrop] as well: sampling the
+     * whole-subtree [playerBackdrop] from inside the sheet is a RenderNode cycle,
+     * which the ancestry guard declines into frosted glass; a paint-only export
+     * is legal from descendants and carries the artwork the effects need.
+     */
+    surfaceExport: LayerBackdrop? = null,
     pureBlack: Boolean,
     // The DIY editor mounts this same composable as its live editing canvas (real
     // background/controls, not a hand-built approximation) and draws its own
@@ -1308,7 +1329,38 @@ fun BottomSheetPlayer(
         background = {
             val glassConfig = LocalGlassEffectConfig.current
             val glassActive = isGlassAllowed()
-            
+
+            // The glass material base, as an explicit drawBackdrop so it can export
+            // its painted surface (see [surfaceExport]): same recipe liquidGlass
+            // applied -- heavy blur, no rim on a surface this size, adaptive tint.
+            val glassDensity = LocalDensity.current
+            val glassBlurDp =
+                (glassConfig.blurRadius * PLAYER_BLUR_MULTIPLIER).coerceAtMost(100f)
+            val glassScale = glassResolutionScale(glassBlurDp).coerceIn(0.05f, 1f)
+            val glassSaturation = glassSaturation(glassConfig.vibrancy)
+            val glassBlurPx =
+                with(glassDensity) { glassBlurDp.dp.toPx() } * glassScale
+            val glassEffects: BackdropEffectScope.() -> Unit =
+                remember(glassSaturation, glassBlurPx) {
+                    {
+                        if (glassSaturation != 1f) colorControls(saturation = glassSaturation)
+                        if (glassBlurPx > 0f) blur(glassBlurPx)
+                    }
+                }
+            val glassShape: () -> Shape = remember { { RoundedCornerShape(0.dp) } }
+            val glassTint: DrawScope.() -> Unit = remember(glassConfig) {
+                {
+                    if (glassConfig.surfaceOpacity > 0f) {
+                        val tint = when {
+                            glassConfig.surfaceTintColor.isSpecified ->
+                                glassConfig.surfaceTintColor
+                            else -> Color(0xFF4A4A4E)
+                        }
+                        drawRect(tint.copy(alpha = glassConfig.surfaceOpacity))
+                    }
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1325,11 +1377,15 @@ fun BottomSheetPlayer(
                             // Unified Apple Music glass player background:
                             // Samples appBackdrop (root content) behind the sheet.
                             // Higher blur than pills to feel like heavy material.
-                            Modifier.liquidGlass(
-                                config = glassConfig,
-                                applyEdgeEffects = false,
-                                blurRadiusDp = (glassConfig.blurRadius * PLAYER_BLUR_MULTIPLIER)
-                                    .coerceAtMost(100f),
+                            Modifier.drawBackdrop(
+                                backdrop = LocalAppBackdrop.current,
+                                shape = glassShape,
+                                effects = glassEffects,
+                                highlight = { null },
+                                shadow = { null },
+                                exportedBackdrop = surfaceExport,
+                                onDrawSurface = glassTint,
+                                backdropScale = glassScale,
                             )
                         } else {
                             Modifier.background(bottomSheetBackgroundColor)
@@ -1985,14 +2041,19 @@ fun BottomSheetPlayer(
         val inheritedBackdrop = LocalAppBackdrop.current
         val foregroundBackdrop =
             if (inheritedBackdrop.isAttachedGlassBackdrop()) playerBackdrop else inheritedBackdrop
+        // The background's painted surface when the glass base is on: legal for every
+        // control inside the sheet to sample, and it carries the artwork detail the
+        // blur and lens need to be visible. Falls back to the old choice otherwise.
+        val contentBackdrop =
+            if (surfaceExport != null && isGlassAllowed()) surfaceExport else foregroundBackdrop
 
         if (useAppleMusicPlayer) {
-            CompositionLocalProvider(LocalAppBackdrop provides foregroundBackdrop) {
+            CompositionLocalProvider(LocalAppBackdrop provides contentBackdrop) {
                 PlayerV2(state = state, navController = navController, modifier = Modifier)
             }
             return@BottomSheet
         }
-        CompositionLocalProvider(LocalAppBackdrop provides foregroundBackdrop) {
+        CompositionLocalProvider(LocalAppBackdrop provides contentBackdrop) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,

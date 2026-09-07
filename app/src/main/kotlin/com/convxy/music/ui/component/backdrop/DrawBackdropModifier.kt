@@ -262,6 +262,11 @@ private class DrawBackdropElement(
             node.exportedBackdrop?.layerCoordinates = null
             node.exportedBackdrop = exportedBackdrop
         }
+        // Descendants decide whether they may sample this backdrop during their
+        // own layout, which runs BEFORE this node's onGloballyPositioned — setting
+        // the flag there left every descendant one layout pass too early, declined
+        // forever. The association itself is what makes the recording paint-only.
+        exportedBackdrop?.recordsOwnPaintOnly = true
         node.onDrawBehind = onDrawBehind
         node.onDrawBackdrop = onDrawBackdrop
         node.onDrawSurface = onDrawSurface

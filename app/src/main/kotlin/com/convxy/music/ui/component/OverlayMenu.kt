@@ -133,7 +133,11 @@ fun OverlayMenu(
                 val realGlass = glassWanted &&
                     !shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())
                 val menuBackdrop = rememberLayerBackdrop()
-                val outer = rememberOuterBackdropSampler(sampleBackdrop)
+                // Passing null here would NOT fall back to the default: the
+                // parameter default only applies when the argument is omitted, so
+                // over the pages the sampler had no backdrop at all and the sheet
+                // fell back to frosted glass. Null means "whatever is around".
+                val outer = rememberOuterBackdropSampler(sampleBackdrop ?: LocalAppBackdrop.current)
                 val density = LocalDensity.current
                 // Heavier than the clear pills, like the player: a menu is a sheet of
                 // material, not a control.

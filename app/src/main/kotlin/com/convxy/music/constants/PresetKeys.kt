@@ -274,6 +274,7 @@ val presetKeyTypes: Map<String, PrefType> = mapOf(
         "liquidGlassChromaticAberration" to PrefType.BOOL,
         "liquidGlassDepthEffect" to PrefType.BOOL,
         "liquidGlassPlayerEnabled" to PrefType.BOOL,
+        "liquidGlassSettingsControlsEnabled" to PrefType.BOOL,
         "liquidGlassMiniPlayerEnabled" to PrefType.BOOL,
         "liquidGlassNavBarEnabled" to PrefType.BOOL,
         "liquidGlassSidePanelEnabled" to PrefType.BOOL,

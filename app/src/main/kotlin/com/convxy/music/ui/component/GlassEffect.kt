@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.convxy.music.ui.component.backdrop.Backdrop
+import com.convxy.music.ui.component.backdrop.backdrops.emptyBackdrop
 import com.convxy.music.ui.component.backdrop.drawBackdrop
 import com.convxy.music.ui.component.backdrop.isRenderEffectSupported
 import com.convxy.music.ui.component.backdrop.effects.blur
@@ -75,6 +76,13 @@ data class GlassEffectConfig(
     /** Tablet side panel — split from [navBarEnabled] so it can differ from the
      *  phone bottom bar's glass setting instead of always mirroring it. */
     val sidePanelEnabled: Boolean = true,
+    /** Long-press menus and the pills/rows inside them. In [anyComponentEnabled]:
+     *  an open menu samples the app backdrop like any other chrome. */
+    val menuEnabled: Boolean = true,
+    /** Switches and sliders on settings screens. Not in [anyComponentEnabled]:
+     *  these refract a backdrop they record themselves (the toggle track, the
+     *  slider rail), so they need no app-wide capture to work. */
+    val settingsControlsEnabled: Boolean = true,
     /** Side panel gets its own effect tuning (unlike the other components,
      *  which all share [vibrancy]/[blurRadius]/[lensHeight]/[lensAmount]) —
      *  defaults match those shared values so it looks identical until
@@ -110,6 +118,8 @@ data class GlassEffectConfig(
             GlassComponent.MINI_PLAYER -> miniPlayerEnabled
             GlassComponent.NAV_BAR -> navBarEnabled
             GlassComponent.SIDE_PANEL -> sidePanelEnabled
+            GlassComponent.MENU -> menuEnabled
+            GlassComponent.SETTINGS_CONTROLS -> settingsControlsEnabled
         }
 
     /**
@@ -119,7 +129,8 @@ data class GlassEffectConfig(
      */
     val anyComponentEnabled: Boolean
         get() = globalEnabled &&
-            (playerEnabled || miniPlayerEnabled || navBarEnabled || sidePanelEnabled)
+            (playerEnabled || miniPlayerEnabled || navBarEnabled || sidePanelEnabled ||
+                menuEnabled)
 }
 
 /** UI surfaces that can individually opt in or out of the liquid glass effect. */
@@ -162,6 +173,12 @@ enum class GlassComponent {
     MINI_PLAYER,
     NAV_BAR,
     SIDE_PANEL,
+    /** Long-press menus: the overlay or sheet surface, and the action pills and
+     *  grouped rows inside it. */
+    MENU,
+    /** Preference switches and value sliders — the small self-refracting
+     *  controls on settings screens. */
+    SETTINGS_CONTROLS,
 }
 
 /**
@@ -293,8 +310,19 @@ private const val HighlightAngleFrozen = (HighlightAngleMin + HighlightAngleMax)
 
 val LocalGlassEffectConfig = staticCompositionLocalOf { GlassEffectConfig() }
 
-/** The backdrop content (app UI) that glass surfaces sample from. */
-val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { error("No AppBackdrop provided") }
+/**
+ * The backdrop content (app UI) that glass surfaces sample from.
+ *
+ * Defaults to [emptyBackdrop] rather than throwing. It used to `error()`, on the
+ * reasoning that a glass surface with no backdrop in scope is a wiring bug worth
+ * crashing for — but the surfaces are reached from dialogs, settings previews and
+ * secondary activities that sit outside MainActivity's `layerBackdrop`, so the
+ * "bug" was a reachable crash in shipped UI. Callers now ask
+ * [isLiveGlassBackdrop] and take their flat fallback instead: same visual result
+ * as glass being switched off, no exception, and the wiring mistake is still
+ * visible because the surface stops refracting.
+ */
+val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { emptyBackdrop() }
 
 /**
  * When set, glass surfaces in scope pool one recorded+effect-processed layer
@@ -342,6 +370,12 @@ fun Modifier.liquidGlass(
     blurRadiusDp: Float = config.blurRadius,
     // The nav bar and mini player want a dimmer specular rim than the default.
     highlightAlpha: Float = EdgeHighlightAlpha,
+    // Per-surface tint, for call sites that carry their own container colour: the
+    // player's transport buttons are tinted with the artwork-derived button colour,
+    // and without this they would lose it to the global glass tint the moment they
+    // became glass. Unspecified keeps the config/theme-adaptive tint that every
+    // existing surface uses, so nothing already calling this changes.
+    surfaceTintOverride: Color = Color.Unspecified,
     // Fraction of the surface resolution the backdrop is recorded at. Defaults to
     // [glassResolutionScale] for the blur radius (cheap, and the blur masks the
     // upscaling) — pass 1f for a crisp full-resolution backdrop, e.g. the small
@@ -374,7 +408,9 @@ fun Modifier.liquidGlass(
     // that blends into an OLED-black background. Honor an explicit user color,
     // otherwise use a proper adaptive glass gray rather than matching the theme
     // surface color 1:1 (which made the bar invisible over pure-black content).
-    val surfaceTintColor = if (config.surfaceTintColor.isSpecified) {
+    val surfaceTintColor = if (surfaceTintOverride.isSpecified) {
+        surfaceTintOverride
+    } else if (config.surfaceTintColor.isSpecified) {
         config.surfaceTintColor
     } else if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
         Color(0xFFFAFAFA)
@@ -396,7 +432,13 @@ fun Modifier.liquidGlass(
     // real blur, need something cheap that still respects the user's tint
     // and opacity settings" — so route the unsupported case here too instead
     // of a separate hardcoded fallback.
-    if (shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported())) {
+    if (shouldUseTranslucentGlassFallback(config.style, isRenderEffectSupported()) ||
+        // Nothing recorded behind this surface: MainActivity's layerBackdrop is not
+        // an ancestor (a dialog, a settings preview, a secondary activity). Sampling
+        // the empty backdrop would draw the tint over void, so take the same cheap
+        // translucent path the TRANSPARENT style takes.
+        !backdrop.isLiveGlassBackdrop()
+    ) {
         return this
             .clip(shape)
             .background(surfaceTintColor.copy(alpha = config.surfaceOpacity.coerceIn(0f, 1f)))

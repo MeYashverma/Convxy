@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import com.convxy.music.ui.utils.bounceClick
 import com.convxy.music.ui.utils.combinedBounceClick
 import androidx.compose.material3.*
+import com.convxy.music.ui.component.GlassSwitchCompat as Switch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier

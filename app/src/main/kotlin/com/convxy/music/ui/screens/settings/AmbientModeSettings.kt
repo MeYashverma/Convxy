@@ -18,7 +18,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
+// Routed to the glass dispatcher: every Slider( in this file is a settings value
+// slider, and this is the single place that decides between the liquid glass rail
+// and Material's. Call sites are unchanged.
+import com.convxy.music.ui.component.GlassSlider as Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior

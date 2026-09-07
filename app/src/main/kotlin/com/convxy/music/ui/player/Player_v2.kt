@@ -22,8 +22,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -55,8 +53,7 @@ import com.convxy.music.constants.PlayerThumbnailShadowElevationKey
 import com.convxy.music.constants.EnableGoogleCastKey
 import com.convxy.music.models.MediaMetadata
 import com.convxy.music.ui.component.BottomSheetState
-import com.convxy.music.ui.component.PlayerSliderTrack
-import com.convxy.music.ui.theme.PlayerSliderColors
+import com.convxy.music.ui.component.LiquidGlassSlider
 import com.convxy.music.utils.makeTimeString
 import com.convxy.music.utils.rememberEnumPreference
 import com.convxy.music.extensions.togglePlayPause
@@ -169,14 +166,6 @@ fun PlayerV2(
     
     // Custom volume state implementation since produceState awaitDispose can be tricky with imports
     var systemVolume by remember { mutableFloatStateOf(audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / maxSystemVolume) }
-    val animatedVolume by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = systemVolume,
-        animationSpec = androidx.compose.animation.core.tween(
-            durationMillis = 150,
-            easing = androidx.compose.animation.core.FastOutLinearInEasing
-        ),
-        label = "volumeAnimation"
-    )
     // Same staleness fix as Player.kt: VOLUME_CHANGED_ACTION is undocumented and is not
     // reliably delivered while backgrounded, so the slider could sit on a number the
     // system had long since moved off. Re-read on every resume as well.
@@ -753,19 +742,13 @@ fun PlayerV2(
                         // Apple Music Timeline Slider
                     val currentPos = sliderPosition ?: position
                     
-                    val trackInteractionSource = remember { MutableInteractionSource() }
-                    val isTrackDragged by trackInteractionSource.collectIsDraggedAsState()
-                    val isTrackPressed by trackInteractionSource.collectIsPressedAsState()
-                    val isTrackActive = isTrackDragged || isTrackPressed
-                    
-                    val trackHeight by animateDpAsState(
-                        targetValue = if (isTrackActive) 12.dp else 6.dp,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                        label = "trackScale"
-                    )
-                    
-                    Slider(
-                        value = currentPos.toFloat(),
+                    // Apple Music Timeline Slider, as a real liquid glass surface:
+                    // the thumb is a lens over the rail, swelling from a dot into a
+                    // capsule and refracting while it is pressed. The animated track
+                    // height this replaces was approximating that press response with
+                    // a flat Canvas line and no thumb at all.
+                    LiquidGlassSlider(
+                        value = { (sliderPosition ?: position).toFloat() },
                         valueRange = 0f..(if (duration == androidx.media3.common.C.TIME_UNSET) 0f else duration.toFloat()),
                         onValueChange = { value ->
                             if (!isListenTogetherGuest) {
@@ -782,18 +765,10 @@ fun PlayerV2(
                             }
                         },
                         enabled = !isListenTogetherGuest,
-                        interactionSource = trackInteractionSource,
-                        thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                        track = { sliderState ->
-                            PlayerSliderTrack(
-                                sliderState = sliderState,
-                                trackHeight = trackHeight,
-                                colors = PlayerSliderColors.getSliderColors(
-                                    activeColor = adaptivePrimary.copy(alpha = 0.8f)
-                                )
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                        activeColor = adaptivePrimary.copy(alpha = 0.8f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
                     )
                     Row(
                         modifier = Modifier
@@ -894,36 +869,21 @@ fun PlayerV2(
                         Icon(Icons.Default.VolumeMute, contentDescription = "Volume Down", tint = adaptiveSecondary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(16.dp))
                         
-                        val volumeInteractionSource = remember { MutableInteractionSource() }
-                        val isVolDragged by volumeInteractionSource.collectIsDraggedAsState()
-                        val isVolPressed by volumeInteractionSource.collectIsPressedAsState()
-                        val isVolActive = isVolDragged || isVolPressed
-                        
-                        val volHeight by animateDpAsState(
-                            targetValue = if (isVolActive) 12.dp else 6.dp,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                            label = "volHeight"
-                        )
-                        
-                        Slider(
-                            value = if (isVolActive) systemVolume else animatedVolume,
+                        // Same control as the seek bar, so the volume rail is the same
+                        // material and the same press physics. The component damps its
+                        // own value, which replaces the 150ms tween this slider used to
+                        // feed a Material Slider that had no animation of its own.
+                        LiquidGlassSlider(
+                            value = { systemVolume },
                             onValueChange = { newValue ->
                                 systemVolume = newValue
                                 val targetVolume = (newValue * maxSystemVolume).toInt()
                                 audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVolume, 0)
                             },
-                            interactionSource = volumeInteractionSource,
-                            thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                            track = { sliderState ->
-                                PlayerSliderTrack(
-                                    sliderState = sliderState,
-                                    trackHeight = volHeight, 
-                                    colors = PlayerSliderColors.getSliderColors(
-                                        activeColor = adaptivePrimary.copy(alpha = 0.8f)
-                                    )
-                                )
-                            },
-                            modifier = Modifier.weight(1f).height(24.dp)
+                            activeColor = adaptivePrimary.copy(alpha = 0.8f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(24.dp),
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                             Icon(Icons.Default.VolumeUp, contentDescription = "Volume Up", tint = adaptiveSecondary, modifier = Modifier.size(24.dp))

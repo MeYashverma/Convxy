@@ -228,6 +228,9 @@ import com.convxy.music.ui.component.BottomSheetState
 import com.convxy.music.ui.component.LocalBottomSheetPageState
 import com.convxy.music.ui.component.LocalMenuState
 import com.convxy.music.ui.component.Lyrics
+import com.convxy.music.ui.component.LiquidGlassIconButton
+import com.convxy.music.ui.component.isAttachedGlassBackdrop
+import com.convxy.music.ui.component.LiquidGlassSlider
 import com.convxy.music.ui.component.PlayerSliderTrack
 import com.convxy.music.ui.component.ResizableIconButton
 import com.convxy.music.ui.player.comments.CommentTrackMarkers
@@ -244,6 +247,18 @@ import com.convxy.music.ui.player.customize.PlayerIconSlot
 import com.convxy.music.ui.player.customize.rememberDiyLayout
 import com.convxy.music.ui.player.customize.rememberPlayerIcon
 import com.convxy.music.ui.component.GlassComponent
+import com.convxy.music.ui.component.backdrop.BackdropEffectScope
+import com.convxy.music.ui.component.backdrop.backdrops.LayerBackdrop
+import com.convxy.music.ui.component.backdrop.drawBackdrop
+import com.convxy.music.ui.component.backdrop.effects.blur
+import com.convxy.music.ui.component.backdrop.effects.colorControls
+import com.convxy.music.ui.component.glassResolutionScale
+import com.convxy.music.ui.component.glassSaturation
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.platform.LocalDensity
+import com.convxy.music.ui.component.GlassSlider
 import com.convxy.music.ui.component.LocalGlassEffectConfig
 import com.convxy.music.ui.component.PLAYER_BLUR_MULTIPLIER
 import com.convxy.music.ui.component.isGlassAllowed
@@ -324,6 +339,15 @@ fun BottomSheetPlayer(
     state: BottomSheetState,
     navController: NavController,
     modifier: Modifier = Modifier,
+    /**
+     * Receives the recording of the whole player background (glass base plus the
+     * artwork/mesh layers on top of it) so surfaces that sit over or inside the
+     * sheet refract what the player actually shows. The sheet content and the
+     * queue get it through [LocalAppBackdrop]; MainActivity hands it to an open
+     * menu. None of those are descendants of the background Box, so sampling it
+     * is legal, and it carries the artwork detail the blur and lens need.
+     */
+    surfaceExport: LayerBackdrop? = null,
     pureBlack: Boolean,
     // The DIY editor mounts this same composable as its live editing canvas (real
     // background/controls, not a hand-built approximation) and draws its own
@@ -516,7 +540,7 @@ fun BottomSheetPlayer(
 
     val isLosslessStream = currentFormat?.mimeType?.contains("flac", ignoreCase = true) == true || 
                           playerFormat?.sampleMimeType?.contains("flac", ignoreCase = true) == true
-    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SLIM)
+    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.LIQUID)
 
     // Listen Together state (reactive)
     val listenTogetherManager = LocalListenTogetherManager.current
@@ -1304,7 +1328,38 @@ fun BottomSheetPlayer(
         background = {
             val glassConfig = LocalGlassEffectConfig.current
             val glassActive = isGlassAllowed()
-            
+
+            // The glass material base, as an explicit drawBackdrop so it can export
+            // its painted surface (see [surfaceExport]): same recipe liquidGlass
+            // applied -- heavy blur, no rim on a surface this size, adaptive tint.
+            val glassDensity = LocalDensity.current
+            val glassBlurDp =
+                (glassConfig.blurRadius * PLAYER_BLUR_MULTIPLIER).coerceAtMost(100f)
+            val glassScale = glassResolutionScale(glassBlurDp).coerceIn(0.05f, 1f)
+            val glassSaturation = glassSaturation(glassConfig.vibrancy)
+            val glassBlurPx =
+                with(glassDensity) { glassBlurDp.dp.toPx() } * glassScale
+            val glassEffects: BackdropEffectScope.() -> Unit =
+                remember(glassSaturation, glassBlurPx) {
+                    {
+                        if (glassSaturation != 1f) colorControls(saturation = glassSaturation)
+                        if (glassBlurPx > 0f) blur(glassBlurPx)
+                    }
+                }
+            val glassShape: () -> Shape = remember { { RoundedCornerShape(0.dp) } }
+            val glassTint: DrawScope.() -> Unit = remember(glassConfig) {
+                {
+                    if (glassConfig.surfaceOpacity > 0f) {
+                        val tint = when {
+                            glassConfig.surfaceTintColor.isSpecified ->
+                                glassConfig.surfaceTintColor
+                            else -> Color(0xFF4A4A4E)
+                        }
+                        drawRect(tint.copy(alpha = glassConfig.surfaceOpacity))
+                    }
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1314,18 +1369,31 @@ fun BottomSheetPlayer(
                     // Pairs with the inner graphicsLayer the same way MainActivity's
                     // app backdrop does.
                     .graphicsLayer()
-                    .layerBackdrop(playerBackdrop, frozen = state.backdropFrozen)
+                    // While glass is on this recording IS the export: it contains
+                    // everything visible as the player background -- the glass base's
+                    // own paint AND the artwork/mesh layers drawn on top of it. A
+                    // drawBackdrop export would only carry the node's own paint
+                    // (blurred page + tint), so menus, pills and the trio refracted
+                    // a featureless homepage wash instead of the artwork.
+                    .layerBackdrop(
+                        if (glassActive && surfaceExport != null) surfaceExport
+                        else playerBackdrop,
+                        frozen = state.backdropFrozen
+                    )
                     .graphicsLayer()
                     .then(
                         if (glassActive) {
                             // Unified Apple Music glass player background:
                             // Samples appBackdrop (root content) behind the sheet.
                             // Higher blur than pills to feel like heavy material.
-                            Modifier.liquidGlass(
-                                config = glassConfig,
-                                applyEdgeEffects = false,
-                                blurRadiusDp = (glassConfig.blurRadius * PLAYER_BLUR_MULTIPLIER)
-                                    .coerceAtMost(100f),
+                            Modifier.drawBackdrop(
+                                backdrop = LocalAppBackdrop.current,
+                                shape = glassShape,
+                                effects = glassEffects,
+                                highlight = { null },
+                                shadow = { null },
+                                onDrawSurface = glassTint,
+                                backdropScale = glassScale,
                             )
                         } else {
                             Modifier.background(bottomSheetBackgroundColor)
@@ -1954,10 +2022,46 @@ fun BottomSheetPlayer(
             }
         },
     ) {
+        // The player's glass samples its own background slot — the blurred
+        // artwork / mesh layer — not the NavHost-wide appBackdrop it would
+        // otherwise inherit here. Inheriting it shows whichever screen is behind
+        // the sheet through the seek bar and the transport buttons: home, an
+        // artist page, whatever the player was opened from. The two slots are
+        // siblings of BottomSheet rather than ancestor and descendant, so this is
+        // not the self-reference a screen inside the recorded node would be — see
+        // the playerBackdrop declaration above. The narrower provider further
+        // down repeats this value and adds the video canvas's loop bucket.
+        //
+        // Both branches get it, separately: Compose forbids a non-local return
+        // through a composable lambda, so the V2 branch's `return@BottomSheet`
+        // has to sit outside the provider that wraps its content.
+        //
+        // ...but only when what we inherited is itself attached. DiyEditorScreen
+        // renders this player as a live preview inside a NavHost destination and
+        // hands it a deliberately UNATTACHED screen-local backdrop, because here
+        // the whole player sits inside the root appBackdrop's capture subtree and
+        // any surface sampling an attached layer from within it draws that layer
+        // into its own recording — the RenderNode cycle its comment describes.
+        // playerBackdrop IS attached, so providing it unconditionally defeats that
+        // guard and takes the editor down with it. In the real player the sheet is
+        // a sibling of the recorded NavHost content, the inherited root backdrop is
+        // attached, and taking over is exactly what is wanted.
+        val inheritedBackdrop = LocalAppBackdrop.current
+        val foregroundBackdrop =
+            if (inheritedBackdrop.isAttachedGlassBackdrop()) playerBackdrop else inheritedBackdrop
+        // The background's painted surface when the glass base is on: legal for every
+        // control inside the sheet to sample, and it carries the artwork detail the
+        // blur and lens need to be visible. Falls back to the old choice otherwise.
+        val contentBackdrop =
+            if (surfaceExport != null && isGlassAllowed()) surfaceExport else foregroundBackdrop
+
         if (useAppleMusicPlayer) {
-            PlayerV2(state = state, navController = navController, modifier = Modifier)
+            CompositionLocalProvider(LocalAppBackdrop provides contentBackdrop) {
+                PlayerV2(state = state, navController = navController, modifier = Modifier)
+            }
             return@BottomSheet
         }
+        CompositionLocalProvider(LocalAppBackdrop provides contentBackdrop) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
@@ -2377,7 +2481,8 @@ fun BottomSheetPlayer(
                 } else {
                     // Sample the player's own background (its blurred artwork/mesh
                     // layer), not whatever NavHost screen happens to be behind the
-                    // player sheet — see playerBackdrop declaration above.
+                    // player sheet — contentBackdrop is that recording (the export
+                    // while glass is on), see the declaration above.
                     // Stable across recompositions (remember'd) so DrawBackdropNode's
                     // loopBucket-identity check doesn't clear the pool every time this
                     // scope recomposes — only when video canvas actually toggles.
@@ -2386,7 +2491,7 @@ fun BottomSheetPlayer(
                     }
                     val videoCanvasActive = enableCanvas && canvasArtwork != null && backgroundVisible
                     CompositionLocalProvider(
-                        LocalAppBackdrop provides playerBackdrop,
+                        LocalAppBackdrop provides contentBackdrop,
                         LocalBackdropLoopBucket provides if (videoCanvasActive) loopBucketProvider else null,
                     ) {
                     AnimatedContent(targetState = showInlineLyrics, label = "DownloadButton") { showLyrics ->
@@ -2638,6 +2743,48 @@ fun BottomSheetPlayer(
                             }
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
+                    )
+                }
+
+                SliderStyle.LIQUID -> {
+                    // The liquid glass seek bar. One backdrop-sampling surface — the
+                    // thumb, a live lens over the rail — instead of a Material Slider
+                    // with an empty thumb slot and a Canvas line for a track. It
+                    // paints itself (same geometry, same springs, no refraction) when
+                    // glass is unavailable, so this branch is safe on every API level
+                    // the app supports and with the glass preferences switched off.
+                    LiquidGlassSlider(
+                        value = { (sliderPosition ?: effectivePosition).toFloat() },
+                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                        onValueChange = {
+                            if (!isListenTogetherGuest) {
+                                sliderPosition = it.toLong()
+                            }
+                        },
+                        onValueChangeFinished = {
+                            if (!isListenTogetherGuest) {
+                                sliderPosition?.let { target ->
+                                    if (isCasting) {
+                                        castHandler?.seekTo(target)
+                                        lastManualSeekTime = System.currentTimeMillis()
+                                    } else {
+                                        playerConnection.player.seekTo(target)
+                                    }
+                                    position = target
+                                }
+                                sliderPosition = null
+                            }
+                        },
+                        enabled = !isListenTogetherGuest,
+                        activeColor =
+                            if (useNewPlayerDesign) seekBarActiveColor
+                            else seekBarActiveColor.copy(alpha = 0.7f),
+                        // 44dp of touch target, the same footprint the Material Slider
+                        // this replaces had; the rail and thumb stay centred in it.
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PlayerHorizontalPadding)
+                            .height(44.dp),
                     )
                 }
 
@@ -2936,15 +3083,18 @@ fun BottomSheetPlayer(
                                 label = "nextButtonWeight"
                             )
 
-                            FilledIconButton(
+                            LiquidGlassIconButton(
                                 onClick = playerConnection::seekToPrevious,
                                 enabled = canSkipPrevious && !isListenTogetherGuest,
                                 shape = RoundedCornerShape(50),
                                 interactionSource = backInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
+                                // The row grows the pressed button through its
+                                // animated weight, so the liquid press transform is
+                                // off here; the light under the finger stays.
+                                growOnPress = false,
+                                containerColor = sideButtonContainerColor,
+                                contentColor = sideButtonContentColor,
+                                size = Dp.Unspecified,
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(backButtonWeight)
@@ -2960,11 +3110,11 @@ fun BottomSheetPlayer(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            FilledIconButton(
+                            LiquidGlassIconButton(
                                 onClick = {
                                     if (isListenTogetherGuest) {
                                         playerConnection.toggleMute()
-                                        return@FilledIconButton
+                                        return@LiquidGlassIconButton
                                     }
                                     if (isCasting) {
                                         if (castIsPlaying) {
@@ -2981,10 +3131,13 @@ fun BottomSheetPlayer(
                                 },
                                 shape = RoundedCornerShape(50),
                                 interactionSource = playPauseInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = textButtonColor,
-                                    contentColor = iconButtonColor,
-                                ),
+                                // The row grows the pressed button through its
+                                // animated weight, so the liquid press transform is
+                                // off here; the light under the finger stays.
+                                growOnPress = false,
+                                containerColor = textButtonColor,
+                                contentColor = iconButtonColor,
+                                size = Dp.Unspecified,
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(playPauseWeight)
@@ -3029,15 +3182,18 @@ fun BottomSheetPlayer(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            FilledIconButton(
+                            LiquidGlassIconButton(
                                 onClick = playerConnection::seekToNext,
                                 enabled = canSkipNext && !isListenTogetherGuest,
                                 shape = RoundedCornerShape(50),
                                 interactionSource = nextInteractionSource,
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sideButtonContainerColor,
-                                    contentColor = sideButtonContentColor,
-                                ),
+                                // The row grows the pressed button through its
+                                // animated weight, so the liquid press transform is
+                                // off here; the light under the finger stays.
+                                growOnPress = false,
+                                containerColor = sideButtonContainerColor,
+                                contentColor = sideButtonContentColor,
+                                size = Dp.Unspecified,
                                 modifier = Modifier
                                     .height(68.dp)
                                     .weight(nextButtonWeight)
@@ -3242,6 +3398,35 @@ fun BottomSheetPlayer(
 
                             Spacer(Modifier.width(12.dp))
 
+                            // Glass branch: the catalog rail and capsule thumb, sampling
+                            // the player backdrop like the seek bar above it. The drag
+                            // readout still works: onValueChange drives the system volume,
+                            // which this row collects and animates.
+                            val volumeGlassConfig = LocalGlassEffectConfig.current
+                            if (volumeGlassConfig.isEnabledFor(GlassComponent.PLAYER) &&
+                                isGlassAllowed()
+                            ) {
+                                GlassSlider(
+                                    value = volume,
+                                    onValueChange = { newVolume ->
+                                        dragVolume = newVolume
+                                        if (isCasting) {
+                                            castHandler?.setVolume(newVolume)
+                                        } else {
+                                            // Non-blocking update to prevent "fast swipe" lag
+                                            scope.launch(Dispatchers.Default) {
+                                                val newStep = (newVolume * maxSystemVolume).roundToInt()
+                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newStep, 0)
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !hideVolumeBar,
+                                    activeColor = seekBarActiveColor.copy(alpha = 0.7f),
+                                    inactiveColor = seekBarActiveColor.copy(alpha = 0.15f),
+                                    component = GlassComponent.PLAYER,
+                                )
+                            } else {
                             Slider(
                                 value = volume,
                                 onValueChange = { newVolume ->
@@ -3271,6 +3456,7 @@ fun BottomSheetPlayer(
                                     )
                                 }
                             )
+                            }
 
                             Spacer(Modifier.width(12.dp))
 
@@ -3581,6 +3767,7 @@ fun BottomSheetPlayer(
                     zFilter = { it >= 0 },
                 )
             }
+        }
         }
     }
 }

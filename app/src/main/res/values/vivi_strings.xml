@@ -231,6 +231,7 @@
     <string name="auto_scroll">Re-sync</string>
     <string name="slim">Slim</string>
     <string name="waveform">Waveform</string>
+    <string name="slider_style_liquid">Liquid glass</string>
     <string name="brand_font">Display font</string>
     <string name="brand_font_desc">Use Chillax for the Convxy wordmark and the artist page title</string>
     <string name="custom_font">Custom font</string>
@@ -1270,6 +1271,10 @@
     <string name="liquid_glass_player">Glass Player</string>
     <string name="liquid_glass_mini_player">Glass Mini Player</string>
     <string name="liquid_glass_nav_bar">Glass Navigation Bar</string>
+    <string name="liquid_glass_settings_controls">Glass Switches and Sliders</string>
+    <string name="liquid_glass_settings_controls_desc">Liquid glass toggle thumbs and slider handles. Costs a little per frame on screens with many of them</string>
+    <string name="liquid_glass_menus">Glass Menus</string>
+    <string name="liquid_glass_menus_desc">Long-press menus as a liquid glass sheet, with their pills and rows refracting it</string>
     <string name="liquid_glass_side_panel">Glass Side Panel</string>
     <string name="liquid_glass_side_panel_desc">Tablet side panel glass, set independently from the phone navigation bar</string>
     <string name="liquid_glass_side_panel_overrides">Side Panel Effect (overrides above)</string>

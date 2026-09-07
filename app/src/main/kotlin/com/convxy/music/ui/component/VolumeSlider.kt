@@ -14,14 +14,22 @@
 package com.convxy.music.ui.component
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
@@ -85,6 +93,38 @@ fun VolumeSlider(
     )
     
     val stopIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+    // Glass branch: the catalog rail and capsule thumb instead of the expressive
+    // 40dp track, keeping the volume icon inset at the start of the rail. Inside a
+    // menu this refracts the sheet's exported surface like every other control.
+    val config = LocalGlassEffectConfig.current
+    if (config.isEnabledFor(GlassComponent.MENU) && isGlassAllowed()) {
+        // Icon BESIDE the rail, not inset over it: on the thin glass rail an
+        // overlaying icon reads as a thumb stuck at the start.
+        Row(
+            modifier = modifier.height(VolumeSliderDefaults.TrackHeight),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = currentIcon,
+                contentDescription = null,
+                tint = config.textColor,
+                modifier = Modifier.size(VolumeSliderDefaults.InsetIconSize),
+            )
+            Spacer(Modifier.width(VolumeSliderDefaults.IconPadding))
+            GlassSlider(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                onValueChangeFinished = onValueChangeFinished,
+                activeColor = accentColor,
+                inactiveColor = accentColor.copy(alpha = 0.3f),
+                component = GlassComponent.MENU,
+            )
+        }
+        return
+    }
 
     Slider(
         value = value,

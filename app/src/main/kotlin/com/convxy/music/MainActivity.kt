@@ -190,7 +190,9 @@ import com.convxy.music.constants.PauseListenHistoryKey
 import com.convxy.music.constants.LiquidGlassGlobalEnabledKey
 import com.convxy.music.constants.LiquidGlassPlayerEnabledKey
 import com.convxy.music.constants.LiquidGlassMiniPlayerEnabledKey
+import com.convxy.music.constants.LiquidGlassMenuEnabledKey
 import com.convxy.music.constants.LiquidGlassNavBarEnabledKey
+import com.convxy.music.constants.LiquidGlassSettingsControlsEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelEnabledKey
 import com.convxy.music.constants.LiquidGlassSidePanelVibrancyKey
 import com.convxy.music.constants.LiquidGlassSidePanelBlurRadiusKey
@@ -896,6 +898,8 @@ class MainActivity : ComponentActivity() {
                 val (liquidGlassPlayerEnabled) = rememberPreference(LiquidGlassPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassMiniPlayerEnabled) = rememberPreference(LiquidGlassMiniPlayerEnabledKey, defaultValue = true)
                 val (liquidGlassNavBarEnabled) = rememberPreference(LiquidGlassNavBarEnabledKey, defaultValue = true)
+                val (liquidGlassSettingsControlsEnabled) = rememberPreference(LiquidGlassSettingsControlsEnabledKey, defaultValue = true)
+                val (liquidGlassMenuEnabled) = rememberPreference(LiquidGlassMenuEnabledKey, defaultValue = true)
                 val (liquidGlassSidePanelEnabled) = rememberPreference(LiquidGlassSidePanelEnabledKey, defaultValue = true)
                 val (liquidGlassSidePanelVibrancy) = rememberPreference(LiquidGlassSidePanelVibrancyKey, defaultValue = 1.2f)
                 val (liquidGlassSidePanelBlurRadius) = rememberPreference(LiquidGlassSidePanelBlurRadiusKey, defaultValue = 2f)
@@ -942,7 +946,9 @@ class MainActivity : ComponentActivity() {
                     liquidGlassSurfaceOpacity, liquidGlassTextColorInt, liquidGlassPlayerEnabled,
                     liquidGlassHighlightColorInt, liquidGlassHighlightOpacity, liquidGlassStyle,
                     liquidGlassPuckColorInt, liquidGlassPuckOpacity,
-                    liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSidePanelEnabled,
+                    liquidGlassMiniPlayerEnabled, liquidGlassNavBarEnabled, liquidGlassSettingsControlsEnabled,
+                    liquidGlassMenuEnabled,
+                    liquidGlassSidePanelEnabled,
                     liquidGlassSidePanelVibrancy, liquidGlassSidePanelBlurRadius,
                     liquidGlassSidePanelLensHeight, liquidGlassSidePanelLensAmount,
                     liquidGlassSidePanelColorInt, liquidGlassSidePanelSurfaceOpacity, liquidGlassSidePanelTextColorInt,
@@ -976,6 +982,8 @@ class MainActivity : ComponentActivity() {
                         playerEnabled = liquidGlassPlayerEnabled,
                         miniPlayerEnabled = liquidGlassMiniPlayerEnabled,
                         navBarEnabled = liquidGlassNavBarEnabled,
+                        settingsControlsEnabled = liquidGlassSettingsControlsEnabled,
+                        menuEnabled = liquidGlassMenuEnabled,
                         sidePanelEnabled = liquidGlassSidePanelEnabled,
                         sidePanelVibrancy = liquidGlassSidePanelVibrancy,
                         sidePanelBlurRadius = liquidGlassSidePanelBlurRadius,
@@ -1429,6 +1437,12 @@ class MainActivity : ComponentActivity() {
                     }
                 )
 
+                // The player sheet's painted glass surface, exported by
+                // BottomSheetPlayer: what an open menu refracts while the player is
+                // up, and what the sheet's own controls sample. Recording the whole
+                // Scaffold here instead was circular -- the menu lives inside it.
+                val playerSurfaceBackdrop = rememberLayerBackdrop()
+
                 // While the user is scrolling, stop re-recording the backdrop source.
                 // layer.record { drawContent() } cannot reuse unchanged child RenderNodes,
                 // so it re-issues the entire screen every frame â€” measured at 47ms of the
@@ -1839,6 +1853,7 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.zIndex(if (playerAboveBars) 1f else 0f),
                                     ) {
                                         BottomSheetPlayer(
+                                            surfaceExport = playerSurfaceBackdrop,
                                             state = playerBottomSheetState,
                                             navController = navController,
                                             pureBlack = pureBlack
@@ -1932,6 +1947,8 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 if (currentRoute != "wrapped" && currentRoute != "update" && currentRoute != "listen_together/chat" && currentRoute != "ambient_mode") {
                                     BottomSheetPlayer(
+
+                                        surfaceExport = playerSurfaceBackdrop,
                                         state = playerBottomSheetState,
                                         navController = navController,
                                         pureBlack = pureBlack
@@ -2148,24 +2165,24 @@ class MainActivity : ComponentActivity() {
                                         snackbarHostState = snackbarHostState,
                                     )
                                 }
-                                }
 
-                                // Search, over the tabs rather than beside them. This box
-                                // (not NavHost's own modifier) is what carries layerBackdrop
-                                // now -- see the comment on it below. Moved OUT of NavHost's
-                                // modifier chain and made the shared parent of both NavHost
-                                // and this AnimatedVisibility specifically so glass sampling
-                                // covers search too.
+                                // Search, over the tabs rather than beside them — and INSIDE
+                                // this box, the one carrying layerBackdrop. It used to be a
+                                // sibling call after this box's closing brace, so appBackdrop's
+                                // recorded layer never contained search's content: the glass
+                                // chrome — nav bar, mini player, the search pill — kept
+                                // refracting whatever the tab underneath had last drawn, for as
+                                // long as search stayed open. The comment that used to sit here
+                                // claimed the box had been made the shared parent of both halves;
+                                // it had not, the AnimatedVisibility was still outside it.
                                 //
-                                // It didn't before: layerBackdrop lived on NavHost's own
-                                // modifier, and this AnimatedVisibility was a SIBLING call
-                                // after NavHost's closing brace -- outside the element that
-                                // modifier was attached to, not inside it. appBackdrop's
-                                // recorded layer therefore never contained search's content
-                                // at all; it kept showing whatever the tab underneath had
-                                // last drawn, frozen, for as long as search stayed open. That
-                                // is the "search's backdrop still holds the previous page"
-                                // bug -- not a freeze/throttle timing issue, a structural one.
+                                // Being inside is safe rather than a RenderNode cycle because
+                                // every glass surface in the search subtree samples a
+                                // screen-local backdrop, never the root one: SearchScreen attaches
+                                // heroBackdrop to its results list and provides it through
+                                // HeroTintedContent, LocalSearchScreen provides an unattached one
+                                // the same way. So nothing under here samples the layer it is
+                                // being recorded into.
                                 AnimatedVisibility(
                                     visible = searchOverlayOpen,
                                     enter = fadeIn(Motion.appear()),
@@ -2175,6 +2192,7 @@ class MainActivity : ComponentActivity() {
                                         navController = navController,
                                         pureBlack = pureBlack,
                                     )
+                                }
                                 }
                                 } // CompositionLocalProvider(LocalSharedTransitionScope)
                                 } // SharedTransitionLayout
@@ -2400,7 +2418,17 @@ class MainActivity : ComponentActivity() {
                     // sites are untouched either way.
                     val (overlayMenuStyle) = rememberPreference(OverlayMenuStyleKey, defaultValue = true)
                     if (overlayMenuStyle) {
-                        OverlayMenu(state = LocalMenuState.current)
+                        OverlayMenu(
+                            state = LocalMenuState.current,
+                            // Over the expanded player the app backdrop would show
+                            // the page list behind the sheet; the player's exported
+                            // glass surface is what is actually under the menu.
+                            sampleBackdrop = if (playerBottomSheetState.isExpanded) {
+                                playerSurfaceBackdrop
+                            } else {
+                                null
+                            },
+                        )
                     } else {
                         BottomSheetMenu(
                             state = LocalMenuState.current,

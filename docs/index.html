@@ -142,9 +142,9 @@ client</a> kept in its own module, with several native YouTube clients probed in
 song still starts when one of them gets flagged.</p>
 
 <p>The interface is the part the fork is really about. <a href="#glass">Liquid Glass</a> surfaces
-sample the actual pixels behind them and blur and refract them, so the nav bar, sheets and
-floating buttons sit in the same light as the artwork behind them. It is not a translucent colour
-painted on top.</p>
+sample the actual pixels behind them and blur and refract them, so the nav bar, sheets, menus and
+every switch, slider and button sit in the same light as the artwork behind them. It is not a
+translucent colour painted on top.</p>
 
 <h2 id="features">What it does</h2>
 
@@ -156,9 +156,13 @@ painted on top.</p>
   its own clear button.</dd>
 
   <dt id="glass">Liquid Glass UI</dt>
-  <dd>A shared backdrop layer feeds the nav bar, mini player, sheets and dialogs. Per-element
-  blur, vibrancy, lens depth and refraction are adjustable in Settings, along with iOS-style
-  rubber-band overscroll and spring transitions. Dynamic colour comes from the current artwork.</dd>
+  <dd>A shared backdrop layer feeds the nav bar, mini player, sheets, dialogs and long-press
+  menus; switches, sliders, buttons, pills and the player's own controls each sample and refract
+  it — the menu over the player bends the album art through its body. Per-element blur, vibrancy,
+  lens depth and refraction are adjustable in Settings, along with iOS-style rubber-band overscroll
+  and spring transitions. Dynamic colour comes from the current artwork.
+  <a href="https://github.com/MeYashverma/Convxy/blob/main/docs/LIQUID_GLASS.md">How the engine
+  records, samples and shades</a>.</dd>
 
   <dt>Synced lyrics, including who is singing</dt>
   <dd>Word-by-word karaoke fill, and Apple Music-style multi-singer lines: every vocalist gets a

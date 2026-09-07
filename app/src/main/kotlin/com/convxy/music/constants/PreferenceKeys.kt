@@ -116,7 +116,23 @@ enum class SliderStyle {
     DEFAULT,
     WAVY,
     SLIM,
-    WAVEFORM
+    WAVEFORM,
+
+    /**
+     * Liquid glass seek bar: a capsule rail with a thumb that is a live lens over
+     * it — blurred and opaque at rest, refracting and swollen to a capsule while
+     * pressed, stretched by drag velocity.
+     *
+     * Rendered by `com.convxy.music.ui.component.LiquidGlassSlider` on the vendored
+     * backdrop engine. It is the default, and it degrades by itself: with glass
+     * unavailable (below API 31, low-RAM device, the TRANSPARENT glass style, or no
+     * recorded backdrop in scope) the same geometry and springs are painted instead,
+     * so picking this on an old device still gives a working seek bar.
+     *
+     * Persisted by name (see `toEnum`), so adding this entry does not disturb a
+     * stored choice of any of the styles above.
+     */
+    LIQUID
 }
 
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
@@ -653,6 +669,8 @@ val LiquidGlassDepthEffectKey = booleanPreferencesKey("liquidGlassDepthEffect")
 val LiquidGlassPlayerEnabledKey = booleanPreferencesKey("liquidGlassPlayerEnabled")
 val LiquidGlassMiniPlayerEnabledKey = booleanPreferencesKey("liquidGlassMiniPlayerEnabled")
 val LiquidGlassNavBarEnabledKey = booleanPreferencesKey("liquidGlassNavBarEnabled")
+val LiquidGlassSettingsControlsEnabledKey = booleanPreferencesKey("liquidGlassSettingsControlsEnabled")
+val LiquidGlassMenuEnabledKey = booleanPreferencesKey("liquidGlassMenuEnabled")
 val LiquidGlassSidePanelEnabledKey = booleanPreferencesKey("liquidGlassSidePanelEnabled")
 val LiquidGlassSidePanelVibrancyKey = floatPreferencesKey("liquidGlassSidePanelVibrancy")
 val LiquidGlassSidePanelBlurRadiusKey = floatPreferencesKey("liquidGlassSidePanelBlurRadius")

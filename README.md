@@ -25,11 +25,13 @@ subscriptions, search, queues (persistent and offline-safe), background playback
 notification controls, audio focus, and a sleep timer that can stop at the end of the current
 track instead of a fixed number of minutes.
 
-**Liquid Glass.** A real glass system, not translucent Material tiles: nav bar, mini player,
-sheets and dialogs sample the actual pixels behind them and blur and refract them. Blur radius,
-vibrancy, lens depth, refraction, noise, tint, shape, iOS-style rubber-band overscroll and spring
-transitions are all adjustable in Settings, and dynamic colour is derived from the current
-artwork.
+**Liquid Glass.** A real glass system, not translucent Material tiles: switches, sliders,
+buttons, pills, nav bar, mini player, player controls, volume sliders and long-press menus all
+sample the actual pixels behind them and blur and refract them — a menu opened over the player
+bends the album art through its body. Blur radius, vibrancy, lens depth, refraction, noise, tint,
+shape, iOS-style rubber-band overscroll and spring transitions are all adjustable in Settings, and
+dynamic colour is derived from the current artwork. The engine, its scoping rules and the full
+component list are documented in [docs/LIQUID_GLASS.md](docs/LIQUID_GLASS.md).
 
 **Lyrics.** Word-by-word karaoke with a per-word fill, several animation styles, progressive
 blur, translation and romanisation, and multi-singer synchronisation — each vocalist gets a
@@ -74,7 +76,10 @@ A Gradle multi-module Android app, Kotlin and Jetpack Compose throughout.
 - **`ui/component/GlassEffect.kt`** — `Modifier.liquidGlass(...)` and friends: a shared backdrop
   layer, runtime shader blur and refraction, vibrancy. The engine is a vendored, source-included
   copy of [Kyant0/backdrop](https://github.com/Kyant0/backdrop), which is why `liquidGlass` takes a
-  `Backdrop` host rather than doing a live `captureBackdrop` per frame.
+  `Backdrop` host rather than doing a live `captureBackdrop` per frame. The glass controls
+  (`GlassSlider`, `GlassSwitch`, glass buttons, menus) live beside it, and
+  [docs/LIQUID_GLASS.md](docs/LIQUID_GLASS.md) covers the recording/sampling model, including why
+  overlays must be handed their backdrop explicitly.
 - **`innertube/`** — unofficial YouTube Music (InnerTube) client, independent of the app module.
   Several native clients are probed in parallel so one flagged client cannot break playback; the
   same module carries the WEB client used by the YouTube tab, including consent, visitor data and

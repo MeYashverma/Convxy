@@ -1,28 +1,38 @@
 {
-  "description": "Convx 1.8 — Canvas Position & Fit for Ambient Mode. Portrait canvases (3:4 and 9:16) now keep their full frame in a panel anchored to one side of the 16:9 layout instead of being cropped to cover the whole screen, the flat dim is replaced by an adjustable asymmetric gradient, and a live preview in Settings shows how the canvas sits in the layout while you tune it.",
+  "description": "Convxy 1.9 — Liquid Glass across the interface. The glass system now covers the controls, not just the chrome: switches, sliders, buttons, pills, the nav bar, the mini player, the player's own transport and volume controls, and long-press menus are real backdrop-sampling glass — each surface records the pixels behind it, blurs and refracts them through a lens, edge-lights them and answers touches with springs. A menu opened over the player bends the album art through its body; nothing is a translucent colour painted on top.",
   "image": "",
   "warning": null,
   "changelog": [
     {
-      "title": "Ambient Mode — Canvas Position & Fit",
+      "title": "Liquid Glass controls",
       "items": [
-        "Portrait canvases (3:4 and 9:16) no longer get cropped to cover the whole 16:9 layout. With Canvas Position & Fit they keep their full frame, fitted at full size into a panel anchored to one side of the screen.",
-        "The flat full-screen dim is now an asymmetric gradient: stronger on the canvas side, lighter on the side where the lyrics and the progress ring sit, with the panel edge feathered into the ambient glow so the canvas reads as part of the scene instead of a rectangle pasted onto it.",
-        "Everything is adjustable under Settings → Ambient Mode: which side the canvas anchors to (Auto follows the album artwork side, opposite the lyrics, or Left/Right), how the frame is fitted (Fit shows it whole, Fill side covers the panel and crops the edges, Stretch ignores the aspect ratio), side width, canvas-side gradient, gradient spread, lyrics-side gradient, and edge feather.",
-        "Landscape canvases keep the ordinary full-width background, and turning the option off restores the previous behaviour exactly."
+        "Switches and sliders join the glass system: the liquid slider keeps the original capsule thumb that swells on press, with press-animated blur, lens and inner shadow on springs. It is opt-in as SliderStyle.LIQUID and switches on automatically with glass; every previous slider style remains available.",
+        "Buttons, icon buttons, segmented pills and tabs, circular queue buttons and the volume slider rows render as glass: sampled backdrop, blur, refraction, edge highlight and shadow, with spring press feedback.",
+        "The bottom navigation bar, mini player and floating now-playing pill sit on the shared backdrop recording, so they refract whatever scrolls beneath them.",
+        "Player transport controls, the seek bar and its thumb, and the volume rail refract the player's own background — the artwork wash, not the page behind the sheet."
       ]
     },
     {
-      "title": "Live preview in the settings",
+      "title": "Glass menus and sheets",
       "items": [
-        "Settings → Ambient Mode now shows a live preview of the layout at the top of the Canvas Position & Fit section. Pick a canvas shape (9:16, 3:4, 16:9) and the panel, crop and gradient follow the sliders as you drag them — it is driven by the same geometry the Ambient screen itself draws from.",
-        "A caption under the preview reports the resulting panel share of the width, or why no panel is in use: video canvas off, the option off, or the canvas not being a portrait one."
+        "Long-press menus render as a liquid glass sheet: the sheet body blurs and refracts what is actually under it — the player's exported glass surface (artwork included) while the player is open, the page stack otherwise — and the rows and pills inside the menu sample the sheet's own painted surface.",
+        "The queue sheet's header pills and circular buttons, and the player's bottom device/sleep-timer/comments trio, refract the player background through the same exported recording.",
+        "Dialogs and bottom-sheet pages route through the same backdrop providers, so their surfaces stay glass-consistent with the rest of the app."
       ]
     },
     {
-      "title": "Documentation",
+      "title": "The engine under it",
       "items": [
-        "The repository now ships docs/AMBIENT_MODE.md, a guide to Ambient Mode's layout and every Canvas Position & Fit setting."
+        "Surfaces sample recorded layers, not live captures: the app root records the page stack, the player records its background subtree and exports it, and each glass surface draws the recording cropped to its bounds. An ancestry guard refuses cyclic samplings, with a frosted fallback so the UI never breaks.",
+        "Effect pipeline per surface: vibrancy, runtime shader blur scaled against radius for performance, lens refraction with chromatic aberration, edge highlight, shadow and inner shadow, tint — all spring-animated on press.",
+        "Settings expose the master glass toggle, blur radius, vibrancy, lens depth, refraction, noise, tint, corner shape, springs, slider style and rubber-band overscroll; turning glass off restores the previous Material surfaces exactly."
+      ]
+    },
+    {
+      "title": "Documentation and credit",
+      "items": [
+        "docs/LIQUID_GLASS.md documents the recording/sampling model, the component list, the settings and the rules for putting glass on a new surface.",
+        "The engine vendors Kyant0/AndroidLiquidGlass (Apache-2.0) with attribution headers kept; the glass system design descends from Convx (GPL-3.0). Convxy remains GPL-3.0."
       ]
     }
   ]

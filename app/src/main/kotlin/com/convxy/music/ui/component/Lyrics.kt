@@ -908,9 +908,6 @@ fun Lyrics(
             val lyricsOffset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
             val activeIdx = currentLineIndex.coerceAtLeast(0)
             val activeLineTime = lines.getOrNull(activeIdx)?.time ?: -1L
-            // isLineActive resolves lines that share a timestamp (duets/
-            // harmonies) to active simultaneously, matching the other
-            // renderers' behavior.
             val isLineActive: (Int) -> Boolean = { idx ->
                 idx == activeIdx ||
                     (activeIdx >= 0 && lines.getOrNull(idx)?.time == activeLineTime)
@@ -920,45 +917,74 @@ fun Lyrics(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
             ) {
-                // Cap stage height so on very short landscape screens the
-                // anchors don't collide with player controls; on tablets/
-                // Ambient the stage can use more vertical room.
                 val stageHeightDp = maxHeight.coerceAtMost(640.dp)
-                SpatialLyricsTheatre(
-                    lines = lines,
-                    currentLineIndex = activeIdx,
-                    isLineActive = isLineActive,
-                    effectivePlaybackPositionProvider = { currentPlaybackPosition + lyricsOffset },
-                    singerColorMap = singerColorMap,
-                    singerAnchors = singerAnchors,
-                    singerBadgeName = { index, singerId ->
-                        val entry = lines.getOrNull(index)
-                        val show = showSingerLabels &&
-                            entry != null &&
-                            !entry.isBackground &&
-                            isSingerSectionStart(lines, index) &&
-                            isLineActive(index)
-                        if (show) {
-                            singerDisplays[singerId]?.name
-                                ?: if (singerDisplays[singerId]?.isGroup == true) sharedVocalsLabel else null
-                        } else {
-                            null
-                        }
-                    },
-                    onLineClick = { index ->
-                        if (!isGuest && isSynced && changeLyrics) {
-                            val line = lines.getOrNull(index)
-                            if (line != null) {
-                                playerConnection.seekTo((line.time - lyricsOffset).coerceAtLeast(0))
+                // If the stage is narrower than ~400dp (mid-rotation, tiny
+                // landscape phone, split-window) don't try to draw Theatre;
+                // fall through to a simplified centered Apple-style line so
+                // the user still sees lyrics instead of broken layout.
+                if (maxWidth >= 400.dp) {
+                    SpatialLyricsTheatre(
+                        lines = lines,
+                        currentLineIndex = activeIdx,
+                        isLineActive = isLineActive,
+                        effectivePlaybackPositionProvider = { currentPlaybackPosition + lyricsOffset },
+                        singerColorMap = singerColorMap,
+                        singerAnchors = singerAnchors,
+                        singerBadgeName = { index, singerId ->
+                            val entry = lines.getOrNull(index)
+                            val show = showSingerLabels &&
+                                entry != null &&
+                                !entry.isBackground &&
+                                isSingerSectionStart(lines, index) &&
+                                isLineActive(index)
+                            if (show) {
+                                singerDisplays[singerId]?.name
+                                    ?: if (singerDisplays[singerId]?.isGroup == true) sharedVocalsLabel else null
+                            } else {
+                                null
                             }
+                        },
+                        onLineClick = { index ->
+                            if (!isGuest && isSynced && changeLyrics) {
+                                val line = lines.getOrNull(index)
+                                if (line != null) {
+                                    playerConnection.seekTo((line.time - lyricsOffset).coerceAtLeast(0))
+                                }
+                            }
+                        },
+                        onLineLongClick = { },
+                        textColor = expressiveAccent,
+                        textSize = lyricsTextSize,
+                        isSynced = isSynced,
+                        stageHeightDp = stageHeightDp,
+                    )
+                } else {
+                    // Narrow-stage fallback: just render the active line
+                    // centered, full-width, so lyrics remain visible during
+                    // rotation / split-window transitions.
+                    val entry = lines.getOrNull(activeIdx)
+                    if (entry != null) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AppleMusicLyricsLine(
+                                entry = entry,
+                                nextEntryTime = lines.getOrNull(activeIdx + 1)?.time,
+                                effectivePlaybackPosition = currentPlaybackPosition + lyricsOffset,
+                                isSynced = isSynced,
+                                isActive = true,
+                                distanceFromCurrent = 0,
+                                lyricsTextPosition = LyricsPosition.CENTER,
+                                textColor = expressiveAccent,
+                                textSize = lyricsTextSize,
+                                lineSpacing = lyricsLineSpacing,
+                                onClick = { },
+                                onLongClick = { },
+                            )
                         }
-                    },
-                    onLineLongClick = { /* selection mode relies on LazyColumn */ },
-                    textColor = expressiveAccent,
-                    textSize = lyricsTextSize,
-                    isSynced = isSynced,
-                    stageHeightDp = stageHeightDp,
-                )
+                    }
+                }
             }
         } else {
             LazyColumn(

@@ -184,11 +184,10 @@ fun lineStageOffset(
 ): Offset {
     val anchorPx = anchorOffset(anchor, stageWidthPx, stageHeightPx)
     val activeBandY = ACTIVE_BAND_Y_FRACTION * stageHeightPx
-    val activeBandX = when (anchor.side) {
-        AnchorSide.LEFT -> 0.30f * stageWidthPx
-        AnchorSide.RIGHT -> 0.70f * stageWidthPx
-        AnchorSide.CENTER, AnchorSide.BACK -> 0.50f * stageWidthPx
-    }
+    // Active line blooms to a centered wide slice regardless of which mic
+    // the singer is at, so the approach target is center-stage. (The actual
+    // slice is re-centered in SpatialLyricsLine when isActive.)
+    val activeBandX = 0.50f * stageWidthPx
 
     return when {
         distanceFromCurrent < 0 -> {
@@ -281,29 +280,47 @@ fun SpatialLyricsLine(
         else -> 0.dp
     }
 
-    // Anchor-aware alignment is handled by the wrapper box — tell the
-    // underlying AppleMusicLyricsLine to render centered inside its
-    // width-capped slice, then the slice is positioned by anchor.side.
-    val sideAlignment = when (anchor.side) {
-        AnchorSide.LEFT -> Alignment.CenterStart
-        AnchorSide.RIGHT -> Alignment.CenterEnd
-        AnchorSide.CENTER, AnchorSide.BACK -> Alignment.Center
+    // Side alignment/tint depends on anchor side. The active line blooms to
+    // a wider, centered column across the middle of the stage (like a real
+    // performer stepping up to the mic); waiting/past lines stay in narrower
+    // slices closer to their mic.
+    val isLeftAnchor = anchor.side == AnchorSide.LEFT
+    val isRightAnchor = anchor.side == AnchorSide.RIGHT
+    val sideAlignment = when {
+        isActive -> Alignment.Center
+        isLeftAnchor -> Alignment.CenterStart
+        isRightAnchor -> Alignment.CenterEnd
+        else -> Alignment.Center
     }
+    val textAlign = when {
+        isActive -> TextAlign.Center
+        isLeftAnchor -> TextAlign.Left
+        isRightAnchor -> TextAlign.Right
+        else -> TextAlign.Center
+    }
+    // Active lines get a wider center column; waiting/past lines stay in
+    // narrower anchor slices. This prevents the overlap/drift that happens
+    // when two 42%-wide slices collide in the middle of the stage.
+    val sliceFraction = when {
+        isActive -> 0.70f
+        anchor.side == AnchorSide.CENTER || anchor.side == AnchorSide.BACK -> 0.55f
+        else -> 0.36f
+    }
+    val sliceWidth = stageWidthPx * sliceFraction
+    // When the line is active, center its slice on the stage horizontally;
+    // otherwise center it on its anchor (so LEFT/RIGHT anchors stay in their
+    // own stage halves rather than overlapping in the middle).
+    val anchorX = if (isActive) stageWidthPx / 2f else animatedOffset.x
 
-    // Anchor position is the *center* of the line's 42% slice; shift left by
-    // half the slice width so the text renders centered at (x,y). That keeps
-    // LEFT/RIGHT anchors from overshooting the opposite edge and keeps the
-    // active line anchored cleanly at center.
-    val sliceWidth = stageWidthPx * 0.42f
     Box(
         modifier = modifier
             .offset {
                 IntOffset(
-                    x = (animatedOffset.x - sliceWidth / 2f).roundToInt(),
+                    x = (anchorX - sliceWidth / 2f).roundToInt(),
                     y = (animatedOffset.y).roundToInt(),
                 )
             }
-            .fillMaxWidth(0.42f)
+            .fillMaxWidth(sliceFraction)
             .alpha(lineAlpha)
             .blur(blurRadius)
             .scale(lineScale),
@@ -322,18 +339,19 @@ fun SpatialLyricsLine(
             onClick = onClick,
             onLongClick = onLongClick,
             overrideAlignment = sideAlignment,
-            overrideTextAlign = when (anchor.side) {
-                AnchorSide.LEFT -> TextAlign.Left
-                AnchorSide.RIGHT -> TextAlign.Right
-                AnchorSide.CENTER, AnchorSide.BACK -> TextAlign.Center
-            },
+            overrideTextAlign = textAlign,
+            // IMPORTANT: do NOT call fillMaxWidth(fraction) again here. The
+            // outer Box already caps the slice to `sliceFraction` of the
+            // stage; applying another fractional fillMaxWidth would multiply
+            // (0.36 * 0.36 = 13% of stage, etc.) and cause letters to wrap
+            // one character per line.
             modifier = Modifier
-                .fillMaxWidth(0.42f)
+                .fillMaxWidth()
                 .then(
-                    when (anchor.side) {
-                        AnchorSide.LEFT -> Modifier.padding(end = 12.dp)
-                        AnchorSide.RIGHT -> Modifier.padding(start = 12.dp)
-                        else -> Modifier
+                    when {
+                        isLeftAnchor && !isActive -> Modifier.padding(end = 18.dp)
+                        isRightAnchor && !isActive -> Modifier.padding(start = 18.dp)
+                        else -> Modifier.padding(horizontal = 12.dp)
                     }
                 ),
         )
@@ -371,11 +389,20 @@ fun SpatialLyricsTheatre(
         val stageWidthPx = with(density) { maxWidth.toPx() }
         val stageHeightPx = with(density) { stageHeightDp.toPx() }
 
+        // Defensive guard: don't draw the spatial layout on stages narrower
+        // than ~400dp. At phone-portrait widths or mid-rotation the slices
+        // get too narrow and text wraps vertically; fall back to letting
+        // the caller's LazyColumn render. (PreferTheatre should already keep
+        // us off portrait, but sensor/rotation race conditions can still
+        // briefly deliver a narrow width mid-transition.)
+        val stageIsWideEnough = maxWidth >= 400.dp
+
         Box(Modifier.fillMaxSize()) { stageContent() }
 
-        if (currentLineIndex >= 0 && lines.isNotEmpty()) {
+        if (stageIsWideEnough && currentLineIndex >= 0 && lines.isNotEmpty()) {
             val windowStart = (currentLineIndex - 4).coerceAtLeast(0)
             val windowEnd = (currentLineIndex + 4).coerceAtMost(lines.lastIndex)
+            val activeSliceWidth = stageWidthPx * 0.70f
 
             for (index in windowStart..windowEnd) {
                 key(index) {
@@ -395,17 +422,18 @@ fun SpatialLyricsTheatre(
                         val badgeName = singerBadgeName(index, singerId)
 
                         if (badgeName != null && isActive) {
-                            val sliceWidth = stageWidthPx * 0.42f
+                            // Center the singer badge directly over the active
+                            // line's wide center slice.
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(0.42f)
+                                    .fillMaxWidth(0.70f)
                                     .offset {
                                         val offset = lineStageOffset(
                                             anchor, stageWidthPx, stageHeightPx,
                                             distance, isActive,
                                         )
                                         IntOffset(
-                                            x = (offset.x - sliceWidth / 2f).roundToInt(),
+                                            x = (stageWidthPx / 2f - activeSliceWidth / 2f).roundToInt(),
                                             y = (offset.y - 56f).roundToInt(),
                                         )
                                     },

@@ -3569,7 +3569,8 @@ fun BottomSheetPlayer(
                                 InlineLyricsView(
                                     mediaMetadata = mediaMetadata,
                                     showLyrics = showLyrics,
-                                    positionProvider = { effectivePosition }
+                                    positionProvider = { effectivePosition },
+                                    preferTheatre = true,
                                 )
                             } else {
                                 Thumbnail(
@@ -3645,10 +3646,19 @@ fun BottomSheetPlayer(
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { showLyrics ->
                             if (showLyrics) {
+                                val configuration = LocalConfiguration.current
+                                val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
                                 InlineLyricsView(
                                     mediaMetadata = mediaMetadata,
                                     showLyrics = showLyrics,
-                                    positionProvider = { effectivePosition }
+                                    positionProvider = { effectivePosition },
+                                    // Theatre only activates on landscape
+                                    // (side-by-side hero) or when the caller
+                                    // explicitly requests it (Ambient Mode).
+                                    // Portrait fullscreen keeps the side-aligned
+                                    // scrolling list — at phone width the 42%
+                                    // stage slices get too cramped.
+                                    preferTheatre = isFullScreen && isLandscape,
                                 )
                             } else {
                                 Thumbnail(
@@ -3779,6 +3789,7 @@ fun InlineLyricsView(
     showLyrics: Boolean,
     positionProvider: () -> Long,
     lyricsTextSize: Float? = null,
+    preferTheatre: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val currentLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue =null)
@@ -3833,6 +3844,7 @@ fun InlineLyricsView(
                         modifier = Modifier.padding(horizontal = 24.dp),
                         showLyrics = showLyrics,
                         textSizeOverride = lyricsTextSize,
+                        preferTheatre = preferTheatre,
                     )
                 }
                 ProvideTextStyle(

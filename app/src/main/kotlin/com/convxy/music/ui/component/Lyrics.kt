@@ -125,6 +125,7 @@ import com.convxy.music.R
 import com.convxy.music.constants.DarkModeKey
 import com.convxy.music.constants.LyricsAnimationStyle
 import com.convxy.music.constants.LyricsAnimationStyleKey
+import com.convxy.music.constants.LyricsTheatreModeKey
 import com.convxy.music.constants.LyricsClickKey
 import com.convxy.music.constants.LyricsGlowEffectKey
 import com.convxy.music.constants.LyricsLineSpacingKey
@@ -185,6 +186,8 @@ import com.convxy.music.lyrics.LyricsUtils.romanizeKorean
 import com.convxy.music.lyrics.LyricsTranslationHelper
 import com.convxy.music.ui.component.shimmer.ShimmerHost
 import com.convxy.music.ui.component.shimmer.TextPlaceholder
+import com.convxy.music.ui.component.SpatialLyricsTheatre
+import com.convxy.music.ui.component.buildSingerAnchors
 import com.convxy.music.ui.screens.settings.DarkMode
 import com.convxy.music.ui.screens.settings.LyricsPosition
 import com.convxy.music.ui.utils.fadingEdge
@@ -206,6 +209,7 @@ fun Lyrics(
     modifier: Modifier = Modifier,
     showLyrics: Boolean,
     textSizeOverride: Float? = null,
+    preferTheatre: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val database = LocalDatabase.current
@@ -250,7 +254,8 @@ fun Lyrics(
     val translateLanguage by rememberPreference(TranslateLanguageKey, "en")
     val translateMode by rememberPreference(TranslateModeKey, "Literal")
     val deeplFormality by rememberPreference(DeeplFormalityKey, "default")
-    
+    val theatreModeEnabled by rememberPreference(LyricsTheatreModeKey, true)
+
     val scope = rememberCoroutineScope()
 
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -484,6 +489,28 @@ fun Lyrics(
         }
     }
     val sharedVocalsLabel = stringResource(R.string.shared_vocals)
+
+    // Theatre layout: anchors computed once per song. Only active when the
+    // user has the feature enabled AND the caller (fullscreen / landscape /
+    // Ambient) has asked for it AND the track actually has multiple singers.
+    val singerAnchors = remember(lines, hasMultiSingers) {
+        if (hasMultiSingers) buildSingerAnchors(lines) else emptyMap()
+    }
+    val useSpatialTheatre = remember(
+        theatreModeEnabled,
+        preferTheatre,
+        hasMultiSingers,
+        isSynced,
+        lyricsAnimationStyle,
+        singerAnchors,
+    ) {
+        theatreModeEnabled &&
+            preferTheatre &&
+            hasMultiSingers &&
+            isSynced &&
+            singerAnchors.isNotEmpty() &&
+            lyricsAnimationStyle != LyricsAnimationStyle.NONE
+    }
 
     // State for translation status
     val translationStatus by LyricsTranslationHelper.status.collectAsState()
@@ -869,6 +896,68 @@ fun Lyrics(
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.alpha(0.5f)
+                )
+            }
+        } else if (useSpatialTheatre) {
+            // Spatial Theatre: absolutely-positioned lines around the stage
+            // instead of a scrolling column. Activated only on landscape /
+            // Ambient Mode (caller passes preferTheatre=true), and only when
+            // the track carries multi-singer metadata and the user has not
+            // turned the feature off. Clicking a line still seeks; long-press
+            // multi-select is left to the standard list path.
+            val lyricsOffset = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
+            val activeIdx = currentLineIndex.coerceAtLeast(0)
+            val activeLineTime = lines.getOrNull(activeIdx)?.time ?: -1L
+            // isLineActive resolves lines that share a timestamp (duets/
+            // harmonies) to active simultaneously, matching the other
+            // renderers' behavior.
+            val isLineActive: (Int) -> Boolean = { idx ->
+                idx == activeIdx ||
+                    (activeIdx >= 0 && lines.getOrNull(idx)?.time == activeLineTime)
+            }
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+            ) {
+                // Cap stage height so on very short landscape screens the
+                // anchors don't collide with player controls; on tablets/
+                // Ambient the stage can use more vertical room.
+                val stageHeightDp = maxHeight.coerceAtMost(640.dp)
+                SpatialLyricsTheatre(
+                    lines = lines,
+                    currentLineIndex = activeIdx,
+                    isLineActive = isLineActive,
+                    effectivePlaybackPositionProvider = { currentPlaybackPosition + lyricsOffset },
+                    singerColorMap = singerColorMap,
+                    singerAnchors = singerAnchors,
+                    singerBadgeName = { index, singerId ->
+                        val entry = lines.getOrNull(index)
+                        val show = showSingerLabels &&
+                            entry != null &&
+                            !entry.isBackground &&
+                            isSingerSectionStart(lines, index) &&
+                            isLineActive(index)
+                        if (show) {
+                            singerDisplays[singerId]?.name
+                                ?: if (singerDisplays[singerId]?.isGroup == true) sharedVocalsLabel else null
+                        } else {
+                            null
+                        }
+                    },
+                    onLineClick = { index ->
+                        if (!isGuest && isSynced && changeLyrics) {
+                            val line = lines.getOrNull(index)
+                            if (line != null) {
+                                playerConnection.seekTo((line.time - lyricsOffset).coerceAtLeast(0))
+                            }
+                        }
+                    },
+                    onLineLongClick = { /* selection mode relies on LazyColumn */ },
+                    textColor = expressiveAccent,
+                    textSize = lyricsTextSize,
+                    isSynced = isSynced,
+                    stageHeightDp = stageHeightDp,
                 )
             }
         } else {

@@ -80,7 +80,9 @@ import com.convxy.music.constants.TranslateModeKey
 import com.convxy.music.constants.OpenRouterBaseUrlKey
 import com.convxy.music.constants.OpenRouterModelKey
 import com.convxy.music.constants.DeeplFormalityKey
+import com.convxy.music.constants.LyricsTheatreModeKey
 import com.convxy.music.lyrics.LyricsTranslationHelper
+import com.convxy.music.lyrics.LyricsUtils.parseLyricsWithSingers
 import com.convxy.music.utils.rememberPreference
 import androidx.compose.runtime.collectAsState
 
@@ -111,6 +113,14 @@ fun LyricsMenu(
     // Observe the authoritative translation-active state from the singleton; this persists
     // correctly across menu open/close cycles and avoids the lyricsProvider() race condition.
     val hasTranslations by LyricsTranslationHelper.hasActiveTranslations.collectAsState()
+
+    // Parse once for the theatre-mode multi-singer gate; cheap but avoids
+    // re-parsing on every recomposition of the menu group builder lambda.
+    val parsedLyrics = remember(lyricsProvider()?.lyrics) {
+        val raw = lyricsProvider()?.lyrics
+        if (raw != null && raw.startsWith("[")) parseLyricsWithSingers(raw) else null
+    }
+    val hasMultiSingers = parsedLyrics?.hasMultipleSingers == true
 
     var showEditDialog by rememberSaveable {
         mutableStateOf(false)
@@ -549,6 +559,30 @@ fun LyricsMenu(
                             }
                         )
                     )
+
+                    // Theatre mode: spatial duet layout in landscape / fullscreen / Ambient.
+                    // Only shown when this song has multi-singer metadata to anchor to.
+                    if (hasMultiSingers) {
+                        var theatreOn by rememberPreference(LyricsTheatreModeKey, true)
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.lyrics_theatre_mode)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.group),
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = { theatreOn = !theatreOn },
+                                trailingContent = {
+                                    Switch(
+                                        checked = theatreOn,
+                                        onCheckedChange = { theatreOn = it },
+                                    )
+                                }
+                            )
+                        )
+                    }
                 }
             )
         }

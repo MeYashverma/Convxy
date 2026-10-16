@@ -797,6 +797,15 @@ enum class LyricsAnimationStyle {
     APPLE_MUSIC,
 }
 
+/**
+ * When true and the current track carries multi-singer metadata, the lyrics view
+ * switches to "Theatre" mode automatically on wide screens / fullscreen: each
+ * vocalist's lines enter from their anchor position around the hero artwork
+ * rather than scrolling as a flat list. Portrait / single-singer songs are
+ * unaffected.
+ */
+val LyricsTheatreModeKey = booleanPreferencesKey("lyricsTheatreMode")
+
 val LyricsTextSizeKey = floatPreferencesKey("lyricsTextSize")
 val LyricsLineSpacingKey = floatPreferencesKey("lyricsLineSpacing")
 

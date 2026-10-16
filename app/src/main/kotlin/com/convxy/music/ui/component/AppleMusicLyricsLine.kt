@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.convxy.music.constants.AppleMusicLyricsBlurKey
 import com.convxy.music.constants.LyricsGlowEffectKey
+import com.convxy.music.constants.SingerColorsKey
 import com.convxy.music.lyrics.LyricsEntry
 import com.convxy.music.ui.screens.settings.LyricsPosition
 import com.convxy.music.utils.rememberPreference
@@ -72,9 +73,12 @@ fun AppleMusicLyricsLine(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    overrideAlignment: Alignment? = null,
+    overrideTextAlign: TextAlign? = null,
 ) {
     val (appleMusicLyricsBlur) = rememberPreference(AppleMusicLyricsBlurKey, true)
     val (lyricsGlowEffect) = rememberPreference(LyricsGlowEffectKey, true)
+    val (singerColorsEnabled) = rememberPreference(SingerColorsKey, true)
 
     // Distance is only meaningful for synced lyrics; unsynced docs always
     // render at full emphasis so the style doubles as a plain lyrics viewer.
@@ -103,15 +107,32 @@ fun AppleMusicLyricsLine(
         else -> (2 * abs(distanceFromCurrent).coerceAtMost(3)).dp
     }
 
-    val alignment = when (lyricsTextPosition) {
-        LyricsPosition.LEFT -> Alignment.CenterStart
-        LyricsPosition.CENTER -> Alignment.Center
-        LyricsPosition.RIGHT -> Alignment.CenterEnd
+    // When the entry carries a singer agent (multi-singer lyrics), align each
+    // lead line to their own side of the screen like the other renderers do.
+    // This was previously applied in ViviMusic / Metro but not in the Apple
+    // renderer, so duets rendered every line at the user's global position.
+    val resolvedAlignment = overrideAlignment ?: if (singerColorsEnabled && entry.agent != null && isSynced) {
+        when (singerLineAlignment(entry.agent, entry.isBackground, lyricsTextPosition)) {
+            Alignment.Start -> Alignment.CenterStart
+            Alignment.End -> Alignment.CenterEnd
+            Alignment.CenterHorizontally -> Alignment.Center
+            else -> Alignment.Center
+        }
+    } else {
+        when (lyricsTextPosition) {
+            LyricsPosition.LEFT -> Alignment.CenterStart
+            LyricsPosition.CENTER -> Alignment.Center
+            LyricsPosition.RIGHT -> Alignment.CenterEnd
+        }
     }
-    val textAlign = when (lyricsTextPosition) {
-        LyricsPosition.LEFT -> TextAlign.Left
-        LyricsPosition.CENTER -> TextAlign.Center
-        LyricsPosition.RIGHT -> TextAlign.Right
+    val resolvedTextAlign = overrideTextAlign ?: if (singerColorsEnabled && entry.agent != null && isSynced) {
+        singerTextAlign(entry.agent, entry.isBackground, lyricsTextPosition)
+    } else {
+        when (lyricsTextPosition) {
+            LyricsPosition.LEFT -> TextAlign.Left
+            LyricsPosition.CENTER -> TextAlign.Center
+            LyricsPosition.RIGHT -> TextAlign.Right
+        }
     }
 
     val fontWeight = if (isActive || !isSynced) FontWeight.Bold else FontWeight.SemiBold
@@ -158,7 +179,7 @@ fun AppleMusicLyricsLine(
             .padding(horizontal = 24.dp, vertical = (6 * lineSpacing).dp),
     ) {
         Box(
-            contentAlignment = alignment,
+            contentAlignment = resolvedAlignment,
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (activeAnnotated != null) {
@@ -166,7 +187,7 @@ fun AppleMusicLyricsLine(
                     text = activeAnnotated,
                     fontSize = textSize.sp,
                     fontWeight = fontWeight,
-                    textAlign = textAlign,
+                    textAlign = resolvedTextAlign,
                     color = textColor,
                     style = androidx.compose.ui.text.TextStyle(shadow = glowShadow),
                     modifier = Modifier.fillMaxWidth(),
@@ -176,7 +197,7 @@ fun AppleMusicLyricsLine(
                     text = entry.text,
                     fontSize = textSize.sp,
                     fontWeight = fontWeight,
-                    textAlign = textAlign,
+                    textAlign = resolvedTextAlign,
                     color = textColor,
                     style = androidx.compose.ui.text.TextStyle(shadow = glowShadow),
                     modifier = Modifier.fillMaxWidth(),

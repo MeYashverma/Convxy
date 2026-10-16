@@ -417,6 +417,8 @@
 
     <!-- Lyrics Offset Settings -->
     <string name="lyrics_offset">Lyrics Offset</string>
+    <!-- Spatial Multi-Singer Lyric Theatre -->
+    <string name="lyrics_theatre_mode">Theatre Mode (stage layout)</string>
 
     <!-- Material 3 Settings Sections -->
     <string name="settings_section_ui">Interface</string>

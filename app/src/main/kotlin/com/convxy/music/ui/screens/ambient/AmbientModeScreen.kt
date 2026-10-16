@@ -910,6 +910,9 @@ private fun AmbientForeground(
                 showLyrics = true,
                 positionProvider = { playerConnection.player.currentPosition },
                 lyricsTextSize = lyricsTextSize,
+                // Ambient Mode is the intended "installation" stage for the
+                // spatial layout — full-width landscape canvas, visible mics.
+                preferTheatre = true,
             )
         }
     }
